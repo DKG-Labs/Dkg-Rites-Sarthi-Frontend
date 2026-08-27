@@ -1176,7 +1176,9 @@ const App = () => {
                 user: loggedInUser ? `${loggedInUser.userName}` : 'Railpad-IE'
               });
             }
-            if (call?.requestId?.startsWith('RPP-') || call?.callNo?.startsWith('RPP-')) {
+            const cNo = String(call?.requestId || call?.callNo || call?.call_no || call?.callNumber || '').toUpperCase();
+            const isProcess = cNo.startsWith('RPP') || (call?.callType || call?.typeOfCall || call?.productType || call?.product_type || '').toUpperCase().includes('PROCESS');
+            if (isProcess) {
               setActiveItem('PROCESS_INSPECTION');
             } else {
               setActiveItem('FINAL_INSPECTION');

@@ -680,10 +680,17 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
     }
   }, [selectedLot]);
 
-  // Reset tab to visual if activeTab is ncrgrsp and the active railpad type is not NCRGRSP
+  // Reset tab to visual if activeTab is not applicable for the active railpad type
   useEffect(() => {
-    const isNCRGRSP = activeRailpadType && activeRailpadType.includes('NCRGRSP');
-    if (!isNCRGRSP) {
+    const isNCR = (activeRailpadType || '').toUpperCase().includes('NCR') || (call?.railPadType || '').toUpperCase().includes('NCR') || (call?.railpadType || '').toUpperCase().includes('NCR');
+    if (isNCR) {
+      if (activeTab === 'specialized') {
+        setActiveTab('visual');
+      }
+      if (activeSubmoduleTab === 'specialized') {
+        setActiveSubmoduleTab('visualDim');
+      }
+    } else {
       if (activeTab === 'ncrgrsp') {
         setActiveTab('visual');
       }
@@ -691,7 +698,7 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
         setActiveSubmoduleTab('visualDim');
       }
     }
-  }, [activeRailpadType, activeTab, activeSubmoduleTab]);
+  }, [activeRailpadType, activeTab, activeSubmoduleTab, call]);
 
   useEffect(() => {
     const loadCallDetails = async () => {
@@ -1202,8 +1209,18 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
         };
       }
       if (loadDbData) {
+        const defaultLoads = padPhysicalData(null).loadTest.loads;
         basePhys.loadTest = {
-          loads: padPhysicalData(null).loadTest.loads,
+          loads: [
+            (loadDbData.load1 !== undefined && loadDbData.load1 !== null && loadDbData.load1 !== '') ? loadDbData.load1 : (defaultLoads[0] || ''),
+            (loadDbData.load2 !== undefined && loadDbData.load2 !== null && loadDbData.load2 !== '') ? loadDbData.load2 : (defaultLoads[1] || ''),
+            (loadDbData.load3 !== undefined && loadDbData.load3 !== null && loadDbData.load3 !== '') ? loadDbData.load3 : (defaultLoads[2] || ''),
+            (loadDbData.load4 !== undefined && loadDbData.load4 !== null && loadDbData.load4 !== '') ? loadDbData.load4 : (defaultLoads[3] || ''),
+            (loadDbData.load5 !== undefined && loadDbData.load5 !== null && loadDbData.load5 !== '') ? loadDbData.load5 : (defaultLoads[4] || ''),
+            (loadDbData.load6 !== undefined && loadDbData.load6 !== null && loadDbData.load6 !== '') ? loadDbData.load6 : (defaultLoads[5] || ''),
+            (loadDbData.load7 !== undefined && loadDbData.load7 !== null && loadDbData.load7 !== '') ? loadDbData.load7 : (defaultLoads[6] || ''),
+            (loadDbData.load8 !== undefined && loadDbData.load8 !== null && loadDbData.load8 !== '') ? loadDbData.load8 : (defaultLoads[7] || '')
+          ],
           pad1: [
             { left: loadDbData.pad1L1 || '', right: loadDbData.pad1R1 || '' },
             { left: loadDbData.pad1L2 || '', right: loadDbData.pad1R2 || '' },
@@ -1732,6 +1749,14 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
       shift: call?.shift || 'A',
       railpadType: oRailpadType,
       offeredQty: oOfferedQty,
+      load1: tPhys?.loadTest?.loads?.[0] || '',
+      load2: tPhys?.loadTest?.loads?.[1] || '',
+      load3: tPhys?.loadTest?.loads?.[2] || '',
+      load4: tPhys?.loadTest?.loads?.[3] || '',
+      load5: tPhys?.loadTest?.loads?.[4] || '',
+      load6: tPhys?.loadTest?.loads?.[5] || '',
+      load7: tPhys?.loadTest?.loads?.[6] || '',
+      load8: tPhys?.loadTest?.loads?.[7] || '',
       pad1L1: tPhys.loadTest.pad1[0]?.left || '', pad1R1: tPhys.loadTest.pad1[0]?.right || '',
       pad1L2: tPhys.loadTest.pad1[1]?.left || '', pad1R2: tPhys.loadTest.pad1[1]?.right || '',
       pad1L3: tPhys.loadTest.pad1[2]?.left || '', pad1R3: tPhys.loadTest.pad1[2]?.right || '',
@@ -2534,6 +2559,14 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
           shift: call?.shift || 'A',
           railpadType: activeRailpadType,
           offeredQty: offeredQty,
+          load1: physicalData.loadTest?.loads?.[0] || '',
+          load2: physicalData.loadTest?.loads?.[1] || '',
+          load3: physicalData.loadTest?.loads?.[2] || '',
+          load4: physicalData.loadTest?.loads?.[3] || '',
+          load5: physicalData.loadTest?.loads?.[4] || '',
+          load6: physicalData.loadTest?.loads?.[5] || '',
+          load7: physicalData.loadTest?.loads?.[6] || '',
+          load8: physicalData.loadTest?.loads?.[7] || '',
           pad1L1: physicalData.loadTest.pad1[0]?.left || '',
           pad1L2: physicalData.loadTest.pad1[1]?.left || '',
           pad1L3: physicalData.loadTest.pad1[2]?.left || '',
@@ -3764,6 +3797,14 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
           shift: call?.shift || 'A',
           railpadType: activeRailpadType,
           offeredQty: offeredQty,
+          load1: physicalData.loadTest?.loads?.[0] || '',
+          load2: physicalData.loadTest?.loads?.[1] || '',
+          load3: physicalData.loadTest?.loads?.[2] || '',
+          load4: physicalData.loadTest?.loads?.[3] || '',
+          load5: physicalData.loadTest?.loads?.[4] || '',
+          load6: physicalData.loadTest?.loads?.[5] || '',
+          load7: physicalData.loadTest?.loads?.[6] || '',
+          load8: physicalData.loadTest?.loads?.[7] || '',
           pad1L1: physicalData.loadTest.pad1[0]?.left || '',
           pad1L2: physicalData.loadTest.pad1[1]?.left || '',
           pad1L3: physicalData.loadTest.pad1[2]?.left || '',
@@ -5081,11 +5122,17 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
       case 'ncrAdhesion': {
         if (!specData.ncrgrsp || !specData.ncrgrsp.adhesion) break;
         const checkSample = (v) => {
-          if (!v || v.peel === '' || v.hpull === '') return { filled: false, out: false };
+          if (!v || v.peel === '' || v.peel === undefined || v.peel === null) return { filled: false, out: false };
           const peelVal = parseFloat(v.peel);
-          const hpullVal = parseFloat(v.hpull);
-          if (isNaN(peelVal) || isNaN(hpullVal)) return { filled: false, out: false };
-          return { filled: true, out: peelVal < 4 || hpullVal < 10 };
+          if (isNaN(peelVal)) return { filled: false, out: false };
+          let isOut = peelVal < 4;
+          if (v.hpull !== '' && v.hpull !== undefined && v.hpull !== null) {
+            const hpullVal = parseFloat(v.hpull);
+            if (!isNaN(hpullVal) && hpullVal < 10) {
+              isOut = true;
+            }
+          }
+          return { filled: true, out: isOut };
         };
 
         for (let i = 0; i < 2; i++) {
@@ -5165,7 +5212,7 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
       
       case 'resilience': {
         const checkSample = (r) => {
-          if (!r || r.i1 === '' || r.i2 === '' || r.i3 === '' || r.i4 === '' || r.i5 === '' || r.i6 === '') return { filled: false, out: false };
+          if (!r || r.i4 === '' || r.i5 === '' || r.i6 === '' || r.i4 === undefined || r.i5 === undefined || r.i6 === undefined) return { filled: false, out: false };
           const i4 = parseFloat(r.i4);
           const i5 = parseFloat(r.i5);
           const i6 = parseFloat(r.i6);
@@ -5515,7 +5562,6 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
   const specStatus = specDecision === 'LOT PASSED' ? 'PASS' : specDecision === 'PENDING VERIFICATION' ? 'PENDING' : specDecision === 'RE-TEST REQUIRED' ? 'RE-TEST' : 'FAIL';
   const ncrStatus = ncrDecision === 'LOT PASSED' ? 'PASS' : ncrDecision === 'PENDING VERIFICATION' ? 'PENDING' : ncrDecision === 'RE-TEST REQUIRED' ? 'RE-TEST' : 'FAIL';
   const periodicStatus = periodicDecision === 'LOT PASSED' ? 'PASS' : periodicDecision === 'PENDING VERIFICATION' ? 'PENDING' : periodicDecision === 'RE-TEST REQUIRED' ? 'RE-TEST' : 'FAIL';
-
   const isDimensionalReOffered = dimensionalStatus === 'RE-OFFERED' || dimensionalStatus === 'RE-OFFER';
   const isWeightPass = isNCRGRSP ? true : (weightStatus === 'ACCEPTED');
   const isWeightPending = isNCRGRSP ? false : (!isWeightPass && weightStatus !== 'REJECTED');
@@ -5526,7 +5572,7 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
     || isWeightPending
     || physicalStatus === 'PENDING' || physicalStatus === 'RE-TEST'
     || elecStatus === 'PENDING' || elecStatus === 'RE-TEST'
-    || specStatus === 'PENDING' || specStatus === 'RE-TEST'
+    || (!isNCRGRSP && (specStatus === 'PENDING' || specStatus === 'RE-TEST'))
     || (isNCRGRSP && (ncrStatus === 'PENDING' || ncrStatus === 'RE-TEST'))
     || periodicStatus === 'PENDING' || periodicStatus === 'RE-TEST';
 
@@ -5535,7 +5581,7 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
     || isWeightFailed
     || physicalStatus === 'FAIL'
     || elecStatus === 'FAIL'
-    || specStatus === 'FAIL'
+    || (!isNCRGRSP && specStatus === 'FAIL')
     || (isNCRGRSP && ncrStatus === 'FAIL')
     || periodicStatus === 'FAIL';
 
@@ -5557,7 +5603,7 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
     acceptedQty = 0;
     rejectedQty = 0;
   } else if (isAllCorePass) {
-    activeLotOverallStatus = 'ACCEPTED';
+    activeLotOverallStatus = 'PASSED';
     acceptedQty = offeredQty;
     rejectedQty = 0;
   } else {
@@ -5570,7 +5616,7 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
     if (!selectedLot || loadedLot !== selectedLot) return;
     
     let currentStatus = 'Pending';
-    if (activeLotOverallStatus === 'ACCEPTED') {
+    if (activeLotOverallStatus === 'PASSED') {
       currentStatus = 'Passed';
     } else if (activeLotOverallStatus === 'RE-OFFERED') {
       currentStatus = 'RE-OFFERED';
@@ -5607,7 +5653,7 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
     { id: 'visual', label: 'Visual & Dimensional' },
     { id: 'physical', label: 'Physical & Ageing Properties' },
     { id: 'electrical', label: 'Electrical & Chemical' },
-    { id: 'specialized', label: 'Dynamic & Durability Test' },
+    ...(!isNCRGRSP ? [{ id: 'specialized', label: 'Dynamic & Durability Test' }] : []),
     ...(isNCRGRSP ? [{ id: 'ncrgrsp', label: 'NCRGRSP Test' }] : []),
     { id: 'periodic', label: 'Periodic Testing' },
     ...(showMarginalTab ? [{ id: 'marginal', label: 'Marginal Double-Sampling' }] : [])
@@ -7041,9 +7087,6 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
                       <thead>
                         <tr style={{ background: '#fcfcfc' }}>
                           <th style={{ padding: '10px', fontSize: '11px', border: '1px solid #f1f5f9' }}>Sample No.</th>
-                          <th style={{ padding: '10px', fontSize: '11px', border: '1px solid #f1f5f9' }}>1st Impact</th>
-                          <th style={{ padding: '10px', fontSize: '11px', border: '1px solid #f1f5f9' }}>2nd Impact</th>
-                          <th style={{ padding: '10px', fontSize: '11px', border: '1px solid #f1f5f9' }}>3rd Impact</th>
                           <th style={{ padding: '10px', fontSize: '11px', border: '1px solid #f1f5f9' }}>4th Impact</th>
                           <th style={{ padding: '10px', fontSize: '11px', border: '1px solid #f1f5f9' }}>5th Impact</th>
                           <th style={{ padding: '10px', fontSize: '11px', border: '1px solid #f1f5f9' }}>6th Impact</th>
@@ -7063,7 +7106,7 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
                           return (
                             <tr key={idx}>
                               <td style={{ padding: '8px', textAlign: 'center', fontSize: '12px', fontWeight: '800', background: '#f8fafc', border: '1px solid #f1f5f9' }}>{idx + 1}</td>
-                              {['i1', 'i2', 'i3', 'i4', 'i5', 'i6'].map((impactKey) => (
+                              {['i4', 'i5', 'i6'].map((impactKey) => (
                                 <td key={impactKey} style={{ padding: '4px', border: '1px solid #f1f5f9' }}>
                                   <input type="number" value={data[impactKey]} onChange={(e) => setPhysicalData(prev => {
                                     const newRes = [...prev.resilience];
@@ -7537,7 +7580,7 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
                     <div style={{ padding: '16px 20px', background: '#f8fafc', borderBottom: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                       <div>
                         <h3 style={{ margin: 0, fontSize: '15px', fontWeight: '800', color: '#0f172a' }}>Adhesion Test</h3>
-                        <div style={{ fontSize: '11px', color: '#21808d', fontWeight: '700', marginTop: '2px' }}>Limit: Peel ≥ 4.0 Kgf | H-Pull ≥ 10 Kgf</div>
+                        <div style={{ fontSize: '11px', color: '#21808d', fontWeight: '700', marginTop: '2px' }}>Limit: Peel ≥ 4.0 Kgf | H-Pull ≥ 10 Kgf (Optional)</div>
                       </div>
                       <span style={{ padding: '4px 12px', borderRadius: '6px', fontSize: '11px', fontWeight: '800', background: ncrResults.adhesion === 'PASS' ? '#dcfce7' : ncrResults.adhesion === 'FAIL' ? '#fef3c7' : '#fee2e2', color: ncrResults.adhesion === 'PASS' ? '#166534' : ncrResults.adhesion === 'FAIL' ? '#b45309' : '#991b1b' }}>{ncrResults.adhesion === 'FAIL' ? 'MARGINAL' : ncrResults.adhesion}</span>
                     </div>
@@ -7547,7 +7590,7 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
                           <tr>
                             <th style={{ padding: '10px', border: '1px solid #e2e8f0', background: '#f8fafc', fontSize: '11px', color: '#64748b' }}>Sample No.</th>
                             <th style={{ padding: '10px', border: '1px solid #e2e8f0', background: '#f1f5f9', fontSize: '12px', color: '#475569', fontWeight: '800' }}>Peel Adhesion (Kgf)</th>
-                            <th style={{ padding: '10px', border: '1px solid #e2e8f0', background: '#f1f5f9', fontSize: '12px', color: '#475569', fontWeight: '800' }}>H-Pull Test (Kgf)</th>
+                            <th style={{ padding: '10px', border: '1px solid #e2e8f0', background: '#f1f5f9', fontSize: '12px', color: '#475569', fontWeight: '800' }}>H-Pull Test (Kgf) <span style={{ fontSize: '10px', color: '#64748b', fontWeight: 'normal' }}>(Optional)</span></th>
                           </tr>
                         </thead>
                         <tbody>
@@ -8693,7 +8736,7 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
                             <div style={{ padding: '16px 20px', background: '#f8fafc', borderBottom: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                               <div>
                                 <h3 style={{ margin: 0, fontSize: '15px', fontWeight: '800', color: '#0f172a' }}>{config.name} (Double Sampling)</h3>
-                                <div style={{ fontSize: '11px', color: '#21808d', fontWeight: '700', marginTop: '2px' }}>Limit: Peel ≥ 4.0 Kgf | H-Pull ≥ 10 Kgf</div>
+                                <div style={{ fontSize: '11px', color: '#21808d', fontWeight: '700', marginTop: '2px' }}>Limit: Peel ≥ 4.0 Kgf | H-Pull ≥ 10 Kgf (Optional)</div>
                               </div>
                               <span style={{ padding: '4px 12px', borderRadius: '6px', fontSize: '11px', fontWeight: '800', background: status === 'PASS' ? '#dcfce7' : status === 'FAIL' ? '#fee2e2' : '#fff7ed', color: status === 'PASS' ? '#166534' : status === 'FAIL' ? '#991b1b' : '#c2410c', textTransform: 'uppercase' }}>{status}</span>
                             </div>
@@ -8703,7 +8746,7 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
                                   <tr>
                                     <th style={{ padding: '10px', border: '1px solid #e2e8f0', background: '#f8fafc', fontSize: '11px', color: '#64748b' }}>Sample No.</th>
                                     <th style={{ padding: '10px', border: '1px solid #e2e8f0', background: '#f1f5f9', fontSize: '12px', color: '#475569', fontWeight: '800' }}>Peel Adhesion (Kgf)</th>
-                                    <th style={{ padding: '10px', border: '1px solid #e2e8f0', background: '#f1f5f9', fontSize: '12px', color: '#475569', fontWeight: '800' }}>H-Pull Test (Kgf)</th>
+                                    <th style={{ padding: '10px', border: '1px solid #e2e8f0', background: '#f1f5f9', fontSize: '12px', color: '#475569', fontWeight: '800' }}>H-Pull Test (Kgf) <span style={{ fontSize: '10px', color: '#64748b', fontWeight: 'normal' }}>(Optional)</span></th>
                                   </tr>
                                 </thead>
                                 <tbody>
@@ -9062,7 +9105,7 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
                     { key: 'visualDim', label: 'Visual & Dimensional', status: visualDimStatus },
                     { key: 'physical', label: 'Physical & Ageing Properties', status: physicalStatus },
                     { key: 'electrical', label: 'Electrical & Chemical', status: elecStatus },
-                    { key: 'specialized', label: 'Dynamic & Durability Test', status: specStatus },
+                    ...(!isNCRGRSP ? [{ key: 'specialized', label: 'Dynamic & Durability Test', status: specStatus }] : []),
                     { key: 'periodic', label: 'Periodic Testing', status: periodicStatus },
                     ...(isNCRGRSP ? [{ key: 'ncrgrsp', label: 'NCRGRSP', status: ncrStatus }] : [])
                   ].map(({ key, label, status }) => {

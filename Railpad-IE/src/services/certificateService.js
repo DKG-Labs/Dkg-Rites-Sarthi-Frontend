@@ -349,6 +349,128 @@ export const viewSignedCertificate = async (icNumber) => {
   }
 };
 
+/**
+ * Check if Signed IC exists in Azure Blob Storage / DB
+ * @param {string} icNumber 
+ * @returns {Promise<boolean>} exists
+ */
+export const checkSignedCertificateExists = async (icNumber) => {
+  try {
+    const response = await fetch(`${getBaseUrl()}/certificate-storage/check?icNumber=${encodeURIComponent(icNumber)}`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${localStorage.getItem('authToken') || ''}`
+      }
+    });
+
+    if (!response.ok) {
+      return false;
+    }
+
+    const data = await response.json();
+    return data.exists;
+  } catch (error) {
+    console.error('❌ Error checking certificate existence:', error);
+    return false;
+  }
+};
+
+/**
+ * Update Signed IC in Azure Blob Storage & Database
+ * @param {Object} payload { icNumber, signedData, fileName, uploadedBy }
+ * @returns {Promise<Object>} Update response
+ */
+export const updateSignedCertificate = async (payload) => {
+  try {
+    console.log('🔄 Updating signed certificate in Azure for IC:', payload.icNumber);
+    const response = await fetch(`${getBaseUrl()}/certificate-storage/update`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${localStorage.getItem('authToken') || ''}`
+      },
+      body: JSON.stringify(payload)
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(errorText || `Failed to update certificate: ${response.status}`);
+    }
+
+    const data = await response.json();
+    console.log('✅ Signed certificate successfully updated in Azure & DB:', data);
+    return data;
+  } catch (error) {
+    console.error('❌ Error updating certificate in Azure:', error);
+    throw error;
+  }
+};
+
+/**
+ * Upload Signed Certificate as Multipart File
+ * @param {File} file 
+ * @param {string} icNumber 
+ * @param {string} uploadedBy 
+ * @returns {Promise<Object>}
+ */
+export const uploadSignedCertificateFile = async (file, icNumber, uploadedBy) => {
+  try {
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('icNumber', icNumber);
+    if (uploadedBy) formData.append('uploadedBy', uploadedBy);
+
+    const response = await fetch(`${getBaseUrl()}/certificate-storage/upload-file`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${localStorage.getItem('authToken') || ''}`
+      },
+      body: formData
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(errorText || `Failed to upload file: ${response.status}`);
+    }
+
+    return await response.json();
+  } catch (error) {
+    console.error('❌ Error uploading certificate file:', error);
+    throw error;
+  }
+};
+
+/**
+ * Delete Signed IC from Azure Blob Storage & Database
+ * @param {string} icNumber 
+ * @returns {Promise<Object>} Response data
+ */
+export const deleteSignedCertificate = async (icNumber) => {
+  try {
+    console.log('🗑️ Deleting signed certificate from Azure for IC:', icNumber);
+    const response = await fetch(`${getBaseUrl()}/certificate-storage/delete?icNumber=${encodeURIComponent(icNumber)}`, {
+      method: 'DELETE',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${localStorage.getItem('authToken') || ''}`
+      }
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(errorText || `Failed to delete certificate: ${response.status}`);
+    }
+
+    const data = await response.json();
+    console.log('✅ Signed certificate deleted successfully:', data);
+    return data;
+  } catch (error) {
+    console.error('❌ Error deleting certificate from Azure:', error);
+    throw error;
+  }
+};
+
 // ─── Process IC Save Changes ──────────────────────────────────────────────────
 
 /**

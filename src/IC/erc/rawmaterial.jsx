@@ -26,6 +26,7 @@ export default function RawMaterialCertificate({ call = {}, onBack }) {
   const [editableData, setEditableData] = useState(null);
   const [notification, setNotification] = useState({ open: false, message: '', severity: 'info' });
   const [bookSetValidation, setBookSetValidation] = useState({ isValid: false, message: null, isValidating: false });
+  const [bookWarningModal, setBookWarningModal] = useState({ show: false, onProceed: null });
 
   useEffect(() => {
     if (call?.po_no && call?.call_no) {
@@ -290,11 +291,7 @@ export default function RawMaterialCertificate({ call = {}, onBack }) {
       return { ...prev, [arrayField]: newArray };
     });
   };
-  const handleSaveChanges = async () => {
-    if (dataToPass.bookNo.length !== 4) {
-      setNotification({ open: true, message: "Book No. must be exactly 4 characters long.", severity: 'warning' });
-      return;
-    }
+  const executeSaveChanges = async () => {
     if (!/^\d{3}$/.test(dataToPass.setNo)) {
       setNotification({ open: true, message: "Set No. must be exactly 3 digits.", severity: 'warning' });
       return;
@@ -333,18 +330,26 @@ export default function RawMaterialCertificate({ call = {}, onBack }) {
     }
   };
 
+  const handleSaveChanges = () => {
+    if (!dataToPass.bookNo || !dataToPass.setNo) {
+      setNotification({ open: true, message: "Please fill in both Book No. and Set No. before saving.", severity: 'warning' });
+      return;
+    }
+
+    if (dataToPass.bookNo.trim().length < 4) {
+      setBookWarningModal({
+        show: true,
+        onProceed: executeSaveChanges
+      });
+      return;
+    }
+
+    executeSaveChanges();
+  };
+
   const dataToPass = editableData || transformCallToIC(call, poDetails);
 
-  const handleVerifyBookSet = async () => {
-    if (!dataToPass.bookNo || !dataToPass.setNo) {
-      setNotification({ open: true, message: "Please fill in both Book No. and Set No. before verifying.", severity: 'warning' });
-      return;
-    }
-
-    if (dataToPass.bookNo.length !== 4) {
-      setNotification({ open: true, message: "Book No. must be exactly 4 characters long.", severity: 'warning' });
-      return;
-    }
+  const executeVerifyBookSet = async () => {
     if (!/^\d{3}$/.test(dataToPass.setNo)) {
       setNotification({ open: true, message: "Set No. must be exactly 3 digits.", severity: 'warning' });
       return;
@@ -372,6 +377,28 @@ export default function RawMaterialCertificate({ call = {}, onBack }) {
     }
   };
 
+  const handleVerifyBookSet = () => {
+    if (!dataToPass.bookNo || !dataToPass.setNo) {
+      setNotification({ open: true, message: "Please fill in both Book No. and Set No. before verifying.", severity: 'warning' });
+      return;
+    }
+
+    if (!/^\d{3}$/.test(dataToPass.setNo)) {
+      setNotification({ open: true, message: "Set No. must be exactly 3 digits.", severity: 'warning' });
+      return;
+    }
+
+    if (dataToPass.bookNo.trim().length < 4) {
+      setBookWarningModal({
+        show: true,
+        onProceed: executeVerifyBookSet
+      });
+      return;
+    }
+
+    executeVerifyBookSet();
+  };
+
   const handleExport = async () => {
     if (!printAreaRef.current) return;
     if (isEditing) {
@@ -382,25 +409,11 @@ export default function RawMaterialCertificate({ call = {}, onBack }) {
     await exportToPdf(printAreaRef.current, `${sanitizedFilename}.pdf`);
   };
 
-  const handleESign = async () => {
-    console.log("📝 handleESign triggered");
+  const executeESign = async () => {
+    console.log("📝 executeESign triggered");
     try {
       setIsESigning(true);
       
-      // 1. Mandatory Validations
-      console.log("🔍 Validating mandatory fields... dataToPass:", dataToPass);
-      if (!dataToPass.bookNo || !dataToPass.setNo) {
-          console.warn("⚠️ Validation failed: Book No or Set No is missing.");
-          setNotification({ open: true, message: "Please fill in the 'Book No.' and 'Set No.' before signing.", severity: 'warning' });
-          setIsESigning(false);
-          return;
-      }
-      
-      if (dataToPass.bookNo.length !== 4) {
-          setNotification({ open: true, message: "Book No. must be exactly 4 characters long.", severity: 'warning' });
-          setIsESigning(false);
-          return;
-      }
       if (!/^\d{3}$/.test(dataToPass.setNo)) {
           setNotification({ open: true, message: "Set No. must be exactly 3 digits.", severity: 'warning' });
           setIsESigning(false);
@@ -509,6 +522,22 @@ export default function RawMaterialCertificate({ call = {}, onBack }) {
     }
   };
 
+  const handleESign = () => {
+    if (!dataToPass.bookNo || !dataToPass.setNo) {
+        setNotification({ open: true, message: "Please fill in the 'Book No.' and 'Set No.' before signing.", severity: 'warning' });
+        return;
+    }
+
+    if (dataToPass.bookNo.trim().length < 4) {
+      setBookWarningModal({
+        show: true,
+        onProceed: executeESign
+      });
+      return;
+    }
+
+    executeESign();
+  };
 
   const handleCancelChanges = async () => {
     setIsEditing(false);
@@ -639,6 +668,102 @@ export default function RawMaterialCertificate({ call = {}, onBack }) {
           {notification.message}
         </Alert>
       </Snackbar>
+
+      {/* Book Number Warning & Acknowledgment Modal */}
+      {bookWarningModal.show && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: 'rgba(15, 23, 42, 0.65)',
+          backdropFilter: 'blur(4px)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 100000,
+          animation: 'fadeIn 0.2s ease-out'
+        }}>
+          <div style={{
+            background: '#ffffff',
+            borderRadius: '20px',
+            padding: '28px 32px',
+            maxWidth: '460px',
+            width: '90%',
+            boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
+            textAlign: 'center',
+            border: '1px solid #fef08a'
+          }}>
+            <div style={{
+              width: '56px',
+              height: '56px',
+              borderRadius: '50%',
+              background: '#fefce8',
+              border: '2px solid #fef08a',
+              color: '#ca8a04',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontSize: '28px',
+              margin: '0 auto 16px'
+            }}>
+              ⚠️
+            </div>
+            
+            <h3 style={{ fontSize: '18px', fontWeight: '800', color: '#854d0e', marginBottom: '8px' }}>
+              Book Number Notice
+            </h3>
+            
+            <p style={{ fontSize: '14px', color: '#475569', lineHeight: '1.5', marginBottom: '24px', fontWeight: '500' }}>
+              Book Number is generally of 4 characters. Please ensure that the correct Book Number has been entered.
+            </p>
+            
+            <div style={{ display: 'flex', gap: '12px', justifyContent: 'center' }}>
+              <button
+                onClick={() => setBookWarningModal({ show: false, onProceed: null })}
+                style={{
+                  flex: 1,
+                  padding: '12px 18px',
+                  borderRadius: '10px',
+                  border: '1px solid #cbd5e1',
+                  background: '#ffffff',
+                  color: '#475569',
+                  fontWeight: '700',
+                  fontSize: '13.5px',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s'
+                }}
+              >
+                Check Again
+              </button>
+              
+              <button
+                onClick={() => {
+                  const proceedFn = bookWarningModal.onProceed;
+                  setBookWarningModal({ show: false, onProceed: null });
+                  if (proceedFn) proceedFn();
+                }}
+                style={{
+                  flex: 1,
+                  padding: '12px 18px',
+                  borderRadius: '10px',
+                  border: 'none',
+                  background: '#2563eb',
+                  color: '#ffffff',
+                  fontWeight: '800',
+                  fontSize: '13.5px',
+                  cursor: 'pointer',
+                  boxShadow: '0 4px 10px rgba(37, 99, 235, 0.25)',
+                  transition: 'all 0.2s'
+                }}
+              >
+                Acknowledge &amp; Proceed
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </Box>
   );
 }

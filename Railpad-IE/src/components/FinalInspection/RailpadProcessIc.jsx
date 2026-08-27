@@ -213,7 +213,7 @@ const RailpadProcessIc = ({
     "dateOfCall", "noOfVisits", "datesOfInspection", "sealingPattern", "inspectingEngineer"
   ];
 
-  const isBookSetEntered = Boolean(bookNo && bookNo.trim().length === 4 && setNo && /^\d{3}$/.test(setNo.trim()));
+  const isBookSetEntered = Boolean(bookNo && bookNo.trim().length > 0 && setNo && /^\d{3}$/.test(setNo.trim()));
 
   const fieldProps = {
     isEditing,
@@ -279,7 +279,7 @@ const RailpadProcessIc = ({
                 बुक सं Book No.
               </div>
               <div style={{ padding: '3px', display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '22px' }}>
-                <EditableField value={bookNo} fieldName="bookNo" maxLength={4} style={{ textAlign: 'center', fontWeight: 'bold', fontSize: '11px', textTransform: 'uppercase' }} {...fieldProps} />
+                <EditableField value={bookNo} fieldName="bookNo" maxLength={10} style={{ textAlign: 'center', fontWeight: 'bold', fontSize: '11px', textTransform: 'uppercase' }} {...fieldProps} />
               </div>
             </div>
             <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
@@ -292,23 +292,42 @@ const RailpadProcessIc = ({
             </div>
           </div>
           {isEditing && (
-            <div style={{ marginTop: '4px', display: 'flex', gap: '6px', alignItems: 'center' }}>
-              <button
-                type="button"
-                onClick={onVerifyBookSet}
-                disabled={isBusy || bookSetValidation?.isValidating}
-                style={{ backgroundColor: '#2563eb', color: 'white', border: 'none', padding: '2px 6px', borderRadius: '3px', fontSize: '8.5px', fontWeight: 'bold', cursor: 'pointer' }}
-              >
-                {bookSetValidation?.isValidating ? "Validating..." : "Verify Book & Set"}
-              </button>
-              {bookSetValidation && !bookSetValidation.isValidating && (
-                <span style={{ fontSize: '8.5px', fontWeight: 'bold' }}>
-                  {bookSetValidation.isValid ? (
-                    <span style={{ color: '#16a34a' }}>✅ Valid</span>
-                  ) : (
-                    <span style={{ color: '#dc2626' }}>❌ Invalid</span>
-                  )}
-                </span>
+            <div style={{ marginTop: '4px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px' }}>
+              <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+                <button
+                  type="button"
+                  onClick={onVerifyBookSet}
+                  disabled={isBusy || bookSetValidation?.isValidating}
+                  style={{ backgroundColor: '#2563eb', color: 'white', border: 'none', padding: '2px 6px', borderRadius: '3px', fontSize: '8.5px', fontWeight: 'bold', cursor: 'pointer' }}
+                >
+                  {bookSetValidation?.isValidating ? "Validating..." : "Verify Book & Set"}
+                </button>
+                {bookSetValidation && !bookSetValidation.isValidating && (
+                  <span style={{ fontSize: '8.5px', fontWeight: 'bold' }}>
+                    {bookSetValidation.isValid ? (
+                      <span style={{ color: '#16a34a' }}>✅ Valid</span>
+                    ) : (
+                      <span style={{ color: '#dc2626' }}>❌ Invalid</span>
+                    )}
+                  </span>
+                )}
+              </div>
+              
+              {bookNo && String(bookNo).trim().length > 0 && String(bookNo).trim().length < 4 && (
+                <div style={{
+                  fontSize: '8px',
+                  color: '#854d0e',
+                  background: '#fefce8',
+                  border: '1px solid #fef08a',
+                  borderRadius: '4px',
+                  padding: '2px 6px',
+                  textAlign: 'center',
+                  fontWeight: '700',
+                  lineHeight: '1.2',
+                  maxWidth: '220px'
+                }}>
+                  ⚠️ Book Number is generally of 4 characters. Please ensure that the correct Book Number has been entered.
+                </div>
               )}
             </div>
           )}

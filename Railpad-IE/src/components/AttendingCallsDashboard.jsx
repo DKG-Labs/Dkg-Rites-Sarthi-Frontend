@@ -6,7 +6,7 @@ import { getBaseUrl } from '../services/apiConfig';
 import Notification from './Notification';
 import { getStoredUser } from '../services/authService';
 import CorrectionSlipModal from './CorrectionSlipModal';
-
+import PendingCallDetailsModal from './PendingCallDetailsModal';
 import ShiftDutyForm from './ShiftDutyForm';
 
 const AttendingCallsDashboard = ({ onStart, onResume, onIssueIc, onBackToPortal, dutyPlantId }) => {
@@ -19,6 +19,8 @@ const AttendingCallsDashboard = ({ onStart, onResume, onIssueIc, onBackToPortal,
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCall, setSelectedCall] = useState(null);
   const [showDetailsModal, setShowDetailsModal] = useState(false);
+  const [selectedCallForView, setSelectedCallForView] = useState(null);
+  const [selectedCallActions, setSelectedCallActions] = useState([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showScheduleModal, setShowScheduleModal] = useState(false);
   const [scheduleDate, setScheduleDate] = useState('');
@@ -617,142 +619,92 @@ const AttendingCallsDashboard = ({ onStart, onResume, onIssueIc, onBackToPortal,
                       </td>
                       <td style={{ padding: '12px 16px' }}>
                         <div style={{ display: 'flex', gap: '8px' }}>
-                          {/* DETAILS button removed per user request */}
-                          {(call.jobStatus || '').toUpperCase() === 'RIO_VERIFIED' && (
+                          {activeTab === 'certificates' ? (
+                            <>
+                              {(
+                                (call.jobStatus || '').toUpperCase() === 'INSPECTION_DONE' ||
+                                (call.status || '').toUpperCase() === 'INSPECTION_DONE' ||
+                                (call.jobStatus || '').toUpperCase() === 'CERTIFICATE_PENDING' ||
+                                (call.status || '').toUpperCase() === 'CERTIFICATE_PENDING' ||
+                                (call.jobStatus || '').toUpperCase() === 'COMPLETED' ||
+                                (call.status || '').toUpperCase() === 'COMPLETED' ||
+                                (call.jobStatus || '').toUpperCase() === 'ISSUE IC' ||
+                                (call.status || '').toUpperCase() === 'ISSUE IC' ||
+                                (call.jobStatus || '').toUpperCase() === 'IC_ISSUE' ||
+                                (call.status || '').toUpperCase() === 'IC_ISSUE' ||
+                                (call.jobStatus || '').toUpperCase() === 'IC_GENERATION' ||
+                                (call.status || '').toUpperCase() === 'IC_GENERATION' ||
+                                (call.jobStatus || '').toUpperCase() === 'GENERATED' ||
+                                (call.status || '').toUpperCase() === 'GENERATED'
+                              ) && (
+                                <button
+                                  onClick={() => handleIssueICClick(call)}
+                                  style={{
+                                    padding: '6px 14px',
+                                    borderRadius: '6px',
+                                    border: '1px solid #10b981',
+                                    background: '#ecfdf5',
+                                    color: '#047857',
+                                    fontSize: '11px',
+                                    fontWeight: '700',
+                                    cursor: 'pointer'
+                                  }}
+                                >
+                                  {(call.action === 'IC_ISSUE' || call.action === 'ISSUE IC' || (call.jobStatus || '').toUpperCase().includes('IC_ISSUE') || (call.status || '').toUpperCase().includes('IC_ISSUE')) ? 'VIEW IC' : 'ISSUE IC'}
+                                </button>
+                              )}
+                              {((call.jobStatus || '').toUpperCase() === 'DSC_SIGN_IC' || (call.status || '').toUpperCase() === 'DSC_SIGN_IC' || (call.jobStatus || '').toUpperCase() === 'IC_SIGNED' || (call.status || '').toUpperCase() === 'IC_SIGNED' || (call.jobStatus || '').toUpperCase() === 'SIGNED' || (call.status || '').toUpperCase() === 'SIGNED') && (
+                                <button
+                                  onClick={() => onIssueIc && onIssueIc(call, true)}
+                                  style={{
+                                    padding: '6px 14px',
+                                    borderRadius: '6px',
+                                    border: '1px solid #3b82f6',
+                                    background: '#eff6ff',
+                                    color: '#1d4ed8',
+                                    fontSize: '11px',
+                                    fontWeight: '700',
+                                    cursor: 'pointer'
+                                  }}
+                                >
+                                  VIEW IC
+                                </button>
+                              )}
+                            </>
+                          ) : (
                             <button
-                              onClick={() => handleOpenSchedule(call)}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                const availableActions = [];
+                                const jst = (call.jobStatus || call.status || '').toUpperCase();
+                                if (jst === 'RIO_VERIFIED') {
+                                  availableActions.push('schedule');
+                                } else if (jst === 'SCHEDULED') {
+                                  availableActions.push('reschedule');
+                                  availableActions.push('start');
+                                } else if (jst === 'INITIATED' || jst === 'PO_VERIFICATION' || jst === 'RESUME') {
+                                  availableActions.push('resume');
+                                } else if (jst === 'PAUSED') {
+                                  availableActions.push('enterShiftDetails');
+                                }
+                                setSelectedCallForView(call);
+                                setSelectedCallActions(availableActions);
+                                setShowDetailsModal(true);
+                              }}
                               style={{
-                                padding: '6px 12px',
+                                padding: '6px 14px',
                                 borderRadius: '6px',
-                                border: '1px solid #bbf7d0',
-                                background: '#f0fdf4',
-                                color: '#166534',
+                                border: 'none',
+                                background: '#2563eb',
+                                color: '#ffffff',
                                 fontSize: '11px',
                                 fontWeight: '700',
-                                cursor: 'pointer'
+                                cursor: 'pointer',
+                                boxShadow: '0 1px 2px rgba(37, 99, 235, 0.2)',
+                                whiteSpace: 'nowrap'
                               }}
                             >
-                              SCHEDULE
-                            </button>
-                          )}
-                          {((call.jobStatus || '').toUpperCase() === 'SCHEDULED' || (call.status || '').toUpperCase() === 'SCHEDULED') && (
-                            <button
-                              onClick={() => handleStartInspection(call)}
-                              disabled={isSubmitting}
-                              style={{
-                                padding: '6px 12px',
-                                borderRadius: '6px',
-                                border: '1px solid #bfdbfe',
-                                background: isSubmitting ? '#f1f5f9' : '#eff6ff',
-                                color: isSubmitting ? '#94a3b8' : '#1e40af',
-                                fontSize: '11px',
-                                fontWeight: '700',
-                                cursor: isSubmitting ? 'not-allowed' : 'pointer',
-                                minWidth: '60px'
-                              }}
-                            >
-                              {isSubmitting ? '...' : 'START'}
-                            </button>
-                          )}
-                          {((call.jobStatus || '').toUpperCase() === 'INITIATED' || (call.status || '').toUpperCase() === 'INITIATED') && (
-                            <button
-                              onClick={() => onStart(call)}
-                              style={{
-                                padding: '6px 12px',
-                                borderRadius: '6px',
-                                border: '1px solid #fde68a',
-                                background: '#fffbeb',
-                                color: '#92400e',
-                                fontSize: '11px',
-                                fontWeight: '700',
-                                cursor: 'pointer'
-                              }}
-                            >
-                              RESUME
-                            </button>
-                          )}
-                          {((call.jobStatus || '').toUpperCase() === 'PO_VERIFICATION' || (call.status || '').toUpperCase() === 'PO_VERIFICATION' || (call.jobStatus || '').toUpperCase() === 'RESUME' || (call.status || '').toUpperCase() === 'RESUME') && (
-                            <button
-                              onClick={() => handleResumeClick(call)}
-                              style={{
-                                padding: '6px 12px',
-                                borderRadius: '6px',
-                                border: '1px solid #fde68a',
-                                background: '#fffbeb',
-                                color: '#92400e',
-                                fontSize: '11px',
-                                fontWeight: '700',
-                                cursor: 'pointer'
-                              }}
-                            >
-                              RESUME
-                            </button>
-                          )}
-                          {((call.jobStatus || '').toUpperCase() === 'PAUSED' || (call.status || '').toUpperCase() === 'PAUSED') && (
-                            <button
-                              onClick={() => handleResumeClick(call)}
-                              style={{
-                                padding: '6px 12px',
-                                borderRadius: '6px',
-                                border: '1px solid #93c5fd',
-                                background: '#eff6ff',
-                                color: '#1e40af',
-                                fontSize: '11px',
-                                fontWeight: '700',
-                                cursor: 'pointer'
-                              }}
-                            >
-                              Enter Shift Details
-                            </button>
-                          )}
-                          {/* IC Issuance Stage */}
-                          {(
-                            (call.jobStatus || '').toUpperCase() === 'INSPECTION_DONE' ||
-                            (call.status || '').toUpperCase() === 'INSPECTION_DONE' ||
-                            (call.jobStatus || '').toUpperCase() === 'CERTIFICATE_PENDING' ||
-                            (call.status || '').toUpperCase() === 'CERTIFICATE_PENDING' ||
-                            (call.jobStatus || '').toUpperCase() === 'COMPLETED' ||
-                            (call.status || '').toUpperCase() === 'COMPLETED' ||
-                            (call.jobStatus || '').toUpperCase() === 'ISSUE IC' ||
-                            (call.status || '').toUpperCase() === 'ISSUE IC' ||
-                            (call.jobStatus || '').toUpperCase() === 'IC_ISSUE' ||
-                            (call.status || '').toUpperCase() === 'IC_ISSUE' ||
-                            (call.jobStatus || '').toUpperCase() === 'IC_GENERATION' ||
-                            (call.status || '').toUpperCase() === 'IC_GENERATION' ||
-                            (call.jobStatus || '').toUpperCase() === 'GENERATED' ||
-                            (call.status || '').toUpperCase() === 'GENERATED'
-                          ) && (
-                            <button
-                              onClick={() => handleIssueICClick(call)}
-                              style={{
-                                padding: '6px 12px',
-                                borderRadius: '6px',
-                                border: '1px solid #10b981',
-                                background: '#ecfdf5',
-                                color: '#047857',
-                                fontSize: '11px',
-                                fontWeight: '700',
-                                cursor: 'pointer'
-                              }}
-                            >
-                              {(call.action === 'IC_ISSUE' || call.action === 'ISSUE IC' || (call.jobStatus || '').toUpperCase().includes('IC_ISSUE') || (call.status || '').toUpperCase().includes('IC_ISSUE')) ? 'VIEW IC' : 'ISSUE IC'}
-                            </button>
-                          )}
-                          {((call.jobStatus || '').toUpperCase() === 'DSC_SIGN_IC' || (call.status || '').toUpperCase() === 'DSC_SIGN_IC' || (call.jobStatus || '').toUpperCase() === 'IC_SIGNED' || (call.status || '').toUpperCase() === 'IC_SIGNED' || (call.jobStatus || '').toUpperCase() === 'SIGNED' || (call.status || '').toUpperCase() === 'SIGNED') && (
-                            <button
-                              onClick={() => onIssueIc && onIssueIc(call, true)}
-                              style={{
-                                padding: '6px 12px',
-                                borderRadius: '6px',
-                                border: '1px solid #3b82f6',
-                                background: '#eff6ff',
-                                color: '#1d4ed8',
-                                fontSize: '11px',
-                                fontWeight: '700',
-                                cursor: 'pointer'
-                              }}
-                            >
-                              VIEW IC
+                              VIEW ACTIONS
                             </button>
                           )}
                         </div>
@@ -1040,6 +992,45 @@ const AttendingCallsDashboard = ({ onStart, onResume, onIssueIc, onBackToPortal,
           }}
         />
       )}
+
+      {/* Pending Call Details / Actions Modal */}
+      <PendingCallDetailsModal
+        isOpen={showDetailsModal}
+        onClose={() => {
+          setShowDetailsModal(false);
+          setSelectedCallForView(null);
+          setSelectedCallActions([]);
+        }}
+        call={selectedCallForView}
+        showNotification={(msg, type) => setNotification({ message: msg, type: type || 'info' })}
+        availableActions={selectedCallActions}
+        onSchedule={() => {
+          handleOpenSchedule(selectedCallForView);
+          setShowDetailsModal(false);
+        }}
+        onReschedule={() => {
+          handleOpenSchedule(selectedCallForView);
+          setShowDetailsModal(false);
+        }}
+        onStart={() => {
+          handleStartInspection(selectedCallForView);
+          setShowDetailsModal(false);
+        }}
+        onResume={() => {
+          if (onResume) {
+            onResume(selectedCallForView);
+          }
+          setShowDetailsModal(false);
+        }}
+        onEnterShiftDetails={() => {
+          handleResumeClick(selectedCallForView);
+          setShowDetailsModal(false);
+        }}
+        onDone={() => {
+          loadCalls();
+          setShowDetailsModal(false);
+        }}
+      />
     </div>
   );
 };

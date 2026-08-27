@@ -4,7 +4,7 @@ import { ROUTES } from './routes';
 import ProtectedRoute from './components/ProtectedRoute';
 import AppLayout from './components/AppLayout';
 import LoginPage from './pages/LoginPage';
-import { getStoredUser } from './services/authService';
+import { getStoredUser, logoutUser } from './services/authService';
 
 // Page Wrappers
 import LandingPageWrapper from './pages/wrappers/LandingPageWrapper';
@@ -162,12 +162,17 @@ const LandingPageGuard = () => {
   
   const isIe = userRoles.some(r => ieRoles.includes(r));
   if (!isIe) {
-    let target = ROUTES.LOGIN;
+    let target = null;
     for (const r of userRoles) {
       if (ROLE_LANDING_ROUTE[r]) {
         target = ROLE_LANDING_ROUTE[r];
         break;
       }
+    }
+    if (!target) {
+      // Invalid/unrecognized role - logout to prevent redirect loop with /login
+      logoutUser();
+      target = ROUTES.LOGIN;
     }
     return <Navigate to={target} replace />;
   }

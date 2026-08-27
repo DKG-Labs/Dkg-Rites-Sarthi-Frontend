@@ -116,10 +116,47 @@ export const loginUser = async (userId, password) => {
       throw new Error(data.responseStatus?.message || 'Login failed');
     }
 
-    // Return the responseData containing user info and token
+    // Return the responseData containing user info and token or MFA payload
     const responseData = data.responseData;
-    responseData.loginId = userId; // attach the input loginId
+    if (responseData) {
+      responseData.loginId = userId; // attach the input loginId
+    }
     return responseData;
+  } catch (error) {
+    throw error;
+  }
+};
+
+/**
+ * Verify OTP for MFA authentication
+ * @param {string} transactionId - OTP transaction identifier
+ * @param {string} otp - User entered OTP
+ * @returns {Promise<Object>} Login response with user data and token
+ */
+export const verifyOtp = async (transactionId, otp) => {
+  try {
+    const response = await fetch(`${API_BASE_URL}/api/auth/verifyOtp`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        transactionId: String(transactionId),
+        otp: String(otp).trim(),
+      }),
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.responseStatus?.message || data.errorMessage || 'Invalid OTP');
+    }
+
+    if (data.responseStatus?.statusCode !== 0) {
+      throw new Error(data.responseStatus?.message || 'OTP verification failed');
+    }
+
+    return data.responseData;
   } catch (error) {
     throw error;
   }

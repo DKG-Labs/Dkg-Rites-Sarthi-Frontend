@@ -119,7 +119,7 @@ const ErcProcessIC = ({ data = {}, isEditing = false, isBusy = false, onChange =
   };
   const poSrNoStr = extractPoSrNo(contractRef);
 
-  const isOldIcValid = data?.bookNo?.length === 4 && /^\d{3}$/.test(data?.setNo);
+  const isOldIcValid = Boolean(data?.bookNo && String(data?.bookNo).trim().length > 0 && /^\d{3}$/.test(data?.setNo));
   const isFormLocked = isEditing && (
     (data?.icType === 'new' && !bookSetValidation?.isValid) ||
     (data?.icType !== 'new' && !isOldIcValid)
@@ -165,7 +165,7 @@ const ErcProcessIC = ({ data = {}, isEditing = false, isBusy = false, onChange =
                   <div className="h-[2px]" />
                 </div>
                 <div className="p-1 flex items-center justify-center min-h-[22px]">
-                  <EditableField isEditing={isEditing} disabled={isBusy} value={bookNo} onChange={(val) => onChange("bookNo", val)} className="text-center font-bold text-[12px]" maxLength={4} />
+                  <EditableField isEditing={isEditing} disabled={isBusy} value={bookNo} onChange={(val) => onChange("bookNo", val)} className="text-center font-bold text-[12px]" maxLength={10} />
                 </div>
               </div>
               <div className="flex flex-col">
@@ -182,22 +182,30 @@ const ErcProcessIC = ({ data = {}, isEditing = false, isBusy = false, onChange =
 
             {/* Verify Book & Set No Button (Hidden in PDF) */}
             {isEditing && data?.icType === 'new' && (
-              <div className="no-print mt-1 flex items-center gap-2">
-                <button
-                  onClick={onVerifyBookSet}
-                  disabled={isBusy || bookSetValidation?.isValidating}
-                  className="bg-blue-600 text-white px-2 py-0.5 rounded text-[10px] font-bold shadow hover:bg-blue-700 disabled:opacity-50"
-                >
-                  {bookSetValidation?.isValidating ? "Validating..." : "Verify Book & Set No."}
-                </button>
-                {bookSetValidation && !bookSetValidation.isValidating && (
-                  <span className="text-[10px] font-bold">
-                    {bookSetValidation.isValid ? (
-                      <span className="text-green-600" title="Valid Book & Set No">✅ Valid</span>
-                    ) : (
-                      <span className="text-red-600" title={bookSetValidation.message || "Invalid"}>❌ Invalid</span>
-                    )}
-                  </span>
+              <div className="no-print mt-1 flex flex-col items-center gap-1">
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={onVerifyBookSet}
+                    disabled={isBusy || bookSetValidation?.isValidating}
+                    className="bg-blue-600 text-white px-2 py-0.5 rounded text-[10px] font-bold shadow hover:bg-blue-700 disabled:opacity-50"
+                  >
+                    {bookSetValidation?.isValidating ? "Validating..." : "Verify Book & Set No."}
+                  </button>
+                  {bookSetValidation && !bookSetValidation.isValidating && (
+                    <span className="text-[10px] font-bold">
+                      {bookSetValidation.isValid ? (
+                        <span className="text-green-600" title="Valid Book & Set No">✅ Valid</span>
+                      ) : (
+                        <span className="text-red-600" title={bookSetValidation.message || "Invalid"}>❌ Invalid</span>
+                      )}
+                    </span>
+                  )}
+                </div>
+
+                {bookNo && String(bookNo).trim().length > 0 && String(bookNo).trim().length < 4 && (
+                  <div className="text-[9px] font-bold text-amber-800 bg-amber-50 border border-amber-300 rounded px-2 py-1 text-center max-w-[220px] leading-tight">
+                    ⚠️ Book Number is generally of 4 characters. Please ensure that the correct Book Number has been entered.
+                  </div>
                 )}
               </div>
             )}

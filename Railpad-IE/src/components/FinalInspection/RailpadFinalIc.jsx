@@ -119,12 +119,13 @@ const RailpadFinalIc = ({ data = {}, isEditing = false, isBusy = false, isViewOn
   const allowedFields = [
     "bookNo", "setNo", "offeredInstNo", "passedInstNo", "contractRef",
     "billPayingOfficer", "consignee", "purchasingAuthority", "description",
-    "quantityNowPassedText", "noOfItemsChecked", "datesOfInspection",
+    "qtyOfferedPreviously", "qtyPassedPreviously", "qtyStillDue",
+    "quantityNowPassedText", "noOfItemsChecked", "dateOfCall", "noOfVisits", "datesOfInspection",
     "trRecDate", "reasonsForRejection", "sealingPattern", "contractor",
     "placeOfInspection", "certificateDate", "inspectingEngineer"
   ];
 
-  const isBookSetEntered = Boolean(bookNo && bookNo.trim().length === 4 && setNo && /^\d{3}$/.test(setNo.trim()));
+  const isBookSetEntered = Boolean(bookNo && bookNo.trim().length > 0 && setNo && /^\d{3}$/.test(setNo.trim()));
 
   const fieldProps = {
     isEditing,
@@ -209,7 +210,7 @@ const RailpadFinalIc = ({ data = {}, isEditing = false, isBusy = false, isViewOn
                 बुक सं Book No.
               </div>
               <div style={{ padding: '3px', display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '22px' }}>
-                <EditableField value={bookNo} fieldName="bookNo" maxLength={4} disabled={isBusy} style={{ textAlign: 'center', fontWeight: 'bold', fontSize: '11px', textTransform: 'uppercase' }} {...fieldProps} />
+                <EditableField value={bookNo} fieldName="bookNo" maxLength={10} disabled={isBusy} style={{ textAlign: 'center', fontWeight: 'bold', fontSize: '11px', textTransform: 'uppercase' }} {...fieldProps} />
               </div>
             </div>
             <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
@@ -229,32 +230,51 @@ const RailpadFinalIc = ({ data = {}, isEditing = false, isBusy = false, isViewOn
             </div>
           </div>
           {isEditing && (
-            <div style={{ marginTop: '4px', display: 'flex', gap: '6px', alignItems: 'center' }}>
-              <button
-                type="button"
-                onClick={onVerifyBookSet}
-                disabled={isBusy || bookSetValidation?.isValidating}
-                style={{
-                  backgroundColor: '#2563eb',
-                  color: 'white',
-                  border: 'none',
+            <div style={{ marginTop: '4px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px' }}>
+              <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+                <button
+                  type="button"
+                  onClick={onVerifyBookSet}
+                  disabled={isBusy || bookSetValidation?.isValidating}
+                  style={{
+                    backgroundColor: '#2563eb',
+                    color: 'white',
+                    border: 'none',
+                    padding: '2px 6px',
+                    borderRadius: '3px',
+                    fontSize: '8.5px',
+                    fontWeight: 'bold',
+                    cursor: 'pointer'
+                  }}
+                >
+                  {bookSetValidation?.isValidating ? "Validating..." : "Verify Book & Set"}
+                </button>
+                {bookSetValidation && !bookSetValidation.isValidating && (
+                  <span style={{ fontSize: '8.5px', fontWeight: 'bold' }}>
+                    {bookSetValidation.isValid ? (
+                      <span style={{ color: '#16a34a' }}>✅ Valid</span>
+                    ) : (
+                      <span style={{ color: '#dc2626' }}>❌ Invalid</span>
+                    )}
+                  </span>
+                )}
+              </div>
+
+              {bookNo && String(bookNo).trim().length > 0 && String(bookNo).trim().length < 4 && (
+                <div style={{
+                  fontSize: '8px',
+                  color: '#854d0e',
+                  background: '#fefce8',
+                  border: '1px solid #fef08a',
+                  borderRadius: '4px',
                   padding: '2px 6px',
-                  borderRadius: '3px',
-                  fontSize: '8.5px',
-                  fontWeight: 'bold',
-                  cursor: 'pointer'
-                }}
-              >
-                {bookSetValidation?.isValidating ? "Validating..." : "Verify Book & Set"}
-              </button>
-              {bookSetValidation && !bookSetValidation.isValidating && (
-                <span style={{ fontSize: '8.5px', fontWeight: 'bold' }}>
-                  {bookSetValidation.isValid ? (
-                    <span style={{ color: '#16a34a' }}>✅ Valid</span>
-                  ) : (
-                    <span style={{ color: '#dc2626' }}>❌ Invalid</span>
-                  )}
-                </span>
+                  textAlign: 'center',
+                  fontWeight: '700',
+                  lineHeight: '1.2',
+                  maxWidth: '220px'
+                }}>
+                  ⚠️ Book Number is generally of 4 characters. Please ensure that the correct Book Number has been entered.
+                </div>
               )}
             </div>
           )}
@@ -464,11 +484,11 @@ const RailpadFinalIc = ({ data = {}, isEditing = false, isBusy = false, isViewOn
               <div style={{ fontWeight: 'normal', fontSize: '8px', color: '#475569', marginTop: '2px' }}>Nos.</div>
             </td>
             <td style={{ ...tdCenterStyle, paddingTop: '15px', borderBottom: 'none' }}>
-              <div>{qtyOfferedPreviously}</div>
+              <EditableField value={qtyOfferedPreviously} fieldName="qtyOfferedPreviously" style={{ textAlign: 'center', fontSize: '10px' }} {...fieldProps} />
               <div style={{ fontWeight: 'normal', fontSize: '8px', color: '#475569', marginTop: '2px' }}>Nos.</div>
             </td>
             <td style={{ ...tdCenterStyle, paddingTop: '15px', borderBottom: 'none' }}>
-              <div>{qtyPassedPreviously}</div>
+              <EditableField value={qtyPassedPreviously} fieldName="qtyPassedPreviously" style={{ textAlign: 'center', fontSize: '10px' }} {...fieldProps} />
               <div style={{ fontWeight: 'normal', fontSize: '8px', color: '#475569', marginTop: '2px' }}>Nos.</div>
             </td>
             <td style={{ ...tdCenterStyle, paddingTop: '15px', borderBottom: 'none' }}>
@@ -484,7 +504,7 @@ const RailpadFinalIc = ({ data = {}, isEditing = false, isBusy = false, isViewOn
               <div style={{ fontWeight: 'normal', fontSize: '8px', color: '#475569', marginTop: '2px' }}>Nos.</div>
             </td>
             <td style={{ ...tdCenterStyle, paddingTop: '15px', borderBottom: 'none' }}>
-              <div>{qtyStillDue}</div>
+              <EditableField value={qtyStillDue} fieldName="qtyStillDue" style={{ textAlign: 'center', fontSize: '10px' }} {...fieldProps} />
               <div style={{ fontWeight: 'normal', fontSize: '8px', color: '#475569', marginTop: '2px' }}>Nos.</div>
             </td>
           </tr>

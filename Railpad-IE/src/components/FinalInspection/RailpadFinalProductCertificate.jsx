@@ -120,6 +120,7 @@ export default function RailpadFinalProductCertificate({ call = {}, onBack, isVi
   const [isESigning, setIsESigning] = useState(false);
   const [notification, setNotification] = useState({ show: false, message: '', type: 'info' });
   const [bookSetValidation, setBookSetValidation] = useState({ isValid: false, message: null, isValidating: false });
+  const [bookWarningModal, setBookWarningModal] = useState({ show: false, onProceed: null });
 
   const user = getStoredUser();
   const isProcessCall = call?.callType === 'PROCESS' || call?.requestId?.startsWith('RPP-') || call?.callNo?.startsWith('RPP-');
@@ -381,6 +382,9 @@ export default function RailpadFinalProductCertificate({ call = {}, onBack, isVi
         if (savedEdit) {
             mappedData.bookNo = savedEdit.bookNo || mappedData.bookNo;
             mappedData.setNo = savedEdit.setNo || mappedData.setNo;
+            mappedData.certificateDate = savedEdit.certificateDate || mappedData.certificateDate;
+            mappedData.contractor = savedEdit.contractor || mappedData.contractor;
+            mappedData.placeOfInspection = savedEdit.placeOfInspection || mappedData.placeOfInspection;
             mappedData.offeredInstNo = savedEdit.offeredInstNo || savedEdit.installmentNo || mappedData.offeredInstNo;
             mappedData.passedInstNo = savedEdit.passedInstNo || mappedData.passedInstNo;
             mappedData.contractRef = savedEdit.contractRef || mappedData.contractRef;
@@ -393,17 +397,17 @@ export default function RailpadFinalProductCertificate({ call = {}, onBack, isVi
             mappedData.qapNo = savedEdit.qapNo || mappedData.qapNo;
             mappedData.chpClNo = savedEdit.chpClNo || mappedData.chpClNo;
             mappedData.lotNo = formatLotNo(savedEdit.lotNo || mappedData.lotNo);
-            mappedData.qtyNowOffered = savedEdit.qtyNowOffered || mappedData.qtyNowOffered;
-            mappedData.qtyNowPassed = savedEdit.qtyNowPassed || mappedData.qtyNowPassed;
-            mappedData.qtyOfferedPreviously = savedEdit.qtyOfferedPreviously || mappedData.qtyOfferedPreviously;
-            mappedData.qtyPassedPreviously = savedEdit.qtyPassedPreviously || mappedData.qtyPassedPreviously;
-            mappedData.qtyNowRejected = savedEdit.qtyNowRejected || mappedData.qtyNowRejected;
-            mappedData.qtyStillDue = savedEdit.qtyStillDue || mappedData.qtyStillDue;
+            mappedData.qtyNowOffered = savedEdit.qtyNowOffered ?? mappedData.qtyNowOffered;
+            mappedData.qtyNowPassed = savedEdit.qtyNowPassed ?? mappedData.qtyNowPassed;
+            mappedData.qtyOfferedPreviously = savedEdit.qtyOfferedPreviously ?? mappedData.qtyOfferedPreviously;
+            mappedData.qtyPassedPreviously = savedEdit.qtyPassedPreviously ?? mappedData.qtyPassedPreviously;
+            mappedData.qtyNowRejected = savedEdit.qtyNowRejected ?? mappedData.qtyNowRejected;
+            mappedData.qtyStillDue = savedEdit.qtyStillDue ?? mappedData.qtyStillDue;
             mappedData.quantityNowPassedText = savedEdit.quantityNowPassedText || mappedData.quantityNowPassedText;
             mappedData.noOfItemsChecked = savedEdit.noOfItemsChecked || mappedData.noOfItemsChecked;
             mappedData.datesOfInspection = savedEdit.datesOfInspection || mappedData.datesOfInspection;
             mappedData.dateOfCall = savedEdit.dateOfCall || mappedData.dateOfCall;
-            mappedData.noOfVisits = savedEdit.noOfVisits || mappedData.noOfVisits;
+            mappedData.noOfVisits = savedEdit.noOfVisits ?? mappedData.noOfVisits;
             mappedData.trRecDate = savedEdit.trRecDate || mappedData.trRecDate;
             if (savedEdit.sealingPattern && savedEdit.sealingPattern !== HARDCODED_SEAL) {
                 mappedData.sealingPattern = savedEdit.sealingPattern;
@@ -504,24 +508,10 @@ export default function RailpadFinalProductCertificate({ call = {}, onBack, isVi
     showToast("Changes cancelled.", "info");
   };
 
-  const handleVerifyBookSet = async () => {
+  const executeVerifyBookSet = async () => {
     const bookNo = data.bookNo || '';
     const setNo = data.setNo || '';
 
-    if (!bookNo || !setNo) {
-      showToast("Please fill in both Book No. and Set No. before verifying.", "warning");
-      return;
-    }
-
-    if (bookNo.length !== 4) {
-      showToast("Book No. must be exactly 4 characters long.", "warning");
-      return;
-    }
-    if (!/^\d{3}$/.test(setNo)) {
-      showToast("Set No. must be exactly 3 digits.", "warning");
-      return;
-    }
-    
     setBookSetValidation(prev => ({ ...prev, isValidating: true }));
     try {
       const empNo = user?.employeeCode || getStoredUser()?.employeeCode || "UNKNOWN";
@@ -543,6 +533,31 @@ export default function RailpadFinalProductCertificate({ call = {}, onBack, isVi
       // Clear invalid values on error too
       setData(prev => ({ ...prev, bookNo: '', setNo: '' }));
     }
+  };
+
+  const handleVerifyBookSet = () => {
+    const bookNo = data.bookNo || '';
+    const setNo = data.setNo || '';
+
+    if (!bookNo || !setNo) {
+      showToast("Please fill in both Book No. and Set No. before verifying.", "warning");
+      return;
+    }
+
+    if (!/^\d{3}$/.test(setNo)) {
+      showToast("Set No. must be exactly 3 digits.", "warning");
+      return;
+    }
+
+    if (bookNo.trim().length < 4) {
+      setBookWarningModal({
+        show: true,
+        onProceed: executeVerifyBookSet
+      });
+      return;
+    }
+
+    executeVerifyBookSet();
   };
 
   const handleExport = async () => {
@@ -580,31 +595,9 @@ export default function RailpadFinalProductCertificate({ call = {}, onBack, isVi
     }
   };
 
-  const handleProcessSaveIc = async () => {
+  const executeProcessSaveIc = async () => {
     try {
       setIsESigning(true);
-      
-      const bookNo = data.bookNo || '';
-      const setNo = data.setNo || '';
-
-      if (!bookNo || !setNo) {
-        showToast("Please enter Book No. and Set No. before saving IC.", "warning");
-        setIsESigning(false);
-        return;
-      }
-
-      if (bookNo.length !== 4) {
-        showToast("Book No. must be exactly 4 characters long.", "warning");
-        setIsESigning(false);
-        return;
-      }
-
-      if (!/^\d{3}$/.test(setNo)) {
-        showToast("Set No. must be exactly 3 digits.", "warning");
-        setIsESigning(false);
-        return;
-      }
-
       const callNo = call.callNo || call.call_no || call.requestId;
 
       showToast("Saving Process IC details...", "info");
@@ -644,31 +637,34 @@ export default function RailpadFinalProductCertificate({ call = {}, onBack, isVi
     }
   };
 
-  const handleESign = async () => {
+  const handleProcessSaveIc = () => {
+    const bookNo = data.bookNo || '';
+    const setNo = data.setNo || '';
+
+    if (!bookNo || !setNo) {
+      showToast("Please enter Book No. and Set No. before saving IC.", "warning");
+      return;
+    }
+
+    if (!/^\d{3}$/.test(setNo)) {
+      showToast("Set No. must be exactly 3 digits.", "warning");
+      return;
+    }
+
+    if (bookNo.trim().length < 4) {
+      setBookWarningModal({
+        show: true,
+        onProceed: executeProcessSaveIc
+      });
+      return;
+    }
+
+    executeProcessSaveIc();
+  };
+
+  const executeESign = async () => {
     try {
       setIsESigning(true);
-      
-      const bookNo = data.bookNo || '';
-      const setNo = data.setNo || '';
-
-      if (!bookNo || !setNo) {
-        showToast("Please enter Book No. and Set No. before signing.", "warning");
-        setIsESigning(false);
-        return;
-      }
-
-      if (bookNo.length !== 4) {
-        showToast("Book No. must be exactly 4 characters long.", "warning");
-        setIsESigning(false);
-        return;
-      }
-
-      if (!/^\d{3}$/.test(setNo)) {
-        showToast("Set No. must be exactly 3 digits.", "warning");
-        setIsESigning(false);
-        return;
-      }
-
       showToast("Generating PDF snapshot...", "info");
       await delay(300);
       
@@ -690,90 +686,63 @@ export default function RailpadFinalProductCertificate({ call = {}, onBack, isVi
       const pdf = new jsPDF('p', 'mm', 'a4');
       const pdfWidth = pdf.internal.pageSize.getWidth();
       const pdfHeight = pdf.internal.pageSize.getHeight();
+      
       pdf.addImage(imgData, 'JPEG', 0, 0, pdfWidth, pdfHeight, undefined, 'FAST');
       
-      const pdfOutput = pdf.output('datauristring');
-      const base64Pdf = pdfOutput.split(',')[1];
+      const pdfBase64 = pdf.output('datauristring').split(',')[1];
+      const callNo = call.callNo || call.call_no || call.requestId;
+      const certificateNo = data.certificateNo || "Railpad_IC";
+      const sanitizedFilename = certificateNo.replace(/[/\\?%*:|"<>]/g, '-') + '.pdf';
+      
+      console.log('Initiating PKI Signing Flow for IC:', callNo);
+      showToast("Triggering Digital Signature Utility...", "info");
+      
+      sessionStorage.setItem('pending_sign_ic', JSON.stringify({
+        icNumber: callNo,
+        certificateNo: certificateNo,
+        fileName: sanitizedFilename,
+        uploadedBy: user?.employeeCode || "IE",
+        pdfBase64: pdfBase64
+      }));
 
-      if (!base64Pdf || !base64Pdf.startsWith("JVBER")) {
-        throw new Error("Invalid PDF snapshot generated.");
-      }
-
-      const now = new Date();
-      const pad = (n) => n.toString().padStart(2, '0');
-      const timestamp = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}T${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}+05:30`;
-      const txn = "SARTHI" + Math.random().toString(16).slice(2, 10).toUpperCase();
-
-      let sigCood = "405,118";
-      let sigSize = "160,38";
-      try {
-        const certPage = element?.querySelector('.certificate-page') || element;
-        let ieEl = certPage?.querySelector('.ie-signature-box');
-        if (!ieEl && certPage) {
-          const allElements = Array.from(certPage.querySelectorAll('td, div, span'));
-          ieEl = allElements.find(el => el.textContent && (el.textContent.includes('Inspecting Engineer') || el.textContent.includes('निरीक्षण अभियंता')));
+      const customEvent = new CustomEvent('INITIATE_PKI_SIGN', {
+        detail: {
+          pdfBase64: pdfBase64,
+          docName: sanitizedFilename,
+          callNo: callNo
         }
-        if (ieEl && certPage) {
-          const pageRect = certPage.getBoundingClientRect();
-          const ieRect = ieEl.getBoundingClientRect();
-          const pdfWidth = 595.28;
-          const pdfHeight = 841.89;
-          const leftRatio = (ieRect.left - pageRect.left) / pageRect.width;
-          const widthRatio = ieRect.width / pageRect.width;
-          const bottomRatio = (pageRect.bottom - ieRect.bottom) / pageRect.height;
-          const heightRatio = ieRect.height / pageRect.height;
-          const pdfX = Math.round(leftRatio * pdfWidth) + 4;
-          const pdfY = Math.round(bottomRatio * pdfHeight) + 4;
-          const pdfW = Math.max(100, Math.round(widthRatio * pdfWidth) - 8);
-          const pdfH = Math.max(30, Math.round(heightRatio * pdfHeight) - 8);
-          sigCood = `${pdfX},${pdfY}`;
-          sigSize = `${pdfW},${pdfH}`;
-        }
-      } catch (err) {
-        console.error("Dynamic signature calc error:", err);
-      }
-
-      const xmlRequest = `
-        <request>
-          <command>pkiNetworkSign</command>
-          <ts>${timestamp}</ts>
-          <txn>${txn}</txn>
-          <certificate>
-            <attribute name='CN'></attribute>
-            <attribute name='O'></attribute>
-            <attribute name='OU'></attribute>
-            <attribute name='T'></attribute>
-            <attribute name='E'></attribute>
-            <attribute name='SN'></attribute>
-            <attribute name='CA'></attribute>
-            <attribute name='TC'>SG</attribute>
-            <attribute name='AP'>1</attribute>
-          </certificate>
-          <file>
-            <attribute name='type'>pdf</attribute>
-          </file>
-          <pdf>
-            <page>1</page>
-            <cood>${sigCood}</cood>
-            <size>${sigSize}</size>
-          </pdf>
-          <data>${base64Pdf}</data>
-        </request>
-      `.replace(/>\s+</g, "><").trim();
-
-      if (typeof window.abc === 'function') {
-        const fileName = (data.certificateNo || "Railpad_IC") + ".pdf";
-        window.abc(xmlRequest, data.certificateNo || call.requestId || "Railpad_IC", fileName);
-      } else {
-        throw new Error("Digital signature bridge (abc.js) not found. Please ensure the Capricorn PKI client is running and refresh the page.");
-      }
+      });
+      window.dispatchEvent(customEvent);
 
     } catch (error) {
-      console.error("Signing Error:", error);
-      showToast("Failed to sign: " + error.message, "error");
-    } finally {
+      console.error("E-Sign error:", error);
+      showToast("Failed to prepare document for signing: " + error.message, "error");
       setIsESigning(false);
     }
+  };
+
+  const handleESign = () => {
+    const bookNo = data.bookNo || '';
+    const setNo = data.setNo || '';
+
+    if (!bookNo || !setNo) {
+      showToast("Please enter Book No. and Set No. before signing.", "warning");
+      return;
+    }
+
+    if (!/^\d{3}$/.test(setNo)) {
+      showToast("Set No. must be exactly 3 digits.", "warning");
+      return;
+    }
+
+    if (bookNo.trim().length < 4) {
+      setBookWarningModal({
+        show: true,
+        onProceed: executeESign
+      });
+      return;
+    }
+
   };
 
   if (loading) {
@@ -1066,6 +1035,102 @@ export default function RailpadFinalProductCertificate({ call = {}, onBack, isVi
           )}
         </div>
       </div>
+
+      {/* Book Number Warning & Acknowledgment Modal */}
+      {bookWarningModal.show && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: 'rgba(15, 23, 42, 0.65)',
+          backdropFilter: 'blur(4px)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 100000,
+          animation: 'fadeIn 0.2s ease-out'
+        }}>
+          <div style={{
+            background: '#ffffff',
+            borderRadius: '20px',
+            padding: '28px 32px',
+            maxWidth: '460px',
+            width: '90%',
+            boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
+            textAlign: 'center',
+            border: '1px solid #fef08a'
+          }}>
+            <div style={{
+              width: '56px',
+              height: '56px',
+              borderRadius: '50%',
+              background: '#fefce8',
+              border: '2px solid #fef08a',
+              color: '#ca8a04',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontSize: '28px',
+              margin: '0 auto 16px'
+            }}>
+              ⚠️
+            </div>
+            
+            <h3 style={{ fontSize: '18px', fontWeight: '800', color: '#854d0e', marginBottom: '8px' }}>
+              Book Number Notice
+            </h3>
+            
+            <p style={{ fontSize: '14px', color: '#475569', lineHeight: '1.5', marginBottom: '24px', fontWeight: '500' }}>
+              Book Number is generally of 4 characters. Please ensure that the correct Book Number has been entered.
+            </p>
+            
+            <div style={{ display: 'flex', gap: '12px', justifyContent: 'center' }}>
+              <button
+                onClick={() => setBookWarningModal({ show: false, onProceed: null })}
+                style={{
+                  flex: 1,
+                  padding: '12px 18px',
+                  borderRadius: '10px',
+                  border: '1px solid #cbd5e1',
+                  background: '#ffffff',
+                  color: '#475569',
+                  fontWeight: '700',
+                  fontSize: '13.5px',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s'
+                }}
+              >
+                Check Again
+              </button>
+              
+              <button
+                onClick={() => {
+                  const proceedFn = bookWarningModal.onProceed;
+                  setBookWarningModal({ show: false, onProceed: null });
+                  if (proceedFn) proceedFn();
+                }}
+                style={{
+                  flex: 1,
+                  padding: '12px 18px',
+                  borderRadius: '10px',
+                  border: 'none',
+                  background: '#2563eb',
+                  color: '#ffffff',
+                  fontWeight: '800',
+                  fontSize: '13.5px',
+                  cursor: 'pointer',
+                  boxShadow: '0 4px 10px rgba(37, 99, 235, 0.25)',
+                  transition: 'all 0.2s'
+                }}
+              >
+                Acknowledge &amp; Proceed
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
     </div>
   );

@@ -102,16 +102,22 @@ const DemouldingForm = ({ onSave, onCancel, isLongLine, existingEntries = [], in
         return d;
     };
 
-    const formatSleeperLabel = (benchStr, seqStr) => {
+    const formatSleeperLabel = (benchStr, seqStr, sleeperType = formData.type) => {
         const s = String(seqStr || '').trim();
         const b = String(benchStr || '').trim();
         if (!s) return b;
         if (!b) return s;
+        
+        const typeLower = String(sleeperType || '').toLowerCase();
+        const isSingleBenchType = ['pnc', 'turnout', 'dc', 'scc', 'curved', 'dcs', 'ds'].some(kw => typeLower.includes(kw));
+        
+        if (isSingleBenchType) return s;
+
         if (s.toLowerCase().startsWith(b.toLowerCase())) return s;
         return `${b}${s}`;
     };
 
-    const parseDefectiveSleepers = (rawDefects, visualCheck, dimCheck) => {
+    const parseDefectiveSleepers = (rawDefects, visualCheck, dimCheck, typeForLabel = formData.type) => {
         if (!Array.isArray(rawDefects)) return [];
 
         if (visualCheck === 'All OK' && dimCheck === 'All OK') {
@@ -122,7 +128,7 @@ const DemouldingForm = ({ onSave, onCancel, isLongLine, existingEntries = [], in
         const visualOptions = ['Surface Defect', 'Honeycomb', 'Dowel Missing / Tilt / Sink', 'Insert Missing / Tilt / Sink', 'Crack'];
         const dimOptions = ['Outer Gauge', 'Rail Seat', 'Toe Gap', 'Rail Seat Slope', 'Height Gauge', 'Length of Sleeper'];
 
-        return rawDefects
+        const parsed = rawDefects
             .filter(d => {
                 if (!d) return false;
                 const sleeperIdStr = String(d.sleeperNo || d.sleeper_no || d.sequenceNo || d.sequence_no || d.sequence || d.id || "").trim();
@@ -167,7 +173,7 @@ const DemouldingForm = ({ onSave, onCancel, isLongLine, existingEntries = [], in
 
         const uniqueMap = new Map();
         for (const item of parsed) {
-            const label = formatSleeperLabel(item.benchNo, item.sleeperNo || item.sequence).toUpperCase();
+            const label = formatSleeperLabel(item.benchNo, item.sleeperNo || item.sequence, typeForLabel).toUpperCase();
             if (!uniqueMap.has(label)) {
                 uniqueMap.set(label, item);
             }
@@ -195,7 +201,8 @@ const DemouldingForm = ({ onSave, onCancel, isLongLine, existingEntries = [], in
                 defectiveSleeperDetails: parseDefectiveSleepers(
                     initialData.defectiveSleepers || initialData.defectiveSleeperDetails || [],
                     initialData.visualCheck,
-                    initialData.dimCheck
+                    initialData.dimCheck,
+                    initialData.sleeperType || initialData.type || ''
                 )
             });
         }
@@ -317,7 +324,8 @@ const DemouldingForm = ({ onSave, onCancel, isLongLine, existingEntries = [], in
                         const parsedDefects = parseDefectiveSleepers(
                             rawDefects,
                             latestRecord.visualCheck,
-                            latestRecord.dimCheck
+                            latestRecord.dimCheck,
+                            latestRecord.sleeperType || latestRecord.type || formData.type
                         );
                         setFormData(prev => {
                             const hasActiveEdits = prev.defectiveSleeperDetails && prev.defectiveSleeperDetails.length > 0;
@@ -560,7 +568,7 @@ const DemouldingForm = ({ onSave, onCancel, isLongLine, existingEntries = [], in
                 : formData.defectiveSleeperDetails.map(item => ({
                     benchGangNo: String(item.benchNo || gangNoStr || ""),
                     sequenceNo: String(item.sequence || ""),
-                    sleeperNo: String(item.sleeperNo || `${item.benchNo || gangNoStr}${item.sequence}` || ""),
+                    sleeperNo: String(formatSleeperLabel(item.benchNo || gangNoStr, item.sequence, formData.type) || ""),
                     visualReason: String(item.visualReason || ""),
                     dimReason: String(item.dimReason || "")
                 }));

@@ -743,6 +743,7 @@ export default function RailpadFinalProductCertificate({ call = {}, onBack, isVi
       return;
     }
 
+    executeESign();
   };
 
   if (loading) {

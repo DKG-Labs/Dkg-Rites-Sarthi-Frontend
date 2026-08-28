@@ -62,6 +62,7 @@ const MomentOfResistance = () => {
                 .map(item => ({
                 id: item.id,
                 batchNo: item.batchNumber,
+                sleeperCategory: item.sleeperCategory,
                 sleeperType: item.mixDesignReference || 'N/A',
                 castingDate: item.castingDate,
                 waterCubeStatus: item.waterCubeTestStatus ? 'Completed' : 'Not Completed',
@@ -78,6 +79,7 @@ const MomentOfResistance = () => {
                 .map(item => ({
                 ...item,
                 batchNo: item.batchNumber,
+                sleeperCategory: item.sleeperCategory,
                 sleeperType: item.sleeperType,
                 declaredSamples: [{ bench: item.benchNumber, no: item.sleeperNo }],
                 castingDate: item.createdDate?.split('T')[0], 
@@ -92,6 +94,7 @@ const MomentOfResistance = () => {
                 .map(item => ({
                 ...item,
                 batchNo: item.batchNumber,
+                sleeperCategory: item.sleeperCategory,
                 sleeperType: item.sleeperType,
                 declaredSamples: [{ bench: item.benchNumber || 'N/A', no: item.sleeperNo || '' }],
                 castingDate: item.castingDate,

@@ -58,6 +58,7 @@ const InspectionInitiationPage = ({ call, onProceed, onBack, onUpdateCall }) => 
           if (onUpdateCall) {
             onUpdateCall({
               ...data,
+              noOfSets: data.noOfSets || data.no_of_sets || call?.noOfSets || call?.no_of_sets,
               rlyPoSrNo: data.rlyPoNoSerial, // Map summary field to header field
               railPadType: data.ercType   // Map summary field to header field
             });

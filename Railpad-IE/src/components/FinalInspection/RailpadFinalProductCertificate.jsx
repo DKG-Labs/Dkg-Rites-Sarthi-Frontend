@@ -419,6 +419,53 @@ export default function RailpadFinalProductCertificate({ call = {}, onBack, isVi
             mappedData.region = savedEdit.region || mappedData.region;
         }
 
+        const possibleCallIds = Array.from(new Set([
+          callNo,
+          call?.callNo,
+          call?.call_no,
+          call?.requestId,
+          call?.id ? String(call.id) : null
+        ].filter(Boolean)));
+
+        let savedNcrOffered = null;
+        let savedNcrAccepted = null;
+        let savedNcrRejected = null;
+        for (const cid of possibleCallIds) {
+          const o = localStorage.getItem(`railpad_ncr_sets_offered_${cid}`);
+          const a = localStorage.getItem(`railpad_ncr_sets_accepted_${cid}`);
+          const r = localStorage.getItem(`railpad_ncr_sets_rejected_${cid}`);
+          if (o !== null && o !== '' && !savedNcrOffered) savedNcrOffered = o;
+          if (a !== null && a !== '' && !savedNcrAccepted) savedNcrAccepted = a;
+          if (r !== null && r !== '' && !savedNcrRejected) savedNcrRejected = r;
+        }
+
+        const callSets = call?.noOfSets || call?.no_of_sets || fetchedData?.noOfSets || fetchedData?.no_of_sets;
+        if (!savedNcrOffered && callSets) {
+          savedNcrOffered = String(callSets);
+        }
+
+        const isNcrgrspCall = (mappedData.description && (mappedData.description.toUpperCase().includes("NCR") || mappedData.description.toUpperCase().includes("NYLON CORD") || mappedData.description.toUpperCase().includes("9790"))) ||
+          (call?.railPadType && (call.railPadType.toUpperCase().includes("NCR") || call.railPadType.toUpperCase().includes("NYLON CORD"))) ||
+          (call?.railpadType && (call.railpadType.toUpperCase().includes("NCR") || call.railpadType.toUpperCase().includes("NYLON CORD"))) ||
+          (fetchedData?.railPadType && (fetchedData.railPadType.toUpperCase().includes("NCR") || fetchedData.railPadType.toUpperCase().includes("NYLON CORD"))) ||
+          (fetchedData?.ercType && (fetchedData.ercType.toUpperCase().includes("NCR") || fetchedData.ercType.toUpperCase().includes("NYLON CORD"))) ||
+          (callSets !== undefined && callSets !== null && callSets !== '' && callSets !== 0 && callSets !== '0') ||
+          Boolean(savedNcrOffered);
+
+        if (isNcrgrspCall) {
+          mappedData.isNCRGRSP = true;
+          mappedData.unit = "Set";
+          if (savedNcrOffered !== null && savedNcrOffered !== '') {
+            mappedData.qtyNowOffered = savedNcrOffered;
+          }
+          if (savedNcrAccepted !== null && savedNcrAccepted !== '') {
+            mappedData.qtyNowPassed = savedNcrAccepted;
+          }
+          if (savedNcrRejected !== null && savedNcrRejected !== '') {
+            mappedData.qtyNowRejected = savedNcrRejected;
+          }
+        }
+
         if (isProcessCall && mappedData.reasonsForRejection) {
           mappedData.reasonsForRejection = aggregateRejectionReasons(mappedData.reasonsForRejection);
         }

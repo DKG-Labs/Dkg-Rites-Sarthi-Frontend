@@ -372,6 +372,104 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
   const [hologramEntries, setHologramEntries] = useState([]);
   const [loadedLot, setLoadedLot] = useState(null);
 
+  // State for NCRGRSP Sets Quantity Summary (Used in IC Section 6, 7, 8)
+  const [ncrSetsOffered, setNcrSetsOffered] = useState('');
+  const [ncrSetsAccepted, setNcrSetsAccepted] = useState('');
+  const [ncrSetsRejected, setNcrSetsRejected] = useState('');
+
+  // Auto-initialize NCRGRSP Sets Offered from vendor entry (no_of_sets column in rail_inspection_call)
+  useEffect(() => {
+    if (isNCRGRSP) {
+      const vendorOffered = call?.noOfSets || call?.no_of_sets || call?.noSets || call?.callQty || call?.totalOfferedQty || call?.offeredQty || call?.qtyDesiredForFinal || (lots.length > 0 ? lots.reduce((acc, l) => acc + (Number(l.size) || 0), 0) : '');
+      const possibleCallIds = Array.from(new Set([
+        currentCallId,
+        call?.callNo,
+        call?.icNumber,
+        call?.requestId,
+        call?.id ? String(call.id) : null
+      ].filter(Boolean)));
+
+      let savedOffered = null;
+      let savedAccepted = null;
+      let savedRejected = null;
+      for (const cid of possibleCallIds) {
+        const o = localStorage.getItem(`railpad_ncr_sets_offered_${cid}`);
+        const a = localStorage.getItem(`railpad_ncr_sets_accepted_${cid}`);
+        const r = localStorage.getItem(`railpad_ncr_sets_rejected_${cid}`);
+        if (o !== null && o !== '' && !savedOffered) savedOffered = o;
+        if (a !== null && a !== '' && !savedAccepted) savedAccepted = a;
+        if (r !== null && r !== '' && !savedRejected) savedRejected = r;
+      }
+
+      if (savedOffered !== null && savedOffered !== '') {
+        setNcrSetsOffered(savedOffered);
+      } else if (vendorOffered) {
+        setNcrSetsOffered(String(vendorOffered));
+      }
+
+      if (savedAccepted !== null && savedAccepted !== '') {
+        setNcrSetsAccepted(savedAccepted);
+      }
+      if (savedRejected !== null && savedRejected !== '') {
+        setNcrSetsRejected(savedRejected);
+      }
+    }
+  }, [isNCRGRSP, call, lots, currentCallId]);
+
+  const handleNcrSetsAcceptedChange = (val) => {
+    setNcrSetsAccepted(val);
+    markDirty();
+    const offeredNum = parseFloat(ncrSetsOffered);
+    const acceptedNum = parseFloat(val);
+    let rejectedStr = '';
+    if (!isNaN(offeredNum) && !isNaN(acceptedNum)) {
+      const rejectedNum = Math.max(0, offeredNum - acceptedNum);
+      rejectedStr = String(rejectedNum);
+      setNcrSetsRejected(rejectedStr);
+    } else {
+      setNcrSetsRejected('');
+    }
+
+    const possibleCallIds = Array.from(new Set([
+      currentCallId,
+      call?.callNo,
+      call?.icNumber,
+      call?.requestId,
+      call?.id ? String(call.id) : null
+    ].filter(Boolean)));
+    possibleCallIds.forEach(cid => {
+      localStorage.setItem(`railpad_ncr_sets_accepted_${cid}`, val);
+      localStorage.setItem(`railpad_ncr_sets_rejected_${cid}`, rejectedStr);
+    });
+  };
+
+  const handleNcrSetsOfferedChange = (val) => {
+    setNcrSetsOffered(val);
+    markDirty();
+    const offeredNum = parseFloat(val);
+    const acceptedNum = parseFloat(ncrSetsAccepted);
+    let rejectedStr = '';
+    if (!isNaN(offeredNum) && !isNaN(acceptedNum)) {
+      const rejectedNum = Math.max(0, offeredNum - acceptedNum);
+      rejectedStr = String(rejectedNum);
+      setNcrSetsRejected(rejectedStr);
+    }
+
+    const possibleCallIds = Array.from(new Set([
+      currentCallId,
+      call?.callNo,
+      call?.icNumber,
+      call?.requestId,
+      call?.id ? String(call.id) : null
+    ].filter(Boolean)));
+    possibleCallIds.forEach(cid => {
+      localStorage.setItem(`railpad_ncr_sets_offered_${cid}`, val);
+      if (rejectedStr) {
+        localStorage.setItem(`railpad_ncr_sets_rejected_${cid}`, rejectedStr);
+      }
+    });
+  };
+
   // State for Visual & Dimensional Testing
   const [visualData, setVisualData] = useState({
     dv: '',
@@ -647,7 +745,10 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
       steelStampNumber,
       hologramEntries,
       dbDimensionalStatus,
-      dbDimensionalNotOk
+      dbDimensionalNotOk,
+      ncrSetsOffered,
+      ncrSetsAccepted,
+      ncrSetsRejected
     };
 
     const possibleCallIds = Array.from(new Set([
@@ -663,13 +764,18 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
       localStorage.setItem(`railpad_selected_lot_${cid}`, selectedLot);
       localStorage.setItem(`railpad_call_hologram_${cid}`, JSON.stringify(hologramEntries));
       localStorage.setItem(`railpad_call_sealing_type_${cid}`, sealingType);
+      if (isNCRGRSP) {
+        if (ncrSetsOffered !== undefined && ncrSetsOffered !== '') localStorage.setItem(`railpad_ncr_sets_offered_${cid}`, ncrSetsOffered);
+        if (ncrSetsAccepted !== undefined && ncrSetsAccepted !== '') localStorage.setItem(`railpad_ncr_sets_accepted_${cid}`, ncrSetsAccepted);
+        if (ncrSetsRejected !== undefined && ncrSetsRejected !== '') localStorage.setItem(`railpad_ncr_sets_rejected_${cid}`, ncrSetsRejected);
+      }
     });
 
     // If data was entered, mark as dirty
-    if (visualData.dv || visualData.dd || weightData.samples1.some(s => s !== '') || remarks || sealingType) {
+    if (visualData.dv || visualData.dd || weightData.samples1.some(s => s !== '') || remarks || sealingType || ncrSetsAccepted) {
       setIsDirty(true);
     }
-  }, [selectedLot, currentCallId, activeTab, visualData, weightData, physicalData, elecData, specData, periodicData, specType, reTestActive, reOfferActive, remarks, sealingType, steelStampNumber, hologramEntries, loadedLot, dbDimensionalStatus, dbDimensionalNotOk]);
+  }, [selectedLot, currentCallId, activeTab, visualData, weightData, physicalData, elecData, specData, periodicData, specType, reTestActive, reOfferActive, remarks, sealingType, steelStampNumber, hologramEntries, loadedLot, dbDimensionalStatus, dbDimensionalNotOk, ncrSetsOffered, ncrSetsAccepted, ncrSetsRejected, isNCRGRSP]);
 
   // Drafts are auto-saved in real-time, so no browser reload warning is needed.
 
@@ -767,6 +873,26 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
             if (onUpdateCall) {
               onUpdateCall(data);
             }
+
+            if (data && (data.noOfSets !== undefined && data.noOfSets !== null || data.no_of_sets !== undefined && data.no_of_sets !== null)) {
+              const backendSets = String(data.noOfSets || data.no_of_sets);
+              const possibleCallIds = Array.from(new Set([
+                currentCallId,
+                call?.callNo,
+                call?.icNumber,
+                call?.requestId,
+                call?.id ? String(call.id) : null
+              ].filter(Boolean)));
+              
+              let savedOff = null;
+              for (const cid of possibleCallIds) {
+                const o = localStorage.getItem(`railpad_ncr_sets_offered_${cid}`);
+                if (o !== null && o !== '' && !savedOff) savedOff = o;
+              }
+              if (!savedOff && backendSets) {
+                setNcrSetsOffered(backendSets);
+              }
+            }
           }
         } catch (error) {
           console.error("Error loading call details:", error);
@@ -859,10 +985,10 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
 
         let finalHolo = draft.hologramEntries || [];
         let finalSeal = draft.sealingType || 'RITES_HOLOGRAM';
-        if (savedCallHolo) {
+        if (savedCallHolo !== null) {
           try {
             const parsed = JSON.parse(savedCallHolo);
-            if (Array.isArray(parsed) && parsed.length > 0) finalHolo = parsed;
+            if (Array.isArray(parsed)) finalHolo = parsed;
           } catch (e) {}
         }
         if (savedCallSeal !== null && savedCallSeal !== '') finalSeal = savedCallSeal;
@@ -871,6 +997,27 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
         setSealingType(finalSeal);
         setSteelStampNumber(draft.steelStampNumber || '');
         setHologramEntries(finalHolo);
+
+        if (isNCRGRSP) {
+          let sOff = null;
+          let sAcc = null;
+          let sRej = null;
+          for (const cid of possibleCallIds) {
+            const o = localStorage.getItem(`railpad_ncr_sets_offered_${cid}`);
+            const a = localStorage.getItem(`railpad_ncr_sets_accepted_${cid}`);
+            const r = localStorage.getItem(`railpad_ncr_sets_rejected_${cid}`);
+            if (o !== null && o !== '' && !sOff) sOff = o;
+            if (a !== null && a !== '' && !sAcc) sAcc = a;
+            if (r !== null && r !== '' && !sRej) sRej = r;
+          }
+          if (!sOff && draft.ncrSetsOffered) sOff = draft.ncrSetsOffered;
+          if (!sAcc && draft.ncrSetsAccepted) sAcc = draft.ncrSetsAccepted;
+          if (!sRej && draft.ncrSetsRejected) sRej = draft.ncrSetsRejected;
+
+          if (sOff !== undefined && sOff !== null && sOff !== '') setNcrSetsOffered(sOff);
+          if (sAcc !== undefined && sAcc !== null && sAcc !== '') setNcrSetsAccepted(sAcc);
+          if (sRej !== undefined && sRej !== null && sRej !== '') setNcrSetsRejected(sRej);
+        }
 
         if (draft.dbDimensionalStatus !== undefined) {
           setDbDimensionalStatus(draft.dbDimensionalStatus);
@@ -1477,6 +1624,24 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
       setReTestActive(finalReTestActive);
       setReOfferActive(finalReOfferActive);
 
+      let currentNcrOff = ncrSetsOffered;
+      let currentNcrAcc = ncrSetsAccepted;
+      let currentNcrRej = ncrSetsRejected;
+
+      if (isNCRGRSP) {
+        for (const cid of possibleCallIds) {
+          const o = localStorage.getItem(`railpad_ncr_sets_offered_${cid}`);
+          const a = localStorage.getItem(`railpad_ncr_sets_accepted_${cid}`);
+          const r = localStorage.getItem(`railpad_ncr_sets_rejected_${cid}`);
+          if (o !== null && o !== '' && !currentNcrOff) currentNcrOff = o;
+          if (a !== null && a !== '' && !currentNcrAcc) currentNcrAcc = a;
+          if (r !== null && r !== '' && !currentNcrRej) currentNcrRej = r;
+        }
+        if (currentNcrOff !== null && currentNcrOff !== undefined && currentNcrOff !== '') setNcrSetsOffered(currentNcrOff);
+        if (currentNcrAcc !== null && currentNcrAcc !== undefined && currentNcrAcc !== '') setNcrSetsAccepted(currentNcrAcc);
+        if (currentNcrRej !== null && currentNcrRej !== undefined && currentNcrRej !== '') setNcrSetsRejected(currentNcrRej);
+      }
+
       // Explicitly persist the freshly fetched database data as initial draft
       const initialDraftData = {
         activeTab: 'visual',
@@ -1492,7 +1657,10 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
         sealingType: finalSealingType,
         steelStampNumber: finalSteelStampNumber,
         hologramEntries: finalHologramEntries,
-        dbDimensionalStatus: finalDbDimensionalStatus
+        dbDimensionalStatus: finalDbDimensionalStatus,
+        ncrSetsOffered: currentNcrOff || '',
+        ncrSetsAccepted: currentNcrAcc || '',
+        ncrSetsRejected: currentNcrRej || ''
       };
       localStorage.setItem(draftKey, JSON.stringify(initialDraftData));
     } catch (err) {
@@ -1534,8 +1702,8 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
     const tSpec = padSpecData(draft.specData);
     const tPeriodic = padPeriodicData(draft.periodicData);
     const tRemarks = draft.remarks || remarks || '';
-    const tSealing = draft.sealingType || sealingType || 'RITES_HOLOGRAM';
-    const tHolo = draft.hologramEntries || [];
+    const tSealing = sealingType || draft.sealingType || 'RITES_HOLOGRAM';
+    const tHolo = (hologramEntries && hologramEntries.length > 0) ? hologramEntries : (draft.hologramEntries || []);
 
     let formattedDate = null;
     if (call?.dateOfInspection) {
@@ -1583,9 +1751,9 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
       vendorCode: call?.vendorCode || 'N/A',
       railpadType: oRailpadType,
       lotNo: oLotId,
-      offeredQty: oOfferedQty,
-      acceptedQty: acceptedQty,
-      rejectedQty: rejectedQty,
+      offeredQty: (oIsNCRGRSP && ncrSetsOffered !== '') ? parseInt(ncrSetsOffered, 10) : oOfferedQty,
+      acceptedQty: (oIsNCRGRSP && ncrSetsAccepted !== '') ? parseInt(ncrSetsAccepted, 10) : acceptedQty,
+      rejectedQty: (oIsNCRGRSP && ncrSetsRejected !== '') ? parseInt(ncrSetsRejected, 10) : rejectedQty,
       visualDimensionalStatus: vStatus,
       physicalAgeingPropertiesStatus: 'PASS',
       electricalChemicalStatus: 'PASS',
@@ -2093,6 +2261,10 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
         showNotification('Remarks are required to finish the inspection.', 'warning');
         return;
       }
+      if (isNCRGRSP && (!ncrSetsAccepted || ncrSetsAccepted.trim() === '')) {
+        showNotification('Sets Accepted is required for NCRGRSP before finishing inspection.', 'warning');
+        return;
+      }
       if (activeLotOverallStatus === 'ACCEPTED' && sealingType === 'RITES_HOLOGRAM' && hologramEntries.length === 0) {
         showNotification('At least one hologram entry must be added when using Holograms for an accepted lot.', 'warning');
         return;
@@ -2108,6 +2280,22 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
       try {
         setIsSubmitting(true);
         setSubmitMessage('Saving Inspection Data...');
+
+        const possibleCallIds = Array.from(new Set([
+          currentCallId,
+          call?.callNo,
+          call?.icNumber,
+          call?.requestId,
+          call?.id ? String(call.id) : null
+        ].filter(Boolean)));
+
+        if (isNCRGRSP) {
+          possibleCallIds.forEach(cid => {
+            localStorage.setItem(`railpad_ncr_sets_offered_${cid}`, ncrSetsOffered);
+            localStorage.setItem(`railpad_ncr_sets_accepted_${cid}`, ncrSetsAccepted);
+            localStorage.setItem(`railpad_ncr_sets_rejected_${cid}`, ncrSetsRejected);
+          });
+        }
         let hologramStr = '';
         if (sealingType === 'RITES_HOLOGRAM' && hologramEntries.length > 0) {
           hologramStr = hologramEntries.map(h => {
@@ -2303,9 +2491,9 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
           vendorCode: call?.vendorCode || 'N/A',
           railpadType: activeRailpadType,
           lotNo: selectedLot,
-          offeredQty: offeredQty,
-          acceptedQty: acceptedQty,
-          rejectedQty: rejectedQty,
+          offeredQty: (isNCRGRSP && ncrSetsOffered !== '') ? parseInt(ncrSetsOffered, 10) : offeredQty,
+          acceptedQty: (isNCRGRSP && ncrSetsAccepted !== '') ? parseInt(ncrSetsAccepted, 10) : acceptedQty,
+          rejectedQty: (isNCRGRSP && ncrSetsRejected !== '') ? parseInt(ncrSetsRejected, 10) : rejectedQty,
           visualDimensionalStatus: visualStatus,
           physicalAgeingPropertiesStatus: physicalStatus,
           electricalChemicalStatus: elecStatus,
@@ -3541,9 +3729,9 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
           vendorCode: call?.vendorCode || 'N/A',
           railpadType: activeRailpadType,
           lotNo: selectedLot,
-          offeredQty: offeredQty,
-          acceptedQty: acceptedQty,
-          rejectedQty: rejectedQty,
+          offeredQty: (isNCRGRSP && ncrSetsOffered !== '') ? parseInt(ncrSetsOffered, 10) : offeredQty,
+          acceptedQty: (isNCRGRSP && ncrSetsAccepted !== '') ? parseInt(ncrSetsAccepted, 10) : acceptedQty,
+          rejectedQty: (isNCRGRSP && ncrSetsRejected !== '') ? parseInt(ncrSetsRejected, 10) : rejectedQty,
           visualDimensionalStatus: visualStatus,
           physicalAgeingPropertiesStatus: physicalStatus,
           electricalChemicalStatus: elecStatus,
@@ -9284,18 +9472,30 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
                 </div>
 
                 <div>
-                  <span style={{ fontSize: '10.5px', color: '#64748b', display: 'block', marginBottom: '4px', fontWeight: 600 }}>Offered Qty ({uom})</span>
-                  <strong style={{ fontSize: '13.5px', color: '#0f172a' }}>{offeredQty}</strong>
+                  <span style={{ fontSize: '10.5px', color: '#64748b', display: 'block', marginBottom: '4px', fontWeight: 600 }}>
+                    Offered Qty ({isNCRGRSP ? 'Sets' : uom})
+                  </span>
+                  <strong style={{ fontSize: '13.5px', color: '#0f172a' }}>
+                    {isNCRGRSP && ncrSetsOffered !== '' ? ncrSetsOffered : offeredQty}
+                  </strong>
                 </div>
 
                 <div>
-                  <span style={{ fontSize: '10.5px', color: '#0369a1', display: 'block', marginBottom: '4px', fontWeight: 600 }}>Accepted Qty ({uom})</span>
-                  <strong style={{ fontSize: '13.5px', color: '#0369a1' }}>{acceptedQty}</strong>
+                  <span style={{ fontSize: '10.5px', color: '#0369a1', display: 'block', marginBottom: '4px', fontWeight: 600 }}>
+                    Accepted Qty ({isNCRGRSP ? 'Sets' : uom})
+                  </span>
+                  <strong style={{ fontSize: '13.5px', color: '#0369a1' }}>
+                    {isNCRGRSP && ncrSetsAccepted !== '' ? ncrSetsAccepted : acceptedQty}
+                  </strong>
                 </div>
 
                 <div>
-                  <span style={{ fontSize: '10.5px', color: '#dc2626', display: 'block', marginBottom: '4px', fontWeight: 600 }}>Rejected Qty ({uom})</span>
-                  <strong style={{ fontSize: '13.5px', color: '#dc2626' }}>{rejectedQty}</strong>
+                  <span style={{ fontSize: '10.5px', color: '#dc2626', display: 'block', marginBottom: '4px', fontWeight: 600 }}>
+                    Rejected Qty ({isNCRGRSP ? 'Sets' : uom})
+                  </span>
+                  <strong style={{ fontSize: '13.5px', color: '#dc2626' }}>
+                    {isNCRGRSP && ncrSetsRejected !== '' ? ncrSetsRejected : rejectedQty}
+                  </strong>
                 </div>
 
                 <div>
@@ -9318,12 +9518,179 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
                   />
                 </div>
               </div>
+            </div>
 
+            {/* Sealing & Hologram Details Section (Common for all lots) */}
+            <div style={{
+              background: '#ffffff',
+              borderRadius: '16px',
+              padding: '20px',
+              border: '1px solid #e2e8f0',
+              marginTop: '16px',
+              boxShadow: '0 2px 4px rgba(0, 0, 0, 0.02)'
+            }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', flexWrap: 'wrap', gap: '10px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <h4 style={{ fontSize: '15px', fontWeight: '800', color: '#1e293b', margin: 0 }}>
+                    {isNCRGRSP ? 'Common Details (NCRGRSP Sets & Sealing/Hologram)' : 'Sealing & Hologram Details'}
+                  </h4>
+                  <span style={{
+                    padding: '3px 10px',
+                    borderRadius: '6px',
+                    fontSize: '11px',
+                    fontWeight: '700',
+                    background: '#f0fdf4',
+                    color: '#166534',
+                    border: '1px solid #bbf7d0',
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.5px'
+                  }}>
+                    Common for all lots
+                  </span>
+                </div>
+              </div>
+
+              {/* NCRGRSP Sets Summary Section (Common for all lots) */}
+              {isNCRGRSP && (
+                <div style={{
+                  background: '#f8fafc',
+                  borderRadius: '12px',
+                  padding: '16px',
+                  border: '1px solid #cbd5e1',
+                  marginBottom: '16px',
+                  boxShadow: '0 1px 3px rgba(0,0,0,0.03)'
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
+                    <div style={{ width: '4px', height: '16px', background: '#0284c7', borderRadius: '2px' }} />
+                    <span style={{ fontSize: '13px', fontWeight: '800', color: '#0f172a', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                      NCRGRSP Sets Quantity Summary
+                    </span>
+                    <span style={{
+                      padding: '2px 8px',
+                      borderRadius: '6px',
+                      fontSize: '10.5px',
+                      fontWeight: '700',
+                      background: '#e0f2fe',
+                      color: '#0369a1',
+                      border: '1px solid #bae6fd',
+                      marginLeft: 'auto'
+                    }}>
+                      NCRGRSP SETS
+                    </span>
+                  </div>
+
+                  <div style={{
+                    display: 'grid',
+                    gridTemplateColumns: 'repeat(3, 1fr)',
+                    gap: '16px',
+                    alignItems: 'start'
+                  }}>
+                    {/* 1. Sets Offered */}
+                    <div>
+                      <label style={{ display: 'block', fontSize: '11px', fontWeight: '700', color: '#475569', marginBottom: '4px' }}>
+                        SETS OFFERED (AUTO FROM VENDOR ENTRY)
+                      </label>
+                      <div style={{ position: 'relative' }}>
+                        <input
+                          type="number"
+                          value={ncrSetsOffered}
+                          readOnly
+                          placeholder="Auto from vendor entry..."
+                          style={{
+                            width: '100%',
+                            padding: '8px 12px',
+                            borderRadius: '8px',
+                            border: '1.5px solid #cbd5e1',
+                            fontSize: '13.5px',
+                            fontWeight: '700',
+                            color: '#0f172a',
+                            background: '#f1f5f9',
+                            boxSizing: 'border-box',
+                            cursor: 'not-allowed'
+                          }}
+                        />
+                        <span style={{ position: 'absolute', right: '10px', top: '50%', transform: 'translateY(-50%)', fontSize: '11px', fontWeight: '700', color: '#64748b' }}>
+                          Sets
+                        </span>
+                      </div>
+                      <span style={{ fontSize: '10.5px', color: '#64748b', marginTop: '2px', display: 'block' }}>
+                        Section 6 of IC (Qty Now Offered)
+                      </span>
+                    </div>
+
+                    {/* 2. Sets Accepted */}
+                    <div>
+                      <label style={{ display: 'block', fontSize: '11px', fontWeight: '700', color: '#166534', marginBottom: '4px' }}>
+                        SETS ACCEPTED (MANUAL ENTRY) *
+                      </label>
+                      <div style={{ position: 'relative' }}>
+                        <input
+                          type="number"
+                          value={ncrSetsAccepted}
+                          onChange={(e) => handleNcrSetsAcceptedChange(e.target.value)}
+                          placeholder="Enter accepted sets..."
+                          style={{
+                            width: '100%',
+                            padding: '8px 12px',
+                            borderRadius: '8px',
+                            border: '1.5px solid #86efac',
+                            fontSize: '13.5px',
+                            fontWeight: '700',
+                            color: '#166534',
+                            background: '#f0fdf4',
+                            boxSizing: 'border-box'
+                          }}
+                        />
+                        <span style={{ position: 'absolute', right: '10px', top: '50%', transform: 'translateY(-50%)', fontSize: '11px', fontWeight: '700', color: '#166534' }}>
+                          Sets
+                        </span>
+                      </div>
+                      <span style={{ fontSize: '10.5px', color: '#166534', marginTop: '2px', display: 'block' }}>
+                        Section 7 of IC (Qty Now Passed)
+                      </span>
+                    </div>
+
+                    {/* 3. Sets Rejected */}
+                    <div>
+                      <label style={{ display: 'block', fontSize: '11px', fontWeight: '700', color: '#dc2626', marginBottom: '4px' }}>
+                        SETS REJECTED (OFFERED - ACCEPTED)
+                      </label>
+                      <div style={{ position: 'relative' }}>
+                        <input
+                          type="number"
+                          value={ncrSetsRejected}
+                          readOnly
+                          placeholder="Auto-calculated (0)"
+                          style={{
+                            width: '100%',
+                            padding: '8px 12px',
+                            borderRadius: '8px',
+                            border: '1.5px solid #fecaca',
+                            fontSize: '13.5px',
+                            fontWeight: '700',
+                            color: '#dc2626',
+                            background: '#fef2f2',
+                            boxSizing: 'border-box',
+                            cursor: 'not-allowed'
+                          }}
+                        />
+                        <span style={{ position: 'absolute', right: '10px', top: '50%', transform: 'translateY(-50%)', fontSize: '11px', fontWeight: '700', color: '#dc2626' }}>
+                          Sets
+                        </span>
+                      </div>
+                      <span style={{ fontSize: '10.5px', color: '#dc2626', marginTop: '2px', display: 'block' }}>
+                        Section 8 of IC (Qty Now Rejected)
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Sealing Type Selector */}
               <div style={{
                 display: 'flex',
                 alignItems: 'center',
-                gap: '24px',
-                marginTop: '16px',
+                gap: '20px',
                 padding: '12px 16px',
                 background: '#fffbeb',
                 borderRadius: '10px',
@@ -9382,14 +9749,14 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
                 </div>
               </div>
 
-              {/* Hologram details */}
+              {/* Hologram Details */}
               {sealingType === 'RITES_HOLOGRAM' && (
                 <div style={{
                   background: '#f0fdf4',
                   padding: '16px',
                   borderRadius: '10px',
                   border: '1px solid #bbf7d0',
-                  marginTop: '12px'
+                  marginTop: '14px'
                 }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
@@ -9399,7 +9766,7 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
                     <div style={{ display: 'flex', gap: '8px' }}>
                       <button
                         onClick={() => {
-                          setHologramEntries(prev => [...prev, { type: 'range', from: '', to: '' }]);
+                          setHologramEntries(prev => [...prev, { id: Date.now(), type: 'range', from: '', to: '' }]);
                           markDirty();
                         }}
                         style={{
@@ -9417,7 +9784,7 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
                       </button>
                       <button
                         onClick={() => {
-                          setHologramEntries(prev => [...prev, { type: 'single', value: '' }]);
+                          setHologramEntries(prev => [...prev, { id: Date.now(), type: 'single', value: '' }]);
                           markDirty();
                         }}
                         style={{
@@ -9438,8 +9805,8 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
 
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                     {hologramEntries.length === 0 && (
-                      <div style={{ textAlign: 'center', padding: '12px', border: '2px dashed #bbf7d0', borderRadius: '8px', color: '#166534', fontSize: '12.5px', fontStyle: 'italic' }}>
-                        No holograms added. Click the buttons above to add entries.
+                      <div style={{ textAlign: 'center', padding: '14px', border: '2px dashed #bbf7d0', borderRadius: '8px', color: '#166534', fontSize: '12.5px', fontStyle: 'italic' }}>
+                        No holograms added. Click "+ Add Range" or "+ Add Single" above to add hologram numbers for this call.
                       </div>
                     )}
                     {hologramEntries.map((holo, idx) => (
@@ -9470,7 +9837,7 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
                                   });
                                   markDirty();
                                 }}
-                                style={{ width: '100px', padding: '4px 8px', fontSize: '12px', border: '1px solid #cbd5e1', borderRadius: '6px' }}
+                                style={{ width: '110px', padding: '4px 8px', fontSize: '12px', border: '1px solid #cbd5e1', borderRadius: '6px' }}
                               />
                             </div>
                             <span style={{ fontSize: '12px', color: '#64748b', marginTop: '12px' }}>to</span>
@@ -9487,7 +9854,7 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
                                   });
                                   markDirty();
                                 }}
-                                style={{ width: '100px', padding: '4px 8px', fontSize: '12px', border: '1px solid #cbd5e1', borderRadius: '6px' }}
+                                style={{ width: '110px', padding: '4px 8px', fontSize: '12px', border: '1px solid #cbd5e1', borderRadius: '6px' }}
                               />
                             </div>
                           </div>
@@ -9505,7 +9872,7 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
                                 });
                                 markDirty();
                               }}
-                              style={{ width: '220px', padding: '4px 8px', fontSize: '12px', border: '1px solid #cbd5e1', borderRadius: '6px' }}
+                              style={{ width: '230px', padding: '4px 8px', fontSize: '12px', border: '1px solid #cbd5e1', borderRadius: '6px' }}
                             />
                           </div>
                         )}
@@ -9519,10 +9886,11 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
                             border: '1px solid #fca5a5',
                             color: '#dc2626',
                             cursor: 'pointer',
-                            padding: '2px 6px',
+                            padding: '3px 8px',
                             borderRadius: '4px',
                             marginLeft: 'auto',
-                            fontSize: '11px'
+                            fontSize: '11px',
+                            fontWeight: 600
                           }}
                         >
                           Remove
@@ -9588,8 +9956,8 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
                 Withheld Inspection
               </button>
               {(() => {
-                const isLotAccepted = activeLotOverallStatus === 'ACCEPTED';
-                const isHologramRequired = isLotAccepted && sealingType === 'RITES_HOLOGRAM' && hologramEntries.length === 0;
+                const isAnyLotAccepted = effectiveLots.some(l => l.status === 'Passed' || l.status === 'ACCEPTED' || l.status === 'PASS') || activeLotOverallStatus === 'ACCEPTED';
+                const isHologramRequired = isAnyLotAccepted && sealingType === 'RITES_HOLOGRAM' && hologramEntries.length === 0;
                 const hasPendingLotsInMultiLot = totalLots > 1 && effectiveLots.some(l => l.status === 'Pending');
                 const isSingleLotPending = totalLots === 1 && (activeLotOverallStatus === 'PENDING' || !activeLotOverallStatus);
 
@@ -9598,7 +9966,7 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
                 let finishTitle = '';
                 if (isSubmitting) finishTitle = 'Submitting inspection...';
                 else if (!remarks) finishTitle = 'Please enter remarks to finish inspection';
-                else if (isHologramRequired) finishTitle = 'Please add hologram entries for accepted lot';
+                else if (isHologramRequired) finishTitle = 'Please add hologram entries for accepted lots';
                 else if (hasPendingLotsInMultiLot) finishTitle = 'Please complete all lots before finishing inspection';
                 else if (isSingleLotPending) finishTitle = 'Please complete inspection tests for the lot';
 

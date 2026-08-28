@@ -94,6 +94,22 @@ const DimensionalTesting = ({ type }) => {
         }
     };
 
+    const isBatchCompleted = (batch) => {
+        if (batch.testingStatus === 'Completed') return true;
+        const pct = Number(batch.testedPercentage || 0);
+        const category = (batch.sleeperCategory || '').toLowerCase();
+        const isTurnout = category.includes('turnout');
+
+        if (type === 'visual') {
+            return pct >= 100;
+        } else if (type === 'critical') {
+            return isTurnout ? pct >= 20 : pct >= 10;
+        } else if (type === 'noncritical') {
+            return isTurnout ? pct >= 5 : pct >= 1;
+        }
+        return pct >= 100;
+    };
+
     const config = {
         visual: { title: 'Visual Check & Measurement', criteria: '100% Mandatory' },
         critical: { title: 'Critical Dimensions', criteria: '10% (T-39) / 20% (T-45)' },
@@ -105,6 +121,7 @@ const DimensionalTesting = ({ type }) => {
     const columns = [
         { key: 'batchNumber', label: 'Batch No.', render: (val) => val || '—' },
         { key: 'totalBatchQty', label: 'Total Batch Qty' },
+        { key: 'sleeperCategory', label: 'Sleeper Category', render: (val) => val || '—' },
         { key: 'sleeperType', label: 'Type of Sleeper' },
         {
             key: 'castingDate',
@@ -125,12 +142,13 @@ const DimensionalTesting = ({ type }) => {
         {
             key: 'testedPercentage',
             label: 'Tested (%)',
-            render: (val) => {
+            render: (val, row) => {
                 const pct = Number(val);
+                const isCompleted = isBatchCompleted(row);
                 return (
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                         <div style={{ flex: 1, height: '6px', background: '#e2e8f0', borderRadius: '3px', overflow: 'hidden', minWidth: '60px' }}>
-                            <div style={{ height: '100%', width: `${pct}%`, background: pct >= 100 ? '#059669' : '#42818c', transition: 'width 0.3s ease' }}></div>
+                            <div style={{ height: '100%', width: `${Math.min(pct, 100)}%`, background: isCompleted ? '#059669' : '#42818c', transition: 'width 0.3s ease' }}></div>
                         </div>
                         <span style={{ fontSize: '11px', fontWeight: '700', whiteSpace: 'nowrap' }}>{pct.toFixed(1)}%</span>
                     </div>
@@ -234,7 +252,7 @@ const DimensionalTesting = ({ type }) => {
                         ) : (
                             <EnhancedDataTable 
                                 columns={columns} 
-                                data={batches.filter(b => b.testingStatus !== 'Completed' && Number(b.testedPercentage) < 100)} 
+                                data={batches.filter(b => !isBatchCompleted(b))} 
                                 selectable={false} 
                             />
                         )}
@@ -258,7 +276,7 @@ const DimensionalTesting = ({ type }) => {
                         ) : (
                             <EnhancedDataTable 
                                 columns={columns} 
-                                data={batches.filter(b => b.testingStatus === 'Completed' || Number(b.testedPercentage) >= 100)} 
+                                data={batches.filter(b => isBatchCompleted(b))} 
                                 selectable={false} 
                             />
                         )}

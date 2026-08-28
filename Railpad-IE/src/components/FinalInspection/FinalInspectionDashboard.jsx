@@ -251,38 +251,30 @@ const padElecData = (ed) => {
 };
 
 const padPeriodicData = (prd) => {
-  const pad = (arr, minSize = 5, fill = '') => {
-    const a = Array.isArray(arr) ? arr : [];
-    const size = Math.max(a.length, minSize);
-    const padded = [];
-    for (let i = 0; i < size; i++) {
-      const val = a[i];
-      if (val === null || val === undefined) {
-        padded.push(typeof fill === 'object' ? JSON.parse(JSON.stringify(fill)) : fill);
-      } else {
-        padded.push(val);
-      }
+  const sanitize = (arr, defaultObj) => {
+    if (Array.isArray(arr) && arr.length > 0) {
+      return arr.map(item => ({ ...defaultObj, ...item }));
     }
-    return padded;
+    return [{ ...defaultObj }];
   };
   return {
     tga: {
       dateOfLastTest: prd?.tga?.dateOfLastTest || '',
       qtyProduced: prd?.tga?.qtyProduced || '',
       threshold: 30000,
-      samples: pad(prd?.tga?.samples, 5, { lotNo: '', sampleNo: '', weight: '', tempRange: '', polymer: '' })
+      samples: sanitize(prd?.tga?.samples, { lotNo: '', sampleNo: '', weight: '', tempRange: '', polymer: '' })
     },
     durability: {
       dateOfLastTest: prd?.durability?.dateOfLastTest || '',
       qtyProduced: prd?.durability?.qtyProduced || '',
       threshold: 100000,
-      samples: pad(prd?.durability?.samples, 5, { lotNo: '', initialThick: '', finalThick: '', initialLoad: '', finalLoad: '' })
+      samples: sanitize(prd?.durability?.samples, { lotNo: '', initialThick: '', finalThick: '', initialLoad: '', finalLoad: '' })
     },
     abrasion: {
       dateOfLastTest: prd?.abrasion?.dateOfLastTest || '',
       qtyProduced: prd?.abrasion?.qtyProduced || '',
       threshold: 100000,
-      samples: pad(prd?.abrasion?.samples, 5, { lotNo: '', sampleNo: '', initialMass: '', finalMass: '', relativeLoss: '' })
+      samples: sanitize(prd?.abrasion?.samples, { lotNo: '', sampleNo: '', initialMass: '', finalMass: '', relativeLoss: '' })
     }
   };
 };
@@ -1584,38 +1576,43 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
       if (periodicTgaDbData) {
         basePeriodic.tga.dateOfLastTest = periodicTgaDbData.dateOfLastTest || '';
         basePeriodic.tga.qtyProduced = periodicTgaDbData.qtyProducedSinceLastTest !== null && periodicTgaDbData.qtyProducedSinceLastTest !== undefined ? String(periodicTgaDbData.qtyProducedSinceLastTest) : '';
-        basePeriodic.tga.samples = [
+        const rawTga = [
           { lotNo: periodicTgaDbData.s1LotNo || '', sampleNo: periodicTgaDbData.s1SampleNo || '', weight: periodicTgaDbData.s1SampleWt || '', tempRange: periodicTgaDbData.s1TempRange || '', polymer: periodicTgaDbData.s1PolymerContent || '' },
           { lotNo: periodicTgaDbData.s2LotNo || '', sampleNo: periodicTgaDbData.s2SampleNo || '', weight: periodicTgaDbData.s2SampleWt || '', tempRange: periodicTgaDbData.s2TempRange || '', polymer: periodicTgaDbData.s2PolymerContent || '' },
           { lotNo: periodicTgaDbData.s3LotNo || '', sampleNo: periodicTgaDbData.s3SampleNo || '', weight: periodicTgaDbData.s3SampleWt || '', tempRange: periodicTgaDbData.s3TempRange || '', polymer: periodicTgaDbData.s3PolymerContent || '' },
           { lotNo: periodicTgaDbData.s4LotNo || '', sampleNo: periodicTgaDbData.s4SampleNo || '', weight: periodicTgaDbData.s4SampleWt || '', tempRange: periodicTgaDbData.s4TempRange || '', polymer: periodicTgaDbData.s4PolymerContent || '' },
           { lotNo: periodicTgaDbData.s5LotNo || '', sampleNo: periodicTgaDbData.s5SampleNo || '', weight: periodicTgaDbData.s5SampleWt || '', tempRange: periodicTgaDbData.s5TempRange || '', polymer: periodicTgaDbData.s5PolymerContent || '' }
         ];
+        const tgaSamples = rawTga.filter((s, idx) => idx === 0 || s.lotNo || s.sampleNo || s.weight || s.tempRange || s.polymer);
+        basePeriodic.tga.samples = tgaSamples.length > 0 ? tgaSamples : [{ lotNo: '', sampleNo: '', weight: '', tempRange: '', polymer: '' }];
       }
       if (periodicDurabilityDbData) {
         basePeriodic.durability.dateOfLastTest = periodicDurabilityDbData.dateOfLastTest || '';
         basePeriodic.durability.qtyProduced = periodicDurabilityDbData.qtyProducedSinceLastTest !== null && periodicDurabilityDbData.qtyProducedSinceLastTest !== undefined ? String(periodicDurabilityDbData.qtyProducedSinceLastTest) : '';
-        basePeriodic.durability.samples = [
+        const rawDur = [
           { lotNo: periodicDurabilityDbData.s1LotNo || '', initialThick: periodicDurabilityDbData.s1InitialThickness || '', finalThick: periodicDurabilityDbData.s1FinalThickness || '', initialLoad: periodicDurabilityDbData.s1InitialLoadComp || '', finalLoad: periodicDurabilityDbData.s1FinalLoadComp || '' },
           { lotNo: periodicDurabilityDbData.s2LotNo || '', initialThick: periodicDurabilityDbData.s2InitialThickness || '', finalThick: periodicDurabilityDbData.s2FinalThickness || '', initialLoad: periodicDurabilityDbData.s2InitialLoadComp || '', finalLoad: periodicDurabilityDbData.s2FinalLoadComp || '' },
           { lotNo: periodicDurabilityDbData.s3LotNo || '', initialThick: periodicDurabilityDbData.s3InitialThickness || '', finalThick: periodicDurabilityDbData.s3FinalThickness || '', initialLoad: periodicDurabilityDbData.s3InitialLoadComp || '', finalLoad: periodicDurabilityDbData.s3FinalLoadComp || '' },
           { lotNo: periodicDurabilityDbData.s4LotNo || '', initialThick: periodicDurabilityDbData.s4InitialThickness || '', finalThick: periodicDurabilityDbData.s4FinalThickness || '', initialLoad: periodicDurabilityDbData.s4InitialLoadComp || '', finalLoad: periodicDurabilityDbData.s4FinalLoadComp || '' },
           { lotNo: periodicDurabilityDbData.s5LotNo || '', initialThick: periodicDurabilityDbData.s5InitialThickness || '', finalThick: periodicDurabilityDbData.s5FinalThickness || '', initialLoad: periodicDurabilityDbData.s5InitialLoadComp || '', finalLoad: periodicDurabilityDbData.s5FinalLoadComp || '' }
         ];
+        const durSamples = rawDur.filter((s, idx) => idx === 0 || s.lotNo || s.initialThick || s.finalThick || s.initialLoad || s.finalLoad);
+        basePeriodic.durability.samples = durSamples.length > 0 ? durSamples : [{ lotNo: '', initialThick: '', finalThick: '', initialLoad: '', finalLoad: '' }];
       }
       if (periodicAbrasionDbData) {
         basePeriodic.abrasion.dateOfLastTest = periodicAbrasionDbData.dateOfLastTest || '';
         basePeriodic.abrasion.qtyProduced = periodicAbrasionDbData.qtyProducedSinceLastTest !== null && periodicAbrasionDbData.qtyProducedSinceLastTest !== undefined ? String(periodicAbrasionDbData.qtyProducedSinceLastTest) : '';
-        basePeriodic.abrasion.samples = [
+        const rawAbr = [
           { lotNo: periodicAbrasionDbData.s1LotNo || '', sampleNo: periodicAbrasionDbData.s1SampleNo || '', initialMass: periodicAbrasionDbData.s1InitialMass || '', finalMass: periodicAbrasionDbData.s1FinalMass || '', relativeLoss: periodicAbrasionDbData.s1RelativeLoss || '' },
           { lotNo: periodicAbrasionDbData.s2LotNo || '', sampleNo: periodicAbrasionDbData.s2SampleNo || '', initialMass: periodicAbrasionDbData.s2InitialMass || '', finalMass: periodicAbrasionDbData.s2FinalMass || '', relativeLoss: periodicAbrasionDbData.s2RelativeLoss || '' },
           { lotNo: periodicAbrasionDbData.s3LotNo || '', sampleNo: periodicAbrasionDbData.s3SampleNo || '', initialMass: periodicAbrasionDbData.s3InitialMass || '', finalMass: periodicAbrasionDbData.s3FinalMass || '', relativeLoss: periodicAbrasionDbData.s3RelativeLoss || '' },
           { lotNo: periodicAbrasionDbData.s4LotNo || '', sampleNo: periodicAbrasionDbData.s4SampleNo || '', initialMass: periodicAbrasionDbData.s4InitialMass || '', finalMass: periodicAbrasionDbData.s4FinalMass || '', relativeLoss: periodicAbrasionDbData.s4RelativeLoss || '' },
           { lotNo: periodicAbrasionDbData.s5LotNo || '', sampleNo: periodicAbrasionDbData.s5SampleNo || '', initialMass: periodicAbrasionDbData.s5InitialMass || '', finalMass: periodicAbrasionDbData.s5FinalMass || '', relativeLoss: periodicAbrasionDbData.s5RelativeLoss || '' }
         ];
+        const abrSamples = rawAbr.filter((s, idx) => idx === 0 || s.lotNo || s.sampleNo || s.initialMass || s.finalMass || s.relativeLoss);
+        basePeriodic.abrasion.samples = abrSamples.length > 0 ? abrSamples : [{ lotNo: '', sampleNo: '', initialMass: '', finalMass: '', relativeLoss: '' }];
       }
-      basePeriodic = padPeriodicData(basePeriodic);
-      setPeriodicData(basePeriodic);;
+      setPeriodicData(basePeriodic);
       setRemarks(finalRemarks);
       setSealingType(finalSealingType);
       setSteelStampNumber(finalSteelStampNumber);

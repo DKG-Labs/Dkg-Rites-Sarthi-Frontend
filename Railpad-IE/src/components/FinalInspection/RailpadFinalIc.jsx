@@ -474,40 +474,46 @@ const RailpadFinalIc = ({ data = {}, isEditing = false, isBusy = false, isViewOn
           </tr>
 
           {/* STORES DATA ROWS */}
-          <tr>
-            <td rowSpan={3} style={{ ...tdCenterStyle, paddingTop: '15px', verticalAlign: 'top', borderBottom: 'none' }}>{itemNo}</td>
-            <td rowSpan={3} style={{ ...tdStyle, padding: '8px', fontSize: '8.5px', lineHeight: '1.25', verticalAlign: 'top', borderBottom: 'none' }}>
-              <EditableField value={description} fieldName="description" type="textarea" style={{ fontSize: '8.5px' }} {...fieldProps} />
-            </td>
-            <td style={{ ...tdCenterStyle, paddingTop: '15px', borderBottom: 'none' }}>
-              <div>{qtyOnOrder}</div>
-              <div style={{ fontWeight: 'normal', fontSize: '8px', color: '#475569', marginTop: '2px' }}>Nos.</div>
-            </td>
-            <td style={{ ...tdCenterStyle, paddingTop: '15px', borderBottom: 'none' }}>
-              <EditableField value={qtyOfferedPreviously} fieldName="qtyOfferedPreviously" style={{ textAlign: 'center', fontSize: '10px' }} {...fieldProps} />
-              <div style={{ fontWeight: 'normal', fontSize: '8px', color: '#475569', marginTop: '2px' }}>Nos.</div>
-            </td>
-            <td style={{ ...tdCenterStyle, paddingTop: '15px', borderBottom: 'none' }}>
-              <EditableField value={qtyPassedPreviously} fieldName="qtyPassedPreviously" style={{ textAlign: 'center', fontSize: '10px' }} {...fieldProps} />
-              <div style={{ fontWeight: 'normal', fontSize: '8px', color: '#475569', marginTop: '2px' }}>Nos.</div>
-            </td>
-            <td style={{ ...tdCenterStyle, paddingTop: '15px', borderBottom: 'none' }}>
-              <div>{qtyNowOffered}</div>
-              <div style={{ fontWeight: 'normal', fontSize: '8px', color: '#475569', marginTop: '2px' }}>Nos.</div>
-            </td>
-            <td style={{ ...tdCenterStyle, paddingTop: '15px', borderBottom: 'none' }}>
-              <div>{qtyNowPassed}</div>
-              <div style={{ fontWeight: 'normal', fontSize: '8px', color: '#475569', marginTop: '2px' }}>Nos.</div>
-            </td>
-            <td style={{ ...tdCenterStyle, paddingTop: '15px', borderBottom: 'none' }}>
-              <div>{qtyNowRejected}</div>
-              <div style={{ fontWeight: 'normal', fontSize: '8px', color: '#475569', marginTop: '2px' }}>Nos.</div>
-            </td>
-            <td style={{ ...tdCenterStyle, paddingTop: '15px', borderBottom: 'none' }}>
-              <EditableField value={qtyStillDue} fieldName="qtyStillDue" style={{ textAlign: 'center', fontSize: '10px' }} {...fieldProps} />
-              <div style={{ fontWeight: 'normal', fontSize: '8px', color: '#475569', marginTop: '2px' }}>Nos.</div>
-            </td>
-          </tr>
+          {(() => {
+            const isNcrCall = (data?.railPadType || '').toUpperCase().includes('NCR') || (data?.unit || '').toUpperCase().includes('SET');
+            const currentUnit = isNcrCall ? 'Set' : (data?.unit || 'Nos.');
+            return (
+              <tr>
+                <td rowSpan={3} style={{ ...tdCenterStyle, paddingTop: '15px', verticalAlign: 'top', borderBottom: 'none' }}>{itemNo}</td>
+                <td rowSpan={3} style={{ ...tdStyle, padding: '8px', fontSize: '8.5px', lineHeight: '1.25', verticalAlign: 'top', borderBottom: 'none' }}>
+                  <EditableField value={description} fieldName="description" type="textarea" style={{ fontSize: '8.5px' }} {...fieldProps} />
+                </td>
+                <td style={{ ...tdCenterStyle, paddingTop: '15px', borderBottom: 'none' }}>
+                  <div>{qtyOnOrder}</div>
+                  <div style={{ fontWeight: 'normal', fontSize: '8px', color: '#475569', marginTop: '2px' }}>{currentUnit}</div>
+                </td>
+                <td style={{ ...tdCenterStyle, paddingTop: '15px', borderBottom: 'none' }}>
+                  <EditableField value={qtyOfferedPreviously} fieldName="qtyOfferedPreviously" style={{ textAlign: 'center', fontSize: '10px' }} {...fieldProps} />
+                  <div style={{ fontWeight: 'normal', fontSize: '8px', color: '#475569', marginTop: '2px' }}>{currentUnit}</div>
+                </td>
+                <td style={{ ...tdCenterStyle, paddingTop: '15px', borderBottom: 'none' }}>
+                  <EditableField value={qtyPassedPreviously} fieldName="qtyPassedPreviously" style={{ textAlign: 'center', fontSize: '10px' }} {...fieldProps} />
+                  <div style={{ fontWeight: 'normal', fontSize: '8px', color: '#475569', marginTop: '2px' }}>{currentUnit}</div>
+                </td>
+                <td style={{ ...tdCenterStyle, paddingTop: '15px', borderBottom: 'none' }}>
+                  <div>{qtyNowOffered}</div>
+                  <div style={{ fontWeight: 'normal', fontSize: '8px', color: '#475569', marginTop: '2px' }}>{currentUnit}</div>
+                </td>
+                <td style={{ ...tdCenterStyle, paddingTop: '15px', borderBottom: 'none' }}>
+                  <div>{qtyNowPassed}</div>
+                  <div style={{ fontWeight: 'normal', fontSize: '8px', color: '#475569', marginTop: '2px' }}>{currentUnit}</div>
+                </td>
+                <td style={{ ...tdCenterStyle, paddingTop: '15px', borderBottom: 'none' }}>
+                  <div>{qtyNowRejected}</div>
+                  <div style={{ fontWeight: 'normal', fontSize: '8px', color: '#475569', marginTop: '2px' }}>{currentUnit}</div>
+                </td>
+                <td style={{ ...tdCenterStyle, paddingTop: '15px', borderBottom: 'none' }}>
+                  <EditableField value={qtyStillDue} fieldName="qtyStillDue" style={{ textAlign: 'center', fontSize: '10px' }} {...fieldProps} />
+                  <div style={{ fontWeight: 'normal', fontSize: '8px', color: '#475569', marginTop: '2px' }}>{currentUnit}</div>
+                </td>
+              </tr>
+            );
+          })()}
 
           {/* FILLER ROW ABOVE TEXT BOX */}
           <tr>

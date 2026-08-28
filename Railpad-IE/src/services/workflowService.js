@@ -132,3 +132,19 @@ export const performTransitionAction = async (actionData) => {
     throw error;
   }
 };
+
+export const fetchCancellationDetails = async (callNo) => {
+  try {
+    if (!callNo) return null;
+    const response = await fetch(`${getBaseUrl()}/railpad-workflow/cancellation-details?callNo=${encodeURIComponent(callNo)}`);
+    const data = await response.json();
+    if (data.responseStatus?.statusCode === 0) {
+      return data.responseData;
+    }
+    return null;
+  } catch (error) {
+    console.error('Error fetching cancellation details:', error);
+    return null;
+  }
+};
+

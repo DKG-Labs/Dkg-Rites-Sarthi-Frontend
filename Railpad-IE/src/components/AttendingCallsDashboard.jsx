@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { fetchPendingWorkflowTransitions, fetchCompletedCalls, performTransitionAction, isPlantIdMatching } from '../services/workflowService';
+import { fetchPendingWorkflowTransitions, fetchCompletedCalls, performTransitionAction, isPlantIdMatching, fetchCancellationDetails } from '../services/workflowService';
 import { scheduleInspection } from '../services/scheduleService';
 import { viewSignedCertificate } from '../services/certificateService';
 import { getBaseUrl } from '../services/apiConfig';
@@ -19,6 +19,9 @@ const AttendingCallsDashboard = ({ onStart, onResume, onIssueIc, onBackToPortal,
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCall, setSelectedCall] = useState(null);
   const [showDetailsModal, setShowDetailsModal] = useState(false);
+  const [showCancellationModal, setShowCancellationModal] = useState(false);
+  const [cancellationData, setCancellationData] = useState(null);
+  const [loadingCancellation, setLoadingCancellation] = useState(false);
   const [selectedCallForView, setSelectedCallForView] = useState(null);
   const [selectedCallActions, setSelectedCallActions] = useState([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -85,7 +88,10 @@ const AttendingCallsDashboard = ({ onStart, onResume, onIssueIc, onBackToPortal,
                status === 'GENERATED' ||
                jobStatus === 'GENERATED' ||
                status === 'IC_SIGNED' ||
-               jobStatus === 'IC_SIGNED';
+               jobStatus === 'IC_SIGNED' ||
+               status.includes('CANCEL') ||
+               jobStatus.includes('CANCEL') ||
+               action.includes('CANCEL');
       };
 
       let certCalls = rpCompletedAll.filter(c => {
@@ -131,6 +137,22 @@ const AttendingCallsDashboard = ({ onStart, onResume, onIssueIc, onBackToPortal,
     setSelectedCall(call);
     setRemarks('');
     setShowDetailsModal(true);
+  };
+
+  const handleViewCancelledDetails = async (call) => {
+    setSelectedCall(call);
+    setShowCancellationModal(true);
+    setLoadingCancellation(true);
+    setCancellationData(null);
+    try {
+      const data = await fetchCancellationDetails(call.requestId || call.callNo || call.callNumber);
+      setCancellationData(data);
+    } catch (e) {
+      console.error('Error fetching cancellation data:', e);
+      setCancellationData(null);
+    } finally {
+      setLoadingCancellation(false);
+    }
   };
 
   const handleOpenSchedule = (call) => {
@@ -517,83 +539,135 @@ const AttendingCallsDashboard = ({ onStart, onResume, onIssueIc, onBackToPortal,
                         {call.createdDate ? new Date(call.createdDate).toLocaleDateString('en-GB') : 'N/A'}
                       </td>
                       <td style={{ padding: '12px 16px' }}>
-                        <span style={{
-                          padding: '4px 10px',
-                          borderRadius: '12px',
-                          fontSize: '11px',
-                          fontWeight: '700',
-                          background: '#dcfce7',
-                          color: '#15803d',
-                          border: '1px solid #86efac',
-                          display: 'inline-block'
-                        }}>
-                          Completed - E-Signed
-                        </span>
+                        {(() => {
+                          const isCancelled = (call.status || '').toUpperCase().includes('CANCEL') ||
+                                              (call.jobStatus || '').toUpperCase().includes('CANCEL') ||
+                                              (call.action || '').toUpperCase().includes('CANCEL');
+                          if (isCancelled) {
+                            return (
+                              <span style={{
+                                padding: '4px 10px',
+                                borderRadius: '12px',
+                                fontSize: '11px',
+                                fontWeight: '700',
+                                background: '#fee2e2',
+                                color: '#b91c1c',
+                                border: '1px solid #fca5a5',
+                                display: 'inline-block'
+                              }}>
+                                Cancelled
+                              </span>
+                            );
+                          }
+                          return (
+                            <span style={{
+                              padding: '4px 10px',
+                              borderRadius: '12px',
+                              fontSize: '11px',
+                              fontWeight: '700',
+                              background: '#dcfce7',
+                              color: '#15803d',
+                              border: '1px solid #86efac',
+                              display: 'inline-block'
+                            }}>
+                              Completed - E-Signed
+                            </span>
+                          );
+                        })()}
                       </td>
                       <td style={{ padding: '12px 16px' }}>
                         <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-                          <button
-                            onClick={() => handleViewSignedIC(call)}
-                            style={{
-                              padding: '6px 14px',
-                              borderRadius: '6px',
-                              border: 'none',
-                              background: '#2563eb',
-                              color: '#ffffff',
-                              fontSize: '11px',
-                              fontWeight: '700',
-                              cursor: 'pointer',
-                              boxShadow: '0 1px 2px rgba(37, 99, 235, 0.2)'
-                            }}
-                          >
-                            View IC
-                          </button>
-                          <button
-                            disabled={true}
-                            title="Under development"
-                            style={{
-                              padding: '6px 14px',
-                              borderRadius: '6px',
-                              border: '1px solid #e2e8f0',
-                              background: '#f8fafc',
-                              color: '#94a3b8',
-                              fontSize: '11px',
-                              fontWeight: '700',
-                              cursor: 'not-allowed',
-                              opacity: 0.6
-                            }}
-                          >
-                            Annexures
-                          </button>
-                          <button
-                            onClick={() => {
-                              setSelectedCall(call);
-                              setShowCorrectionSlipModal(true);
-                            }}
-                            title="Issue Correction Slip"
-                            style={{
-                              padding: '6px 14px',
-                              borderRadius: '6px',
-                              border: '1px solid #fed7aa',
-                              background: '#fff7ed',
-                              color: '#ea580c',
-                              fontSize: '11px',
-                              fontWeight: '700',
-                              cursor: 'pointer',
-                              boxShadow: '0 1px 2px rgba(234, 88, 12, 0.1)',
-                              transition: 'all 0.2s ease'
-                            }}
-                            onMouseEnter={e => {
-                              e.currentTarget.style.background = '#ffedd5';
-                              e.currentTarget.style.borderColor = '#fdba74';
-                            }}
-                            onMouseLeave={e => {
-                              e.currentTarget.style.background = '#fff7ed';
-                              e.currentTarget.style.borderColor = '#fed7aa';
-                            }}
-                          >
-                            Correction Slip
-                          </button>
+                          {(() => {
+                            const isCancelled = (call.status || '').toUpperCase().includes('CANCEL') ||
+                                                (call.jobStatus || '').toUpperCase().includes('CANCEL') ||
+                                                (call.action || '').toUpperCase().includes('CANCEL');
+                            if (isCancelled) {
+                              return (
+                                <button
+                                  onClick={() => handleViewCancelledDetails(call)}
+                                  style={{
+                                    padding: '6px 14px',
+                                    borderRadius: '6px',
+                                    border: '1px solid #cbd5e1',
+                                    background: '#ffffff',
+                                    color: '#334155',
+                                    fontSize: '11px',
+                                    fontWeight: '700',
+                                    cursor: 'pointer',
+                                    boxShadow: '0 1px 2px rgba(0,0,0,0.05)'
+                                  }}
+                                >
+                                  View Details
+                                </button>
+                              );
+                            }
+                            return (
+                              <>
+                                <button
+                                  onClick={() => handleViewSignedIC(call)}
+                                  style={{
+                                    padding: '6px 14px',
+                                    borderRadius: '6px',
+                                    border: 'none',
+                                    background: '#2563eb',
+                                    color: '#ffffff',
+                                    fontSize: '11px',
+                                    fontWeight: '700',
+                                    cursor: 'pointer',
+                                    boxShadow: '0 1px 2px rgba(37, 99, 235, 0.2)'
+                                  }}
+                                >
+                                  View IC
+                                </button>
+                                <button
+                                  disabled={true}
+                                  title="Under development"
+                                  style={{
+                                    padding: '6px 14px',
+                                    borderRadius: '6px',
+                                    border: '1px solid #e2e8f0',
+                                    background: '#f8fafc',
+                                    color: '#94a3b8',
+                                    fontSize: '11px',
+                                    fontWeight: '700',
+                                    cursor: 'not-allowed',
+                                    opacity: 0.6
+                                  }}
+                                >
+                                  Annexures
+                                </button>
+                                <button
+                                  onClick={() => {
+                                    setSelectedCall(call);
+                                    setShowCorrectionSlipModal(true);
+                                  }}
+                                  title="Issue Correction Slip"
+                                  style={{
+                                    padding: '6px 14px',
+                                    borderRadius: '6px',
+                                    border: '1px solid #fed7aa',
+                                    background: '#fff7ed',
+                                    color: '#ea580c',
+                                    fontSize: '11px',
+                                    fontWeight: '700',
+                                    cursor: 'pointer',
+                                    boxShadow: '0 1px 2px rgba(234, 88, 12, 0.1)',
+                                    transition: 'all 0.2s ease'
+                                  }}
+                                  onMouseEnter={e => {
+                                    e.currentTarget.style.background = '#ffedd5';
+                                    e.currentTarget.style.borderColor = '#fdba74';
+                                  }}
+                                  onMouseLeave={e => {
+                                    e.currentTarget.style.background = '#fff7ed';
+                                    e.currentTarget.style.borderColor = '#fed7aa';
+                                  }}
+                                >
+                                  Correction Slip
+                                </button>
+                              </>
+                            );
+                          })()}
                         </div>
                       </td>
                     </>
@@ -869,6 +943,256 @@ const AttendingCallsDashboard = ({ onStart, onResume, onIssueIc, onBackToPortal,
                   style={{ padding: '12px 24px', background: '#f1f5f9', color: '#475569', border: 'none', borderRadius: '10px', fontWeight: '700', cursor: 'pointer' }}
                 >
                   CLOSE
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Cancelled Call Details & Charges Modal */}
+      {showCancellationModal && selectedCall && (
+        <div style={{
+          position: 'fixed',
+          inset: 0,
+          background: 'rgba(15, 23, 42, 0.6)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 1100,
+          padding: '20px',
+          backdropFilter: 'blur(4px)'
+        }}>
+          <div style={{
+            background: '#ffffff',
+            borderRadius: '20px',
+            width: '100%',
+            maxWidth: '750px',
+            maxHeight: '90vh',
+            display: 'flex',
+            flexDirection: 'column',
+            overflow: 'hidden',
+            boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)'
+          }}>
+            {/* Modal Header */}
+            <div style={{
+              padding: '20px 24px',
+              borderBottom: '1px solid #e2e8f0',
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              background: '#f8fafc'
+            }}>
+              <div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <h2 style={{ fontSize: '18px', fontWeight: '800', color: '#0f172a', margin: 0 }}>
+                    Cancellation Details: {selectedCall.requestId || selectedCall.callNo}
+                  </h2>
+                  <span style={{
+                    padding: '3px 10px',
+                    borderRadius: '12px',
+                    fontSize: '11px',
+                    fontWeight: '800',
+                    background: (cancellationData?.cancellationBasis || '').toUpperCase() === 'CHARGEABLE' ? '#fee2e2' : '#f1f5f9',
+                    color: (cancellationData?.cancellationBasis || '').toUpperCase() === 'CHARGEABLE' ? '#b91c1c' : '#475569',
+                    border: (cancellationData?.cancellationBasis || '').toUpperCase() === 'CHARGEABLE' ? '1px solid #fca5a5' : '1px solid #cbd5e1'
+                  }}>
+                    {cancellationData?.cancellationBasis ? cancellationData.cancellationBasis.replace(/_/g, ' ') : 'CANCELLED'}
+                  </span>
+                </div>
+                <p style={{ margin: '4px 0 0 0', fontSize: '13px', color: '#64748b' }}>
+                  Call cancellation records and financial liability assessment
+                </p>
+              </div>
+              <button
+                onClick={() => setShowCancellationModal(false)}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  fontSize: '24px',
+                  color: '#94a3b8',
+                  cursor: 'pointer',
+                  padding: '4px 8px',
+                  borderRadius: '6px'
+                }}
+              >
+                ×
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <div style={{ padding: '24px', overflowY: 'auto' }}>
+              {loadingCancellation ? (
+                <div style={{ textAlign: 'center', padding: '40px', color: '#64748b' }}>
+                  <div style={{ fontSize: '14px', fontWeight: '600' }}>Loading cancellation details...</div>
+                </div>
+              ) : (
+                <>
+                  {/* General Details Grid */}
+                  <div style={{
+                    display: 'grid',
+                    gridTemplateColumns: 'repeat(3, 1fr)',
+                    gap: '16px',
+                    background: '#f8fafc',
+                    padding: '16px 20px',
+                    borderRadius: '12px',
+                    border: '1px solid #e2e8f0',
+                    marginBottom: '20px'
+                  }}>
+                    <div>
+                      <label style={{ fontSize: '11px', fontWeight: '700', color: '#64748b', textTransform: 'uppercase', display: 'block', marginBottom: '2px' }}>Call Number</label>
+                      <div style={{ fontSize: '13px', fontWeight: '700', color: '#0f172a' }}>{selectedCall.requestId || selectedCall.callNo}</div>
+                    </div>
+                    <div>
+                      <label style={{ fontSize: '11px', fontWeight: '700', color: '#64748b', textTransform: 'uppercase', display: 'block', marginBottom: '2px' }}>Vendor</label>
+                      <div style={{ fontSize: '13px', fontWeight: '700', color: '#0f172a' }}>{selectedCall.vendorName || selectedCall.vendorCode}</div>
+                    </div>
+                    <div>
+                      <label style={{ fontSize: '11px', fontWeight: '700', color: '#64748b', textTransform: 'uppercase', display: 'block', marginBottom: '2px' }}>PO Reference</label>
+                      <div style={{ fontSize: '13px', fontWeight: '700', color: '#0f172a' }}>{selectedCall.rlyPoSrNo || selectedCall.poNo || 'N/A'}</div>
+                    </div>
+                    <div>
+                      <label style={{ fontSize: '11px', fontWeight: '700', color: '#64748b', textTransform: 'uppercase', display: 'block', marginBottom: '2px' }}>Cancellation Basis</label>
+                      <div style={{ fontSize: '13px', fontWeight: '700', color: '#0f172a' }}>{cancellationData?.cancellationBasis || 'N/A'}</div>
+                    </div>
+                    <div>
+                      <label style={{ fontSize: '11px', fontWeight: '700', color: '#64748b', textTransform: 'uppercase', display: 'block', marginBottom: '2px' }}>Visit Status</label>
+                      <div style={{ fontSize: '13px', fontWeight: '700', color: '#0f172a' }}>{cancellationData?.visitStatus ? cancellationData.visitStatus.replace(/_/g, ' ') : (cancellationData?.cancellationBasis === 'CHARGEABLE' ? 'Before Visit' : 'N/A')}</div>
+                    </div>
+                    <div>
+                      <label style={{ fontSize: '11px', fontWeight: '700', color: '#64748b', textTransform: 'uppercase', display: 'block', marginBottom: '2px' }}>Cancelled On</label>
+                      <div style={{ fontSize: '13px', fontWeight: '700', color: '#0f172a' }}>
+                        {cancellationData?.createdDate ? new Date(cancellationData.createdDate).toLocaleDateString('en-GB') : (selectedCall.createdDate ? new Date(selectedCall.createdDate).toLocaleDateString('en-GB') : 'N/A')}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Reasons and Description */}
+                  <div style={{ marginBottom: '20px' }}>
+                    <label style={{ fontSize: '12px', fontWeight: '700', color: '#334155', display: 'block', marginBottom: '6px', textTransform: 'uppercase' }}>
+                      Reason for Cancellation
+                    </label>
+                    <div style={{ padding: '12px 16px', background: '#ffffff', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '13px', color: '#1e293b', fontWeight: '600' }}>
+                      {cancellationData?.reasons || selectedCall.remarks || 'Material Not Available'}
+                    </div>
+                  </div>
+
+                  {cancellationData?.cancellationDescription && (
+                    <div style={{ marginBottom: '20px' }}>
+                      <label style={{ fontSize: '12px', fontWeight: '700', color: '#334155', display: 'block', marginBottom: '6px', textTransform: 'uppercase' }}>
+                        Description / Remarks
+                      </label>
+                      <div style={{ padding: '12px 16px', background: '#f8fafc', borderRadius: '8px', border: '1px solid #e2e8f0', fontSize: '13px', color: '#475569' }}>
+                        {cancellationData.cancellationDescription}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Financial Charges Calculation Card */}
+                  {cancellationData && cancellationData.cancellationBasis === 'CHARGEABLE' ? (
+                    <div style={{
+                      background: 'linear-gradient(135deg, #fff1f2 0%, #fff7ed 100%)',
+                      borderRadius: '16px',
+                      border: '1px solid #fecdd3',
+                      padding: '20px',
+                      marginBottom: '16px'
+                    }}>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px', borderBottom: '1px solid #fecdd3', paddingBottom: '12px' }}>
+                        <div style={{ fontSize: '14px', fontWeight: '800', color: '#9f1239' }}>
+                          Cancellation Charges Breakdown
+                        </div>
+                        <span style={{ fontSize: '11px', fontWeight: '700', color: '#be123c', background: '#ffe4e6', padding: '3px 8px', borderRadius: '6px' }}>
+                          Chargeable to Vendor
+                        </span>
+                      </div>
+
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '16px', marginBottom: '16px' }}>
+                        <div style={{ background: '#ffffff', padding: '12px 16px', borderRadius: '10px', border: '1px solid #fed7aa' }}>
+                          <span style={{ fontSize: '11px', fontWeight: '700', color: '#9a3412', display: 'block', marginBottom: '2px' }}>Material Value</span>
+                          <span style={{ fontSize: '15px', fontWeight: '800', color: '#0f172a' }}>
+                            ₹{Number(cancellationData.materialValue || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                          </span>
+                        </div>
+                        <div style={{ background: '#ffffff', padding: '12px 16px', borderRadius: '10px', border: '1px solid #fed7aa' }}>
+                          <span style={{ fontSize: '11px', fontWeight: '700', color: '#9a3412', display: 'block', marginBottom: '2px' }}>Cancellation Rate</span>
+                          <span style={{ fontSize: '15px', fontWeight: '800', color: '#0f172a' }}>
+                            {cancellationData.percentage || 0}%
+                          </span>
+                        </div>
+                        <div style={{ background: '#ffffff', padding: '12px 16px', borderRadius: '10px', border: '1px solid #fed7aa' }}>
+                          <span style={{ fontSize: '11px', fontWeight: '700', color: '#9a3412', display: 'block', marginBottom: '2px' }}>Calculated Charges</span>
+                          <span style={{ fontSize: '15px', fontWeight: '800', color: '#0f172a' }}>
+                            ₹{Number(cancellationData.calculatedCharges || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                          </span>
+                        </div>
+                        <div style={{ background: '#ffffff', padding: '12px 16px', borderRadius: '10px', border: '1px solid #fed7aa' }}>
+                          <span style={{ fontSize: '11px', fontWeight: '700', color: '#9a3412', display: 'block', marginBottom: '2px' }}>Maximum Cap</span>
+                          <span style={{ fontSize: '15px', fontWeight: '800', color: '#0f172a' }}>
+                            ₹{Number(cancellationData.maximumCap || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                          </span>
+                        </div>
+                      </div>
+
+                      <div style={{
+                        background: '#e11d48',
+                        color: '#ffffff',
+                        padding: '14px 20px',
+                        borderRadius: '12px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        boxShadow: '0 4px 6px -1px rgba(225, 29, 72, 0.2)'
+                      }}>
+                        <div>
+                          <div style={{ fontSize: '11px', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.05em', opacity: 0.9 }}>
+                            Final Cancellation Charges
+                          </div>
+                          <div style={{ fontSize: '11px', opacity: 0.8 }}>
+                            MIN(Calculated Charges, Maximum Cap)
+                          </div>
+                        </div>
+                        <div style={{ fontSize: '22px', fontWeight: '900' }}>
+                          ₹{Number(cancellationData.finalCancellationCharges || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    <div style={{
+                      background: '#f8fafc',
+                      borderRadius: '12px',
+                      border: '1px solid #e2e8f0',
+                      padding: '16px 20px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '12px',
+                      marginBottom: '16px'
+                    }}>
+                      <div style={{ fontSize: '20px' }}>✓</div>
+                      <div>
+                        <div style={{ fontSize: '13px', fontWeight: '700', color: '#0f172a' }}>Non-Chargeable Cancellation</div>
+                        <div style={{ fontSize: '12px', color: '#64748b' }}>No cancellation charges or vendor financial liability applicable for this call.</div>
+                      </div>
+                    </div>
+                  )}
+                </>
+              )}
+
+              {/* Close Button */}
+              <div style={{ display: 'flex', justifyContent: 'flex-end', borderTop: '1px solid #e2e8f0', paddingTop: '16px', marginTop: '8px' }}>
+                <button
+                  onClick={() => setShowCancellationModal(false)}
+                  style={{
+                    padding: '10px 24px',
+                    background: '#0f172a',
+                    color: '#ffffff',
+                    border: 'none',
+                    borderRadius: '8px',
+                    fontWeight: '700',
+                    fontSize: '13px',
+                    cursor: 'pointer'
+                  }}
+                >
+                  Close
                 </button>
               </div>
             </div>

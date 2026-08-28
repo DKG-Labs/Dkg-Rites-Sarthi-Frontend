@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { performTransitionAction } from '../services/workflowService';
 import { getStoredUser } from '../services/authService';
 import { generateCancellationBlankFormatPDF } from '../utils/cancellationFormatPdf';
+import { getBaseUrl } from '../services/apiConfig';
 import Notification from './Notification';
 
 // SRS 12 Reasons for Cancellation
@@ -118,6 +119,37 @@ const CallCancellationModal = ({
     }
   };
 
+  // Handle File Change with 2MB limit validation
+  const handleFileChange = (e) => {
+    const selected = e.target.files[0];
+    if (!selected) {
+      setFile(null);
+      return;
+    }
+
+    if (selected.type !== 'application/pdf' && !selected.name.toLowerCase().endsWith('.pdf')) {
+      setFormErrors((prev) => ({ ...prev, file: 'Only PDF format (.pdf) is supported.' }));
+      setFile(null);
+      e.target.value = '';
+      return;
+    }
+
+    const maxSizeBytes = 2 * 1024 * 1024; // 2 MB
+    if (selected.size > maxSizeBytes) {
+      const sizeMB = (selected.size / (1024 * 1024)).toFixed(2);
+      setFormErrors((prev) => ({
+        ...prev,
+        file: `File size exceeds 2 MB limit (Selected: ${sizeMB} MB). Please select a file smaller than 2 MB.`
+      }));
+      setFile(null);
+      e.target.value = '';
+      return;
+    }
+
+    setFile(selected);
+    setFormErrors((prev) => ({ ...prev, file: null }));
+  };
+
   // Validation Check
   const validateForm = () => {
     const errors = {};
@@ -130,6 +162,13 @@ const CallCancellationModal = ({
     if (selectedReasons.length === 0) {
       errors.reasons = 'Please select at least one reason for cancellation';
     }
+    // Mandatory Cancellation Document Check
+    if (!file) {
+      errors.file = 'Cancellation document (PDF format, max 2 MB) is mandatory. Please upload the official signed document.';
+    } else if (file.size > 2 * 1024 * 1024) {
+      errors.file = `File size exceeds 2 MB limit (${(file.size / (1024 * 1024)).toFixed(2)} MB). Please upload a file smaller than 2 MB.`;
+    }
+
     // Additional Requirement: If "Others (Specify)" is selected: description mandatory & min 20 chars
     if (selectedReasons.includes('Others (Specify)')) {
       if (!description.trim()) {
@@ -151,6 +190,38 @@ const CallCancellationModal = ({
     try {
       const currentUser = getStoredUser();
       const userId = currentUser?.userId || 0;
+      const safeCallNo = (call.call_no || call.callNumber || call.requestId || '').replace(/[/\\?%*:|"<>]/g, '_');
+      const docFileName = `Cancellation_${safeCallNo}_${Date.now()}.pdf`;
+
+      // Read file to Base64 and upload to compressed blob storage
+      let uploadedDocName = file ? file.name : null;
+      if (file) {
+        try {
+          const fileBase64 = await new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = () => resolve(reader.result);
+            reader.onerror = (error) => reject(error);
+            reader.readAsDataURL(file);
+          });
+
+          const uploadResp = await fetch(`${getBaseUrl()}/api/certificate/upload`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              icNumber: call.call_no || call.callNumber || call.requestId,
+              signedData: fileBase64,
+              fileName: docFileName,
+              uploadedBy: currentUser?.fullName || `IE (${currentUser?.employeeCode || userId})`
+            })
+          });
+
+          if (uploadResp.ok) {
+            uploadedDocName = docFileName;
+          }
+        } catch (uploadErr) {
+          console.warn('Document storage upload notice:', uploadErr);
+        }
+      }
 
       const finalRemarks = `[${cancellationBasis}] ${visitStatus ? '(' + visitStatus + ') ' : ''}Reasons: ${selectedReasons.join(', ')}${description.trim() ? ' - Desc: ' + description.trim() : ''}${cancellationBasis === 'CHARGEABLE' ? ` | Final Cancellation Charges: ₹${finalCancellationCharges.toLocaleString('en-IN')}` : ''}`;
 
@@ -172,7 +243,7 @@ const CallCancellationModal = ({
         calculatedCharges,
         maximumCap: capNum,
         finalCancellationCharges,
-        documentName: file ? file.name : null
+        documentName: uploadedDocName || (file ? file.name : null)
       };
 
       await performTransitionAction(workflowActionData);
@@ -494,19 +565,39 @@ const CallCancellationModal = ({
           </div>
 
           {/* Section 7: Cancellation Document Upload & Download Template */}
-          <div style={{ background: '#f0f9ff', border: '1px solid #bae6fd', borderRadius: '14px', padding: '16px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+          <div style={{
+            background: formErrors.file ? '#fef2f2' : '#f0f9ff',
+            border: formErrors.file ? '1.5px solid #f87171' : '1px solid #bae6fd',
+            borderRadius: '14px',
+            padding: '16px',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '12px'
+          }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
               <div>
-                <label style={{ fontSize: '13px', fontWeight: '700', color: '#0369a1', display: 'block' }}>7. Cancellation Document (PDF Format)</label>
-                <span style={{ fontSize: '11px', color: '#0284c7' }}>Upload official signed cancellation request or document</span>
+                <label style={{ fontSize: '13px', fontWeight: '700', color: formErrors.file ? '#b91c1c' : '#0369a1', display: 'block' }}>
+                  7. Cancellation Document (PDF Format) <span style={{ color: '#ef4444' }}>* (Mandatory, Max 2 MB)</span>
+                </label>
+                <span style={{ fontSize: '11px', color: formErrors.file ? '#dc2626' : '#0284c7' }}>
+                  Upload official signed cancellation request or document (PDF only, max size 2 MB)
+                </span>
               </div>
               <button
                 type="button"
                 onClick={handleDownloadTemplate}
                 style={{
-                  background: '#ffffff', border: '1px solid #0284c7', color: '#0284c7',
-                  borderRadius: '8px', padding: '6px 12px', fontSize: '12px', fontWeight: '700',
-                  cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px'
+                  background: '#ffffff',
+                  border: '1px solid #0284c7',
+                  color: '#0284c7',
+                  borderRadius: '8px',
+                  padding: '6px 12px',
+                  fontSize: '12px',
+                  fontWeight: '700',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px'
                 }}
               >
                 📥 Download Blank Format
@@ -515,11 +606,30 @@ const CallCancellationModal = ({
 
             <input
               type="file"
-              accept=".pdf"
-              onChange={(e) => setFile(e.target.files[0] || null)}
+              accept=".pdf,application/pdf"
+              onChange={handleFileChange}
               style={{ fontSize: '13px', color: '#334155' }}
             />
-            {file && <div style={{ fontSize: '12px', color: '#0369a1', fontWeight: '600' }}>✓ Selected File: {file.name}</div>}
+
+            {file && (
+              <div style={{
+                fontSize: '12px',
+                color: '#0284c7',
+                fontWeight: '700',
+                background: '#e0f2fe',
+                padding: '6px 12px',
+                borderRadius: '6px',
+                display: 'inline-block'
+              }}>
+                ✓ Selected File: {file.name} ({(file.size / 1024).toFixed(1)} KB)
+              </div>
+            )}
+
+            {formErrors.file && (
+              <span style={{ color: '#ef4444', fontSize: '12px', fontWeight: '600', display: 'block' }}>
+                ⚠️ {formErrors.file}
+              </span>
+            )}
           </div>
 
           {/* Section 8: Cancellation Charges Calculation (Chargeable Only) */}

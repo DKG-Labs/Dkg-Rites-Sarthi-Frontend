@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { performTransitionAction } from '../services/workflowService';
 import { getStoredUser } from '../services/authService';
-import { fetchCallLetterDetails } from '../call-desk-module/src/services/callLetterApi';
-import { message } from 'antd';
 import { generateCancellationBlankFormatPDF } from '../utils/cancellationFormatPdf';
+import { getBaseUrl } from '../services/apiConfig';
+import Notification from './Notification';
 
 // SRS 12 Reasons for Cancellation
 export const CANCELLATION_REASONS = [
@@ -28,6 +28,16 @@ const CallCancellationModal = ({
   showNotification,
   onSuccess
 }) => {
+  // Toast State
+  const [toast, setToast] = useState(null);
+
+  const notify = (msg, type = 'success') => {
+    setToast({ message: msg, type });
+    if (showNotification) {
+      showNotification(msg, type);
+    }
+  };
+
   // Form State
   const [cancellationBasis, setCancellationBasis] = useState('CHARGEABLE'); // 'CHARGEABLE' | 'NON_CHARGEABLE'
   const [visitStatus, setVisitStatus]             = useState('BEFORE_VISIT'); // 'BEFORE_VISIT' | 'AFTER_VISIT'
@@ -43,9 +53,8 @@ const CallCancellationModal = ({
   const [isSubmitting, setIsSubmitting]   = useState(false);
   const [formErrors, setFormErrors]       = useState({});
 
-  // Initialize Material Value dynamically from Call/PO object or async backend fetch
+  // Initialize Material Value dynamically from Call/PO object
   useEffect(() => {
-    let isMounted = true;
     if (call) {
       const poVal = call.material_value || call.materialValue || call.po_value || call.poValue || 
                     call.total_value || call.totalValue || call.po_amount || call.poAmount || 
@@ -55,26 +64,9 @@ const CallCancellationModal = ({
         const numericVal = String(poVal).replace(/[^0-9.]/g, '');
         if (numericVal) {
           setMaterialValue(numericVal);
-          return;
         }
       }
-
-      // If not present directly on call object, fetch PO details from backend API
-      const callNo = call.call_no || call.callNumber;
-      if (callNo) {
-        fetchCallLetterDetails(callNo).then((details) => {
-          if (!isMounted || !details) return;
-          const fetchedVal = details.poValue || details.totalPoValue || details.material_value || details.materialValue || details.poHeader?.poValue || details.poItem?.materialValue;
-          if (fetchedVal) {
-            const numericVal = String(fetchedVal).replace(/[^0-9.]/g, '');
-            if (numericVal) setMaterialValue(numericVal);
-          }
-        }).catch((err) => {
-          console.log('PO material value fetch info:', err);
-        });
-      }
     }
-    return () => { isMounted = false; };
   }, [call]);
 
   // SRS 8.2 Maximum Cap Logic: Auto-populate cap based on Visit Status
@@ -104,16 +96,6 @@ const CallCancellationModal = ({
     return Math.min(calculatedCharges, capNum);
   }, [cancellationBasis, calculatedCharges, capNum]);
 
-  const notify = (msg, type = 'success') => {
-    if (showNotification) {
-      showNotification(msg, type);
-    } else {
-      if (type === 'error') message.error(msg);
-      else if (type === 'info') message.info(msg);
-      else message.success(msg);
-    }
-  };
-
   if (!isOpen || !call) return null;
 
   // Toggle multi-select reasons
@@ -126,15 +108,46 @@ const CallCancellationModal = ({
     setFormErrors((prev) => ({ ...prev, reasons: null }));
   };
 
-  // Download prescribed Cancellation Format Template (2-page PDF)
+  // Download prescribed Cancellation Format Template
   const handleDownloadTemplate = async () => {
     try {
       await generateCancellationBlankFormatPDF(call);
-      notify('Call Cancellation blank formats (2-Page PDF) downloaded successfully', 'info');
+      notify('Call Cancellation blank formats downloaded successfully', 'info');
     } catch (err) {
       console.error('Error generating cancellation format PDF:', err);
       notify('Failed to generate cancellation format PDF', 'error');
     }
+  };
+
+  // Handle File Change with 2MB limit validation
+  const handleFileChange = (e) => {
+    const selected = e.target.files[0];
+    if (!selected) {
+      setFile(null);
+      return;
+    }
+
+    if (selected.type !== 'application/pdf' && !selected.name.toLowerCase().endsWith('.pdf')) {
+      setFormErrors((prev) => ({ ...prev, file: 'Only PDF format (.pdf) is supported.' }));
+      setFile(null);
+      e.target.value = '';
+      return;
+    }
+
+    const maxSizeBytes = 2 * 1024 * 1024; // 2 MB
+    if (selected.size > maxSizeBytes) {
+      const sizeMB = (selected.size / (1024 * 1024)).toFixed(2);
+      setFormErrors((prev) => ({
+        ...prev,
+        file: `File size exceeds 2 MB limit (Selected: ${sizeMB} MB). Please select a file smaller than 2 MB.`
+      }));
+      setFile(null);
+      e.target.value = '';
+      return;
+    }
+
+    setFile(selected);
+    setFormErrors((prev) => ({ ...prev, file: null }));
   };
 
   // Validation Check
@@ -149,6 +162,13 @@ const CallCancellationModal = ({
     if (selectedReasons.length === 0) {
       errors.reasons = 'Please select at least one reason for cancellation';
     }
+    // Mandatory Cancellation Document Check
+    if (!file) {
+      errors.file = 'Cancellation document (PDF format, max 2 MB) is mandatory. Please upload the official signed document.';
+    } else if (file.size > 2 * 1024 * 1024) {
+      errors.file = `File size exceeds 2 MB limit (${(file.size / (1024 * 1024)).toFixed(2)} MB). Please upload a file smaller than 2 MB.`;
+    }
+
     // Additional Requirement: If "Others (Specify)" is selected: description mandatory & min 20 chars
     if (selectedReasons.includes('Others (Specify)')) {
       if (!description.trim()) {
@@ -170,15 +190,47 @@ const CallCancellationModal = ({
     try {
       const currentUser = getStoredUser();
       const userId = currentUser?.userId || 0;
+      const safeCallNo = (call.call_no || call.callNumber || call.requestId || '').replace(/[/\\?%*:|"<>]/g, '_');
+      const docFileName = `Cancellation_${safeCallNo}_${Date.now()}.pdf`;
+
+      // Read file to Base64 and upload to compressed blob storage
+      let uploadedDocName = file ? file.name : null;
+      if (file) {
+        try {
+          const fileBase64 = await new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = () => resolve(reader.result);
+            reader.onerror = (error) => reject(error);
+            reader.readAsDataURL(file);
+          });
+
+          const uploadResp = await fetch(`${getBaseUrl()}/api/certificate/upload`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              icNumber: call.call_no || call.callNumber || call.requestId,
+              signedData: fileBase64,
+              fileName: docFileName,
+              uploadedBy: currentUser?.fullName || `IE (${currentUser?.employeeCode || userId})`
+            })
+          });
+
+          if (uploadResp.ok) {
+            uploadedDocName = docFileName;
+          }
+        } catch (uploadErr) {
+          console.warn('Document storage upload notice:', uploadErr);
+        }
+      }
 
       const finalRemarks = `[${cancellationBasis}] ${visitStatus ? '(' + visitStatus + ') ' : ''}Reasons: ${selectedReasons.join(', ')}${description.trim() ? ' - Desc: ' + description.trim() : ''}${cancellationBasis === 'CHARGEABLE' ? ` | Final Cancellation Charges: ₹${finalCancellationCharges.toLocaleString('en-IN')}` : ''}`;
 
       const workflowActionData = {
         workflowTransitionId: call.workflowTransitionId || call.id,
-        requestId: call.call_no || call.callNumber,
+        requestId: call.call_no || call.callNumber || call.requestId,
         action: 'VERIFY_MATERIAL_AVAILABILITY',
         remarks: finalRemarks,
-        actionBy: userId,
+        actionBy: Number(userId),
         pincode: call.pincode || call.pinCode || call.pincode_no || '',
         vendorCode: call.vendor_code || call.vendorCode || call.vendor_name || call.vendorName || '',
         materialAvailable: 'NO',
@@ -191,19 +243,18 @@ const CallCancellationModal = ({
         calculatedCharges,
         maximumCap: capNum,
         finalCancellationCharges,
-        documentName: file ? file.name : null
+        documentName: uploadedDocName || (file ? file.name : null)
       };
 
       await performTransitionAction(workflowActionData);
 
       const msg = cancellationBasis === 'CHARGEABLE'
-        ? `✓ Call ${call.call_no || call.callNumber} cancelled successfully. Financial liability of ₹${finalCancellationCharges.toLocaleString('en-IN')} logged against vendor.`
-        : `✓ Call ${call.call_no || call.callNumber} cancelled on non-chargeable basis.`;
+        ? `✓ Call ${call.call_no || call.callNumber || call.requestId} cancelled successfully. Financial liability of ₹${finalCancellationCharges.toLocaleString('en-IN')} logged against vendor.`
+        : `✓ Call ${call.call_no || call.callNumber || call.requestId} cancelled on non-chargeable basis.`;
 
       notify(msg, 'success');
       if (onSuccess) onSuccess(workflowActionData);
       onClose();
-      window.location.reload();
     } catch (err) {
       console.error('Call cancellation failed:', err);
       notify(err.message || 'Failed to complete call cancellation', 'error');
@@ -260,7 +311,7 @@ const CallCancellationModal = ({
               Call Cancellation Window
             </span>
             <h2 style={{ margin: '6px 0 0', fontSize: '18px', fontWeight: '800', color: '#991b1b' }}>
-              Cancel Call — {call.call_no || call.callNumber}
+              Cancel Call — {call.call_no || call.callNumber || call.requestId}
             </h2>
           </div>
           <button
@@ -283,53 +334,169 @@ const CallCancellationModal = ({
           <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '14px 18px', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '12px', fontSize: '13px' }}>
             <div>
               <span style={{ color: '#64748b', fontSize: '11px', textTransform: 'uppercase', fontWeight: '700', display: 'block' }}>Vendor Name</span>
-              <strong style={{ color: '#1e293b' }}>{call.vendor_name || call.vendorName || 'N/A'}</strong>
+              <strong style={{ color: '#1e293b' }}>{call.vendor_name || call.vendorName || call.vendorCode || 'N/A'}</strong>
             </div>
             <div>
               <span style={{ color: '#64748b', fontSize: '11px', textTransform: 'uppercase', fontWeight: '700', display: 'block' }}>PO Number</span>
-              <strong style={{ color: '#1e293b' }}>{call.po_no || call.poNumber || 'N/A'}</strong>
+              <strong style={{ color: '#1e293b' }}>{call.po_no || call.poNumber || call.poNo || 'N/A'}</strong>
             </div>
           </div>
 
           {/* Section 3: Cancellation Basis */}
           <div>
-            <label style={{ display: 'block', fontSize: '13px', fontWeight: '700', color: '#1e293b', marginBottom: '8px' }}>
+            <label style={{ display: 'block', fontSize: '13px', fontWeight: '800', color: '#1e293b', marginBottom: '10px' }}>
               3. Cancellation Basis <span style={{ color: '#ef4444' }}>*</span>
             </label>
-            <select
-              value={cancellationBasis}
-              onChange={(e) => setCancellationBasis(e.target.value)}
-              style={{
-                width: '100%', padding: '10px 14px', borderRadius: '10px',
-                border: formErrors.cancellationBasis ? '2px solid #ef4444' : '1px solid #cbd5e1',
-                fontSize: '14px', fontWeight: '600', color: '#0f172a', background: '#fff'
-              }}
-            >
-              <option value="CHARGEABLE">Cancellation on Chargeable Basis</option>
-              <option value="NON_CHARGEABLE">Cancellation on Non-Chargeable Basis</option>
-            </select>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+              <div 
+                onClick={() => setCancellationBasis('CHARGEABLE')}
+                style={{
+                  padding: '14px 16px',
+                  borderRadius: '12px',
+                  border: cancellationBasis === 'CHARGEABLE' ? '2px solid #2563eb' : '1px solid #cbd5e1',
+                  background: cancellationBasis === 'CHARGEABLE' ? '#eff6ff' : '#ffffff',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '12px',
+                  transition: 'all 0.2s ease',
+                  boxShadow: cancellationBasis === 'CHARGEABLE' ? '0 4px 12px rgba(37, 99, 235, 0.12)' : 'none'
+                }}
+              >
+                <div style={{
+                  width: '20px',
+                  height: '20px',
+                  borderRadius: '50%',
+                  border: cancellationBasis === 'CHARGEABLE' ? '6px solid #2563eb' : '2px solid #94a3b8',
+                  background: '#ffffff',
+                  flexShrink: 0
+                }}></div>
+                <div>
+                  <div style={{ fontSize: '13px', fontWeight: '800', color: cancellationBasis === 'CHARGEABLE' ? '#1e40af' : '#1e293b' }}>
+                    Chargeable Basis
+                  </div>
+                  <div style={{ fontSize: '11px', color: '#64748b', marginTop: '2px' }}>
+                    Charges logged against vendor
+                  </div>
+                </div>
+              </div>
+
+              <div 
+                onClick={() => setCancellationBasis('NON_CHARGEABLE')}
+                style={{
+                  padding: '14px 16px',
+                  borderRadius: '12px',
+                  border: cancellationBasis === 'NON_CHARGEABLE' ? '2px solid #059669' : '1px solid #cbd5e1',
+                  background: cancellationBasis === 'NON_CHARGEABLE' ? '#f0fdf4' : '#ffffff',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '12px',
+                  transition: 'all 0.2s ease',
+                  boxShadow: cancellationBasis === 'NON_CHARGEABLE' ? '0 4px 12px rgba(5, 150, 105, 0.12)' : 'none'
+                }}
+              >
+                <div style={{
+                  width: '20px',
+                  height: '20px',
+                  borderRadius: '50%',
+                  border: cancellationBasis === 'NON_CHARGEABLE' ? '6px solid #059669' : '2px solid #94a3b8',
+                  background: '#ffffff',
+                  flexShrink: 0
+                }}></div>
+                <div>
+                  <div style={{ fontSize: '13px', fontWeight: '800', color: cancellationBasis === 'NON_CHARGEABLE' ? '#065f46' : '#1e293b' }}>
+                    Non-Chargeable Basis
+                  </div>
+                  <div style={{ fontSize: '11px', color: '#64748b', marginTop: '2px' }}>
+                    No financial liability for vendor
+                  </div>
+                </div>
+              </div>
+            </div>
             {formErrors.cancellationBasis && <span style={{ color: '#ef4444', fontSize: '12px', marginTop: '4px', display: 'block' }}>{formErrors.cancellationBasis}</span>}
           </div>
 
           {/* Section 4: Visit Status (Conditional) */}
           {cancellationBasis === 'CHARGEABLE' && (
-            <div style={{ background: '#fefce8', border: '1px solid #fef08a', borderRadius: '12px', padding: '16px' }}>
-              <label style={{ display: 'block', fontSize: '13px', fontWeight: '700', color: '#854d0e', marginBottom: '8px' }}>
-                4. Visit Status <span style={{ color: '#ef4444' }}>*</span>
-              </label>
-              <select
-                value={visitStatus}
-                onChange={(e) => setVisitStatus(e.target.value)}
-                style={{
-                  width: '100%', padding: '10px 14px', borderRadius: '10px',
-                  border: formErrors.visitStatus ? '2px solid #ef4444' : '1px solid #ca8a04',
-                  fontSize: '14px', fontWeight: '600', color: '#713f12', background: '#fff'
-                }}
-              >
-                <option value="BEFORE_VISIT">Before Visit of IE to Vendor's Premises</option>
-                <option value="AFTER_VISIT">After Visit of IE to Vendor's Premises</option>
-              </select>
-              {formErrors.visitStatus && <span style={{ color: '#ef4444', fontSize: '12px', marginTop: '4px', display: 'block' }}>{formErrors.visitStatus}</span>}
+            <div style={{ background: '#fefce8', border: '1px solid #fef08a', borderRadius: '14px', padding: '16px 18px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+                <label style={{ fontSize: '13px', fontWeight: '800', color: '#854d0e', margin: 0 }}>
+                  4. Visit Status <span style={{ color: '#ef4444' }}>*</span>
+                </label>
+                <span style={{ fontSize: '11px', fontWeight: '700', color: '#a16207', background: '#fef9c3', padding: '2px 8px', borderRadius: '6px' }}>
+                  Auto-caps cancellation fee
+                </span>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                <div 
+                  onClick={() => setVisitStatus('BEFORE_VISIT')}
+                  style={{
+                    padding: '12px 14px',
+                    borderRadius: '10px',
+                    border: visitStatus === 'BEFORE_VISIT' ? '2px solid #ca8a04' : '1px solid #e2e8f0',
+                    background: visitStatus === 'BEFORE_VISIT' ? '#ffffff' : 'rgba(255, 255, 255, 0.6)',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '10px',
+                    transition: 'all 0.2s ease',
+                    boxShadow: visitStatus === 'BEFORE_VISIT' ? '0 4px 10px rgba(202, 138, 4, 0.15)' : 'none'
+                  }}
+                >
+                  <div style={{
+                    width: '18px',
+                    height: '18px',
+                    borderRadius: '50%',
+                    border: visitStatus === 'BEFORE_VISIT' ? '5px solid #ca8a04' : '2px solid #94a3b8',
+                    background: '#ffffff',
+                    flexShrink: 0
+                  }}></div>
+                  <div>
+                    <div style={{ fontSize: '12.5px', fontWeight: '800', color: '#713f12' }}>
+                      Before Visit
+                    </div>
+                    <div style={{ fontSize: '11px', color: '#a16207', fontWeight: '600' }}>
+                      Max Cap: ₹11,000
+                    </div>
+                  </div>
+                </div>
+
+                <div 
+                  onClick={() => setVisitStatus('AFTER_VISIT')}
+                  style={{
+                    padding: '12px 14px',
+                    borderRadius: '10px',
+                    border: visitStatus === 'AFTER_VISIT' ? '2px solid #ca8a04' : '1px solid #e2e8f0',
+                    background: visitStatus === 'AFTER_VISIT' ? '#ffffff' : 'rgba(255, 255, 255, 0.6)',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '10px',
+                    transition: 'all 0.2s ease',
+                    boxShadow: visitStatus === 'AFTER_VISIT' ? '0 4px 10px rgba(202, 138, 4, 0.15)' : 'none'
+                  }}
+                >
+                  <div style={{
+                    width: '18px',
+                    height: '18px',
+                    borderRadius: '50%',
+                    border: visitStatus === 'AFTER_VISIT' ? '5px solid #ca8a04' : '2px solid #94a3b8',
+                    background: '#ffffff',
+                    flexShrink: 0
+                  }}></div>
+                  <div>
+                    <div style={{ fontSize: '12.5px', fontWeight: '800', color: '#713f12' }}>
+                      After Visit
+                    </div>
+                    <div style={{ fontSize: '11px', color: '#a16207', fontWeight: '600' }}>
+                      Max Cap: ₹22,000
+                    </div>
+                  </div>
+                </div>
+              </div>
+              {formErrors.visitStatus && <span style={{ color: '#ef4444', fontSize: '12px', marginTop: '6px', display: 'block' }}>{formErrors.visitStatus}</span>}
             </div>
           )}
 
@@ -398,19 +565,39 @@ const CallCancellationModal = ({
           </div>
 
           {/* Section 7: Cancellation Document Upload & Download Template */}
-          <div style={{ background: '#f0f9ff', border: '1px solid #bae6fd', borderRadius: '14px', padding: '16px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+          <div style={{
+            background: formErrors.file ? '#fef2f2' : '#f0f9ff',
+            border: formErrors.file ? '1.5px solid #f87171' : '1px solid #bae6fd',
+            borderRadius: '14px',
+            padding: '16px',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '12px'
+          }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
               <div>
-                <label style={{ fontSize: '13px', fontWeight: '700', color: '#0369a1', display: 'block' }}>7. Cancellation Document (PDF Format)</label>
-                <span style={{ fontSize: '11px', color: '#0284c7' }}>Upload official signed cancellation request or document</span>
+                <label style={{ fontSize: '13px', fontWeight: '700', color: formErrors.file ? '#b91c1c' : '#0369a1', display: 'block' }}>
+                  7. Cancellation Document (PDF Format) <span style={{ color: '#ef4444' }}>* (Mandatory, Max 2 MB)</span>
+                </label>
+                <span style={{ fontSize: '11px', color: formErrors.file ? '#dc2626' : '#0284c7' }}>
+                  Upload official signed cancellation request or document (PDF only, max size 2 MB)
+                </span>
               </div>
               <button
                 type="button"
                 onClick={handleDownloadTemplate}
                 style={{
-                  background: '#ffffff', border: '1px solid #0284c7', color: '#0284c7',
-                  borderRadius: '8px', padding: '6px 12px', fontSize: '12px', fontWeight: '700',
-                  cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px'
+                  background: '#ffffff',
+                  border: '1px solid #0284c7',
+                  color: '#0284c7',
+                  borderRadius: '8px',
+                  padding: '6px 12px',
+                  fontSize: '12px',
+                  fontWeight: '700',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px'
                 }}
               >
                 📥 Download Blank Format
@@ -419,11 +606,30 @@ const CallCancellationModal = ({
 
             <input
               type="file"
-              accept=".pdf"
-              onChange={(e) => setFile(e.target.files[0] || null)}
+              accept=".pdf,application/pdf"
+              onChange={handleFileChange}
               style={{ fontSize: '13px', color: '#334155' }}
             />
-            {file && <div style={{ fontSize: '12px', color: '#0369a1', fontWeight: '600' }}>✓ Selected File: {file.name}</div>}
+
+            {file && (
+              <div style={{
+                fontSize: '12px',
+                color: '#0284c7',
+                fontWeight: '700',
+                background: '#e0f2fe',
+                padding: '6px 12px',
+                borderRadius: '6px',
+                display: 'inline-block'
+              }}>
+                ✓ Selected File: {file.name} ({(file.size / 1024).toFixed(1)} KB)
+              </div>
+            )}
+
+            {formErrors.file && (
+              <span style={{ color: '#ef4444', fontSize: '12px', fontWeight: '600', display: 'block' }}>
+                ⚠️ {formErrors.file}
+              </span>
+            )}
           </div>
 
           {/* Section 8: Cancellation Charges Calculation (Chargeable Only) */}
@@ -534,6 +740,14 @@ const CallCancellationModal = ({
 
         </form>
       </div>
+
+      {toast && (
+        <Notification 
+          message={toast.message} 
+          type={toast.type} 
+          onClose={() => setToast(null)} 
+        />
+      )}
     </div>
   );
 };

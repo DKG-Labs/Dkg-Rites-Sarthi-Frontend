@@ -15,6 +15,8 @@ export const API_BASE_URL = isLocal
     ? 'http://localhost:8080/sarthi-backend'
     : 'https://api.ritesqasarthi.com/sarthi-backend';
 
+export const getBaseUrl = () => API_BASE_URL;
+
 
 /**
  * Common API endpoint

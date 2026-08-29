@@ -204,7 +204,7 @@ const CallCancellationModal = ({
             reader.readAsDataURL(file);
           });
 
-          const uploadResp = await fetch(`${getBaseUrl()}/api/certificate/upload`, {
+          const uploadResp = await fetch(`${getBaseUrl()}/certificate/upload`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({

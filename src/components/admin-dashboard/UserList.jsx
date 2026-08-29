@@ -3,7 +3,6 @@ import { Select } from 'antd';
 import { USER_ROLES, REGIONS } from './utils/mockData';
 import { filterBySearch, paginate } from './utils/helpers';
 import { DEFAULT_PAGE_SIZE } from './utils/constants';
-import AnnexureLoader from '../annexures/AnnexureLoader';
 
 export const UserList = ({ users = [], roles = [], loading, onEdit, onDelete, onChangeRegion, onCreateNew, refreshTrigger }) => {
     const roleMapping = {
@@ -187,19 +186,22 @@ export const UserList = ({ users = [], roles = [], loading, onEdit, onDelete, on
                                 (option?.label ?? '').toLowerCase().includes(input.toLowerCase())
                             }
                             options={(() => {
-                                const sortedRoles = [...displayRoles].sort((a, b) => {
-                                    const rNameA = typeof a === 'object' ? a.roleName : a;
-                                    const rNameB = typeof b === 'object' ? b.roleName : b;
-                                    const dispA = roleMapping[rNameA] || rNameA;
-                                    const dispB = roleMapping[rNameB] || rNameB;
-                                    return dispA.localeCompare(dispB);
-                                });
-                                return sortedRoles.map(role => {
+                                const seenLabels = new Set();
+                                const uniqueOptions = [];
+
+                                displayRoles.forEach((role, idx) => {
                                     const rName = typeof role === 'object' ? role.roleName : role;
+                                    if (!rName) return;
                                     const displayRoleName = roleMapping[rName] || rName;
-                                    const rId = typeof role === 'object' ? (role.roleId || role.roleName) : role;
-                                    return { value: rName, label: displayRoleName, key: rId };
+                                    
+                                    if (!seenLabels.has(displayRoleName)) {
+                                        seenLabels.add(displayRoleName);
+                                        const rId = typeof role === 'object' ? (role.roleId || role.roleName) : idx;
+                                        uniqueOptions.push({ value: rName, label: displayRoleName, key: rId });
+                                    }
                                 });
+
+                                return uniqueOptions.sort((a, b) => a.label.localeCompare(b.label));
                             })()}
                         />
                     </div>
@@ -220,31 +222,43 @@ export const UserList = ({ users = [], roles = [], loading, onEdit, onDelete, on
                 </div>
 
                 <div className="table-container">
-                    {loading ? (
-                        <AnnexureLoader 
-                            title="Syncing Users" 
-                            subtitle="Fetching user data from the server..." 
-                        />
-                    ) : (
-                        <table className="table">
-                            <thead>
-                                <tr>
-                                    <th>Employee Code</th>
-                                    <th>Name</th>
-                                    <th>Role</th>
-                                    <th>Region</th>
-                                    <th>Email</th>
-                                    <th>Status</th>
-                                    <th>Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {paginatedUsers.length === 0 ? (
-                                    <tr>
-                                        <td colSpan="7" style={{ textAlign: 'center', padding: '20px' }}>
-                                            No users found.
+                    <table className="table">
+                        <thead>
+                            <tr>
+                                <th>Employee Code</th>
+                                <th>Name</th>
+                                <th>Role</th>
+                                <th>Region</th>
+                                <th>Email</th>
+                                <th>Status</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {loading ? (
+                                Array.from({ length: 6 }).map((_, idx) => (
+                                    <tr key={`skeleton-${idx}`} className="skeleton-table-row">
+                                        <td><span className="skeleton-shimmer" style={{ width: '85px', height: '18px' }} /></td>
+                                        <td><span className="skeleton-shimmer" style={{ width: '160px', height: '18px' }} /></td>
+                                        <td><span className="skeleton-shimmer" style={{ width: '110px', height: '18px' }} /></td>
+                                        <td><span className="skeleton-shimmer" style={{ width: '60px', height: '18px' }} /></td>
+                                        <td><span className="skeleton-shimmer" style={{ width: '180px', height: '18px' }} /></td>
+                                        <td><span className="skeleton-shimmer" style={{ width: '70px', height: '22px', borderRadius: '12px' }} /></td>
+                                        <td>
+                                            <div style={{ display: 'flex', gap: '4px' }}>
+                                                <span className="skeleton-shimmer" style={{ width: '45px', height: '28px', borderRadius: '4px' }} />
+                                                <span className="skeleton-shimmer" style={{ width: '90px', height: '28px', borderRadius: '4px' }} />
+                                                <span className="skeleton-shimmer" style={{ width: '55px', height: '28px', borderRadius: '4px' }} />
+                                            </div>
                                         </td>
                                     </tr>
+                                ))
+                            ) : paginatedUsers.length === 0 ? (
+                                <tr>
+                                    <td colSpan="7" style={{ textAlign: 'center', padding: '20px' }}>
+                                        No users found.
+                                    </td>
+                                </tr>
                             ) : (
                                 paginatedUsers.map(user => (
                                     <tr key={user.userId || user.id}>
@@ -254,8 +268,8 @@ export const UserList = ({ users = [], roles = [], loading, onEdit, onDelete, on
                                     <td>{user.rio || (user.employeeCode && user.employeeCode.startsWith('ZR') && user.employeeCode.match(/^ZR([A-Z]+)\d+$/)?.[1]) || ''}</td>
                                     <td>{user.email}</td>
                                     <td>
-                                        <span className={`badge badge-${user.status === 'Inactive' ? 'danger' : 'success'}`}>
-                                            {user.status || 'Active'}
+                                        <span className={`badge badge-${(user.status && user.status.toLowerCase() === 'inactive') ? 'danger' : 'success'}`}>
+                                            {(user.status && user.status.toLowerCase() === 'inactive') ? 'Inactive' : 'Active'}
                                         </span>
                                     </td>
                                     <td>
@@ -272,10 +286,10 @@ export const UserList = ({ users = [], roles = [], loading, onEdit, onDelete, on
                                         </div>
                                     </td>
                                 </tr>
-                            )))}
+                            ))
+                        )}
                         </tbody>
                     </table>
-                    )}
                 </div>
 
                     <div className="pagination">

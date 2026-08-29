@@ -67,7 +67,7 @@ const WaterCuredCubeForm = ({ batch, preFillData, onSave, onCancel }) => {
 
         const allStrengths = cubes.filter(c => c.strength > 0).map(c => c.strength);
 
-        // Variations
+        // Variations calculation
         const calcVariation = (sampleCubes, avg) => {
             if (sampleCubes.length < 3 || avg === 0) return 0;
             const variations = sampleCubes.map(c => Math.abs((c.strength - avg) / avg) * 100);
@@ -76,6 +76,9 @@ const WaterCuredCubeForm = ({ batch, preFillData, onSave, onCancel }) => {
 
         const s1Variation = calcVariation(s1Cubes, s1Avg);
         const s2Variation = calcVariation(s2Cubes, s2Avg);
+
+        // Excessive variation rule: If Sample 1 or Sample 2 variation > 15%, the batch fails.
+        const hasExcessiveVariation = (s1Cubes.length === 3 && s1Variation > 15) || (s2Cubes.length === 3 && s2Variation > 15);
 
         // Conditions
         // Condition 1: X >= (Fck + 3) && Y >= (Fck - 3)
@@ -94,7 +97,10 @@ const WaterCuredCubeForm = ({ batch, preFillData, onSave, onCancel }) => {
         let testResult = 'Pending';
 
         if (allStrengths.length === 6) {
-            if (condition1) {
+            if (hasExcessiveVariation) {
+                mrSamples = 0;
+                testResult = 'FAIL';
+            } else if (condition1) {
                 mrSamples = 1;
                 testResult = 'PASS';
             } else if (condition2) {
@@ -109,7 +115,7 @@ const WaterCuredCubeForm = ({ batch, preFillData, onSave, onCancel }) => {
         setResults({
             s1Avg, s2Avg, x, y,
             condition1, condition2, condition3,
-            s1Variation, s2Variation, mrSamples, testResult
+            s1Variation, s2Variation, hasExcessiveVariation, mrSamples, testResult
         });
     }, [cubes, FCK]);
 
@@ -223,9 +229,24 @@ const WaterCuredCubeForm = ({ batch, preFillData, onSave, onCancel }) => {
                                     <td colSpan="4">Sample 1 Average Strength</td>
                                     <td className="strength-cell">{results.s1Avg.toFixed(2)}</td>
                                 </tr>
-                                <tr className="variation-row">
+                                <tr className="variation-row" style={{ background: results.s1Variation > 15 ? '#fef2f2' : 'transparent' }}>
                                     <td colSpan="4">Sample 1 Max Variation %</td>
-                                    <td>{results.s1Variation.toFixed(2)}%</td>
+                                    <td style={{ color: results.s1Variation > 15 ? '#dc2626' : '#166534', fontWeight: '800' }}>
+                                        {results.s1Variation.toFixed(2)}%
+                                        {cubes.filter(c => c.sample === 1 && c.strength > 0).length === 3 && (
+                                            <span style={{
+                                                marginLeft: '8px',
+                                                fontSize: '10px',
+                                                padding: '2px 6px',
+                                                borderRadius: '4px',
+                                                background: results.s1Variation > 15 ? '#fee2e2' : '#dcfce7',
+                                                color: results.s1Variation > 15 ? '#991b1b' : '#15803d',
+                                                fontWeight: '800'
+                                            }}>
+                                                {results.s1Variation > 15 ? 'FAIL (>15%)' : 'PASS (≤15%)'}
+                                            </span>
+                                        )}
+                                    </td>
                                 </tr>
                             </tbody>
                         </table>
@@ -286,9 +307,24 @@ const WaterCuredCubeForm = ({ batch, preFillData, onSave, onCancel }) => {
                                     <td colSpan="4">Sample 2 Average Strength</td>
                                     <td className="strength-cell">{results.s2Avg.toFixed(2)}</td>
                                 </tr>
-                                <tr className="variation-row">
+                                <tr className="variation-row" style={{ background: results.s2Variation > 15 ? '#fef2f2' : 'transparent' }}>
                                     <td colSpan="4">Sample 2 Max Variation %</td>
-                                    <td>{results.s2Variation.toFixed(2)}%</td>
+                                    <td style={{ color: results.s2Variation > 15 ? '#dc2626' : '#166534', fontWeight: '800' }}>
+                                        {results.s2Variation.toFixed(2)}%
+                                        {cubes.filter(c => c.sample === 2 && c.strength > 0).length === 3 && (
+                                            <span style={{
+                                                marginLeft: '8px',
+                                                fontSize: '10px',
+                                                padding: '2px 6px',
+                                                borderRadius: '4px',
+                                                background: results.s2Variation > 15 ? '#fee2e2' : '#dcfce7',
+                                                color: results.s2Variation > 15 ? '#991b1b' : '#15803d',
+                                                fontWeight: '800'
+                                            }}>
+                                                {results.s2Variation > 15 ? 'FAIL (>15%)' : 'PASS (≤15%)'}
+                                            </span>
+                                        )}
+                                    </td>
                                 </tr>
                             </tbody>
                         </table>
@@ -319,6 +355,13 @@ const WaterCuredCubeForm = ({ batch, preFillData, onSave, onCancel }) => {
                         <label>Y (Min of Avg S1 & S2)</label>
                         <div className="value">{results.y.toFixed(2)} <span className="unit">N/mm²</span></div>
                     </div>
+                    <div className={`analysis-card condition ${results.hasExcessiveVariation ? 'error' : (cubes.filter(c => c.strength > 0).length === 6 ? 'true' : '')}`}>
+                        <label>Variation Check (≤ 15%)</label>
+                        <div className="status" style={{ color: results.hasExcessiveVariation ? '#ef4444' : (cubes.filter(c => c.strength > 0).length === 6 ? '#10b981' : '#94a3b8') }}>
+                            {results.hasExcessiveVariation ? 'FALSE' : (cubes.filter(c => c.strength > 0).length === 6 ? 'TRUE' : 'PENDING')}
+                        </div>
+                        <div className="desc">Max S1 & S2 Var ≤ 15%</div>
+                    </div>
                     <div className={`analysis-card condition ${results.condition1 ? 'true' : ''}`}>
                         <label>Condition 1</label>
                         <div className="status">{results.condition1 ? 'TRUE' : 'FALSE'}</div>
@@ -335,6 +378,30 @@ const WaterCuredCubeForm = ({ batch, preFillData, onSave, onCancel }) => {
                         <div className="desc">X &lt; {FCK} OR Y &lt; {FCK - 5}</div>
                     </div>
                 </div>
+
+                {results.hasExcessiveVariation && (
+                    <div style={{
+                        background: '#fef2f2',
+                        border: '1.5px solid #fca5a5',
+                        color: '#991b1b',
+                        padding: '12px 16px',
+                        borderRadius: '10px',
+                        marginBottom: '16px',
+                        fontWeight: '700',
+                        fontSize: '13px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '10px'
+                    }}>
+                        <span style={{ fontSize: '18px' }}>⚠️</span>
+                        <div>
+                            <div><strong>BATCH FAILED: CUBE STRENGTH VARIATION EXCEEDS 15% LIMIT</strong></div>
+                            <div style={{ fontSize: '11px', fontWeight: '500', marginTop: '2px' }}>
+                                Sample 1 Max Variation: {results.s1Variation.toFixed(2)}% | Sample 2 Max Variation: {results.s2Variation.toFixed(2)}%. Max allowable variation is 15%.
+                            </div>
+                        </div>
+                    </div>
+                )}
 
                 <div className="final-verdict">
                     <div className="verdict-item">

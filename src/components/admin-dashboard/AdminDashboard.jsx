@@ -100,6 +100,8 @@ export const AdminDashboard = () => {
         fetchInitialData();
     }, [refreshTrigger]);
 
+    const [vendorRoleSelectModal, setVendorRoleSelectModal] = useState(null);
+
     // User Module Handlers
     const handleCreateUser = () => {
         setSelectedItem(null);
@@ -111,14 +113,42 @@ export const AdminDashboard = () => {
     };
 
     const handleEditUser = (user) => {
-        setSelectedItem(user);
+        // Parse roles
+        const parsedRoles = Array.isArray(user.roleNames)
+            ? user.roleNames
+            : (user.roleName ? user.roleName.split(',').map(r => r.trim()).filter(Boolean) : []);
+
+        const vendorRoles = parsedRoles.filter(r => {
+            const lower = r.toLowerCase();
+            return lower.includes('vendor') || lower === 'vendor';
+        });
+
+        // If vendor has multiple vendor roles (e.g. ['ERC Vendor', 'Sleeper Vendor'] or ['Vendor', 'Sleeper Vendor'])
+        if (vendorRoles.length > 1) {
+            setVendorRoleSelectModal({
+                user,
+                vendorRoles
+            });
+            return;
+        }
+
+        // If single vendor role or non-vendor, open directly
+        const activeVendorRole = vendorRoles.length === 1 ? vendorRoles[0] : null;
+        openUserFormWithRole(user, activeVendorRole);
+    };
+
+    const openUserFormWithRole = (user, activeVendorRole) => {
+        setVendorRoleSelectModal(null);
+        setSelectedItem({
+            ...user,
+            activeVendorRole
+        });
         setFormError(null);
         setIsSubmittingUser(false);
-        setModalTitle('Edit User');
+        setModalTitle(activeVendorRole ? `Edit ${activeVendorRole === 'Vendor' ? 'ERC Vendor' : activeVendorRole}` : 'Edit User');
         setModalContent('user-form');
         setModalOpen(true);
     };
-
 
     const handleChangeRegion = (user) => {
         setSelectedItem(user);
@@ -149,9 +179,17 @@ export const AdminDashboard = () => {
                 createdBy: currentUser?.userId || 'Admin'
             };
 
-            const isVendor = dataToSubmit.roleNames?.some(r => r === 'Vendor' || r === 'ERC Vendor') || (dataToSubmit.units && dataToSubmit.units.length > 0);
+            const activeRole = dataToSubmit.activeVendorRole || selectedItem?.activeVendorRole;
+            const isSleeperVendor = activeRole 
+                ? (activeRole === 'Sleeper Vendor')
+                : (dataToSubmit.roleNames?.some(r => r === 'Sleeper Vendor') || (dataToSubmit.plants && dataToSubmit.plants.length > 0));
+            const isErcVendor = activeRole 
+                ? (activeRole === 'Vendor' || activeRole === 'ERC Vendor')
+                : (dataToSubmit.roleNames?.some(r => r === 'Vendor' || r === 'ERC Vendor') || (dataToSubmit.units && dataToSubmit.units.length > 0));
 
-            if (isVendor && (dataToSubmit.units || dataToSubmit.companyName)) {
+            if (isSleeperVendor && (dataToSubmit.plants || dataToSubmit.companyName || activeRole === 'Sleeper Vendor')) {
+                await createSleeperVendorApi(dataToSubmit);
+            } else if (isErcVendor && (dataToSubmit.units || dataToSubmit.companyName || activeRole === 'Vendor' || activeRole === 'ERC Vendor')) {
                 await createErcVendorApi(dataToSubmit);
             } else if (selectedItem || dataToSubmit.userId || dataToSubmit.id) {
                 await updateUserApi(dataToSubmit);
@@ -162,7 +200,7 @@ export const AdminDashboard = () => {
             refreshData();
             setModalOpen(false);
             setSelectedItem(null);
-            setSnackbar({ open: true, message: isVendor ? 'Vendor saved successfully!' : 'User saved successfully!', severity: 'success' });
+            setSnackbar({ open: true, message: (isSleeperVendor || isErcVendor) ? 'Vendor saved successfully!' : 'User saved successfully!', severity: 'success' });
         } catch (error) {
             console.error('Error submitting user:', error);
             const userFriendlyMsg = parseUserFriendlyErrorMessage(error.message);
@@ -464,6 +502,100 @@ export const AdminDashboard = () => {
                     )}
                 </div>
             </div>
+
+            {/* Vendor Role Selection Modal for Multi-role Vendors */}
+            {vendorRoleSelectModal && (
+                <div className="modal-overlay" style={{ zIndex: 1050, display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'fixed', inset: 0, background: 'rgba(15, 23, 42, 0.6)', backdropFilter: 'blur(4px)' }}>
+                    <div className="modal-content" style={{ maxWidth: '480px', width: '90%', borderRadius: '16px', padding: '24px', background: '#fff', boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.2), 0 10px 10px -5px rgba(0, 0, 0, 0.08)' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', borderBottom: '1px solid #e2e8f0', paddingBottom: '12px' }}>
+                            <h3 style={{ margin: 0, fontSize: '18px', fontWeight: 700, color: '#0f4c81', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                <span>🏭</span> Select Vendor Module to Edit
+                            </h3>
+                            <button
+                                type="button"
+                                onClick={() => setVendorRoleSelectModal(null)}
+                                style={{ background: 'none', border: 'none', fontSize: '20px', cursor: 'pointer', color: '#64748b' }}
+                            >
+                                ✕
+                            </button>
+                        </div>
+                        
+                        <p style={{ color: '#475569', fontSize: '13.5px', marginBottom: '18px', lineHeight: 1.5 }}>
+                            Vendor <strong>{vendorRoleSelectModal.user.fullName || vendorRoleSelectModal.user.employeeCode}</strong> ({vendorRoleSelectModal.user.employeeCode}) has multiple vendor roles registered. Please select which module details you want to edit:
+                        </p>
+
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginBottom: '20px' }}>
+                            {vendorRoleSelectModal.vendorRoles.map(role => {
+                                const isSleeper = role.toLowerCase().includes('sleeper');
+                                const isErc = role.toLowerCase().includes('erc') || role.toLowerCase() === 'vendor';
+                                const isRailpad = role.toLowerCase().includes('railpad') || role.toLowerCase().includes('rail pad');
+                                
+                                const label = isSleeper ? 'Sleeper Vendor' : isErc ? 'ERC Vendor' : isRailpad ? 'Railpad Vendor' : role;
+                                const desc = isSleeper 
+                                    ? 'Edit Registered Unit & Manufacturing Plants' 
+                                    : isErc 
+                                    ? 'Edit ERC Manufacturing Units & POI Mapping' 
+                                    : 'Edit Vendor Details';
+                                const icon = isSleeper ? '🏗️' : isErc ? '🏢' : '🚂';
+                                const borderCol = isSleeper ? '#3b82f6' : isErc ? '#22c55e' : '#eab308';
+                                const bgHover = isSleeper ? '#eff6ff' : isErc ? '#f0fdf4' : '#fefce8';
+
+                                return (
+                                    <div
+                                        key={role}
+                                        onClick={() => openUserFormWithRole(vendorRoleSelectModal.user, isSleeper ? 'Sleeper Vendor' : isErc ? 'Vendor' : role)}
+                                        style={{
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            gap: '14px',
+                                            padding: '14px 16px',
+                                            border: `1.5px solid #cbd5e1`,
+                                            borderRadius: '12px',
+                                            cursor: 'pointer',
+                                            transition: 'all 0.2s',
+                                            background: '#fff'
+                                        }}
+                                        onMouseEnter={(e) => {
+                                            e.currentTarget.style.borderColor = borderCol;
+                                            e.currentTarget.style.background = bgHover;
+                                            e.currentTarget.style.transform = 'translateY(-2px)';
+                                            e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.06)';
+                                        }}
+                                        onMouseLeave={(e) => {
+                                            e.currentTarget.style.borderColor = '#cbd5e1';
+                                            e.currentTarget.style.background = '#fff';
+                                            e.currentTarget.style.transform = 'none';
+                                            e.currentTarget.style.boxShadow = 'none';
+                                        }}
+                                    >
+                                        <span style={{ fontSize: '26px' }}>{icon}</span>
+                                        <div style={{ flex: 1 }}>
+                                            <div style={{ fontWeight: 700, fontSize: '15px', color: '#0f172a' }}>
+                                                {label}
+                                            </div>
+                                            <div style={{ fontSize: '12px', color: '#64748b', marginTop: '2px' }}>
+                                                {desc}
+                                            </div>
+                                        </div>
+                                        <span style={{ fontSize: '18px', color: '#94a3b8' }}>➔</span>
+                                    </div>
+                                );
+                            })}
+                        </div>
+
+                        <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+                            <button
+                                type="button"
+                                className="btn btn-secondary"
+                                onClick={() => setVendorRoleSelectModal(null)}
+                                style={{ padding: '8px 18px', borderRadius: '8px' }}
+                            >
+                                Cancel
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
 
             {/* Modal for Forms */}
             <Modal
@@ -858,6 +990,49 @@ export const getErcVendorDetailsApi = async (userId) => {
     try {
         const token = localStorage.getItem('authToken');
         const response = await fetch(`${API_BASE_URL}/api/auth/api/erc-vendor/${userId}`, {
+            method: 'GET',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            }
+        });
+        const data = await response.json();
+        if (data.responseStatus?.statusCode !== 0) throw new Error(data.responseStatus?.message || 'API Error');
+        return data.responseData;
+    } catch (error) {
+        throw error;
+    }
+};
+
+/**
+ * API to create or update Sleeper Vendor with multi-plants
+ */
+export const createSleeperVendorApi = async (vendorData) => {
+    try {
+        const token = localStorage.getItem('authToken');
+        const response = await fetch(`${API_BASE_URL}/api/auth/api/sleeper-vendor`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify(vendorData)
+        });
+        const data = await response.json();
+        if (data.responseStatus?.statusCode !== 0) throw new Error(data.responseStatus?.message || 'API Error');
+        return data.responseData;
+    } catch (error) {
+        throw error;
+    }
+};
+
+/**
+ * API to fetch Sleeper Vendor details with plants
+ */
+export const getSleeperVendorDetailsApi = async (userId) => {
+    try {
+        const token = localStorage.getItem('authToken');
+        const response = await fetch(`${API_BASE_URL}/api/auth/api/sleeper-vendor/${userId}`, {
             method: 'GET',
             headers: {
                 'Content-Type': 'application/json',

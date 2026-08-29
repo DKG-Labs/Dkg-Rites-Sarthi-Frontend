@@ -286,10 +286,10 @@ export const UserList = ({ users = [], roles = [], loading, onEdit, onDelete, on
                                         </div>
                                     </td>
                                 </tr>
-                            )))}
+                            ))
+                        )}
                         </tbody>
                     </table>
-                    )}
                 </div>
 
                     <div className="pagination">

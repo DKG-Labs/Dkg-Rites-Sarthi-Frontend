@@ -49,6 +49,42 @@ export const UserForm = ({ user, roles = [], rolesLoading = false, existingUsers
         }
     }, [roles]);
 
+    const ZONAL_RAILWAY_LIST = [
+        'CR', 'ER', 'ECR', 'ECoR', 'NR', 'NCR', 'NER', 'NFR', 'NWR', 'RDSO', 'SR', 'SCR', 'SER', 'SECR', 'SWR', 'WR', 'WCR'
+    ];
+    const RIO_OPTIONS_LIST = ['WRIO', 'ERIO', 'NRIO', 'SRIO', 'CRIO'];
+
+    // Sleeper Vendor Single Registered Unit (sleeper_pincode_poi_mapping)
+    const [sleeperUnit, setSleeperUnit] = useState({
+        unitId: null,
+        unitName: '',
+        unitPinCode: '',
+        cin: '',
+        unitAddress: '',
+        unitDistrict: '',
+        unitState: '',
+        poiCode: ''
+    });
+
+    // Sleeper Vendor Multiple Plants (vendor_plant)
+    const [sleeperPlants, setSleeperPlants] = useState([
+        {
+            id: null,
+            plantName: '',
+            pinCode: '',
+            cin: '',
+            address: '',
+            district: '',
+            state: '',
+            zonalRailway: '',
+            rio: '',
+            contactPerson: '',
+            contactPersonNumber: '',
+            plantId: '',
+            status: 'Active'
+        }
+    ]);
+
     const [vendorUnits, setVendorUnits] = useState([
         {
             id: null,
@@ -107,6 +143,11 @@ export const UserForm = ({ user, roles = [], rolesLoading = false, existingUsers
                 ? user.roleNames 
                 : (user.roleName ? user.roleName.split(',').map(r => r.trim()).filter(Boolean) : []);
 
+            const activeVendorRole = user.activeVendorRole;
+            const effectiveRoles = activeVendorRole 
+                ? [activeVendorRole === 'ERC Vendor' ? 'Vendor' : activeVendorRole] 
+                : parsedRoles;
+
             let normalizedStatus = 'Active';
             if (user.status) {
                 normalizedStatus = user.status.toLowerCase() === 'inactive' ? 'Inactive' : 'Active';
@@ -120,7 +161,7 @@ export const UserForm = ({ user, roles = [], rolesLoading = false, existingUsers
                 mobileNumber: user.mobileNumber || user.mobileNo || '',
                 alternateMobileNumber: user.alternateMobileNumber || '',
                 notificationPreferences: user.notificationPreferences || '',
-                roleNames: parsedRoles,
+                roleNames: effectiveRoles,
                 userId: user.userId || user.id || undefined,
                 rio: user.rio || '',
                 productType: user.productType || '',
@@ -129,8 +170,11 @@ export const UserForm = ({ user, roles = [], rolesLoading = false, existingUsers
                 zonalRly: derivedZonalRly
             }));
 
-            // Fetch vendor units if this is a vendor
-            const isV = parsedRoles.some(r => r === 'Vendor' || r === 'ERC Vendor');
+            // Fetch vendor units if this is an ERC vendor
+            const isV = activeVendorRole 
+                ? (activeVendorRole === 'Vendor' || activeVendorRole === 'ERC Vendor')
+                : parsedRoles.some(r => r === 'Vendor' || r === 'ERC Vendor');
+
             if (isV && (user.userId || user.id)) {
                 const uid = user.userId || user.id;
                 setIsVendorLoading(true);
@@ -150,6 +194,51 @@ export const UserForm = ({ user, roles = [], rolesLoading = false, existingUsers
                         }));
                         if (data.units && data.units.length > 0) {
                             setVendorUnits(data.units);
+                        }
+                    }
+                })
+                .catch(() => {})
+                .finally(() => {
+                    setIsVendorLoading(false);
+                });
+            }
+
+            // Fetch Sleeper vendor single unit and plants if this is a Sleeper Vendor
+            const isSleeper = activeVendorRole 
+                ? (activeVendorRole === 'Sleeper Vendor')
+                : parsedRoles.some(r => r === 'Sleeper Vendor');
+
+            if (isSleeper && (user.userId || user.id)) {
+                const uid = user.userId || user.id;
+                setIsVendorLoading(true);
+                fetch(`${API_BASE_URL || ''}/api/auth/api/sleeper-vendor/${uid}`, {
+                    headers: { 'Authorization': `Bearer ${localStorage.getItem('authToken')}` }
+                })
+                .then(r => r.json())
+                .then(res => {
+                    if (res?.responseData) {
+                        const data = res.responseData;
+                        setFormData(prev => ({
+                            ...prev,
+                            fullName: data.companyName || prev.fullName,
+                            employeeCode: data.vendorCode || prev.employeeCode,
+                            email: data.email || prev.email,
+                            status: data.status ? (data.status.toLowerCase() === 'inactive' ? 'Inactive' : 'Active') : prev.status
+                        }));
+                        if (data.unitName || data.unitPinCode || data.cin || data.unitAddress || data.poiCode) {
+                            setSleeperUnit({
+                                unitId: data.unitId || null,
+                                unitName: data.unitName || '',
+                                unitPinCode: data.unitPinCode || '',
+                                cin: data.cin || '',
+                                unitAddress: data.unitAddress || '',
+                                unitDistrict: data.unitDistrict || '',
+                                unitState: data.unitState || '',
+                                poiCode: data.poiCode || ''
+                            });
+                        }
+                        if (data.plants && data.plants.length > 0) {
+                            setSleeperPlants(data.plants);
                         }
                     }
                 })
@@ -197,6 +286,23 @@ export const UserForm = ({ user, roles = [], rolesLoading = false, existingUsers
                     status: ''
                 }
             ]);
+            setSleeperPlants([
+                {
+                    id: null,
+                    plantName: '',
+                    pinCode: '',
+                    cin: '',
+                    address: '',
+                    district: '',
+                    state: '',
+                    zonalRailway: '',
+                    rio: '',
+                    contactPerson: '',
+                    contactPersonNumber: '',
+                    plantId: '',
+                    status: 'Active'
+                }
+            ]);
         }
     }, [user]);
 
@@ -234,6 +340,103 @@ export const UserForm = ({ user, roles = [], rolesLoading = false, existingUsers
             next[index] = { ...next[index], [field]: cleanVal };
             return next;
         });
+    };
+
+    const handleAddPlant = () => {
+        setSleeperPlants(prev => [
+            ...prev,
+            {
+                id: null,
+                plantName: '',
+                pinCode: '',
+                cin: '',
+                address: '',
+                district: '',
+                state: '',
+                zonalRailway: '',
+                rio: '',
+                contactPerson: '',
+                contactPersonNumber: '',
+                plantId: '',
+                status: 'Active'
+            }
+        ]);
+    };
+
+    const handleRemovePlant = (index) => {
+        if (sleeperPlants.length <= 1) return;
+        setSleeperPlants(prev => prev.filter((_, i) => i !== index));
+    };
+
+    const handlePlantChange = (index, field, value) => {
+        setSleeperPlants(prev => {
+            const next = [...prev];
+            const cleanVal = field === 'contactPersonNumber'
+                ? value.replace(/\D/g, '').slice(0, 10)
+                : value;
+            next[index] = { ...next[index], [field]: cleanVal };
+            return next;
+        });
+    };
+
+    const handlePlantPinChange = async (index, pin) => {
+        const cleanPin = pin.replace(/\D/g, '').slice(0, 6);
+        handlePlantChange(index, 'pinCode', cleanPin);
+
+        if (cleanPin.length === 6) {
+            try {
+                const res = await fetch(`https://api.postalpincode.in/pincode/${cleanPin}`);
+                const data = await res.json();
+                if (data && data[0]?.Status === 'Success' && data[0]?.PostOffice?.length > 0) {
+                    const po = data[0].PostOffice[0];
+                    const dist = po.District || '';
+                    const st = po.State || '';
+                    handlePlantChange(index, 'district', dist);
+                    handlePlantChange(index, 'state', st);
+                    
+                    const s = st.toUpperCase();
+                    let rio = 'WRIO';
+                    if (s.includes('WEST BENGAL') || s.includes('BIHAR') || s.includes('JHARKHAND') || s.includes('ODISHA') || s.includes('ASSAM')) {
+                        rio = 'ERIO';
+                    } else if (s.includes('HARYANA') || s.includes('PUNJAB') || s.includes('DELHI') || s.includes('RAJASTHAN') || s.includes('UTTAR PRADESH') || s.includes('UP') || s.includes('UTTARAKHAND') || s.includes('HIMACHAL') || s.includes('JAMMU')) {
+                        rio = 'NRIO';
+                    } else if (s.includes('TAMIL') || s.includes('KERALA') || s.includes('KARNATAKA') || s.includes('ANDHRA') || s.includes('TELANGANA')) {
+                        rio = 'SRIO';
+                    } else if (s.includes('CENTRAL') || s.includes('MADHYA')) {
+                        rio = 'CRIO';
+                    }
+                    handlePlantChange(index, 'rio', rio);
+                }
+            } catch (err) {
+                console.error('Error fetching pincode data:', err);
+            }
+        }
+    };
+
+    const handleSleeperUnitChange = (field, value) => {
+        setSleeperUnit(prev => ({ ...prev, [field]: value }));
+    };
+
+    const handleSleeperUnitPinChange = async (pin) => {
+        const cleanPin = pin.replace(/\D/g, '').slice(0, 6);
+        handleSleeperUnitChange('unitPinCode', cleanPin);
+
+        if (cleanPin.length === 6) {
+            try {
+                const res = await fetch(`https://api.postalpincode.in/pincode/${cleanPin}`);
+                const data = await res.json();
+                if (data && data[0]?.Status === 'Success' && data[0]?.PostOffice?.length > 0) {
+                    const po = data[0].PostOffice[0];
+                    setSleeperUnit(prev => ({
+                        ...prev,
+                        unitDistrict: po.District || prev.unitDistrict,
+                        unitState: po.State || prev.unitState
+                    }));
+                }
+            } catch (err) {
+                console.error('Error fetching registered unit pincode data:', err);
+            }
+        }
     };
 
     const handleChange = (e) => {
@@ -285,20 +488,24 @@ export const UserForm = ({ user, roles = [], rolesLoading = false, existingUsers
 
     const handleSubmit = async (e) => {
         e.preventDefault();
-        setRoleAddPrompt(null);
-        
-        if (!user || formData.password) {
+
+        // Password validation if creating new user or explicitly changing password
+        if ((!user || formData.password) && formData.password) {
             const pwd = formData.password;
             if (pwd.length < 8) {
                 showValidationToast('Password must be at least 8 characters long.');
                 return;
             }
             if (!/[A-Z]/.test(pwd)) {
-                showValidationToast('Password must contain at least one uppercase letter.');
+                showValidationToast('Password must contain at least one uppercase letter (A-Z).');
+                return;
+            }
+            if (!/[a-z]/.test(pwd)) {
+                showValidationToast('Password must contain at least one lowercase letter (a-z).');
                 return;
             }
             if (!/[0-9]/.test(pwd)) {
-                showValidationToast('Password must contain at least one number.');
+                showValidationToast('Password must contain at least one numeric digit (0-9).');
                 return;
             }
             if (!/[!@#$%^&*(),.?":{}|<>]/.test(pwd)) {
@@ -307,9 +514,104 @@ export const UserForm = ({ user, roles = [], rolesLoading = false, existingUsers
             }
         }
 
-        const isVendor = formData.roleNames.some(r => r === 'Vendor' || r === 'ERC Vendor');
+        const isSleeperVendor = formData.roleNames.some(r => r === 'Sleeper Vendor');
+        const isErcVendor = formData.roleNames.some(r => r === 'Vendor' || r === 'ERC Vendor');
 
-        if (isVendor) {
+        if (isSleeperVendor) {
+            if (!formData.fullName || !formData.fullName.trim()) {
+                showValidationToast('Company / Vendor Name is required.');
+                return;
+            }
+            if (!formData.employeeCode || !formData.employeeCode.trim()) {
+                showValidationToast('Vendor Code is required.');
+                return;
+            }
+
+            const seenPlantIds = new Set();
+            const seenPlantNames = new Set();
+
+            for (let i = 0; i < sleeperPlants.length; i++) {
+                const p = sleeperPlants[i];
+                const cleanPlantName = p.plantName?.trim().toLowerCase();
+                const cleanPin = p.pinCode?.trim();
+                const cleanPlantId = p.plantId?.trim().toLowerCase();
+
+                if (!cleanPlantName) {
+                    showValidationToast(`Plant #${i + 1}: Plant Name is required.`);
+                    return;
+                }
+                if (seenPlantNames.has(cleanPlantName)) {
+                    showValidationToast(`Duplicate Plant Name "${p.plantName}" found in Plant #${i + 1}. Each plant must have a unique name.`);
+                    return;
+                }
+                seenPlantNames.add(cleanPlantName);
+
+                if (!cleanPin || cleanPin.length !== 6) {
+                    showValidationToast(`Plant #${i + 1}: Valid 6-digit Pin Code is required.`);
+                    return;
+                }
+
+                if (cleanPlantId) {
+                    if (seenPlantIds.has(cleanPlantId)) {
+                        showValidationToast(`Duplicate Plant ID "${p.plantId}" found in Plant #${i + 1}. Each plant must have a unique Plant ID.`);
+                        return;
+                    }
+                    seenPlantIds.add(cleanPlantId);
+                }
+
+                if (!p.zonalRailway || !p.zonalRailway.trim()) {
+                    showValidationToast(`Plant #${i + 1}: Zonal Railway is required.`);
+                    return;
+                }
+                if (!p.rio || !p.rio.trim()) {
+                    showValidationToast(`Plant #${i + 1}: RIO is required.`);
+                    return;
+                }
+                if (!p.contactPerson || !p.contactPerson.trim()) {
+                    showValidationToast(`Plant #${i + 1}: Contact Person is required.`);
+                    return;
+                }
+                if (!p.contactPersonNumber || !p.contactPersonNumber.trim()) {
+                    showValidationToast(`Plant #${i + 1}: Contact Person Number is required.`);
+                    return;
+                }
+                if (!/^\d{10}$/.test(p.contactPersonNumber.trim())) {
+                    showValidationToast(`Plant #${i + 1}: Contact Person Number must be exactly 10 digits (no spaces or alphabets).`);
+                    return;
+                }
+            }
+
+            const rawVCode = formData.employeeCode.trim();
+            const formattedVendorCode = rawVCode.startsWith(':') ? rawVCode : `:${rawVCode}`;
+
+            const sleeperPayload = {
+                userId: formData.userId,
+                companyName: formData.fullName.trim(),
+                vendorCode: formattedVendorCode,
+                email: formData.email?.trim() || `${formattedVendorCode}@vendor.local`,
+                password: formData.password || undefined,
+                status: formData.status || 'Active',
+                roleNames: ['Sleeper Vendor'],
+
+                // Single Registered Unit
+                unitId: sleeperUnit.unitId,
+                unitName: sleeperUnit.unitName?.trim() || `${formData.fullName.trim()} - Head Office / Unit`,
+                unitPinCode: sleeperUnit.unitPinCode?.trim(),
+                cin: sleeperUnit.cin?.trim(),
+                unitAddress: sleeperUnit.unitAddress?.trim(),
+                unitDistrict: sleeperUnit.unitDistrict?.trim(),
+                unitState: sleeperUnit.unitState?.trim(),
+                poiCode: sleeperUnit.poiCode,
+
+                // Multiple Plants
+                plants: sleeperPlants
+            };
+
+            onSubmit(sleeperPayload);
+            return;
+        }
+
+        if (isErcVendor) {
             if (!formData.fullName || !formData.fullName.trim()) {
                 showValidationToast('Company / Vendor Name is required.');
                 return;
@@ -408,7 +710,9 @@ export const UserForm = ({ user, roles = [], rolesLoading = false, existingUsers
     };
 
     const isZonalRailway = formData.roleNames.includes('ZONAL RAILWAY');
-    const isVendor = formData.roleNames.some(r => r === 'Vendor' || r === 'ERC Vendor');
+    const isSleeperVendor = formData.roleNames.some(r => r === 'Sleeper Vendor');
+    const isErcVendor = formData.roleNames.some(r => r === 'Vendor' || r === 'ERC Vendor');
+    const isVendor = isSleeperVendor || isErcVendor;
 
     const roleMapping = {
         'Vendor': 'ERC Vendor',
@@ -615,150 +919,53 @@ export const UserForm = ({ user, roles = [], rolesLoading = false, existingUsers
                         </div>
                     </div>
 
-                    {/* Vendor Manufacturing Units Section */}
-                    <div className="form-section">
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
-                            <div className="form-section-title" style={{ marginBottom: 0 }}>
-                                <span>🏭</span> Manufacturing Units / Plants ({vendorUnits.length})
-                            </div>
-                            <button
-                                type="button"
-                                className="btn btn-secondary"
-                                onClick={handleAddUnit}
-                                style={{ fontSize: '12px', padding: '6px 14px', display: 'flex', alignItems: 'center', gap: '6px', borderColor: '#0f4c81', color: '#0f4c81', fontWeight: 600 }}
-                            >
-                                <span>+</span> Add Another Unit
-                            </button>
-                        </div>
-
-                        {isVendorLoading ? (
-                            Array.from({ length: 2 }).map((_, sIdx) => (
-                                <div key={`unit-skel-${sIdx}`} className="skeleton-unit-card">
-                                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '16px' }}>
-                                        <span className="skeleton-shimmer" style={{ width: '130px', height: '24px', borderRadius: '12px' }} />
-                                        <span className="skeleton-shimmer" style={{ width: '80px', height: '24px', borderRadius: '6px' }} />
+                    {/* Sleeper Plants or ERC Units Section */}
+                    {isSleeperVendor ? (
+                        <>
+                            {/* Section 1: Registered Unit Details (Single Unit) */}
+                            <div className="form-section" style={{ background: '#f8fafc', border: '1.5px solid #e2e8f0', borderRadius: '10px', padding: '16px', marginBottom: '20px' }}>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px', borderBottom: '1px solid #cbd5e1', paddingBottom: '8px' }}>
+                                    <div className="form-section-title" style={{ marginBottom: 0, color: '#0f4c81', fontWeight: 700 }}>
+                                        <span>🏢</span> Registered Unit Details (Single Unit)
                                     </div>
-                                    <div className="form-grid" style={{ marginBottom: '14px' }}>
-                                        <div>
-                                            <span className="skeleton-shimmer" style={{ width: '80px', height: '14px', marginBottom: '6px' }} />
-                                            <span className="skeleton-shimmer" style={{ width: '100%', height: '38px', borderRadius: '6px' }} />
-                                        </div>
-                                        <div>
-                                            <span className="skeleton-shimmer" style={{ width: '80px', height: '14px', marginBottom: '6px' }} />
-                                            <span className="skeleton-shimmer" style={{ width: '100%', height: '38px', borderRadius: '6px' }} />
-                                        </div>
-                                    </div>
-                                    <div className="form-grid" style={{ marginBottom: '14px' }}>
-                                        <div>
-                                            <span className="skeleton-shimmer" style={{ width: '90px', height: '14px', marginBottom: '6px' }} />
-                                            <span className="skeleton-shimmer" style={{ width: '100%', height: '38px', borderRadius: '6px' }} />
-                                        </div>
-                                        <div>
-                                            <span className="skeleton-shimmer" style={{ width: '90px', height: '14px', marginBottom: '6px' }} />
-                                            <span className="skeleton-shimmer" style={{ width: '100%', height: '38px', borderRadius: '6px' }} />
-                                        </div>
-                                    </div>
-                                    <div style={{ marginBottom: '14px' }}>
-                                        <span className="skeleton-shimmer" style={{ width: '100px', height: '14px', marginBottom: '6px' }} />
-                                        <span className="skeleton-shimmer" style={{ width: '100%', height: '38px', borderRadius: '6px' }} />
-                                    </div>
-                                    <div className="form-grid">
-                                        <span className="skeleton-shimmer" style={{ width: '100%', height: '65px', borderRadius: '8px' }} />
-                                        <span className="skeleton-shimmer" style={{ width: '100%', height: '65px', borderRadius: '8px' }} />
-                                    </div>
-                                </div>
-                            ))
-                        ) : (
-                            vendorUnits.map((unit, idx) => (
-                            <div 
-                                key={idx} 
-                                style={{
-                                    background: '#f8fafc',
-                                    border: '1.5px solid #cbd5e1',
-                                    borderRadius: '10px',
-                                    padding: '16px',
-                                    marginBottom: '16px',
-                                    boxShadow: '0 1px 3px rgba(0,0,0,0.05)'
-                                }}
-                            >
-                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px', borderBottom: '1px solid #e2e8f0', paddingBottom: '8px' }}>
-                                    <div style={{ fontWeight: 700, color: '#0f4c81', fontSize: '14px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                        <span style={{ background: '#0f4c81', color: '#fff', padding: '3px 10px', borderRadius: '12px', fontSize: '12px' }}>
-                                            Unit #{idx + 1}
+                                    {sleeperUnit.poiCode && (
+                                        <span className="badge badge-info" style={{ fontSize: '12px', background: '#e0f2fe', color: '#0369a1', padding: '3px 10px', borderRadius: '12px', fontWeight: 700 }}>
+                                            POI: {sleeperUnit.poiCode}
                                         </span>
-                                        <span>{unit.unitName || 'New Unit'}</span>
-                                        {unit.poiCode && (
-                                            <span style={{ background: '#e0f2fe', color: '#0369a1', padding: '2px 8px', borderRadius: '4px', fontSize: '11px', fontWeight: 600 }}>
-                                                POI: {unit.poiCode}
-                                            </span>
-                                        )}
-                                    </div>
-                                    {vendorUnits.length > 1 && (
-                                        <button
-                                            type="button"
-                                            onClick={() => handleRemoveUnit(idx)}
-                                            style={{ background: '#fee2e2', color: '#b91c1c', border: '1px solid #fca5a5', padding: '4px 10px', borderRadius: '6px', cursor: 'pointer', fontSize: '12px', fontWeight: 600 }}
-                                        >
-                                            ✕ Remove Unit
-                                        </button>
                                     )}
                                 </div>
 
                                 <div className="form-grid">
-                                    <div className="form-group">
-                                        <label className="form-label">Unit Name <span className="required-star">*</span></label>
-                                        <input
-                                            type="text"
-                                            className="form-control"
-                                            placeholder="e.g. Unit 1, PEW, UNIT-I, ERC UNIT"
-                                            value={unit.unitName || ''}
-                                            onChange={(e) => handleUnitChange(idx, 'unitName', e.target.value)}
-                                            required
-                                        />
-                                    </div>
-                                    <div className="form-group">
-                                        <label className="form-label">Pin Code <span className="required-star">*</span></label>
-                                        <input
-                                            type="text"
-                                            className="form-control"
-                                            placeholder="e.g. 492001, 781"
-                                            value={unit.pinCode || ''}
-                                            onChange={(e) => handleUnitChange(idx, 'pinCode', e.target.value)}
-                                            required
-                                        />
-                                    </div>
-                                    <div className="form-group">
-                                        <label className="form-label">CIN / GSTIN</label>
-                                        <input
-                                            type="text"
-                                            className="form-control"
-                                            placeholder="e.g. U27109CT2004PTC016409"
-                                            value={unit.cin || ''}
-                                            onChange={(e) => handleUnitChange(idx, 'cin', e.target.value)}
-                                        />
-                                    </div>
-                                    <div className="form-group">
-                                        <label className="form-label">Region (RIO) <span className="required-star">*</span></label>
-                                        <select
-                                            className="form-control"
-                                            value={unit.rio || ''}
-                                            onChange={(e) => handleUnitChange(idx, 'rio', e.target.value)}
-                                            required
-                                        >
-                                            <option value="">-- Select Region (RIO) --</option>
-                                            {REGIONS.map(r => (
-                                                <option key={r} value={r}>{r}</option>
-                                            ))}
-                                        </select>
-                                    </div>
                                     <div className="form-group" style={{ gridColumn: 'span 2' }}>
-                                        <label className="form-label">Unit Address</label>
+                                        <label className="form-label">Registered Unit / Office Name</label>
                                         <input
                                             type="text"
                                             className="form-control"
-                                            placeholder="Plot No, Industrial Area, Landmark, City..."
-                                            value={unit.address || ''}
-                                            onChange={(e) => handleUnitChange(idx, 'address', e.target.value)}
+                                            placeholder="e.g. PATIL RAIL INFRASTRUCTURE PVT LTD - HYDERABAD"
+                                            value={sleeperUnit.unitName || ''}
+                                            onChange={(e) => handleSleeperUnitChange('unitName', e.target.value)}
+                                        />
+                                    </div>
+                                    <div className="form-group">
+                                        <label className="form-label">Registered Pin Code <span className="required-star">*</span></label>
+                                        <input
+                                            type="text"
+                                            className="form-control"
+                                            placeholder="6-digit Pincode"
+                                            value={sleeperUnit.unitPinCode || ''}
+                                            onChange={(e) => handleSleeperUnitPinChange(e.target.value)}
+                                            maxLength={6}
+                                            required
+                                        />
+                                    </div>
+                                    <div className="form-group">
+                                        <label className="form-label">CIN (Corporate Identity No.)</label>
+                                        <input
+                                            type="text"
+                                            className="form-control"
+                                            placeholder="e.g. U25206A"
+                                            value={sleeperUnit.cin || ''}
+                                            onChange={(e) => handleSleeperUnitChange('cin', e.target.value)}
                                         />
                                     </div>
                                     <div className="form-group">
@@ -766,9 +973,9 @@ export const UserForm = ({ user, roles = [], rolesLoading = false, existingUsers
                                         <input
                                             type="text"
                                             className="form-control"
-                                            placeholder="e.g. Bemetara, Rajnandgaon, Howrah"
-                                            value={unit.district || ''}
-                                            onChange={(e) => handleUnitChange(idx, 'district', e.target.value)}
+                                            placeholder="District"
+                                            value={sleeperUnit.unitDistrict || ''}
+                                            onChange={(e) => handleSleeperUnitChange('unitDistrict', e.target.value)}
                                         />
                                     </div>
                                     <div className="form-group">
@@ -776,47 +983,394 @@ export const UserForm = ({ user, roles = [], rolesLoading = false, existingUsers
                                         <input
                                             type="text"
                                             className="form-control"
-                                            placeholder="e.g. Chhattisgarh, West Bengal, Assam"
-                                            value={unit.state || ''}
-                                            onChange={(e) => handleUnitChange(idx, 'state', e.target.value)}
+                                            placeholder="State"
+                                            value={sleeperUnit.unitState || ''}
+                                            onChange={(e) => handleSleeperUnitChange('unitState', e.target.value)}
                                         />
                                     </div>
-                                    <div className="form-group" style={{ background: '#eff6ff', padding: '10px', borderRadius: '8px', border: '1.5px solid #93c5fd' }}>
-                                        <label className="form-label" style={{ color: '#1e40af', fontWeight: 700 }}>
-                                            👤 Contact Person <span className="required-star">*</span>
-                                        </label>
+                                    <div className="form-group" style={{ gridColumn: 'span 2' }}>
+                                        <label className="form-label">Registered Office Address</label>
                                         <input
                                             type="text"
                                             className="form-control"
-                                            placeholder="Full name of unit contact person"
-                                            value={unit.contactPerson || ''}
-                                            onChange={(e) => handleUnitChange(idx, 'contactPerson', e.target.value)}
-                                            required
-                                            style={{ borderColor: '#60a5fa' }}
-                                        />
-                                    </div>
-                                    <div className="form-group" style={{ background: '#eff6ff', padding: '10px', borderRadius: '8px', border: '1.5px solid #93c5fd' }}>
-                                        <label className="form-label" style={{ color: '#1e40af', fontWeight: 700 }}>
-                                            📞 Contact Person Number <span className="required-star">*</span>
-                                        </label>
-                                        <input
-                                            type="tel"
-                                            className="form-control"
-                                            placeholder="Exact 10-digit mobile number"
-                                            value={unit.contactPersonNumber || ''}
-                                            onChange={(e) => handleUnitChange(idx, 'contactPersonNumber', e.target.value)}
-                                            maxLength={10}
-                                            inputMode="numeric"
-                                            pattern="[0-9]{10}"
-                                            required
-                                            style={{ borderColor: '#60a5fa' }}
+                                            placeholder="e.g. 6th Floor, Rajbhavan Road, Somajiguda, Hyderabad"
+                                            value={sleeperUnit.unitAddress || ''}
+                                            onChange={(e) => handleSleeperUnitChange('unitAddress', e.target.value)}
                                         />
                                     </div>
                                 </div>
                             </div>
-                            ))
-                        )}
-                    </div>
+
+                            {/* Section 2: Sleeper Manufacturing Plants (Multiple Plants) */}
+                            <div className="form-section">
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
+                                    <div className="form-section-title" style={{ marginBottom: 0 }}>
+                                        <span>🚂</span> Sleeper Manufacturing Plants ({sleeperPlants.length})
+                                    </div>
+                                    <button
+                                        type="button"
+                                        className="btn btn-secondary"
+                                        onClick={handleAddPlant}
+                                        style={{ fontSize: '12px', padding: '6px 14px', display: 'flex', alignItems: 'center', gap: '6px', borderColor: '#0f4c81', color: '#0f4c81', fontWeight: 600 }}
+                                    >
+                                        <span>+</span> Add Another Plant
+                                    </button>
+                                </div>
+
+                                {isVendorLoading ? (
+                                    Array.from({ length: 2 }).map((_, sIdx) => (
+                                        <div key={`plant-skel-${sIdx}`} className="skeleton-unit-card">
+                                            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '16px' }}>
+                                                <span className="skeleton-shimmer" style={{ width: '130px', height: '24px', borderRadius: '12px' }} />
+                                                <span className="skeleton-shimmer" style={{ width: '80px', height: '24px', borderRadius: '6px' }} />
+                                            </div>
+                                            <div className="form-grid" style={{ marginBottom: '14px' }}>
+                                                <div>
+                                                    <span className="skeleton-shimmer" style={{ width: '80px', height: '14px', marginBottom: '6px' }} />
+                                                    <span className="skeleton-shimmer" style={{ width: '100%', height: '38px', borderRadius: '6px' }} />
+                                                </div>
+                                                <div>
+                                                    <span className="skeleton-shimmer" style={{ width: '80px', height: '14px', marginBottom: '6px' }} />
+                                                    <span className="skeleton-shimmer" style={{ width: '100%', height: '38px', borderRadius: '6px' }} />
+                                                </div>
+                                            </div>
+                                        </div>
+                                    ))
+                                ) : (
+                                    <>
+                                        {sleeperPlants.map((plant, idx) => (
+                                            <div key={idx} className="vendor-unit-card" style={{ border: '1px solid #cbd5e1', borderRadius: '12px', padding: '16px', marginBottom: '16px', background: '#f8fafc' }}>
+                                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px', borderBottom: '1px solid #e2e8f0', paddingBottom: '8px', gap: '12px' }}>
+                                                    <div style={{ fontWeight: 700, color: '#0f4c81', fontSize: '14px', whiteSpace: 'nowrap', display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                                                        <span>Plant #{idx + 1}</span>
+                                                        {plant.plantName && <span style={{ color: '#64748b', fontWeight: 500 }}>— {plant.plantName}</span>}
+                                                    </div>
+                                                    {sleeperPlants.length > 1 && (
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => handleRemovePlant(idx)}
+                                                            className="btn btn-sm btn-danger"
+                                                            style={{ padding: '3px 10px', fontSize: '11px', width: 'auto', flexShrink: 0, whiteSpace: 'nowrap', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
+                                                        >
+                                                            ✕ Remove Plant
+                                                        </button>
+                                                    )}
+                                                </div>
+
+                                                <div className="form-grid">
+                                                    <div className="form-group">
+                                                        <label className="form-label">Plant Name <span className="required-star">*</span></label>
+                                                        <input
+                                                            type="text"
+                                                            className="form-control"
+                                                            placeholder="e.g. PATIL HYDERABAD PLANT 2"
+                                                            value={plant.plantName || ''}
+                                                            onChange={(e) => handlePlantChange(idx, 'plantName', e.target.value)}
+                                                            required
+                                                        />
+                                                    </div>
+                                                    <div className="form-group">
+                                                        <label className="form-label">Plant ID <span className="required-star">*</span></label>
+                                                        <input
+                                                            type="text"
+                                                            className="form-control"
+                                                            placeholder="e.g. :41647/Kargi"
+                                                            value={plant.plantId || ''}
+                                                            onChange={(e) => handlePlantChange(idx, 'plantId', e.target.value)}
+                                                            required
+                                                        />
+                                                    </div>
+                                                    <div className="form-group">
+                                                        <label className="form-label">Plant Pin Code <span className="required-star">*</span></label>
+                                                        <input
+                                                            type="text"
+                                                            className="form-control"
+                                                            placeholder="6-digit Pincode"
+                                                            value={plant.pinCode || ''}
+                                                            onChange={(e) => handlePlantPinChange(idx, e.target.value)}
+                                                            maxLength={6}
+                                                            required
+                                                        />
+                                                    </div>
+                                                    <div className="form-group">
+                                                        <label className="form-label">Zonal Railway <span className="required-star">*</span></label>
+                                                        <Select
+                                                            showSearch
+                                                            placeholder="Select Zonal Railway"
+                                                            value={plant.zonalRailway || undefined}
+                                                            onChange={(val) => handlePlantChange(idx, 'zonalRailway', val)}
+                                                            style={{ width: '100%', height: '38px' }}
+                                                            optionFilterProp="children"
+                                                            filterOption={(input, option) =>
+                                                                (option?.children ?? '').toLowerCase().includes(input.toLowerCase())
+                                                            }
+                                                            dropdownStyle={{ maxHeight: '220px', overflowY: 'auto' }}
+                                                        >
+                                                            {ZONAL_RAILWAY_LIST.map(zr => (
+                                                                <Select.Option key={zr} value={zr}>{zr}</Select.Option>
+                                                            ))}
+                                                        </Select>
+                                                    </div>
+                                                    <div className="form-group">
+                                                        <label className="form-label">RIO (Inspection Office) <span className="required-star">*</span></label>
+                                                        <Select
+                                                            showSearch
+                                                            placeholder="Select RIO"
+                                                            value={plant.rio || undefined}
+                                                            onChange={(val) => handlePlantChange(idx, 'rio', val)}
+                                                            style={{ width: '100%', height: '38px' }}
+                                                            optionFilterProp="children"
+                                                            filterOption={(input, option) =>
+                                                                (option?.children ?? '').toLowerCase().includes(input.toLowerCase())
+                                                            }
+                                                            dropdownStyle={{ maxHeight: '220px', overflowY: 'auto' }}
+                                                        >
+                                                            {RIO_OPTIONS_LIST.map(rio => (
+                                                                <Select.Option key={rio} value={rio}>{rio}</Select.Option>
+                                                            ))}
+                                                        </Select>
+                                                    </div>
+                                                    <div className="form-group" style={{ background: '#f0fdf4', padding: '10px', borderRadius: '8px', border: '1.5px solid #86efac' }}>
+                                                        <label className="form-label" style={{ color: '#166534', fontWeight: 700 }}>
+                                                            👤 Contact Person <span className="required-star">*</span>
+                                                        </label>
+                                                        <input
+                                                            type="text"
+                                                            className="form-control"
+                                                            placeholder="Full name of plant contact person"
+                                                            value={plant.contactPerson || ''}
+                                                            onChange={(e) => handlePlantChange(idx, 'contactPerson', e.target.value)}
+                                                            required
+                                                            style={{ borderColor: '#4ade80' }}
+                                                        />
+                                                    </div>
+                                                    <div className="form-group" style={{ background: '#eff6ff', padding: '10px', borderRadius: '8px', border: '1.5px solid #93c5fd' }}>
+                                                        <label className="form-label" style={{ color: '#1e40af', fontWeight: 700 }}>
+                                                            📞 Contact Person Number <span className="required-star">*</span>
+                                                        </label>
+                                                        <input
+                                                            type="tel"
+                                                            className="form-control"
+                                                            placeholder="Exact 10-digit mobile number"
+                                                            value={plant.contactPersonNumber || ''}
+                                                            onChange={(e) => handlePlantChange(idx, 'contactPersonNumber', e.target.value)}
+                                                            maxLength={10}
+                                                            inputMode="numeric"
+                                                            pattern="[0-9]{10}"
+                                                            required
+                                                            style={{ borderColor: '#60a5fa' }}
+                                                        />
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        ))}
+
+                                        <div style={{ textAlign: 'center', marginTop: '10px' }}>
+                                            <button
+                                                type="button"
+                                                className="btn btn-secondary"
+                                                onClick={handleAddPlant}
+                                                style={{ fontSize: '13px', padding: '8px 20px', borderColor: '#0f4c81', color: '#0f4c81', fontWeight: 700 }}
+                                            >
+                                                + Add Another Plant
+                                            </button>
+                                        </div>
+                                    </>
+                                )}
+                            </div>
+                        </>
+                    ) : (
+                        <div className="form-section">
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
+                                <div className="form-section-title" style={{ marginBottom: 0 }}>
+                                    <span>🏭</span> Manufacturing Units / Plants ({vendorUnits.length})
+                                </div>
+                                <button
+                                    type="button"
+                                    className="btn btn-secondary"
+                                    onClick={handleAddUnit}
+                                    style={{ fontSize: '12px', padding: '6px 14px', display: 'flex', alignItems: 'center', gap: '6px', borderColor: '#0f4c81', color: '#0f4c81', fontWeight: 600 }}
+                                >
+                                    <span>+</span> Add Another Unit
+                                </button>
+                            </div>
+
+                            {isVendorLoading ? (
+                                Array.from({ length: 2 }).map((_, sIdx) => (
+                                    <div key={`unit-skel-${sIdx}`} className="skeleton-unit-card">
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '16px' }}>
+                                            <span className="skeleton-shimmer" style={{ width: '130px', height: '24px', borderRadius: '12px' }} />
+                                            <span className="skeleton-shimmer" style={{ width: '80px', height: '24px', borderRadius: '6px' }} />
+                                        </div>
+                                        <div className="form-grid" style={{ marginBottom: '14px' }}>
+                                            <div>
+                                                <span className="skeleton-shimmer" style={{ width: '80px', height: '14px', marginBottom: '6px' }} />
+                                                <span className="skeleton-shimmer" style={{ width: '100%', height: '38px', borderRadius: '6px' }} />
+                                            </div>
+                                            <div>
+                                                <span className="skeleton-shimmer" style={{ width: '80px', height: '14px', marginBottom: '6px' }} />
+                                                <span className="skeleton-shimmer" style={{ width: '100%', height: '38px', borderRadius: '6px' }} />
+                                            </div>
+                                        </div>
+                                        <div className="form-grid" style={{ marginBottom: '14px' }}>
+                                            <div>
+                                                <span className="skeleton-shimmer" style={{ width: '90px', height: '14px', marginBottom: '6px' }} />
+                                                <span className="skeleton-shimmer" style={{ width: '100%', height: '38px', borderRadius: '6px' }} />
+                                            </div>
+                                            <div>
+                                                <span className="skeleton-shimmer" style={{ width: '90px', height: '14px', marginBottom: '6px' }} />
+                                                <span className="skeleton-shimmer" style={{ width: '100%', height: '38px', borderRadius: '6px' }} />
+                                            </div>
+                                        </div>
+                                        <div style={{ marginBottom: '14px' }}>
+                                            <span className="skeleton-shimmer" style={{ width: '100px', height: '14px', marginBottom: '6px' }} />
+                                            <span className="skeleton-shimmer" style={{ width: '100%', height: '38px', borderRadius: '6px' }} />
+                                        </div>
+                                        <div className="form-grid">
+                                            <span className="skeleton-shimmer" style={{ width: '100%', height: '65px', borderRadius: '8px' }} />
+                                            <span className="skeleton-shimmer" style={{ width: '100%', height: '65px', borderRadius: '8px' }} />
+                                        </div>
+                                    </div>
+                                ))
+                            ) : (
+                                vendorUnits.map((unit, idx) => (
+                                <div key={idx} className="vendor-unit-card" style={{ border: '1px solid #cbd5e1', borderRadius: '12px', padding: '16px', marginBottom: '16px', background: '#f8fafc' }}>
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px', borderBottom: '1px solid #e2e8f0', paddingBottom: '8px' }}>
+                                        <div style={{ fontWeight: 700, color: '#0f4c81', fontSize: '14px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                            <span>Unit #{idx + 1}</span>
+                                            {unit.unitName && <span style={{ color: '#64748b', fontWeight: 500 }}>— {unit.unitName}</span>}
+                                            {unit.poiCode && (
+                                                <span className="badge badge-info" style={{ fontSize: '11px', background: '#e0f2fe', color: '#0369a1', padding: '2px 8px', borderRadius: '10px' }}>
+                                                    POI: {unit.poiCode}
+                                                </span>
+                                            )}
+                                        </div>
+                                        {vendorUnits.length > 1 && (
+                                            <button
+                                                type="button"
+                                                onClick={() => handleRemoveUnit(idx)}
+                                                className="btn btn-sm btn-danger"
+                                                style={{ padding: '4px 10px', fontSize: '11px', display: 'flex', alignItems: 'center', gap: '4px' }}
+                                            >
+                                                ✕ Remove Unit
+                                            </button>
+                                        )}
+                                    </div>
+
+                                    <div className="form-grid">
+                                        <div className="form-group">
+                                            <label className="form-label">Unit Name <span className="required-star">*</span></label>
+                                            <input
+                                                type="text"
+                                                className="form-control"
+                                                placeholder="e.g. Unit 1 - Main Works"
+                                                value={unit.unitName || ''}
+                                                onChange={(e) => handleUnitChange(idx, 'unitName', e.target.value)}
+                                                required
+                                            />
+                                        </div>
+                                        <div className="form-group">
+                                            <label className="form-label">Pin Code <span className="required-star">*</span></label>
+                                            <input
+                                                type="text"
+                                                className="form-control"
+                                                placeholder="6-digit Pincode"
+                                                value={unit.pinCode || ''}
+                                                onChange={(e) => handleUnitChange(idx, 'pinCode', e.target.value)}
+                                                maxLength={6}
+                                                required
+                                            />
+                                        </div>
+                                        <div className="form-group">
+                                            <label className="form-label">CIN (Corporate Identity No.)</label>
+                                            <input
+                                                type="text"
+                                                className="form-control"
+                                                placeholder="e.g. U12345MH2000PTC123456"
+                                                value={unit.cin || ''}
+                                                onChange={(e) => handleUnitChange(idx, 'cin', e.target.value)}
+                                            />
+                                        </div>
+                                        <div className="form-group">
+                                            <label className="form-label">RIO (Inspection Office)</label>
+                                            <select
+                                                className="form-control"
+                                                value={unit.rio || ''}
+                                                onChange={(e) => handleUnitChange(idx, 'rio', e.target.value)}
+                                            >
+                                                <option value="">Auto-derived from state (or select)</option>
+                                                {REGIONS.map(r => (
+                                                    <option key={r} value={r}>{r}</option>
+                                                ))}
+                                            </select>
+                                        </div>
+                                        <div className="form-group" style={{ gridColumn: 'span 2' }}>
+                                            <label className="form-label">Full Unit Address</label>
+                                            <input
+                                                type="text"
+                                                className="form-control"
+                                                placeholder="Complete street address of the manufacturing plant"
+                                                value={unit.address || ''}
+                                                onChange={(e) => handleUnitChange(idx, 'address', e.target.value)}
+                                            />
+                                        </div>
+                                        <div className="form-group">
+                                            <label className="form-label">District</label>
+                                            <input
+                                                type="text"
+                                                className="form-control"
+                                                placeholder="District"
+                                                value={unit.district || ''}
+                                                onChange={(e) => handleUnitChange(idx, 'district', e.target.value)}
+                                            />
+                                        </div>
+                                        <div className="form-group">
+                                            <label className="form-label">State</label>
+                                            <input
+                                                type="text"
+                                                className="form-control"
+                                                placeholder="State"
+                                                value={unit.state || ''}
+                                                onChange={(e) => handleUnitChange(idx, 'state', e.target.value)}
+                                            />
+                                        </div>
+                                        <div className="form-group" style={{ background: '#f0fdf4', padding: '10px', borderRadius: '8px', border: '1.5px solid #86efac' }}>
+                                            <label className="form-label" style={{ color: '#166534', fontWeight: 700 }}>
+                                                👤 Contact Person <span className="required-star">*</span>
+                                            </label>
+                                            <input
+                                                type="text"
+                                                className="form-control"
+                                                placeholder="Full name of unit contact person"
+                                                value={unit.contactPerson || ''}
+                                                onChange={(e) => handleUnitChange(idx, 'contactPerson', e.target.value)}
+                                                required
+                                                style={{ borderColor: '#60a5fa' }}
+                                            />
+                                        </div>
+                                        <div className="form-group" style={{ background: '#eff6ff', padding: '10px', borderRadius: '8px', border: '1.5px solid #93c5fd' }}>
+                                            <label className="form-label" style={{ color: '#1e40af', fontWeight: 700 }}>
+                                                📞 Contact Person Number <span className="required-star">*</span>
+                                            </label>
+                                            <input
+                                                type="tel"
+                                                className="form-control"
+                                                placeholder="Exact 10-digit mobile number"
+                                                value={unit.contactPersonNumber || ''}
+                                                onChange={(e) => handleUnitChange(idx, 'contactPersonNumber', e.target.value)}
+                                                maxLength={10}
+                                                inputMode="numeric"
+                                                pattern="[0-9]{10}"
+                                                required
+                                                style={{ borderColor: '#60a5fa' }}
+                                            />
+                                        </div>
+                                    </div>
+                                </div>
+                                ))
+                            )}
+                        </div>
+                    )}
                 </>
             ) : (
                 <>

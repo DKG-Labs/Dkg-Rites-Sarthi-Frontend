@@ -45,56 +45,278 @@ const CallCancellationModal = ({
   const [description, setDescription]             = useState('');
   const [file, setFile]                           = useState(null);
 
+  // SRS PO Date & Category State (Category A, B, C)
+  const [poCategory, setPoCategory] = useState('B'); // 'A' | 'B' | 'C'
+  const [poDate, setPoDate]         = useState('');
+  const [poQty, setPoQty]           = useState('');
+  const [poValue, setPoValue]       = useState('');
+  const [offeredQty, setOfferedQty] = useState('');
+  const [derivedRate, setDerivedRate] = useState('');
+
   // Calculation Fields - Fully Dynamic
   const [materialValue, setMaterialValue] = useState('');
-  const [percentage, setPercentage]       = useState('0.9');
-  const [maxCap, setMaxCap]               = useState('11000'); // Auto-updated based on Visit Status
+  const [percentage, setPercentage]       = useState('0.90');
 
   const [isSubmitting, setIsSubmitting]   = useState(false);
   const [formErrors, setFormErrors]       = useState({});
+  const [isFetchingPoDetails, setIsFetchingPoDetails] = useState(false);
 
-  // Initialize Material Value dynamically from Call/PO object
-  useEffect(() => {
-    if (call) {
-      const poVal = call.material_value || call.materialValue || call.po_value || call.poValue || 
-                    call.total_value || call.totalValue || call.po_amount || call.poAmount || 
-                    call.offeredValue || call.value || call.totalPoValue || 
-                    call.poHeader?.poValue || call.poDetails?.poValue;
-      if (poVal !== undefined && poVal !== null && poVal !== '') {
-        const numericVal = String(poVal).replace(/[^0-9.]/g, '');
-        if (numericVal) {
-          setMaterialValue(numericVal);
+  // Helper to fetch enriched PO & Call details from API
+  const fetchPoDetailsForCall = async (requestId, poNo, itemSrNo) => {
+    const rawBase = getBaseUrl();
+    const cleanBase = rawBase ? rawBase.replace(/\/api\/?$/, '') : '';
+    const token = localStorage.getItem('authToken');
+    const headers = {
+      'Content-Type': 'application/json',
+      ...(token && { 'Authorization': `Bearer ${token}` }),
+    };
+
+    // 1. Direct PO Item Details Endpoint (queries po_item and po_header by call / poNo / itemSrNo)
+    try {
+      const params = new URLSearchParams();
+      if (requestId) params.append('callNo', requestId);
+      if (poNo) params.append('poNo', poNo);
+      if (itemSrNo) params.append('itemSrNo', itemSrNo);
+
+      const resp = await fetch(`${cleanBase}/api/call/po-item-details?${params.toString()}`, { method: 'GET', headers });
+      if (resp.ok) {
+        const json = await resp.json();
+        const data = json.responseData ?? json.data ?? json;
+        if (data && (data.poQty || data.poValue || data.rate)) {
+          return data;
         }
       }
+    } catch (e) {
+      console.warn('Could not fetch from /api/call/po-item-details:', e);
     }
-  }, [call]);
 
-  // SRS 8.2 Maximum Cap Logic: Auto-populate cap based on Visit Status
-  useEffect(() => {
-    if (cancellationBasis === 'CHARGEABLE') {
-      if (visitStatus === 'BEFORE_VISIT') {
-        setMaxCap('11000');
-      } else if (visitStatus === 'AFTER_VISIT') {
-        setMaxCap('22000');
+    // 2. Railpad specific fallback
+    const reqStr = String(requestId || '').toUpperCase();
+    if (reqStr.startsWith('RPP-') || reqStr.startsWith('RPF-') || reqStr.includes('RPP') || reqStr.includes('RPF') || reqStr.startsWith('R-') || reqStr.startsWith('RP-')) {
+      try {
+        const railUrl = `${cleanBase}/api/rail-inspection-call/summary/${encodeURIComponent(requestId)}`;
+        const resp = await fetch(railUrl, { method: 'GET', headers });
+        if (resp.ok) {
+          const json = await resp.json();
+          return json.responseData ?? json.data ?? json;
+        }
+      } catch (e) {
+        console.warn('Could not fetch rail summary:', e);
       }
     }
-  }, [visitStatus, cancellationBasis]);
 
-  // SRS 8.3 Calculations Logic
+    return null;
+  };
+
+  // Initialize & Auto-fetch PO Details, Date, Category, Rate & Material Value
+  useEffect(() => {
+    let isMounted = true;
+
+    const loadCallAndPoDetails = async () => {
+      if (!call) return;
+
+      const callNumber = call.call_no || call.callNumber || call.requestId || call.icNumber;
+      const rawPo = call.po_no || call.poNumber || call.poNo || '';
+      const rawSr = call.po_sr || call.poSerialNo || call.itemSrNo || '';
+      
+      // 1. Initial values from call object
+      let q = call.po_qty || call.poQty || call.qty || call.poItem?.qty || '';
+      let v = call.po_value || call.poValue || call.poItem?.value || call.poItem?.basicValue || '';
+      let r = call.rate || call.poRate || call.poItem?.rate || '';
+      let offQ = call.offered_quantity || call.offeredQuantity || call.lot_size || call.lotSize || 
+                 call.total_offered_qty || call.totalOfferedQty || call.total_qty || call.totalQty || 
+                 call.totalDeclaredQuantity || call.total_offered || call.totalOffered || 
+                 call.call_qty || call.callQty || call.quantity || call.offeredQty || '';
+      let pDate = call.po_date || call.poDate || call.poHeader?.poDate || call.poDetails?.poDate || call.podate || '';
+
+      // 2. Fetch enriched details from backend to ensure PO Sr No QTY and VALUE are auto-fetched
+      if (callNumber || rawPo) {
+        setIsFetchingPoDetails(true);
+        try {
+          const details = await fetchPoDetailsForCall(callNumber, rawPo, rawSr);
+          if (details && isMounted) {
+            if (details.poQty || details.poSrQty || details.poQuantity) {
+              q = String(details.poQty || details.poSrQty || details.poQuantity);
+            }
+            if (details.poValue || details.poSrValue || details.poItemValue) {
+              v = String(details.poValue || details.poSrValue || details.poItemValue);
+            }
+            if (details.rate || details.poItemRate) {
+              r = String(details.rate || details.poItemRate);
+            }
+            if (details.offeredQty !== undefined && details.offeredQty !== null && details.offeredQty !== '') {
+              offQ = String(details.offeredQty);
+            } else if (details.callQty || details.totalOfferedQty || details.totalQty || details.totalOffered) {
+              const numericCallQty = String(details.callQty || details.totalOfferedQty || details.totalQty || details.totalOffered).replace(/[^0-9.]/g, '');
+              if (numericCallQty) offQ = numericCallQty;
+            }
+            if (details.poDate) {
+              pDate = details.poDate;
+            }
+          }
+        } catch (err) {
+          console.warn('Auto-fetch PO details notice:', err);
+        } finally {
+          if (isMounted) setIsFetchingPoDetails(false);
+        }
+      }
+
+      if (!isMounted) return;
+
+      // Update states
+      if (q) setPoQty(String(q));
+      if (v) setPoValue(String(v));
+      if (offQ) setOfferedQty(String(offQ));
+      if (pDate) setPoDate(String(pDate).split('T')[0]);
+
+      // Calculate Derived Rate
+      let derivedRateVal = '';
+      if (r && parseFloat(r) > 0) {
+        derivedRateVal = parseFloat(r).toFixed(2);
+      } else if (q && v && parseFloat(q) > 0) {
+        derivedRateVal = (parseFloat(v) / parseFloat(q)).toFixed(2);
+      }
+      setDerivedRate(derivedRateVal);
+
+      // Calculate Material Value
+      if (derivedRateVal && offQ && parseFloat(offQ) > 0) {
+        setMaterialValue((parseFloat(derivedRateVal) * parseFloat(offQ)).toFixed(2));
+      } else {
+        const directMatVal = call.material_value || call.materialValue || call.offered_material_value || call.offeredMaterialValue || 
+                             call.offeredValue || call.value || call.total_value || call.totalValue || call.po_amount || call.poAmount;
+        if (directMatVal !== undefined && directMatVal !== null && directMatVal !== '') {
+          const numericVal = String(directMatVal).replace(/[^0-9.]/g, '');
+          if (numericVal) setMaterialValue(numericVal);
+        }
+      }
+
+      // Detect PO Category
+      const isNonRailway = call.isNonRailway || call.orderType === 'NON_RAILWAY' || (call.rly_cd && String(call.rly_cd).toUpperCase().includes('NON'));
+      const isLoa = call.isLoa || call.orderType === 'LOA' || (call.po_no && String(call.po_no).toUpperCase().startsWith('LOA'));
+      let cat = 'B';
+      if (isNonRailway) {
+        cat = 'C';
+      } else if (isLoa) {
+        cat = 'A';
+      } else if (pDate) {
+        const cutoff = new Date('2022-11-25');
+        let parsedDate = new Date(pDate);
+        if (isNaN(parsedDate.getTime()) && pDate.includes('/')) {
+          const parts = pDate.split('/');
+          if (parts.length === 3) {
+            parsedDate = new Date(`${parts[2]}-${parts[1]}-${parts[0]}`);
+          }
+        }
+        if (!isNaN(parsedDate.getTime()) && parsedDate < cutoff) {
+          cat = 'A';
+        } else {
+          cat = 'B';
+        }
+      }
+      setPoCategory(cat);
+    };
+
+    loadCallAndPoDetails();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [call]);
+
+  // Recalculate Material Value when Rate or Offered Qty changes
+  const handleRateOrQtyChange = (newQty, newPoVal, newOffQ) => {
+    if (newQty && newPoVal && parseFloat(newQty) > 0) {
+      const r = parseFloat(newPoVal) / parseFloat(newQty);
+      setDerivedRate(r.toFixed(2));
+      if (newOffQ && parseFloat(newOffQ) > 0) {
+        setMaterialValue((r * parseFloat(newOffQ)).toFixed(2));
+      }
+    }
+  };
+
+  // SRS 8.3 & Section 7-12 Calculations Logic
   const matValueNum = useMemo(() => parseFloat(materialValue) || 0, [materialValue]);
   const pctNum      = useMemo(() => parseFloat(percentage) || 0, [percentage]);
-  const capNum      = useMemo(() => parseFloat(maxCap) || 0, [maxCap]);
 
-  // Calculated Charges = Material Value × Percentage
-  const calculatedCharges = useMemo(() => {
-    return Math.round((matValueNum * pctNum) / 100);
+  // Base Inspection Fee = Material Value * Percentage (0.90%)
+  const baseInspectionFee = useMemo(() => {
+    return (matValueNum * pctNum) / 100;
   }, [matValueNum, pctNum]);
 
-  // Final Cancellation Charges = MIN(Calculated Charges, Maximum Cap)
-  const finalCancellationCharges = useMemo(() => {
-    if (cancellationBasis !== 'CHARGEABLE') return 0;
-    return Math.min(calculatedCharges, capNum);
-  }, [cancellationBasis, calculatedCharges, capNum]);
+  // Calculated Charges & Max Cap based on PO Category (A, B, C) and Visit Status
+  const { calculatedCharges, maxCapDisplay, capNum, finalCancellationCharges, formulaSummary } = useMemo(() => {
+    if (cancellationBasis !== 'CHARGEABLE') {
+      return { 
+        calculatedCharges: 0, 
+        maxCapDisplay: '₹0 (Non-Chargeable)', 
+        capNum: 0,
+        finalCancellationCharges: 0,
+        formulaSummary: 'Non-Chargeable Basis: ₹0 (No liability)'
+      };
+    }
+
+    if (poCategory === 'C') {
+      // Category C: Non-Railway Orders
+      const charge = visitStatus === 'BEFORE_VISIT' ? 2500 : 10000;
+      return {
+        calculatedCharges: charge,
+        maxCapDisplay: 'Flat Rate',
+        capNum: charge,
+        finalCancellationCharges: charge,
+        formulaSummary: visitStatus === 'BEFORE_VISIT' 
+          ? 'Category C: Flat ₹2,500 per case'
+          : 'Category C: Flat ₹10,000 per case'
+      };
+    } else if (poCategory === 'B') {
+      // Category B: Railway PO >= 25.11.2022 (TPI Tender)
+      if (visitStatus === 'BEFORE_VISIT') {
+        return {
+          calculatedCharges: 0,
+          maxCapDisplay: 'NIL (₹0)',
+          capNum: 0,
+          finalCancellationCharges: 0,
+          formulaSummary: 'Category B (Before Visit): NIL (₹0 as per TPI Tender)'
+        };
+      } else {
+        // After Visit: 50% of inspection charges @ 0.90%, max ₹11,000
+        const calc = Math.round(baseInspectionFee * 0.50);
+        const finalCharge = Math.min(calc, 11000);
+        return {
+          calculatedCharges: calc,
+          maxCapDisplay: '₹11,000',
+          capNum: 11000,
+          finalCancellationCharges: finalCharge,
+          formulaSummary: `Category B (After Visit): MIN(50% of ₹${Math.round(baseInspectionFee).toLocaleString('en-IN')}, ₹11,000) = ₹${finalCharge.toLocaleString('en-IN')}`
+        };
+      }
+    } else {
+      // Category A: Railway PO < 25.11.2022 / LOA
+      if (visitStatus === 'BEFORE_VISIT') {
+        // 50% of inspection charges calculated @ 0.90%, max ₹11,000
+        const calc = Math.round(baseInspectionFee * 0.50);
+        const finalCharge = Math.min(calc, 11000);
+        return {
+          calculatedCharges: calc,
+          maxCapDisplay: '₹11,000',
+          capNum: 11000,
+          finalCancellationCharges: finalCharge,
+          formulaSummary: `Category A (Before Visit): MIN(50% of ₹${Math.round(baseInspectionFee).toLocaleString('en-IN')}, ₹11,000) = ₹${finalCharge.toLocaleString('en-IN')}`
+        };
+      } else {
+        // After Visit: Twice the charge applicable for cancellation before IE visit
+        const beforeCalc = Math.round(baseInspectionFee * 0.50);
+        const beforeFinal = Math.min(beforeCalc, 11000);
+        const afterFinal = Math.min(beforeFinal * 2, 22000);
+        return {
+          calculatedCharges: beforeCalc * 2,
+          maxCapDisplay: '₹22,000 (2 × Before Visit)',
+          capNum: 22000,
+          finalCancellationCharges: afterFinal,
+          formulaSummary: `Category A (After Visit): 2 × (Before Visit ₹${beforeFinal.toLocaleString('en-IN')}) = ₹${afterFinal.toLocaleString('en-IN')}`
+        };
+      }
+    }
+  }, [cancellationBasis, poCategory, visitStatus, baseInspectionFee]);
 
   if (!isOpen || !call) return null;
 
@@ -330,8 +552,8 @@ const CallCancellationModal = ({
         {/* Scrollable Body */}
         <form onSubmit={handleSubmit} style={{ padding: '24px', overflowY: 'auto', flex: 1, display: 'flex', flexDirection: 'column', gap: '20px' }}>
           
-          {/* Call Summary Banner */}
-          <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '14px 18px', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '12px', fontSize: '13px' }}>
+          {/* Call Summary & PO Category Banner */}
+          <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '14px 18px', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '14px', fontSize: '13px' }}>
             <div>
               <span style={{ color: '#64748b', fontSize: '11px', textTransform: 'uppercase', fontWeight: '700', display: 'block' }}>Vendor Name</span>
               <strong style={{ color: '#1e293b' }}>{call.vendor_name || call.vendorName || call.vendorCode || 'N/A'}</strong>
@@ -339,6 +561,92 @@ const CallCancellationModal = ({
             <div>
               <span style={{ color: '#64748b', fontSize: '11px', textTransform: 'uppercase', fontWeight: '700', display: 'block' }}>PO Number</span>
               <strong style={{ color: '#1e293b' }}>{call.po_no || call.poNumber || call.poNo || 'N/A'}</strong>
+            </div>
+            <div>
+              <span style={{ color: '#64748b', fontSize: '11px', textTransform: 'uppercase', fontWeight: '700', display: 'block' }}>PO Date</span>
+              <span style={{ color: '#0f172a', fontWeight: '600' }}>{poDate || 'Not Available'}</span>
+            </div>
+            <div>
+              <span style={{ color: '#64748b', fontSize: '11px', textTransform: 'uppercase', fontWeight: '700', display: 'block' }}>PO Category</span>
+              <select
+                value={poCategory}
+                onChange={(e) => setPoCategory(e.target.value)}
+                style={{
+                  padding: '3px 8px', borderRadius: '6px', fontSize: '12px', fontWeight: '700',
+                  border: '1px solid #94a3b8', background: poCategory === 'B' ? '#eff6ff' : (poCategory === 'A' ? '#fef3c7' : '#f3e8ff'),
+                  color: poCategory === 'B' ? '#1d4ed8' : (poCategory === 'A' ? '#b45309' : '#7e22ce')
+                }}
+              >
+                <option value="B">Category B (Railway PO ≥ 25.11.2022 / TPI)</option>
+                <option value="A">Category A (Railway PO &lt; 25.11.2022 / LOA)</option>
+                <option value="C">Category C (Non-Railway Orders)</option>
+              </select>
+            </div>
+          </div>
+
+          {/* PO Sr. No. & Material Value Derivation Card (SRS Step 1 & 2) */}
+          <div style={{ background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: '12px', padding: '14px 18px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+              <span style={{ fontSize: '12.5px', fontWeight: '800', color: '#166534', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                📊 Rate & Material Value Derivation (SRS Step 1 & 2)
+                {isFetchingPoDetails && <span style={{ fontSize: '11px', color: '#0369a1', fontWeight: '500' }}>⏳ Loading PO data...</span>}
+              </span>
+              <span style={{ fontSize: '11px', color: '#15803d', fontWeight: '600' }}>
+                Rate = PO Value ÷ PO Qty
+              </span>
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: '10px' }}>
+              <div>
+                <label style={{ fontSize: '10.5px', fontWeight: '700', color: '#166534', textTransform: 'uppercase', display: 'block' }}>PO Sr. No. QTY</label>
+                <input
+                  type="number"
+                  placeholder="PO Qty"
+                  value={poQty}
+                  onChange={(e) => {
+                    setPoQty(e.target.value);
+                    handleRateOrQtyChange(e.target.value, poValue, offeredQty);
+                  }}
+                  style={{ width: '100%', padding: '4px 8px', borderRadius: '6px', border: '1px solid #86efac', fontSize: '12px', fontWeight: '600' }}
+                />
+              </div>
+              <div>
+                <label style={{ fontSize: '10.5px', fontWeight: '700', color: '#166534', textTransform: 'uppercase', display: 'block' }}>PO Sr. No. VALUE (₹)</label>
+                <input
+                  type="number"
+                  placeholder="PO Value"
+                  value={poValue}
+                  onChange={(e) => {
+                    setPoValue(e.target.value);
+                    handleRateOrQtyChange(poQty, e.target.value, offeredQty);
+                  }}
+                  style={{ width: '100%', padding: '4px 8px', borderRadius: '6px', border: '1px solid #86efac', fontSize: '12px', fontWeight: '600' }}
+                />
+              </div>
+              <div>
+                <label style={{ fontSize: '10.5px', fontWeight: '700', color: '#166534', textTransform: 'uppercase', display: 'block' }}>Derived Rate (₹)</label>
+                <div style={{ padding: '5px 8px', background: '#dcfce7', borderRadius: '6px', border: '1px solid #86efac', fontSize: '12px', fontWeight: '800', color: '#14532d' }}>
+                  {derivedRate ? `₹${derivedRate}` : '₹0.00'}
+                </div>
+              </div>
+              <div>
+                <label style={{ fontSize: '10.5px', fontWeight: '700', color: '#166534', textTransform: 'uppercase', display: 'block' }}>Offered Qty</label>
+                <input
+                  type="number"
+                  placeholder="Offered Qty"
+                  value={offeredQty}
+                  onChange={(e) => {
+                    setOfferedQty(e.target.value);
+                    handleRateOrQtyChange(poQty, poValue, e.target.value);
+                  }}
+                  style={{ width: '100%', padding: '4px 8px', borderRadius: '6px', border: '1px solid #86efac', fontSize: '12px', fontWeight: '600' }}
+                />
+              </div>
+              <div>
+                <label style={{ fontSize: '10.5px', fontWeight: '700', color: '#166534', textTransform: 'uppercase', display: 'block' }}>Offered Value (₹)</label>
+                <div style={{ padding: '5px 8px', background: '#dcfce7', borderRadius: '6px', border: '1px solid #86efac', fontSize: '12px', fontWeight: '800', color: '#14532d' }}>
+                  ₹{matValueNum.toLocaleString('en-IN')}
+                </div>
+              </div>
             </div>
           </div>
 
@@ -635,11 +943,16 @@ const CallCancellationModal = ({
           {/* Section 8: Cancellation Charges Calculation (Chargeable Only) */}
           {cancellationBasis === 'CHARGEABLE' && (
             <div style={{ background: '#faf5ff', border: '1.5px solid #d8b4fe', borderRadius: '16px', padding: '20px' }}>
-              <h4 style={{ margin: '0 0 14px', fontSize: '14px', fontWeight: '800', color: '#6b21a8', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                💳 8. Cancellation Charges Calculation
-              </h4>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
+                <h4 style={{ margin: 0, fontSize: '14px', fontWeight: '800', color: '#6b21a8', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  💳 8. Cancellation Charges Calculation (SRS Step 3)
+                </h4>
+                <span style={{ fontSize: '11px', fontWeight: '700', color: '#7e22ce', background: '#f3e8ff', padding: '2px 8px', borderRadius: '6px' }}>
+                  PO Category: {poCategory}
+                </span>
+              </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '16px', marginBottom: '16px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '14px', marginBottom: '16px' }}>
                 <div>
                   <label style={{ fontSize: '11px', fontWeight: '700', color: '#7e22ce', textTransform: 'uppercase', display: 'block', marginBottom: '4px' }}>
                     Material Value (₹) [Editable]
@@ -648,42 +961,39 @@ const CallCancellationModal = ({
                     type="number"
                     value={materialValue}
                     onChange={(e) => setMaterialValue(e.target.value)}
-                    style={{ width: '100%', padding: '8px 12px', borderRadius: '8px', border: '1px solid #c084fc', fontSize: '14px', fontWeight: '700', color: '#4c1d95', boxSizing: 'border-box' }}
+                    style={{ width: '100%', padding: '8px 12px', borderRadius: '8px', border: '1px solid #c084fc', fontSize: '13px', fontWeight: '700', color: '#4c1d95', boxSizing: 'border-box' }}
                   />
                 </div>
 
                 <div>
                   <label style={{ fontSize: '11px', fontWeight: '700', color: '#7e22ce', textTransform: 'uppercase', display: 'block', marginBottom: '4px' }}>
-                    Percentage (%) [Default 0.9%]
+                    Inspection % [Default 0.90%]
                   </label>
                   <input
                     type="number"
                     step="0.01"
                     value={percentage}
                     onChange={(e) => setPercentage(e.target.value)}
-                    style={{ width: '100%', padding: '8px 12px', borderRadius: '8px', border: '1px solid #c084fc', fontSize: '14px', fontWeight: '700', color: '#4c1d95', boxSizing: 'border-box' }}
+                    style={{ width: '100%', padding: '8px 12px', borderRadius: '8px', border: '1px solid #c084fc', fontSize: '13px', fontWeight: '700', color: '#4c1d95', boxSizing: 'border-box' }}
                   />
                 </div>
 
                 <div>
                   <label style={{ fontSize: '11px', fontWeight: '700', color: '#7e22ce', textTransform: 'uppercase', display: 'block', marginBottom: '4px' }}>
-                    Calculated Charges (₹) [System]
+                    Base Inspection Fee (₹)
                   </label>
-                  <div style={{ padding: '8px 12px', background: '#f3e8ff', borderRadius: '8px', border: '1px solid #d8b4fe', fontSize: '14px', fontWeight: '800', color: '#581c87' }}>
-                    ₹{calculatedCharges.toLocaleString('en-IN')}
+                  <div style={{ padding: '8px 12px', background: '#f3e8ff', borderRadius: '8px', border: '1px solid #d8b4fe', fontSize: '13px', fontWeight: '800', color: '#581c87' }}>
+                    ₹{Math.round(baseInspectionFee).toLocaleString('en-IN')}
                   </div>
                 </div>
 
                 <div>
                   <label style={{ fontSize: '11px', fontWeight: '700', color: '#7e22ce', textTransform: 'uppercase', display: 'block', marginBottom: '4px' }}>
-                    Maximum Cap (₹) [Auto-populated]
+                    Maximum Cap / Rule
                   </label>
-                  <input
-                    type="number"
-                    value={maxCap}
-                    onChange={(e) => setMaxCap(e.target.value)}
-                    style={{ width: '100%', padding: '8px 12px', borderRadius: '8px', border: '1px solid #c084fc', fontSize: '14px', fontWeight: '700', color: '#4c1d95', boxSizing: 'border-box' }}
-                  />
+                  <div style={{ padding: '8px 12px', background: '#f3e8ff', borderRadius: '8px', border: '1px solid #d8b4fe', fontSize: '13px', fontWeight: '800', color: '#581c87' }}>
+                    {maxCapDisplay}
+                  </div>
                 </div>
               </div>
 
@@ -695,10 +1005,10 @@ const CallCancellationModal = ({
               }}>
                 <div>
                   <span style={{ fontSize: '12px', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: '700', opacity: 0.9 }}>
-                    Final Cancellation Charges = MIN(Calculated, Cap)
+                    Final Cancellation Charges
                   </span>
-                  <div style={{ fontSize: '11px', opacity: 0.85, marginTop: '2px' }}>
-                    MIN(₹{calculatedCharges.toLocaleString('en-IN')}, ₹{capNum.toLocaleString('en-IN')})
+                  <div style={{ fontSize: '11px', opacity: 0.9, marginTop: '2px' }}>
+                    {formulaSummary}
                   </div>
                 </div>
                 <div style={{ fontSize: '24px', fontWeight: '900', letterSpacing: '-0.02em' }}>

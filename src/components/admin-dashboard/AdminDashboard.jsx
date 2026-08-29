@@ -149,7 +149,11 @@ export const AdminDashboard = () => {
                 createdBy: currentUser?.userId || 'Admin'
             };
 
-            if (selectedItem || dataToSubmit.userId || dataToSubmit.id) {
+            const isVendor = dataToSubmit.roleNames?.some(r => r === 'Vendor' || r === 'ERC Vendor') || (dataToSubmit.units && dataToSubmit.units.length > 0);
+
+            if (isVendor && (dataToSubmit.units || dataToSubmit.companyName)) {
+                await createErcVendorApi(dataToSubmit);
+            } else if (selectedItem || dataToSubmit.userId || dataToSubmit.id) {
                 await updateUserApi(dataToSubmit);
             } else {
                 await createUserApi(dataToSubmit);
@@ -158,7 +162,7 @@ export const AdminDashboard = () => {
             refreshData();
             setModalOpen(false);
             setSelectedItem(null);
-            setSnackbar({ open: true, message: 'User saved successfully!', severity: 'success' });
+            setSnackbar({ open: true, message: isVendor ? 'Vendor saved successfully!' : 'User saved successfully!', severity: 'success' });
         } catch (error) {
             console.error('Error submitting user:', error);
             const userFriendlyMsg = parseUserFriendlyErrorMessage(error.message);
@@ -471,6 +475,7 @@ export const AdminDashboard = () => {
                     <UserForm
                         user={selectedItem}
                         roles={roles}
+                        rolesLoading={isLoading}
                         existingUsers={users}
                         onSubmit={handleSubmitUser}
                         onCancel={() => { if (!isSubmittingUser) { setModalOpen(false); setFormError(null); } }}
@@ -815,6 +820,49 @@ export const changeUserRegionApi = async (userId, region) => {
                 'Authorization': `Bearer ${token}`
             },
             body: JSON.stringify({ region })
+        });
+        const data = await response.json();
+        if (data.responseStatus?.statusCode !== 0) throw new Error(data.responseStatus?.message || 'API Error');
+        return data.responseData;
+    } catch (error) {
+        throw error;
+    }
+};
+
+/**
+ * API to create or update ERC Vendor with multi-units
+ */
+export const createErcVendorApi = async (vendorData) => {
+    try {
+        const token = localStorage.getItem('authToken');
+        const response = await fetch(`${API_BASE_URL}/api/auth/api/erc-vendor`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify(vendorData)
+        });
+        const data = await response.json();
+        if (data.responseStatus?.statusCode !== 0) throw new Error(data.responseStatus?.message || 'API Error');
+        return data.responseData;
+    } catch (error) {
+        throw error;
+    }
+};
+
+/**
+ * API to fetch ERC Vendor details with units
+ */
+export const getErcVendorDetailsApi = async (userId) => {
+    try {
+        const token = localStorage.getItem('authToken');
+        const response = await fetch(`${API_BASE_URL}/api/auth/api/erc-vendor/${userId}`, {
+            method: 'GET',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            }
         });
         const data = await response.json();
         if (data.responseStatus?.statusCode !== 0) throw new Error(data.responseStatus?.message || 'API Error');

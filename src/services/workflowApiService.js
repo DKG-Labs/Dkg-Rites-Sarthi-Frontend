@@ -77,15 +77,25 @@ export const fetchCompletedCallsForIC = async (userId, forceRefresh = false) => 
         const latestCalls = Array.from(latestCallsMap.values());
 
         const completedCalls = latestCalls.filter(call => {
+            const reqId = String(call.requestId || '');
+            const prodType = String(call.productType || '').toLowerCase();
+            const isProcessCall = reqId.startsWith('EP') || prodType.includes('process');
+
+            if (isProcessCall) {
+                // Strictly based on POI Process IE mapping
+                const isProcessIe = Array.isArray(call.processIes) && call.processIes.includes(Number(userId));
+                return isProcessIe && call.status !== 'DSC_SIGN_IC';
+            }
+
+            // Non-process calls (Raw Material & Final) remain completely untouched
             const isAssigned = String(call.assignedToUser) === String(userId);
-            const isProcessIe = call.processIes && call.processIes.includes(Number(userId));
             const isFinalIe = call.finalIes && call.finalIes.includes(Number(userId));
             const isCreator = String(call.createdBy) === String(userId);
             const isModified = String(call.modifiedBy) === String(userId);
             
             // If assignedToUser is null, fallback to checking if they are in the IEs array or creator.
             // Also display if the current user modified this transition.
-            const hasAccess = isAssigned || isModified || ((!call.assignedToUser) && (isProcessIe || isFinalIe || isCreator));
+            const hasAccess = isAssigned || isModified || ((!call.assignedToUser) && (isFinalIe || isCreator));
             
             return hasAccess && call.status !== 'DSC_SIGN_IC';
         });

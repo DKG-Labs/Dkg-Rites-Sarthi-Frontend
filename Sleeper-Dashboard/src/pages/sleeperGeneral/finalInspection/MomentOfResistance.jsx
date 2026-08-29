@@ -91,17 +91,24 @@ const MomentOfResistance = () => {
             // Map Completed Tests (Historical)
             const mappedHistorical = testData
                 .filter(item => item.plantId === params.plantId)
-                .map(item => ({
-                ...item,
-                batchNo: item.batchNumber,
-                sleeperCategory: item.sleeperCategory,
-                sleeperType: item.sleeperType,
-                declaredSamples: [{ bench: item.benchNumber || 'N/A', no: item.sleeperNo || '' }],
-                castingDate: item.castingDate,
-                dateOfTesting: item.createdDate?.split('T')[0],
-                status: 'Pass',
-                isTestRecord: true
-            }));
+                .map(item => {
+                    const declaredMatch = mrData.find(d => String(d.batchNumber) === String(item.batchNumber) || d.id === item.monmentOfResistanceId);
+                    const bench = item.benchNumber || declaredMatch?.benchNumber || 'N/A';
+                    const sleeper = item.sleeperNo || declaredMatch?.sleeperNo || 'N/A';
+                    return {
+                        ...item,
+                        batchNo: item.batchNumber,
+                        sleeperCategory: item.sleeperCategory,
+                        sleeperType: item.sleeperType,
+                        benchNumber: bench,
+                        sleeperNo: sleeper,
+                        declaredSamples: item.declaredSamples || [{ bench: bench, no: sleeper }],
+                        castingDate: item.castingDate,
+                        dateOfTesting: item.createdDate?.split('T')[0],
+                        status: item.testResult || 'Pass',
+                        isTestRecord: true
+                    };
+                });
             
             setBatches(mappedVerified);
             setDeclaredRecords(mappedDeclared);
@@ -185,11 +192,15 @@ const MomentOfResistance = () => {
         try {
             const currentUserId = parseInt(userId || localStorage.getItem('userId'), 10) || 0;
             const params = getCommonParams();
+            const testResultStatus = results.result; // 'Pass', 'Retest', 'Fail'
 
             const payload = {
                 batchNumber: String(record.batchNo),
                 sleeperType: record.sleeperType,
+                benchNumber: String(record.benchNumber || record.declaredSamples?.[0]?.bench || results.results?.[0]?.bench || ''),
+                sleeperNo: String(record.sleeperNo || record.declaredSamples?.map(s => s.no).join(', ') || results.results?.[0]?.no || ''),
                 castingDate: record.castingDate || params.date,
+                testResult: testResultStatus,
                 vendorCode: params.vendorCode,
                 plantId: params.plantId,
                 shift: params.shift,
@@ -200,21 +211,43 @@ const MomentOfResistance = () => {
                     dataType: r.isScada ? 'SCADA' : 'MANUAL',
                     ct: parseFloat(r.ct) || 0,
                     cb: parseFloat(r.cb) || 0,
-                    rs: parseFloat(r.rs) || 0
+                    rs1: parseFloat(r.rs1) || 0,
+                    rs2: parseFloat(r.rs2) || 0
                 }))
             };
 
             if (record.isTestRecord) {
                 // UPDATE existing test entry in history
                 await apiService.updateMRTest(record.id, payload);
-                toast.success("Test record updated successfully!");
             } else {
                 // CREATE new test entry
                 await apiService.createMRTest(payload);
-                toast.success("Test results saved successfully!");
             }
 
-            setActiveTab('historical');
+            if (testResultStatus === 'Pass') {
+                toast.success("MR Test Passed! Entry shifted to completed testing.");
+                setActiveTab('historical');
+            } else if (testResultStatus === 'Fail') {
+                toast.error(`MR Test Failed! All sleepers of drawing / batch ${record.batchNo} (${record.sleeperType}) rejected.`);
+                setActiveTab('historical');
+            } else if (testResultStatus === 'Retest') {
+                toast.warning(`MR Test set to Retest. Entry moved back to pending list for Retest (2 sleepers required).`);
+                if (record.id) {
+                    try {
+                        await apiService.updateMRRecord(record.id, {
+                            ...record,
+                            testResult: 'Retest',
+                            mrTestType: 'Retest',
+                            mrSamplesNeeded: 2,
+                            remarks: 'Retest Required (2 Sleepers needed)'
+                        });
+                    } catch (e) {
+                        console.warn("MR record retest update notice:", e);
+                    }
+                }
+                setActiveTab('declaration');
+            }
+
             await fetchMRData();
             setShowTestModal(false);
         } catch (error) {
@@ -326,6 +359,25 @@ const MomentOfResistance = () => {
         { key: 'sleeperNo', label: 'Sleeper No.' },
         { key: 'castingDate', label: 'Date of Casting' },
         { key: 'dateOfTesting', label: 'Date of Testing' },
+        {
+            key: 'testResult',
+            label: 'Test Result',
+            render: (val, row) => {
+                const res = val || row.status || 'Pass';
+                return (
+                    <span style={{
+                        padding: '4px 10px',
+                        borderRadius: '6px',
+                        fontSize: '10px',
+                        fontWeight: '800',
+                        background: res === 'Pass' ? '#ecfdf5' : (res === 'Retest' ? '#fff7ed' : '#fee2e2'),
+                        color: res === 'Pass' ? '#059669' : (res === 'Retest' ? '#c2410c' : '#b91c1c')
+                    }}>
+                        {res}
+                    </span>
+                );
+            }
+        },
         {
             key: 'actions',
             label: 'Actions',
@@ -701,25 +753,38 @@ const DeclareSampleModal = ({ batch, onClose, onSave, isEdit }) => {
 };
 
 const TestDetailsModal = ({ batch, onClose, onSave }) => {
+    const [selectedTestResult, setSelectedTestResult] = useState('Pass');
     const [manualResults, setManualResults] = useState(() => {
         if (batch.details && batch.details.length > 0) {
             return batch.details.map(d => ({
                 ...d,
                 bench: batch.benchNumber,
                 no: batch.sleeperNo,
+                ct: d.ct || '',
+                cb: d.cb || '',
+                rs1: d.rs1 || d.rs || '',
+                rs2: d.rs2 || d.rs || '',
                 isScada: d.dataType === 'SCADA'
             }));
         }
-        return batch.declaredSamples.map(s => ({ ...s, ct: '', cb: '', rs: '', date: new Date().toISOString().split('T')[0] }));
+        return (batch.declaredSamples || [{ bench: batch.benchNumber || '', no: batch.sleeperNo || '' }]).map(s => ({
+            ...s,
+            ct: '',
+            cb: '',
+            rs1: '',
+            rs2: '',
+            date: new Date().toISOString().split('T')[0]
+        }));
     });
     const [isSaving, setIsSaving] = useState(false);
     const [witnessed, setWitnessed] = useState(manualResults.map(r => !!r.isScada));
 
     const mockScadaData = useMemo(() => {
-        return batch.declaredSamples.map(() => ({
+        return (batch.declaredSamples || [{ bench: batch.benchNumber || '', no: batch.sleeperNo || '' }]).map(() => ({
             ct: Math.floor(460 + Math.random() * 100),
             cb: Math.floor(560 + Math.random() * 100),
-            rs: Math.floor(660 + Math.random() * 100)
+            rs1: Math.floor(650 + Math.random() * 100),
+            rs2: Math.floor(650 + Math.random() * 100)
         }));
     }, [batch]);
 
@@ -729,7 +794,8 @@ const TestDetailsModal = ({ batch, onClose, onSave }) => {
             ...updatedManual[idx], 
             ct: mockScadaData[idx].ct, 
             cb: mockScadaData[idx].cb, 
-            rs: mockScadaData[idx].rs,
+            rs1: mockScadaData[idx].rs1, 
+            rs2: mockScadaData[idx].rs2,
             isScada: true 
         };
         setManualResults(updatedManual);
@@ -744,23 +810,6 @@ const TestDetailsModal = ({ batch, onClose, onSave }) => {
         const updated = [...manualResults];
         updated[idx][field] = val;
         setManualResults(updated);
-    };
-
-    const calculateResult = () => {
-        const results = manualResults.map(r => {
-            const pass = r.ct >= DESIRED_VALUES.centreTop && r.rs >= DESIRED_VALUES.railSeat;
-            return pass;
-        });
-
-        if (batch.mrTestType === 'Fresh') {
-            if (manualResults.length === 1) {
-                return results[0] ? 'Pass' : 'Retest';
-            } else {
-                return results.every(r => r) ? 'Pass' : 'Fail';
-            }
-        } else { // Retest
-            return results.every(r => r) ? 'Pass' : 'Fail';
-        }
     };
 
     return (
@@ -788,35 +837,73 @@ const TestDetailsModal = ({ batch, onClose, onSave }) => {
                                 <button className="btn-verify" style={{ fontSize: '11px' }} onClick={() => handleWitness(idx)}>Witness through SCADA</button>
                             </div>
 
-                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1.2fr', gap: '20px' }}>
                                 {/* SCADA View */}
                                 <div style={{ background: '#f8fafc', padding: '12px', borderRadius: '8px', border: '1px dashed #cbd5e1' }}>
                                     <span style={{ fontSize: '10px', color: '#94a3b8', fontWeight: '700' }}>MR SCADA DATA</span>
-                                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginTop: '8px' }}>
-                                        <div><div style={{ fontSize: '9px' }}>CT</div><div style={{ fontWeight: '700' }}>{mockScadaData[idx].ct}</div></div>
-                                        {/* <div><div style={{ fontSize: '9px' }}>CB</div><div style={{ fontWeight: '700' }}>{mockScadaData[idx].cb}</div></div> */}
-                                        <div><div style={{ fontSize: '9px' }}>RS</div><div style={{ fontWeight: '700' }}>{mockScadaData[idx].rs}</div></div>
+                                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '6px', marginTop: '8px' }}>
+                                        <div><div style={{ fontSize: '9px', color: '#64748b', fontWeight: '600' }}>CT</div><div style={{ fontWeight: '800', color: '#1e293b', fontSize: '13px' }}>{mockScadaData[idx]?.ct}</div></div>
+                                        <div><div style={{ fontSize: '9px', color: '#64748b', fontWeight: '600' }}>CB</div><div style={{ fontWeight: '800', color: '#1e293b', fontSize: '13px' }}>{mockScadaData[idx]?.cb}</div></div>
+                                        <div><div style={{ fontSize: '9px', color: '#64748b', fontWeight: '600' }}>RS1</div><div style={{ fontWeight: '800', color: '#1e293b', fontSize: '13px' }}>{mockScadaData[idx]?.rs1}</div></div>
+                                        <div><div style={{ fontSize: '9px', color: '#64748b', fontWeight: '600' }}>RS2</div><div style={{ fontWeight: '800', color: '#1e293b', fontSize: '13px' }}>{mockScadaData[idx]?.rs2}</div></div>
                                     </div>
                                 </div>
 
                                 {/* Manual Form */}
-                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+                                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '8px' }}>
                                     <div className="input-group">
-                                        <label>CT (KN)</label>
-                                        <input type="number" readOnly={witnessed[idx]} value={res.ct} onChange={(e) => handleUpdateManual(idx, 'ct', e.target.value)} />
+                                        <label style={{ fontSize: '11px', fontWeight: '700', color: '#475569' }}>CT (KN)</label>
+                                        <input type="number" readOnly={witnessed[idx]} value={res.ct} onChange={(e) => handleUpdateManual(idx, 'ct', e.target.value)} placeholder="e.g. 469" />
                                     </div>
-                                    {/* <div className="input-group">
-                                        <label>CB (KN)</label>
-                                        <input type="number" readOnly={witnessed[idx]} value={res.cb} onChange={(e) => handleUpdateManual(idx, 'cb', e.target.value)} />
-                                    </div> */}
                                     <div className="input-group">
-                                        <label>RS (KN)</label>
-                                        <input type="number" readOnly={witnessed[idx]} value={res.rs} onChange={(e) => handleUpdateManual(idx, 'rs', e.target.value)} />
+                                        <label style={{ fontSize: '11px', fontWeight: '700', color: '#475569' }}>CB (KN)</label>
+                                        <input type="number" readOnly={witnessed[idx]} value={res.cb} onChange={(e) => handleUpdateManual(idx, 'cb', e.target.value)} placeholder="e.g. 560" />
+                                    </div>
+                                    <div className="input-group">
+                                        <label style={{ fontSize: '11px', fontWeight: '700', color: '#475569' }}>RS1 (KN)</label>
+                                        <input type="number" readOnly={witnessed[idx]} value={res.rs1} onChange={(e) => handleUpdateManual(idx, 'rs1', e.target.value)} placeholder="e.g. 695" />
+                                    </div>
+                                    <div className="input-group">
+                                        <label style={{ fontSize: '11px', fontWeight: '700', color: '#475569' }}>RS2 (KN)</label>
+                                        <input type="number" readOnly={witnessed[idx]} value={res.rs2} onChange={(e) => handleUpdateManual(idx, 'rs2', e.target.value)} placeholder="e.g. 695" />
                                     </div>
                                 </div>
                             </div>
                         </div>
                     ))}
+
+                    {/* Manual Test Result Selection Dropdown for IE */}
+                    <div style={{ background: '#f8fafc', padding: '16px', borderRadius: '12px', border: '1px solid #e2e8f0', marginBottom: '20px' }}>
+                        <div className="input-group">
+                            <label style={{ fontSize: '11px', fontWeight: '800', color: '#13343b', marginBottom: '6px', display: 'block', textTransform: 'uppercase' }}>
+                                Select MR Test Result <span className="required" style={{ color: '#ef4444' }}>*</span>
+                            </label>
+                            <select
+                                value={selectedTestResult}
+                                onChange={(e) => setSelectedTestResult(e.target.value)}
+                                style={{
+                                    width: '100%',
+                                    height: '46px',
+                                    minHeight: '46px',
+                                    padding: '0 14px',
+                                    borderRadius: '8px',
+                                    border: '1.5px solid #cbd5e1',
+                                    fontSize: '14px',
+                                    fontWeight: '800',
+                                    lineHeight: '46px',
+                                    outline: 'none',
+                                    boxSizing: 'border-box',
+                                    background: selectedTestResult === 'Pass' ? '#f0fdf4' : (selectedTestResult === 'Retest' ? '#fff7ed' : '#fef2f2'),
+                                    color: selectedTestResult === 'Pass' ? '#166534' : (selectedTestResult === 'Retest' ? '#c2410c' : '#991b1b'),
+                                    cursor: 'pointer'
+                                }}
+                            >
+                                <option value="Pass" style={{ color: '#166534', background: '#ffffff', fontWeight: '700' }}>Pass</option>
+                                <option value="Retest" style={{ color: '#c2410c', background: '#ffffff', fontWeight: '700' }}>Retest</option>
+                                <option value="Fail" style={{ color: '#991b1b', background: '#ffffff', fontWeight: '700' }}>Fail</option>
+                            </select>
+                        </div>
+                    </div>
 
                     <div style={{ display: 'flex', gap: '12px', marginTop: '24px' }}>
                         <button 
@@ -824,15 +911,16 @@ const TestDetailsModal = ({ batch, onClose, onSave }) => {
                             style={{ 
                                 flex: 1,
                                 opacity: isSaving ? 0.7 : 1,
-                                cursor: isSaving ? 'not-allowed' : 'pointer'
+                                cursor: isSaving ? 'not-allowed' : 'pointer',
+                                background: selectedTestResult === 'Pass' ? '#42818c' : (selectedTestResult === 'Retest' ? '#f59e0b' : '#ef4444')
                             }} 
                             disabled={isSaving}
                             onClick={() => {
                                 setIsSaving(true);
-                                onSave(batch, { results: manualResults, result: calculateResult() });
+                                onSave(batch, { results: manualResults, result: selectedTestResult });
                             }}
                         >
-                            {isSaving ? 'Processing...' : `Confirm results: ${calculateResult()}`}
+                            {isSaving ? 'Processing...' : `Confirm results: ${selectedTestResult}`}
                         </button>
                         <button className="btn-save" style={{ flex: 1, background: '#f1f5f9', color: '#475569', border: 'none' }} onClick={onClose}>Cancel</button>
                     </div>

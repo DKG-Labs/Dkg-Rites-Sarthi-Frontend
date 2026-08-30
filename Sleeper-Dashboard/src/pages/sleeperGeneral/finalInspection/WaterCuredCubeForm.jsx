@@ -84,7 +84,8 @@ const WaterCuredCubeForm = ({ batch, preFillData, onSave, onCancel }) => {
         // Condition 1: X >= (Fck + 3) && Y >= (Fck - 3)
         const condition1 = allStrengths.length === 6 && x >= (FCK + 3) && y >= (FCK - 3);
 
-        const condition2 = allStrengths.length === 6 && !condition1 && (
+        // Condition 2: 63 > X >= 60 AND/OR 57 > Y >= 55 (with X >= FCK and Y >= FCK - 5)
+        const condition2 = allStrengths.length === 6 && !condition1 && (x >= FCK && y >= (FCK - 5)) && (
             ((x < FCK + 3) && (x >= FCK)) ||
             ((y < FCK - 3) && (y >= FCK - 5))
         );
@@ -370,7 +371,7 @@ const WaterCuredCubeForm = ({ batch, preFillData, onSave, onCancel }) => {
                     <div className={`analysis-card condition ${results.condition2 ? 'true' : ''}`}>
                         <label>Condition 2</label>
                         <div className="status">{results.condition2 ? 'TRUE' : 'FALSE'}</div>
-                        <div className="desc">{FCK + 3} &gt; X ≥ {FCK} OR {FCK - 3} &gt; Y ≥ {FCK - 5}</div>
+                        <div className="desc">{FCK + 3} &gt; X ≥ {FCK} AND/OR {FCK - 3} &gt; Y ≥ {FCK - 5}</div>
                     </div>
                     <div className={`analysis-card condition ${results.condition3 ? 'error' : ''}`}>
                         <label>Condition 3</label>

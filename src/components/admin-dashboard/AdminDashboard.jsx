@@ -145,7 +145,7 @@ export const AdminDashboard = () => {
         });
         setFormError(null);
         setIsSubmittingUser(false);
-        setModalTitle(activeVendorRole ? `Edit ${activeVendorRole === 'Vendor' ? 'ERC Vendor' : activeVendorRole}` : 'Edit User');
+        setModalTitle(activeVendorRole ? `Edit ${activeVendorRole === 'Vendor' ? 'ERC Vendor' : (activeVendorRole === 'Rail Vendor' ? 'Railpad Vendor' : activeVendorRole)}` : 'Edit User');
         setModalContent('user-form');
         setModalOpen(true);
     };
@@ -169,10 +169,10 @@ export const AdminDashboard = () => {
         }
     };
 
-    const handleSubmitUser = async (formData) => {
+    const handleSaveUser = async (formData) => {
         setIsSubmittingUser(true);
+        setFormError(null);
         try {
-            setFormError(null);
             const currentUser = getStoredUser();
             const dataToSubmit = {
                 ...formData,
@@ -180,14 +180,19 @@ export const AdminDashboard = () => {
             };
 
             const activeRole = dataToSubmit.activeVendorRole || selectedItem?.activeVendorRole;
+            const isRailpadVendor = activeRole 
+                ? (activeRole === 'Rail Vendor' || activeRole === 'Railpad Vendor')
+                : (dataToSubmit.roleNames?.some(r => r === 'Rail Vendor' || r === 'Railpad Vendor'));
             const isSleeperVendor = activeRole 
                 ? (activeRole === 'Sleeper Vendor')
-                : (dataToSubmit.roleNames?.some(r => r === 'Sleeper Vendor') || (dataToSubmit.plants && dataToSubmit.plants.length > 0));
+                : (dataToSubmit.roleNames?.some(r => r === 'Sleeper Vendor') || (dataToSubmit.plants && dataToSubmit.plants.length > 0 && !isRailpadVendor));
             const isErcVendor = activeRole 
                 ? (activeRole === 'Vendor' || activeRole === 'ERC Vendor')
                 : (dataToSubmit.roleNames?.some(r => r === 'Vendor' || r === 'ERC Vendor') || (dataToSubmit.units && dataToSubmit.units.length > 0));
 
-            if (isSleeperVendor && (dataToSubmit.plants || dataToSubmit.companyName || activeRole === 'Sleeper Vendor')) {
+            if (isRailpadVendor && (dataToSubmit.plants || dataToSubmit.companyName || activeRole === 'Rail Vendor' || activeRole === 'Railpad Vendor')) {
+                await createRailpadVendorApi(dataToSubmit);
+            } else if (isSleeperVendor && (dataToSubmit.plants || dataToSubmit.companyName || activeRole === 'Sleeper Vendor')) {
                 await createSleeperVendorApi(dataToSubmit);
             } else if (isErcVendor && (dataToSubmit.units || dataToSubmit.companyName || activeRole === 'Vendor' || activeRole === 'ERC Vendor')) {
                 await createErcVendorApi(dataToSubmit);
@@ -200,7 +205,7 @@ export const AdminDashboard = () => {
             refreshData();
             setModalOpen(false);
             setSelectedItem(null);
-            setSnackbar({ open: true, message: (isSleeperVendor || isErcVendor) ? 'Vendor saved successfully!' : 'User saved successfully!', severity: 'success' });
+            setSnackbar({ open: true, message: (isRailpadVendor || isSleeperVendor || isErcVendor) ? 'Vendor saved successfully!' : 'User saved successfully!', severity: 'success' });
         } catch (error) {
             console.error('Error submitting user:', error);
             const userFriendlyMsg = parseUserFriendlyErrorMessage(error.message);
@@ -609,7 +614,7 @@ export const AdminDashboard = () => {
                         roles={roles}
                         rolesLoading={isLoading}
                         existingUsers={users}
-                        onSubmit={handleSubmitUser}
+                        onSubmit={handleSaveUser}
                         onCancel={() => { if (!isSubmittingUser) { setModalOpen(false); setFormError(null); } }}
                         formError={formError}
                         isSubmitting={isSubmittingUser}
@@ -1033,6 +1038,49 @@ export const getSleeperVendorDetailsApi = async (userId) => {
     try {
         const token = localStorage.getItem('authToken');
         const response = await fetch(`${API_BASE_URL}/api/auth/api/sleeper-vendor/${userId}`, {
+            method: 'GET',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            }
+        });
+        const data = await response.json();
+        if (data.responseStatus?.statusCode !== 0) throw new Error(data.responseStatus?.message || 'API Error');
+        return data.responseData;
+    } catch (error) {
+        throw error;
+    }
+};
+
+/**
+ * API to create or update Railpad Vendor with multi-plants
+ */
+export const createRailpadVendorApi = async (vendorData) => {
+    try {
+        const token = localStorage.getItem('authToken');
+        const response = await fetch(`${API_BASE_URL}/api/auth/api/railpad-vendor`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify(vendorData)
+        });
+        const data = await response.json();
+        if (data.responseStatus?.statusCode !== 0) throw new Error(data.responseStatus?.message || 'API Error');
+        return data.responseData;
+    } catch (error) {
+        throw error;
+    }
+};
+
+/**
+ * API to fetch Railpad Vendor details with plants
+ */
+export const getRailpadVendorDetailsApi = async (userId) => {
+    try {
+        const token = localStorage.getItem('authToken');
+        const response = await fetch(`${API_BASE_URL}/api/auth/api/railpad-vendor/${userId}`, {
             method: 'GET',
             headers: {
                 'Content-Type': 'application/json',

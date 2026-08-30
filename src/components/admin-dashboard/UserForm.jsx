@@ -85,6 +85,37 @@ export const UserForm = ({ user, roles = [], rolesLoading = false, existingUsers
         }
     ]);
 
+    // Railpad Vendor Single Registered Unit (railpad_pincode_poi_mapping)
+    const [railpadUnit, setRailpadUnit] = useState({
+        unitId: null,
+        unitName: '',
+        unitPinCode: '',
+        cin: '',
+        unitAddress: '',
+        unitDistrict: '',
+        unitState: '',
+        poiCode: ''
+    });
+
+    // Railpad Vendor Multiple Plants (rail_vendor_plant)
+    const [railpadPlants, setRailpadPlants] = useState([
+        {
+            id: null,
+            plantName: '',
+            pinCode: '',
+            cin: '',
+            address: '',
+            district: '',
+            state: '',
+            zonalRailway: '',
+            rio: '',
+            contactPerson: '',
+            contactPersonNumber: '',
+            plantId: '',
+            status: 'Active'
+        }
+    ]);
+
     const [vendorUnits, setVendorUnits] = useState([
         {
             id: null,
@@ -247,6 +278,51 @@ export const UserForm = ({ user, roles = [], rolesLoading = false, existingUsers
                     setIsVendorLoading(false);
                 });
             }
+
+            // Fetch Railpad vendor single unit and plants if this is a Railpad Vendor
+            const isRailpad = activeVendorRole 
+                ? (activeVendorRole === 'Rail Vendor' || activeVendorRole === 'Railpad Vendor')
+                : parsedRoles.some(r => r === 'Rail Vendor' || r === 'Railpad Vendor');
+
+            if (isRailpad && (user.userId || user.id)) {
+                const uid = user.userId || user.id;
+                setIsVendorLoading(true);
+                fetch(`${API_BASE_URL || ''}/api/auth/api/railpad-vendor/${uid}`, {
+                    headers: { 'Authorization': `Bearer ${localStorage.getItem('authToken')}` }
+                })
+                .then(r => r.json())
+                .then(res => {
+                    if (res?.responseData) {
+                        const data = res.responseData;
+                        setFormData(prev => ({
+                            ...prev,
+                            fullName: data.companyName || prev.fullName,
+                            employeeCode: data.vendorCode || prev.employeeCode,
+                            email: data.email || prev.email,
+                            status: data.status ? (data.status.toLowerCase() === 'inactive' ? 'Inactive' : 'Active') : prev.status
+                        }));
+                        if (data.unitName || data.unitPinCode || data.cin || data.unitAddress || data.poiCode) {
+                            setRailpadUnit({
+                                unitId: data.unitId || null,
+                                unitName: data.unitName || '',
+                                unitPinCode: data.unitPinCode || '',
+                                cin: data.cin || '',
+                                unitAddress: data.unitAddress || '',
+                                unitDistrict: data.unitDistrict || '',
+                                unitState: data.unitState || '',
+                                poiCode: data.poiCode || ''
+                            });
+                        }
+                        if (data.plants && data.plants.length > 0) {
+                            setRailpadPlants(data.plants);
+                        }
+                    }
+                })
+                .catch(() => {})
+                .finally(() => {
+                    setIsVendorLoading(false);
+                });
+            }
         } else {
             setFormData({
                 userName: '',
@@ -303,6 +379,33 @@ export const UserForm = ({ user, roles = [], rolesLoading = false, existingUsers
                     status: 'Active'
                 }
             ]);
+            setRailpadPlants([
+                {
+                    id: null,
+                    plantName: '',
+                    pinCode: '',
+                    cin: '',
+                    address: '',
+                    district: '',
+                    state: '',
+                    zonalRailway: '',
+                    rio: '',
+                    contactPerson: '',
+                    contactPersonNumber: '',
+                    plantId: '',
+                    status: 'Active'
+                }
+            ]);
+            setRailpadUnit({
+                unitId: null,
+                unitName: '',
+                unitPinCode: '',
+                cin: '',
+                unitAddress: '',
+                unitDistrict: '',
+                unitState: '',
+                poiCode: ''
+            });
         }
     }, [user]);
 
@@ -439,6 +542,103 @@ export const UserForm = ({ user, roles = [], rolesLoading = false, existingUsers
         }
     };
 
+    const handleAddRailpadPlant = () => {
+        setRailpadPlants(prev => [
+            ...prev,
+            {
+                id: null,
+                plantName: '',
+                pinCode: '',
+                cin: '',
+                address: '',
+                district: '',
+                state: '',
+                zonalRailway: '',
+                rio: '',
+                contactPerson: '',
+                contactPersonNumber: '',
+                plantId: '',
+                status: 'Active'
+            }
+        ]);
+    };
+
+    const handleRemoveRailpadPlant = (index) => {
+        if (railpadPlants.length <= 1) return;
+        setRailpadPlants(prev => prev.filter((_, i) => i !== index));
+    };
+
+    const handleRailpadPlantChange = (index, field, value) => {
+        setRailpadPlants(prev => {
+            const next = [...prev];
+            const cleanVal = field === 'contactPersonNumber'
+                ? value.replace(/\D/g, '').slice(0, 10)
+                : value;
+            next[index] = { ...next[index], [field]: cleanVal };
+            return next;
+        });
+    };
+
+    const handleRailpadPlantPinChange = async (index, pin) => {
+        const cleanPin = pin.replace(/\D/g, '').slice(0, 6);
+        handleRailpadPlantChange(index, 'pinCode', cleanPin);
+
+        if (cleanPin.length === 6) {
+            try {
+                const res = await fetch(`https://api.postalpincode.in/pincode/${cleanPin}`);
+                const data = await res.json();
+                if (data && data[0]?.Status === 'Success' && data[0]?.PostOffice?.length > 0) {
+                    const po = data[0].PostOffice[0];
+                    const dist = po.District || '';
+                    const st = po.State || '';
+                    handleRailpadPlantChange(index, 'district', dist);
+                    handleRailpadPlantChange(index, 'state', st);
+                    
+                    const s = st.toUpperCase();
+                    let rio = 'WRIO';
+                    if (s.includes('WEST BENGAL') || s.includes('BIHAR') || s.includes('JHARKHAND') || s.includes('ODISHA') || s.includes('ASSAM')) {
+                        rio = 'ERIO';
+                    } else if (s.includes('HARYANA') || s.includes('PUNJAB') || s.includes('DELHI') || s.includes('RAJASTHAN') || s.includes('UTTAR PRADESH') || s.includes('UP') || s.includes('UTTARAKHAND') || s.includes('HIMACHAL') || s.includes('JAMMU')) {
+                        rio = 'NRIO';
+                    } else if (s.includes('TAMIL') || s.includes('KERALA') || s.includes('KARNATAKA') || s.includes('ANDHRA') || s.includes('TELANGANA')) {
+                        rio = 'SRIO';
+                    } else if (s.includes('CENTRAL') || s.includes('MADHYA')) {
+                        rio = 'CRIO';
+                    }
+                    handleRailpadPlantChange(index, 'rio', rio);
+                }
+            } catch (err) {
+                console.error('Error fetching pincode data:', err);
+            }
+        }
+    };
+
+    const handleRailpadUnitChange = (field, value) => {
+        setRailpadUnit(prev => ({ ...prev, [field]: value }));
+    };
+
+    const handleRailpadUnitPinChange = async (pin) => {
+        const cleanPin = pin.replace(/\D/g, '').slice(0, 6);
+        handleRailpadUnitChange('unitPinCode', cleanPin);
+
+        if (cleanPin.length === 6) {
+            try {
+                const res = await fetch(`https://api.postalpincode.in/pincode/${cleanPin}`);
+                const data = await res.json();
+                if (data && data[0]?.Status === 'Success' && data[0]?.PostOffice?.length > 0) {
+                    const po = data[0].PostOffice[0];
+                    setRailpadUnit(prev => ({
+                        ...prev,
+                        unitDistrict: po.District || prev.unitDistrict,
+                        unitState: po.State || prev.unitState
+                    }));
+                }
+            } catch (err) {
+                console.error('Error fetching registered unit pincode data:', err);
+            }
+        }
+    };
+
     const handleChange = (e) => {
         const { name, value } = e.target;
         
@@ -514,8 +714,103 @@ export const UserForm = ({ user, roles = [], rolesLoading = false, existingUsers
             }
         }
 
+        const isRailpadVendor = formData.roleNames.some(r => r === 'Rail Vendor' || r === 'Railpad Vendor');
         const isSleeperVendor = formData.roleNames.some(r => r === 'Sleeper Vendor');
         const isErcVendor = formData.roleNames.some(r => r === 'Vendor' || r === 'ERC Vendor');
+
+        if (isRailpadVendor) {
+            if (!formData.fullName || !formData.fullName.trim()) {
+                showValidationToast('Company / Vendor Name is required.');
+                return;
+            }
+            if (!formData.employeeCode || !formData.employeeCode.trim()) {
+                showValidationToast('Vendor Code is required.');
+                return;
+            }
+
+            const seenPlantIds = new Set();
+            const seenPlantNames = new Set();
+
+            for (let i = 0; i < railpadPlants.length; i++) {
+                const p = railpadPlants[i];
+                const cleanPlantName = p.plantName?.trim().toLowerCase();
+                const cleanPin = p.pinCode?.trim();
+                const cleanPlantId = p.plantId?.trim().toLowerCase();
+
+                if (!cleanPlantName) {
+                    showValidationToast(`Plant #${i + 1}: Plant Name is required.`);
+                    return;
+                }
+                if (seenPlantNames.has(cleanPlantName)) {
+                    showValidationToast(`Duplicate Plant Name "${p.plantName}" found in Plant #${i + 1}. Each plant must have a unique name.`);
+                    return;
+                }
+                seenPlantNames.add(cleanPlantName);
+
+                if (!cleanPin || cleanPin.length !== 6) {
+                    showValidationToast(`Plant #${i + 1}: Valid 6-digit Pin Code is required.`);
+                    return;
+                }
+
+                if (cleanPlantId) {
+                    if (seenPlantIds.has(cleanPlantId)) {
+                        showValidationToast(`Duplicate Plant ID "${p.plantId}" found in Plant #${i + 1}. Each plant must have a unique Plant ID.`);
+                        return;
+                    }
+                    seenPlantIds.add(cleanPlantId);
+                }
+
+                if (!p.zonalRailway || !p.zonalRailway.trim()) {
+                    showValidationToast(`Plant #${i + 1}: Zonal Railway is required.`);
+                    return;
+                }
+                if (!p.rio || !p.rio.trim()) {
+                    showValidationToast(`Plant #${i + 1}: RIO is required.`);
+                    return;
+                }
+                if (!p.contactPerson || !p.contactPerson.trim()) {
+                    showValidationToast(`Plant #${i + 1}: Contact Person is required.`);
+                    return;
+                }
+                if (!p.contactPersonNumber || !p.contactPersonNumber.trim()) {
+                    showValidationToast(`Plant #${i + 1}: Contact Person Number is required.`);
+                    return;
+                }
+                if (!/^\d{10}$/.test(p.contactPersonNumber.trim())) {
+                    showValidationToast(`Plant #${i + 1}: Contact Person Number must be exactly 10 digits (no spaces or alphabets).`);
+                    return;
+                }
+            }
+
+            const rawVCode = formData.employeeCode.trim();
+            const formattedVendorCode = rawVCode.startsWith(':') ? rawVCode : `:${rawVCode}`;
+
+            const railpadPayload = {
+                userId: formData.userId,
+                companyName: formData.fullName.trim(),
+                vendorCode: formattedVendorCode,
+                email: formData.email?.trim() || `${formattedVendorCode}@vendor.local`,
+                password: formData.password || undefined,
+                status: formData.status || 'Active',
+                roleNames: ['Rail Vendor'],
+
+                // Single Registered Unit
+                unitId: railpadUnit.unitId,
+                unitName: railpadUnit.unitName?.trim() || `${formData.fullName.trim()} - Head Office / Unit`,
+                unitPinCode: railpadUnit.unitPinCode?.trim(),
+                cin: railpadUnit.cin?.trim(),
+                unitAddress: railpadUnit.unitAddress?.trim(),
+                unitDistrict: railpadUnit.unitDistrict?.trim(),
+                unitState: railpadUnit.unitState?.trim(),
+                poiCode: railpadUnit.poiCode,
+
+                // Multiple Plants
+                plants: railpadPlants
+            };
+
+            onSubmit(railpadPayload);
+            return;
+        }
 
         if (isSleeperVendor) {
             if (!formData.fullName || !formData.fullName.trim()) {
@@ -710,15 +1005,18 @@ export const UserForm = ({ user, roles = [], rolesLoading = false, existingUsers
     };
 
     const isZonalRailway = formData.roleNames.includes('ZONAL RAILWAY');
+    const isRailpadVendor = formData.roleNames.some(r => r === 'Rail Vendor' || r === 'Railpad Vendor');
     const isSleeperVendor = formData.roleNames.some(r => r === 'Sleeper Vendor');
     const isErcVendor = formData.roleNames.some(r => r === 'Vendor' || r === 'ERC Vendor');
-    const isVendor = isSleeperVendor || isErcVendor;
+    const isVendor = isRailpadVendor || isSleeperVendor || isErcVendor;
 
     const roleMapping = {
         'Vendor': 'ERC Vendor',
         'IE': 'ERC IE',
         'Process IE': 'ERC Process IE',
         'Main IE': 'Sleeper Main IE',
+        'Rail Vendor': 'Railpad Vendor',
+        'Railpad Vendor': 'Railpad Vendor',
         'Rail Main IE': 'Railpad Main IE',
         'Rail Process IE': 'Railpad Process IE'
     };
@@ -919,8 +1217,267 @@ export const UserForm = ({ user, roles = [], rolesLoading = false, existingUsers
                         </div>
                     </div>
 
-                    {/* Sleeper Plants or ERC Units Section */}
-                    {isSleeperVendor ? (
+                    {/* Sleeper / Railpad Plants or ERC Units Section */}
+                    {isRailpadVendor ? (
+                        <>
+                            {/* Section 1: Registered Unit Details (Single Unit) */}
+                            <div className="form-section" style={{ background: '#f8fafc', border: '1.5px solid #e2e8f0', borderRadius: '10px', padding: '16px', marginBottom: '20px' }}>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px', borderBottom: '1px solid #cbd5e1', paddingBottom: '8px' }}>
+                                    <div className="form-section-title" style={{ marginBottom: 0, color: '#0f4c81', fontWeight: 700 }}>
+                                        <span>🏢</span> Registered Unit Details (Single Unit)
+                                    </div>
+                                    {railpadUnit.poiCode && (
+                                        <span className="badge badge-info" style={{ fontSize: '12px', background: '#e0f2fe', color: '#0369a1', padding: '3px 10px', borderRadius: '12px', fontWeight: 700 }}>
+                                            POI: {railpadUnit.poiCode}
+                                        </span>
+                                    )}
+                                </div>
+
+                                <div className="form-grid">
+                                    <div className="form-group" style={{ gridColumn: 'span 2' }}>
+                                        <label className="form-label">Registered Unit / Office Name</label>
+                                        <input
+                                            type="text"
+                                            className="form-control"
+                                            placeholder="e.g. PATIL RAIL INFRASTRUCTURE PVT LTD - HYDERABAD"
+                                            value={railpadUnit.unitName || ''}
+                                            onChange={(e) => handleRailpadUnitChange('unitName', e.target.value)}
+                                        />
+                                    </div>
+                                    <div className="form-group">
+                                        <label className="form-label">Registered Pin Code <span className="required-star">*</span></label>
+                                        <input
+                                            type="text"
+                                            className="form-control"
+                                            placeholder="6-digit Pincode"
+                                            value={railpadUnit.unitPinCode || ''}
+                                            onChange={(e) => handleRailpadUnitPinChange(e.target.value)}
+                                            maxLength={6}
+                                            required
+                                        />
+                                    </div>
+                                    <div className="form-group">
+                                        <label className="form-label">CIN (Corporate Identity No.)</label>
+                                        <input
+                                            type="text"
+                                            className="form-control"
+                                            placeholder="e.g. U25206A"
+                                            value={railpadUnit.cin || ''}
+                                            onChange={(e) => handleRailpadUnitChange('cin', e.target.value)}
+                                        />
+                                    </div>
+                                    <div className="form-group">
+                                        <label className="form-label">District</label>
+                                        <input
+                                            type="text"
+                                            className="form-control"
+                                            placeholder="District"
+                                            value={railpadUnit.unitDistrict || ''}
+                                            onChange={(e) => handleRailpadUnitChange('unitDistrict', e.target.value)}
+                                        />
+                                    </div>
+                                    <div className="form-group">
+                                        <label className="form-label">State</label>
+                                        <input
+                                            type="text"
+                                            className="form-control"
+                                            placeholder="State"
+                                            value={railpadUnit.unitState || ''}
+                                            onChange={(e) => handleRailpadUnitChange('unitState', e.target.value)}
+                                        />
+                                    </div>
+                                    <div className="form-group" style={{ gridColumn: 'span 2' }}>
+                                        <label className="form-label">Registered Office Address</label>
+                                        <input
+                                            type="text"
+                                            className="form-control"
+                                            placeholder="e.g. 6th Floor, Rajbhavan Road, Somajiguda, Hyderabad"
+                                            value={railpadUnit.unitAddress || ''}
+                                            onChange={(e) => handleRailpadUnitChange('unitAddress', e.target.value)}
+                                        />
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Section 2: Railpad Manufacturing Plants (Multiple Plants) */}
+                            <div className="form-section">
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
+                                    <div className="form-section-title" style={{ marginBottom: 0 }}>
+                                        <span>🛤️</span> Railpad Manufacturing Plants ({railpadPlants.length})
+                                    </div>
+                                    <button
+                                        type="button"
+                                        className="btn btn-secondary"
+                                        onClick={handleAddRailpadPlant}
+                                        style={{ fontSize: '12px', padding: '6px 14px', display: 'flex', alignItems: 'center', gap: '6px', borderColor: '#0f4c81', color: '#0f4c81', fontWeight: 600 }}
+                                    >
+                                        <span>+</span> Add Another Plant
+                                    </button>
+                                </div>
+
+                                {isVendorLoading ? (
+                                    Array.from({ length: 2 }).map((_, sIdx) => (
+                                        <div key={`rail-plant-skel-${sIdx}`} className="skeleton-unit-card">
+                                            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '16px' }}>
+                                                <span className="skeleton-shimmer" style={{ width: '130px', height: '24px', borderRadius: '12px' }} />
+                                                <span className="skeleton-shimmer" style={{ width: '80px', height: '24px', borderRadius: '6px' }} />
+                                            </div>
+                                            <div className="form-grid" style={{ marginBottom: '14px' }}>
+                                                <div>
+                                                    <span className="skeleton-shimmer" style={{ width: '80px', height: '14px', marginBottom: '6px' }} />
+                                                    <span className="skeleton-shimmer" style={{ width: '100%', height: '38px', borderRadius: '6px' }} />
+                                                </div>
+                                                <div>
+                                                    <span className="skeleton-shimmer" style={{ width: '80px', height: '14px', marginBottom: '6px' }} />
+                                                    <span className="skeleton-shimmer" style={{ width: '100%', height: '38px', borderRadius: '6px' }} />
+                                                </div>
+                                            </div>
+                                        </div>
+                                    ))
+                                ) : (
+                                    <>
+                                        {railpadPlants.map((plant, idx) => (
+                                            <div key={idx} className="vendor-unit-card" style={{ border: '1px solid #cbd5e1', borderRadius: '12px', padding: '16px', marginBottom: '16px', background: '#f8fafc' }}>
+                                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px', borderBottom: '1px solid #e2e8f0', paddingBottom: '8px', gap: '12px' }}>
+                                                    <div style={{ fontWeight: 700, color: '#0f4c81', fontSize: '14px', whiteSpace: 'nowrap', display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                                                        <span>Plant #{idx + 1}</span>
+                                                        {plant.plantName && <span style={{ color: '#64748b', fontWeight: 500 }}>— {plant.plantName}</span>}
+                                                    </div>
+                                                    {railpadPlants.length > 1 && (
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => handleRemoveRailpadPlant(idx)}
+                                                            className="btn btn-sm btn-danger"
+                                                            style={{ padding: '3px 10px', fontSize: '11px', width: 'auto', flexShrink: 0, whiteSpace: 'nowrap', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
+                                                        >
+                                                            ✕ Remove Plant
+                                                        </button>
+                                                    )}
+                                                </div>
+
+                                                <div className="form-grid">
+                                                    <div className="form-group">
+                                                        <label className="form-label">Plant Name <span className="required-star">*</span></label>
+                                                        <input
+                                                            type="text"
+                                                            className="form-control"
+                                                            placeholder="e.g. PATIL HYDERABAD RAILPAD PLANT 1"
+                                                            value={plant.plantName || ''}
+                                                            onChange={(e) => handleRailpadPlantChange(idx, 'plantName', e.target.value)}
+                                                            required
+                                                        />
+                                                    </div>
+                                                    <div className="form-group">
+                                                        <label className="form-label">Plant ID <span className="required-star">*</span></label>
+                                                        <input
+                                                            type="text"
+                                                            className="form-control"
+                                                            placeholder="e.g. :41647/Kargi"
+                                                            value={plant.plantId || ''}
+                                                            onChange={(e) => handleRailpadPlantChange(idx, 'plantId', e.target.value)}
+                                                            required
+                                                        />
+                                                    </div>
+                                                    <div className="form-group">
+                                                        <label className="form-label">Plant Pin Code <span className="required-star">*</span></label>
+                                                        <input
+                                                            type="text"
+                                                            className="form-control"
+                                                            placeholder="6-digit Pincode"
+                                                            value={plant.pinCode || ''}
+                                                            onChange={(e) => handleRailpadPlantPinChange(idx, e.target.value)}
+                                                            maxLength={6}
+                                                            required
+                                                        />
+                                                    </div>
+                                                    <div className="form-group">
+                                                        <label className="form-label">Zonal Railway <span className="required-star">*</span></label>
+                                                        <Select
+                                                            showSearch
+                                                            placeholder="Select Zonal Railway"
+                                                            value={plant.zonalRailway || undefined}
+                                                            onChange={(val) => handleRailpadPlantChange(idx, 'zonalRailway', val)}
+                                                            style={{ width: '100%', height: '38px' }}
+                                                            optionFilterProp="children"
+                                                            filterOption={(input, option) =>
+                                                                (option?.children ?? '').toLowerCase().includes(input.toLowerCase())
+                                                            }
+                                                            dropdownStyle={{ maxHeight: '220px', overflowY: 'auto' }}
+                                                        >
+                                                            {ZONAL_RAILWAY_LIST.map(zr => (
+                                                                <Select.Option key={zr} value={zr}>{zr}</Select.Option>
+                                                            ))}
+                                                        </Select>
+                                                    </div>
+                                                    <div className="form-group">
+                                                        <label className="form-label">RIO (Inspection Office) <span className="required-star">*</span></label>
+                                                        <Select
+                                                            showSearch
+                                                            placeholder="Select RIO"
+                                                            value={plant.rio || undefined}
+                                                            onChange={(val) => handleRailpadPlantChange(idx, 'rio', val)}
+                                                            style={{ width: '100%', height: '38px' }}
+                                                            optionFilterProp="children"
+                                                            filterOption={(input, option) =>
+                                                                (option?.children ?? '').toLowerCase().includes(input.toLowerCase())
+                                                            }
+                                                            dropdownStyle={{ maxHeight: '220px', overflowY: 'auto' }}
+                                                        >
+                                                            {RIO_OPTIONS_LIST.map(rio => (
+                                                                <Select.Option key={rio} value={rio}>{rio}</Select.Option>
+                                                            ))}
+                                                        </Select>
+                                                    </div>
+                                                    <div className="form-group" style={{ background: '#f0fdf4', padding: '10px', borderRadius: '8px', border: '1.5px solid #86efac' }}>
+                                                        <label className="form-label" style={{ color: '#166534', fontWeight: 700 }}>
+                                                            👤 Contact Person <span className="required-star">*</span>
+                                                        </label>
+                                                        <input
+                                                            type="text"
+                                                            className="form-control"
+                                                            placeholder="Full name of plant contact person"
+                                                            value={plant.contactPerson || ''}
+                                                            onChange={(e) => handleRailpadPlantChange(idx, 'contactPerson', e.target.value)}
+                                                            required
+                                                            style={{ borderColor: '#4ade80' }}
+                                                        />
+                                                    </div>
+                                                    <div className="form-group" style={{ background: '#eff6ff', padding: '10px', borderRadius: '8px', border: '1.5px solid #93c5fd' }}>
+                                                        <label className="form-label" style={{ color: '#1e40af', fontWeight: 700 }}>
+                                                            📞 Contact Person Number <span className="required-star">*</span>
+                                                        </label>
+                                                        <input
+                                                            type="tel"
+                                                            className="form-control"
+                                                            placeholder="Exact 10-digit mobile number"
+                                                            value={plant.contactPersonNumber || ''}
+                                                            onChange={(e) => handleRailpadPlantChange(idx, 'contactPersonNumber', e.target.value)}
+                                                            maxLength={10}
+                                                            inputMode="numeric"
+                                                            pattern="[0-9]{10}"
+                                                            required
+                                                            style={{ borderColor: '#60a5fa' }}
+                                                        />
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        ))}
+
+                                        <div style={{ textAlign: 'center', marginTop: '10px' }}>
+                                            <button
+                                                type="button"
+                                                className="btn btn-secondary"
+                                                onClick={handleAddRailpadPlant}
+                                                style={{ fontSize: '13px', padding: '8px 20px', borderColor: '#0f4c81', color: '#0f4c81', fontWeight: 700 }}
+                                            >
+                                                + Add Another Plant
+                                            </button>
+                                        </div>
+                                    </>
+                                )}
+                            </div>
+                        </>
+                    ) : isSleeperVendor ? (
                         <>
                             {/* Section 1: Registered Unit Details (Single Unit) */}
                             <div className="form-section" style={{ background: '#f8fafc', border: '1.5px solid #e2e8f0', borderRadius: '10px', padding: '16px', marginBottom: '20px' }}>

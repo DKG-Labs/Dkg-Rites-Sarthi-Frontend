@@ -1,18 +1,21 @@
 import React, { useState, useMemo } from 'react';
 import { Select } from 'antd';
 import { USER_ROLES, REGIONS } from './utils/mockData';
-import { filterBySearch, paginate } from './utils/helpers';
+import { paginate } from './utils/helpers';
 import { DEFAULT_PAGE_SIZE } from './utils/constants';
 
+const ROLE_MAPPING = {
+    'Vendor': 'ERC Vendor',
+    'IE': 'ERC IE',
+    'Process IE': 'ERC Process IE',
+    'Main IE': 'Sleeper Main IE',
+    'Rail Vendor': 'Railpad Vendor',
+    'Railpad Vendor': 'Railpad Vendor',
+    'Rail Main IE': 'Railpad Main IE',
+    'Rail Process IE': 'Railpad Process IE'
+};
+
 export const UserList = ({ users = [], roles = [], loading, onEdit, onDelete, onChangeRegion, onCreateNew, refreshTrigger }) => {
-    const roleMapping = {
-        'Vendor': 'ERC Vendor',
-        'IE': 'ERC IE',
-        'Process IE': 'ERC Process IE',
-        'Main IE': 'Sleeper Main IE',
-        'Rail Main IE': 'Railpad Main IE',
-        'Rail Process IE': 'Railpad Process IE'
-    };
     const [searchTerm, setSearchTerm] = useState('');
     const [filterRole, setFilterRole] = useState('');
     const [filterRegion, setFilterRegion] = useState('');
@@ -23,9 +26,26 @@ export const UserList = ({ users = [], roles = [], loading, onEdit, onDelete, on
     const filteredUsers = useMemo(() => {
         let result = users;
 
-        // Search filter
+        // Search filter (searches across name, employee code, email, username, rio, status, raw role, and mapped display role)
         if (searchTerm) {
-            result = filterBySearch(result, searchTerm, ['fullName', 'employeeCode', 'email', 'userName']);
+            const term = searchTerm.trim().toLowerCase();
+            result = result.filter(user => {
+                const baseFieldsMatch = [user.fullName, user.employeeCode, user.email, user.userName, user.rio, user.status]
+                    .some(val => val && String(val).toLowerCase().includes(term));
+                if (baseFieldsMatch) return true;
+
+                // Check raw roleName and mapped roleName (e.g. 'Rail Main IE' -> 'Railpad Main IE', 'Rail Vendor' -> 'Railpad Vendor')
+                if (user.roleName) {
+                    if (String(user.roleName).toLowerCase().includes(term)) return true;
+                    const rolesArray = user.roleName.split(',').map(r => r.trim());
+                    const hasMappedRoleMatch = rolesArray.some(r => {
+                        const mapped = ROLE_MAPPING[r] || r;
+                        return mapped.toLowerCase().includes(term);
+                    });
+                    if (hasMappedRoleMatch) return true;
+                }
+                return false;
+            });
         }
 
         // Card Status filter
@@ -35,9 +55,24 @@ export const UserList = ({ users = [], roles = [], loading, onEdit, onDelete, on
             result = result.filter(user => user.status === 'Inactive');
         }
 
-        // Role filter
+        // Role filter (matches both raw DB role names and display labels like 'Railpad Main IE')
         if (filterRole) {
-            result = result.filter(user => (user.roleName || '').includes(filterRole));
+            const targetRole = filterRole.toLowerCase().trim();
+            const targetMapped = (ROLE_MAPPING[filterRole] || filterRole).toLowerCase().trim();
+            result = result.filter(user => {
+                if (!user.roleName) return false;
+                const userRoles = user.roleName.split(',').map(r => r.trim());
+                return userRoles.some(r => {
+                    const rLower = r.toLowerCase();
+                    const mappedLower = (ROLE_MAPPING[r] || r).toLowerCase();
+                    return rLower === targetRole 
+                        || mappedLower === targetRole 
+                        || rLower === targetMapped 
+                        || mappedLower === targetMapped 
+                        || rLower.includes(targetRole) 
+                        || mappedLower.includes(targetRole);
+                });
+            });
         }
 
         // Region filter
@@ -133,7 +168,7 @@ export const UserList = ({ users = [], roles = [], loading, onEdit, onDelete, on
                             <tbody>
                                 {displayRoles.map((role, idx) => {
                                     const rName = typeof role === 'object' ? role.roleName : role;
-                                    const displayRoleName = roleMapping[rName] || rName;
+                                    const displayRoleName = ROLE_MAPPING[rName] || rName;
                                     const rId = typeof role === 'object' ? (role.roleId || role.roleName) : idx + 1;
                                     return (
                                         <tr key={rId}>
@@ -192,7 +227,7 @@ export const UserList = ({ users = [], roles = [], loading, onEdit, onDelete, on
                                 displayRoles.forEach((role, idx) => {
                                     const rName = typeof role === 'object' ? role.roleName : role;
                                     if (!rName) return;
-                                    const displayRoleName = roleMapping[rName] || rName;
+                                    const displayRoleName = ROLE_MAPPING[rName] || rName;
                                     
                                     if (!seenLabels.has(displayRoleName)) {
                                         seenLabels.add(displayRoleName);
@@ -264,7 +299,7 @@ export const UserList = ({ users = [], roles = [], loading, onEdit, onDelete, on
                                     <tr key={user.userId || user.id}>
                                     <td>{user.employeeCode}</td>
                                     <td>{user.fullName}</td>
-                                    <td>{user.roleName ? user.roleName.split(',').map(r => roleMapping[r.trim()] || r.trim()).join(', ') : ''}</td>
+                                    <td>{user.roleName ? user.roleName.split(',').map(r => ROLE_MAPPING[r.trim()] || r.trim()).join(', ') : ''}</td>
                                     <td>{user.rio || (user.employeeCode && user.employeeCode.startsWith('ZR') && user.employeeCode.match(/^ZR([A-Z]+)\d+$/)?.[1]) || ''}</td>
                                     <td>{user.email}</td>
                                     <td>

@@ -8,6 +8,7 @@ import {
   approvedQAPService
 } from '../../services/plantDeclarationService';
 import { getStoredUser } from '../../services/authService';
+import AnnexureLoader from '../AnnexureLoader';
 
 const PlantDeclarationDashboard = ({ dutyPlantId }) => {
   const [pendingList, setPendingList] = useState([]);
@@ -107,12 +108,26 @@ const PlantDeclarationDashboard = ({ dutyPlantId }) => {
   const loadData = async () => {
     setLoading(true);
     try {
-      // Use duty plant (selected at Start Duty) to filter workflow transitions
+      const uId = user?.userId || localStorage.getItem('userId');
+      let mappedPlants = [];
+      if (uId) {
+        try {
+          mappedPlants = await fetchMappedPlantIds(uId, 'Main IE');
+        } catch (e) {}
+      }
+
+      const roleStr = (user?.roleName || localStorage.getItem('roleName') || '').toLowerCase();
+      const isMainIeUser = roleStr.includes('main ie') || mappedPlants.length > 0;
+      const queryPlantId = isMainIeUser ? '' : dutyPlantId;
+
       const filterByDutyPlant = (list) => {
-        if (!dutyPlantId) return list || []; // If no duty plant, show all
-        return (list || []).filter(tx =>
-          tx.plantId && isPlantIdMatching(tx.plantId, dutyPlantId)
-        );
+        if (mappedPlants && mappedPlants.length > 0) {
+          return (list || []).filter(tx => !tx.plantId || mappedPlants.some(p => isPlantIdMatching(tx.plantId, p)));
+        }
+        if (dutyPlantId) {
+          return (list || []).filter(tx => tx.plantId && isPlantIdMatching(tx.plantId, dutyPlantId));
+        }
+        return list || [];
       };
 
       const mapList = (list) => {
@@ -127,14 +142,12 @@ const PlantDeclarationDashboard = ({ dutyPlantId }) => {
         });
       };
 
-      const filterByMappedPlants = filterByDutyPlant;
-
       // Fetch only the data required for the active tab
       if (statusTab === 'PENDING') {
-        const pendingData = await fetchPendingWorkflowTransitions('Rail Main IE', dutyPlantId, 1);
+        const pendingData = await fetchPendingWorkflowTransitions('Rail Main IE', queryPlantId, 1);
         setPendingList(mapList(filterByDutyPlant(pendingData)));
       } else {
-        const completedData = await fetchCompletedCalls(dutyPlantId, 1);
+        const completedData = await fetchCompletedCalls(queryPlantId, 1);
         setCompletedList(mapList(filterByDutyPlant(completedData)));
       }
     } catch (err) {
@@ -384,6 +397,14 @@ const PlantDeclarationDashboard = ({ dutyPlantId }) => {
         >
           {notification.type === 'success' ? '✅' : '❌'} {notification.message}
         </div>
+      )}
+
+      {loading && (
+        <AnnexureLoader 
+          title="Loading Plant Setup & Declarations..." 
+          subtitle="Fetching recipe setups, materials & baseline declarations..." 
+          fullScreen={true} 
+        />
       )}
 
       {/* Persistent Title Header */}

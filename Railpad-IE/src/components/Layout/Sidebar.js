@@ -1,13 +1,21 @@
 import React from 'react';
 
 const Sidebar = ({ activeItem, onItemClick, isOpen, expanded, onMouseEnter, onMouseLeave, onClick, onClose, isShiftActive }) => {
+    const roleInput = localStorage.getItem('roleName') || '';
+    const roleLower = String(roleInput).toLowerCase();
+    const isStrictMainIe = (roleLower.includes('main ie') || roleLower.includes('rail main ie')) && !roleLower.includes('process ie');
+
     const menuSections = [
         {
             label: 'Modules',
-            items: [
-                { id: 'PortalHome', label: 'Portal Home', icon: 'PH' },
-                { id: 'IE', label: 'RailPad IE', icon: 'IE' },
-            ]
+            items: isStrictMainIe
+                ? [
+                    { id: 'PortalHome', label: 'Portal Home', icon: 'PH' }
+                  ]
+                : [
+                    { id: 'PortalHome', label: 'Portal Home', icon: 'PH' },
+                    { id: 'IE', label: 'RailPad IE', icon: 'IE' }
+                  ]
         }
     ];
 

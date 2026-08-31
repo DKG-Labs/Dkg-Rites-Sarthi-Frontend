@@ -8,10 +8,21 @@ import { getStoredUser } from '../services/authService';
 import CorrectionSlipModal from './CorrectionSlipModal';
 import PendingCallDetailsModal from './PendingCallDetailsModal';
 import ShiftDutyForm from './ShiftDutyForm';
+import AnnexureLoader from './AnnexureLoader';
 
-const AttendingCallsDashboard = ({ onStart, onResume, onIssueIc, onBackToPortal, dutyPlantId }) => {
+const AttendingCallsDashboard = ({ 
+  onStart, 
+  onResume, 
+  onIssueIc, 
+  onBackToPortal, 
+  dutyPlantId,
+  controlledTab,
+  hideTopHeader = false,
+  hideTopTabs = false,
+  onCountsChange
+}) => {
   const [activeTab, setActiveTab] = useState(() => {
-    return localStorage.getItem('railpad_attending_calls_tab') || 'pending';
+    return controlledTab || localStorage.getItem('railpad_attending_calls_tab') || 'pending';
   });
   const [calls, setCalls] = useState([]);
   const [counts, setCounts] = useState({ pending: 0, certificates: 0, completed: 0 });
@@ -42,6 +53,12 @@ const AttendingCallsDashboard = ({ onStart, onResume, onIssueIc, onBackToPortal,
 
   const activeTabRef = useRef(activeTab);
 
+  useEffect(() => {
+    if (controlledTab && controlledTab !== activeTab) {
+      setActiveTab(controlledTab);
+    }
+  }, [controlledTab]);
+
   // Reset pagination when tab or search changes
   useEffect(() => {
     setCurrentPage(1);
@@ -56,9 +73,21 @@ const AttendingCallsDashboard = ({ onStart, onResume, onIssueIc, onBackToPortal,
   const loadCalls = async () => {
     setLoading(true);
     try {
+      const uId = user?.userId || localStorage.getItem('userId');
+      let mappedPlants = [];
+      if (uId) {
+        try {
+          mappedPlants = await fetchMappedPlantIds(uId, 'Main IE');
+        } catch (e) {}
+      }
+
+      const roleStr = (user?.roleName || localStorage.getItem('roleName') || '').toLowerCase();
+      const isMainIeUser = roleStr.includes('main ie') || mappedPlants.length > 0;
+      const queryPlantId = isMainIeUser ? '' : dutyPlantId;
+
       const [pendingDataResponse, completedDataResponse] = await Promise.all([
-        fetchPendingWorkflowTransitions('Rail Main IE', dutyPlantId, 2).catch(() => []),
-        fetchCompletedCalls(dutyPlantId, 2).catch(() => [])
+        fetchPendingWorkflowTransitions('Rail Main IE', queryPlantId, 2).catch(() => []),
+        fetchCompletedCalls(queryPlantId, 2).catch(() => [])
       ]);
 
       const pendingData = pendingDataResponse || [];
@@ -67,7 +96,10 @@ const AttendingCallsDashboard = ({ onStart, onResume, onIssueIc, onBackToPortal,
       let rpPending = pendingData.filter(c => c.requestId);
       let rpCompletedAll = completedDataAll.filter(c => c.requestId);
 
-      if (dutyPlantId) {
+      if (mappedPlants && mappedPlants.length > 0) {
+        rpPending = rpPending.filter(c => !c.plantId || mappedPlants.some(p => isPlantIdMatching(c.plantId, p)));
+        rpCompletedAll = rpCompletedAll.filter(c => !c.plantId || mappedPlants.some(p => isPlantIdMatching(c.plantId, p)));
+      } else if (dutyPlantId) {
         rpPending = rpPending.filter(c => !c.plantId || isPlantIdMatching(c.plantId, dutyPlantId));
         rpCompletedAll = rpCompletedAll.filter(c => !c.plantId || isPlantIdMatching(c.plantId, dutyPlantId));
       }
@@ -359,6 +391,33 @@ const AttendingCallsDashboard = ({ onStart, onResume, onIssueIc, onBackToPortal,
     }
   };
 
+  const getLoaderText = () => {
+    switch (activeTab) {
+      case 'pending':
+        return {
+          title: 'Loading Pending Calls...',
+          subtitle: 'Fetching pending inspection calls for mapped plants...'
+        };
+      case 'certificates':
+        return {
+          title: 'Loading IC & Annexure Records...',
+          subtitle: 'Fetching calls awaiting Inspection Certificates & annexures...'
+        };
+      case 'completed':
+        return {
+          title: 'Loading Completed Calls...',
+          subtitle: 'Fetching archive of finalized calls & signed ICs...'
+        };
+      default:
+        return {
+          title: 'Loading Inspection Calls...',
+          subtitle: 'Fetching real-time records for mapped plants...'
+        };
+    }
+  };
+
+  const loaderText = getLoaderText();
+
   return (
     <div className="dashboard-container" style={{ padding: '24px', background: '#ffffff', minHeight: '100vh' }}>
       {/* Notification Component */}
@@ -369,74 +428,86 @@ const AttendingCallsDashboard = ({ onStart, onResume, onIssueIc, onBackToPortal,
         onClose={() => setNotification({ ...notification, message: '' })}
       />
 
-      <div style={{ marginBottom: '32px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0 8px' }}>
-        <h1 style={{ fontSize: '28px', fontWeight: '700', color: '#0f172a', margin: '0', letterSpacing: '-0.02em' }}>
-          RailPad IE Dashboard
-        </h1>
-        {onBackToPortal && (
-          <button
-            onClick={onBackToPortal}
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '6px',
-              padding: '6px 14px',
-              margin: '0',
-              borderRadius: '8px',
-              border: '1px solid #e2e8f0',
-              background: '#ffffff',
-              color: '#475569',
-              fontSize: '13px',
-              fontWeight: '600',
-              cursor: 'pointer',
-              boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
-              transition: 'all 0.2s'
-            }}
-            onMouseEnter={e => { e.currentTarget.style.background = '#f8fafc'; e.currentTarget.style.borderColor = '#cbd5e1'; }}
-            onMouseLeave={e => { e.currentTarget.style.background = '#ffffff'; e.currentTarget.style.borderColor = '#e2e8f0'; }}
-          >
-            <span style={{ fontSize: '16px' }}>←</span>
-            Back to Portal Home
-          </button>
-        )}
-      </div>
+      {loading && (
+        <AnnexureLoader 
+          title={loaderText.title} 
+          subtitle={loaderText.subtitle} 
+          fullScreen={true} 
+        />
+      )}
+
+      {!hideTopHeader && (
+        <div style={{ marginBottom: '32px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0 8px' }}>
+          <h1 style={{ fontSize: '28px', fontWeight: '700', color: '#0f172a', margin: '0', letterSpacing: '-0.02em' }}>
+            RailPad IE Dashboard
+          </h1>
+          {onBackToPortal && (
+            <button
+              onClick={onBackToPortal}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '6px',
+                padding: '6px 14px',
+                margin: '0',
+                borderRadius: '8px',
+                border: '1px solid #e2e8f0',
+                background: '#ffffff',
+                color: '#475569',
+                fontSize: '13px',
+                fontWeight: '600',
+                cursor: 'pointer',
+                boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
+                transition: 'all 0.2s'
+              }}
+              onMouseEnter={e => { e.currentTarget.style.background = '#f8fafc'; e.currentTarget.style.borderColor = '#cbd5e1'; }}
+              onMouseLeave={e => { e.currentTarget.style.background = '#ffffff'; e.currentTarget.style.borderColor = '#e2e8f0'; }}
+            >
+              <span style={{ fontSize: '16px' }}>←</span>
+              Back to Portal Home
+            </button>
+          )}
+        </div>
+      )}
 
       {/* Tabs as Cards */}
-      <div style={{ display: 'flex', gap: '16px', marginBottom: '32px' }}>
-        {[
-          { id: 'pending', label: 'List of Calls Pending', count: counts.pending, suffix: 'pending' },
-          { id: 'certificates', label: 'Issuance of IC & Annexures', count: counts.certificates, suffix: 'ready for IC' },
-          { id: 'completed', label: 'Calls Completed', count: counts.completed, suffix: 'completed' }
-        ].map(tab => (
-          <div
-            key={tab.id}
-            onClick={() => setActiveTab(tab.id)}
-            style={{
-              flex: 1,
-              padding: '16px 20px',
-              borderRadius: '8px',
-              background: activeTab === tab.id ? '#e0f2fe' : '#ffffff',
-              border: activeTab === tab.id ? '1px solid #0284c7' : '1px solid #cbd5e1',
-              cursor: 'pointer',
-              display: 'flex',
-              flexDirection: 'column',
-              gap: '4px',
-              boxShadow: '0 1px 2px rgba(0,0,0,0.05)'
-            }}
-          >
-            <div style={{ fontSize: '14px', fontWeight: '600', color: activeTab === tab.id ? '#0f172a' : '#334155' }}>
-              {tab.label}
+      {!hideTopTabs && (
+        <div style={{ display: 'flex', gap: '16px', marginBottom: '32px' }}>
+          {[
+            { id: 'pending', label: 'List of Calls Pending', count: counts.pending, suffix: 'pending' },
+            { id: 'certificates', label: 'Issuance of IC & Annexures', count: counts.certificates, suffix: 'ready for IC' },
+            { id: 'completed', label: 'Calls Completed', count: counts.completed, suffix: 'completed' }
+          ].map(tab => (
+            <div
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              style={{
+                flex: 1,
+                padding: '16px 20px',
+                borderRadius: '8px',
+                background: activeTab === tab.id ? '#e0f2fe' : '#ffffff',
+                border: activeTab === tab.id ? '1px solid #0284c7' : '1px solid #cbd5e1',
+                cursor: 'pointer',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '4px',
+                boxShadow: '0 1px 2px rgba(0,0,0,0.05)'
+              }}
+            >
+              <div style={{ fontSize: '14px', fontWeight: '600', color: activeTab === tab.id ? '#0f172a' : '#334155' }}>
+                {tab.label}
+              </div>
+              <div style={{ fontSize: '13px', color: '#64748b' }}>
+                {tab.count} {tab.suffix}
+              </div>
             </div>
-            <div style={{ fontSize: '13px', color: '#64748b' }}>
-              {tab.count} {tab.suffix}
-            </div>
-          </div>
-        ))}
-      </div>
+          ))}
+        </div>
+      )}
 
       {/* Search and Filters */}
-      <div style={{ marginBottom: '24px', display: 'flex', gap: '16px', alignItems: 'center' }}>
-        <div style={{ position: 'relative', flex: 1, maxWidth: '400px' }}>
+      <div style={{ marginBottom: '20px', display: 'flex', gap: '16px', alignItems: 'center', justifyContent: 'space-between' }}>
+        <div style={{ position: 'relative', flex: 1, maxWidth: '420px' }}>
           <input
             type="text"
             placeholder="Search by Request ID, Vendor, or Plant..."
@@ -444,36 +515,39 @@ const AttendingCallsDashboard = ({ onStart, onResume, onIssueIc, onBackToPortal,
             onChange={(e) => setSearchTerm(e.target.value)}
             style={{
               width: '100%',
-              padding: '10px 16px 10px 40px',
-              borderRadius: '12px',
+              padding: '10px 16px 10px 38px',
+              borderRadius: '10px',
               border: '1px solid #e2e8f0',
-              fontSize: '14px',
-              background: '#fff',
+              fontSize: '13px',
+              background: '#f8fafc',
+              color: '#1e293b',
               outline: 'none',
-              boxShadow: '0 1px 2px rgba(0,0,0,0.05)'
+              transition: 'all 0.2s ease',
+              boxShadow: '0 1px 2px rgba(0,0,0,0.02)'
+            }}
+            onFocus={(e) => {
+              e.currentTarget.style.background = '#ffffff';
+              e.currentTarget.style.borderColor = '#3b82f6';
+              e.currentTarget.style.boxShadow = '0 0 0 3px rgba(59, 130, 246, 0.1)';
+            }}
+            onBlur={(e) => {
+              e.currentTarget.style.background = '#f8fafc';
+              e.currentTarget.style.borderColor = '#e2e8f0';
+              e.currentTarget.style.boxShadow = '0 1px 2px rgba(0,0,0,0.02)';
             }}
           />
-          <span style={{ position: 'absolute', left: '14px', top: '50%', transform: 'translateY(-50%)', color: '#94a3b8' }}>🔍</span>
+          <svg style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: '#94a3b8' }} width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <circle cx="11" cy="11" r="8"></circle>
+            <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+          </svg>
         </div>
-      </div>      {/* Table */}
-      <div style={{ background: 'white', borderRadius: '16px', border: '1px solid #e2e8f0', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05)', overflow: 'hidden' }}>
-        {loading ? (
-          <div style={{ padding: '0' }}>
-            {[1, 2, 3, 4, 5, 6].map(i => (
-              <div key={i} className="skeleton-row" style={{ gridTemplateColumns: '1fr 1fr 1fr 1fr 1fr 1fr 1fr 100px' }}>
-                <div className="skeleton-item" style={{ width: '60%' }}></div>
-                <div className="skeleton-item" style={{ width: '80%' }}></div>
-                <div className="skeleton-item" style={{ width: '70%' }}></div>
-                <div className="skeleton-item" style={{ width: '90%' }}></div>
-                <div className="skeleton-item" style={{ width: '60%' }}></div>
-                <div className="skeleton-item" style={{ width: '80%' }}></div>
-                <div className="skeleton-item" style={{ width: '80px' }}></div>
-              </div>
-            ))}
-          </div>
-        ) : calls.length === 0 ? (
-          <div style={{ padding: '60px', textAlign: 'center', color: '#94a3b8' }}>
-            No calls found in this category.
+      </div>
+
+      {/* Table */}
+      <div style={{ position: 'relative', minHeight: '260px', background: '#ffffff', borderRadius: '14px', border: '1px solid #e2e8f0', boxShadow: '0 1px 3px rgba(15, 23, 42, 0.03)', overflow: 'hidden' }}>
+        {!loading && calls.length === 0 ? (
+          <div style={{ padding: '60px', textAlign: 'center', color: '#94a3b8', fontSize: '13.5px' }}>
+            No inspection calls found in this category.
           </div>
         ) : (
           <table style={{ width: '100%', borderCollapse: 'collapse' }}>
@@ -483,7 +557,7 @@ const AttendingCallsDashboard = ({ onStart, onResume, onIssueIc, onBackToPortal,
                   ? ['CALL NO.', 'PO NO.', 'IBS CASE NUMBER', 'VENDOR NAME', 'PRODUCT TYPE', 'DATE', 'STATUS', 'ACTIONS']
                   : ['CALL NO', 'VENDOR NAME', 'PLANT ID', 'CREATED DATE', 'STATUS', 'ACTIONS']
                 ).map(header => (
-                  <th key={header} style={{ padding: '12px 16px', textAlign: 'left', fontSize: '11px', fontWeight: '700', color: '#475569', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                  <th key={header} style={{ padding: '13px 18px', textAlign: 'left', fontSize: '11px', fontWeight: '700', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
                     {header}
                   </th>
                 ))}

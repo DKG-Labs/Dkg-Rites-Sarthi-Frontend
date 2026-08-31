@@ -917,6 +917,32 @@ const App = () => {
           currentShift={currentShift}
           defaultShowPlantDeclaration={autoOpenPlantDeclaration}
           onClosePlantDeclaration={() => setAutoOpenPlantDeclaration(false)}
+          onStart={(call) => {
+            setSelectedCallForInitiation(call);
+            setActiveItem('INSPECTION_INITIATION');
+          }}
+          onResume={(call, shiftData) => {
+            setSelectedCallForInitiation(call);
+            setIsShiftActive(true);
+            if (shiftData) {
+              setCurrentShift({
+                ...shiftData,
+                user: loggedInUser ? `${loggedInUser.userName}` : 'Railpad-IE'
+              });
+            }
+            const cNo = String(call?.requestId || call?.callNo || call?.call_no || call?.callNumber || '').toUpperCase();
+            const isProcess = cNo.startsWith('RPP') || (call?.callType || call?.typeOfCall || call?.productType || call?.product_type || '').toUpperCase().includes('PROCESS');
+            if (isProcess) {
+              setActiveItem('PROCESS_INSPECTION');
+            } else {
+              setActiveItem('FINAL_INSPECTION');
+            }
+          }}
+          onIssueIc={(call, viewOnly = false) => {
+            setSelectedCallForInitiation(call);
+            setIsViewOnly(viewOnly);
+            setActiveItem('ISSUE_IC');
+          }}
           onModuleSelect={(moduleId, shiftData) => {
             if (moduleId === 'IE') {
               setIsShiftActive(true);
@@ -931,6 +957,11 @@ const App = () => {
               setActiveCard('raw-material');
             } else if (moduleId === 'FINAL_INSPECTION') {
               setActiveItem('FINAL_INSPECTION');
+            } else if (moduleId === 'ATTENDING_CALLS') {
+              if (shiftData?.tab) {
+                localStorage.setItem('railpad_attending_calls_tab', shiftData.tab);
+              }
+              setActiveItem('ATTENDING_CALLS');
             } else {
               setActiveItem(moduleId);
             }

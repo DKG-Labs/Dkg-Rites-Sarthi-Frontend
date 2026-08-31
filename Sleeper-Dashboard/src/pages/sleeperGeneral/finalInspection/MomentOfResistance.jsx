@@ -56,47 +56,74 @@ const MomentOfResistance = () => {
             const testResponse = await apiService.getMRTestTodayRecords(params);
             const testData = testResponse?.responseData || testResponse || [];
 
+            const isSamePlant = (itemPlant, targetPlant) => {
+                if (!targetPlant || !itemPlant) return true;
+                return String(itemPlant).replace(':', '').trim() === String(targetPlant).replace(':', '').trim();
+            };
+
+            const vBatchIdMap = new Map(vData.map(v => [String(v.batchNumber), v.id]));
+
             // Map Verified Batches
             const mappedVerified = vData
-                .filter(item => item.plantId === params.plantId)
-                .map(item => ({
-                id: item.id,
-                batchNo: item.batchNumber,
-                sleeperCategory: item.sleeperCategory,
-                sleeperType: item.mixDesignReference || 'N/A',
-                castingDate: item.castingDate,
-                waterCubeStatus: item.waterCubeTestStatus ? 'Completed' : 'Not Completed',
-                mrSamplesNeeded: 1, 
-                mrTestType: 'Fresh',
-                status: 'Pending Declaration',
-                originalData: item
-            }));
+                .filter(item => isSamePlant(item.plantId, params.plantId))
+                .map(item => {
+                    const samplesToTest = item.mrSamplesRequired || (item.condition2 ? 2 : 1);
+                    return {
+                        id: item.id,
+                        productionDeclarationId: item.id,
+                        batchNo: item.batchNumber,
+                        sleeperCategory: item.sleeperCategory,
+                        sleeperType: item.mixDesignReference || 'N/A',
+                        castingDate: item.castingDate,
+                        waterCubeStatus: item.waterCubeTestStatus ? 'Completed' : 'Not Completed',
+                        mrSamplesNeeded: samplesToTest, 
+                        mrTestType: 'Fresh',
+                        status: 'Pending Declaration',
+                        originalData: item
+                    };
+                });
 
             // Map Declared Records (Pending Results)
             const mappedDeclared = mrData
-                .filter(item => item.plantId === params.plantId)
+                .filter(item => isSamePlant(item.plantId, params.plantId))
                 .filter(item => !item.testResult || item.testResult === 'Pending')
-                .map(item => ({
-                ...item,
-                batchNo: item.batchNumber,
-                sleeperCategory: item.sleeperCategory,
-                sleeperType: item.sleeperType,
-                declaredSamples: [{ bench: item.benchNumber, no: item.sleeperNo }],
-                castingDate: item.createdDate?.split('T')[0], 
-                status: 'Testing Pending',
-                mrTestType: 'Fresh',
-                isTestRecord: false
-            }));
+                .map(item => {
+                    const bList = String(item.benchNumber || '').split(',').map(s => s.trim());
+                    const sList = String(item.sleeperNo || '').split(',').map(s => s.trim());
+                    const samples = (sList.length > 0 && sList[0] !== '') 
+                        ? sList.map((no, idx) => ({
+                            bench: bList[idx] || bList[0] || '',
+                            no: no
+                          }))
+                        : [{ bench: item.benchNumber || '', no: item.sleeperNo || '' }];
+
+                    const pId = item.productionDeclarationId || vBatchIdMap.get(String(item.batchNumber));
+
+                    return {
+                        ...item,
+                        productionDeclarationId: pId,
+                        batchNo: item.batchNumber,
+                        sleeperCategory: item.sleeperCategory,
+                        sleeperType: item.sleeperType,
+                        declaredSamples: samples,
+                        castingDate: item.createdDate?.split('T')[0], 
+                        status: 'Testing Pending',
+                        mrTestType: 'Fresh',
+                        isTestRecord: false
+                    };
+                });
 
             // Map Completed Tests (Historical)
             const mappedHistorical = testData
-                .filter(item => item.plantId === params.plantId)
+                .filter(item => isSamePlant(item.plantId, params.plantId))
                 .map(item => {
                     const declaredMatch = mrData.find(d => String(d.batchNumber) === String(item.batchNumber) || d.id === item.monmentOfResistanceId);
                     const bench = item.benchNumber || declaredMatch?.benchNumber || 'N/A';
                     const sleeper = item.sleeperNo || declaredMatch?.sleeperNo || 'N/A';
+                    const pId = item.productionDeclarationId || vBatchIdMap.get(String(item.batchNumber));
                     return {
                         ...item,
+                        productionDeclarationId: pId,
                         batchNo: item.batchNumber,
                         sleeperCategory: item.sleeperCategory,
                         sleeperType: item.sleeperType,
@@ -110,7 +137,42 @@ const MomentOfResistance = () => {
                     };
                 });
             
-            setBatches(mappedVerified);
+            // Map Retest Batches (Items with Retest status that need re-declaration of 2 samples)
+            const pendingBatchNos = new Set(mrData.filter(d => !d.testResult || d.testResult === 'Pending').map(d => String(d.batchNumber)));
+            const passedBatchNos = new Set(testData.filter(t => String(t.testResult).toLowerCase() === 'pass').map(t => String(t.batchNumber)));
+
+            const retestBatches = [...testData, ...mrData]
+                .filter(item => isSamePlant(item.plantId, params.plantId))
+                .filter(item => String(item.testResult || '').toLowerCase() === 'retest')
+                .filter(item => !pendingBatchNos.has(String(item.batchNumber)) && !passedBatchNos.has(String(item.batchNumber)))
+                .map(item => {
+                    const pId = item.productionDeclarationId || vBatchIdMap.get(String(item.batchNumber));
+                    return {
+                        id: pId || item.monmentOfResistanceId || item.id,
+                        productionDeclarationId: pId,
+                        batchNo: item.batchNumber,
+                        sleeperCategory: item.sleeperCategory || 'Plain',
+                        sleeperType: item.sleeperType || 'N/A',
+                        castingDate: item.castingDate || item.createdDate?.split('T')[0],
+                        waterCubeStatus: 'Completed',
+                        mrSamplesNeeded: 2,
+                        mrTestType: 'Retest',
+                        status: 'Pending Declaration',
+                        originalData: item,
+                        isRetest: true
+                    };
+                });
+
+            // Deduplicate retest batches by batchNo
+            const uniqueRetestMap = new Map();
+            retestBatches.forEach(b => {
+                if (!uniqueRetestMap.has(b.batchNo)) {
+                    uniqueRetestMap.set(b.batchNo, b);
+                }
+            });
+            const uniqueRetestBatches = Array.from(uniqueRetestMap.values());
+
+            setBatches([...uniqueRetestBatches, ...mappedVerified]);
             setDeclaredRecords(mappedDeclared);
             setHistoricalTests(mappedHistorical);
         } catch (error) {
@@ -141,8 +203,8 @@ const MomentOfResistance = () => {
                 const payload = {
                     batchNumber: String(batch.batchNumber || batch.batchNo),
                     sleeperType: batch.sleeperType,
-                    benchNumber: String(samples[0].bench),
-                    sleeperNo: samples[0].no,
+                    benchNumber: Array.from(new Set(samples.map(s => s.bench).filter(Boolean))).join(', '),
+                    sleeperNo: samples.map(s => s.no).filter(Boolean).join(', '),
                     testResult: batch.testResult || 'Pending',
                     remarks: batch.remarks || 'Declaration Updated',
                     vendorCode: params.vendorCode,
@@ -154,25 +216,25 @@ const MomentOfResistance = () => {
                 await apiService.updateMRRecord(batch.id, payload);
                 toast.success("Declaration updated successfully!");
             } else {
-                // CREATE for each sample
-                const promises = samples.map(s => {
-                    const payload = {
-                        batchNumber: String(batch.batchNo),
-                        sleeperType: batch.sleeperType,
-                        benchNumber: String(s.bench),
-                        sleeperNo: s.no,
-                        testResult: 'Pending',
-                        remarks: 'Declared for MR Testing',
-                        vendorCode: params.vendorCode,
-                        plantId: params.plantId,
-                        shift: params.shift,
-                        createdBy: currentUserId,
-                        updatedBy: currentUserId
-                    };
-                    return apiService.createMRRecord(payload);
-                });
+                // CREATE ONE entry with combined samples
+                const benchNos = Array.from(new Set(samples.map(s => s.bench).filter(Boolean))).join(', ');
+                const sleeperNos = samples.map(s => s.no).filter(Boolean).join(', ');
+                const payload = {
+                    batchNumber: String(batch.batchNo),
+                    sleeperType: batch.sleeperType,
+                    benchNumber: benchNos,
+                    sleeperNo: sleeperNos,
+                    testResult: 'Pending',
+                    mrTestType: batch.mrTestType || 'Fresh',
+                    remarks: `Declared for MR ${batch.mrTestType || 'Fresh'} Testing (${samples.length} Sleeper${samples.length > 1 ? 's' : ''})`,
+                    vendorCode: params.vendorCode,
+                    plantId: params.plantId,
+                    shift: params.shift,
+                    createdBy: currentUserId,
+                    updatedBy: currentUserId
+                };
 
-                await Promise.all(promises);
+                await apiService.createMRRecord(payload);
                 toast.success("Samples declared successfully!");
             }
             
@@ -355,7 +417,15 @@ const MomentOfResistance = () => {
     const columnsHistorical = [
         { key: 'batchNo', label: 'Batch Number' },
         { key: 'sleeperType', label: 'Sleeper Type' },
-        { key: 'benchNumber', label: 'Bench Number' },
+        {
+            key: 'benchNumber',
+            label: 'Bench Number',
+            render: (val) => {
+                if (!val) return 'N/A';
+                const parts = String(val).split(',').map(s => s.trim()).filter(Boolean);
+                return Array.from(new Set(parts)).join(', ') || 'N/A';
+            }
+        },
         { key: 'sleeperNo', label: 'Sleeper No.' },
         { key: 'castingDate', label: 'Date of Casting' },
         { key: 'dateOfTesting', label: 'Date of Testing' },
@@ -545,47 +615,75 @@ const DeclareSampleModal = ({ batch, onClose, onSave, isEdit }) => {
 
     useEffect(() => {
         const fetchSleepers = async () => {
-            if (!batch?.id) return;
+            const batchNo = batch?.batchNo || batch?.batchNumber;
+            if (!batchNo) return;
             setIsLoadingSleepers(true);
             try {
-                // Use the provided API to fetch declaration details
-                // Corrected API function name
-                const response = await apiService.getProductionDeclarationRecordById(batch.id);
-                const data = response?.responseData || response;
-                
                 const list = [];
-                // Case 1: Stress Bench (Chambers/BenchGroups)
-                if (data?.chambers) {
-                    data.chambers.forEach(chamber => {
-                        chamber.benchGroups?.forEach(group => {
-                            const sList = group.sleeperList || group.sleepers || [];
-                            sList.forEach(item => {
-                                const s = typeof item === 'string' ? item : (item.sleeperNo || item.id);
-                                if (!s) return;
-                                list.push({
-                                    bench: String(group.benchNo || ''),
-                                    no: String(s),
-                                    label: String(s)
-                                });
-                            });
-                        });
-                    });
-                }
-                // Case 2: Long Line (Gangs)
-                if (data?.gangs) {
-                    data.gangs.forEach(gang => {
-                        const sList = gang.sleeperList || gang.sleepers || [];
-                        sList.forEach(item => {
+
+                // Method 1: Fetch sleepers directly by batch number
+                try {
+                    const sleepersRes = await apiService.getAllProductionSleepers(batchNo);
+                    const sleepersList = sleepersRes?.responseData || sleepersRes || [];
+                    if (Array.isArray(sleepersList) && sleepersList.length > 0) {
+                        sleepersList.forEach(item => {
                             const s = typeof item === 'string' ? item : (item.sleeperNo || item.id);
                             if (!s) return;
+                            const match = String(s).match(/^(\d+)/);
+                            const benchNo = match ? match[1] : '1';
                             list.push({
-                                bench: String(gang.gangNo || ''),
+                                bench: benchNo,
                                 no: String(s),
                                 label: String(s)
                             });
                         });
-                    });
+                    }
+                } catch (e) {
+                    console.warn("getAllProductionSleepers failed, falling back to ID fetch:", e);
                 }
+
+                // Method 2: Fallback to declaration record by ID if list is empty
+                if (list.length === 0) {
+                    const declId = batch?.productionDeclarationId || batch?.declarationId || batch?.id;
+                    if (declId) {
+                        const response = await apiService.getProductionDeclarationRecordById(declId);
+                        const data = response?.responseData || response;
+                        
+                        // Case 1: Stress Bench (Chambers/BenchGroups)
+                        if (data?.chambers) {
+                            data.chambers.forEach(chamber => {
+                                chamber.benchGroups?.forEach(group => {
+                                    const sList = group.sleeperList || group.sleepers || [];
+                                    sList.forEach(item => {
+                                        const s = typeof item === 'string' ? item : (item.sleeperNo || item.id);
+                                        if (!s) return;
+                                        list.push({
+                                            bench: String(group.benchNo || ''),
+                                            no: String(s),
+                                            label: String(s)
+                                        });
+                                    });
+                                });
+                            });
+                        }
+                        // Case 2: Long Line (Gangs)
+                        if (data?.gangs) {
+                            data.gangs.forEach(gang => {
+                                const sList = gang.sleeperList || gang.sleepers || [];
+                                sList.forEach(item => {
+                                    const s = typeof item === 'string' ? item : (item.sleeperNo || item.id);
+                                    if (!s) return;
+                                    list.push({
+                                        bench: String(gang.gangNo || ''),
+                                        no: String(s),
+                                        label: String(s)
+                                    });
+                                });
+                            });
+                        }
+                    }
+                }
+
                 setAvailableSleepers(list);
             } catch (error) {
                 console.error("Error fetching sleepers for declaration:", error);
@@ -833,7 +931,7 @@ const TestDetailsModal = ({ batch, onClose, onSave }) => {
                     {manualResults.map((res, idx) => (
                         <div key={idx} style={{ marginBottom: '24px', padding: '20px', background: '#fff', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
                             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '16px' }}>
-                                <h4 style={{ margin: 0, color: '#42818c' }}>Test for Sleeper: {res.bench}{res.no}</h4>
+                                <h4 style={{ margin: 0, color: '#42818c' }}>Test for Sleeper #{idx + 1}: {res.bench ? `Bench ${res.bench} - ` : ''}Sleeper {res.no}</h4>
                                 <button className="btn-verify" style={{ fontSize: '11px' }} onClick={() => handleWitness(idx)}>Witness through SCADA</button>
                             </div>
 

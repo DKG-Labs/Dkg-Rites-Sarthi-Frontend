@@ -342,7 +342,7 @@ const MainLayout = ({ children, activeItem, onItemClick, onLogout, user, isShift
                 </div>
             </header>
 
-            <div style={{ display: 'flex', flex: 1, width: '100%', paddingTop: '70px', boxSizing: 'border-box' }}>
+            <div style={{ display: 'flex', flex: 1, width: '100%', paddingTop: '60px', boxSizing: 'border-box' }}>
                 <Sidebar
                     activeItem={activeItem}
                     isShiftActive={isShiftActive}
@@ -358,7 +358,7 @@ const MainLayout = ({ children, activeItem, onItemClick, onLogout, user, isShift
                     onClose={() => setIsMobileMenuOpen(false)}
                 />
 
-                <main className="main-content" style={{ flex: 1, padding: '24px', overflowY: 'auto', boxSizing: 'border-box', background: '#ffffff' }}>
+                <main className="main-content" style={{ flex: 1, padding: '16px 20px', overflowY: 'auto', boxSizing: 'border-box', background: '#ffffff' }}>
                     {children}
                 </main>
             </div>

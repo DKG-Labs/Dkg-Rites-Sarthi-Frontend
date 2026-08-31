@@ -1,0 +1,130 @@
+/* AnnexureLoader.css - Premium Enterprise Loading Experience */
+
+.annexure-loader-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: rgba(255, 255, 255, 0.75);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 99999;
+  animation: fadeInLoader 0.25s ease-out forwards;
+}
+
+.annexure-loader-overlay.loader-contained {
+  position: absolute !important;
+  top: 0 !important;
+  left: 0 !important;
+  width: 100% !important;
+  height: 100% !important;
+  min-height: 320px !important;
+  background: rgba(255, 255, 255, 0.85) !important;
+  backdrop-filter: blur(3px) !important;
+  -webkit-backdrop-filter: blur(3px) !important;
+  border-radius: 14px !important;
+  z-index: 50 !important;
+}
+
+.annexure-loader-card {
+  background: #ffffff;
+  padding: 36px 44px;
+  border-radius: 18px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 18px;
+  box-shadow: 0 15px 35px -5px rgba(15, 23, 42, 0.12), 0 0 0 1px rgba(226, 232, 240, 0.9);
+  border: 1px solid #e2e8f0;
+  max-width: 360px;
+  width: 85%;
+  text-align: center;
+  animation: slideUpLoader 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.loader-logo-container {
+  position: relative;
+  width: 76px;
+  height: 76px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 2px;
+}
+
+.loader-rites-logo {
+  width: 52px;
+  height: auto;
+  z-index: 2;
+  animation: logoPulse 2s ease-in-out infinite;
+}
+
+.loader-spinner-ring {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  border: 3.5px solid #f1f5f9;
+  border-top: 3.5px solid #2563eb;
+  border-right: 3.5px solid #10b981;
+  animation: spinRing 1s cubic-bezier(0.5, 0, 0.5, 1) infinite;
+  box-sizing: border-box;
+}
+
+.loader-text-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.loader-main-text {
+  font-size: 16px;
+  font-weight: 700;
+  color: #0f172a;
+  letter-spacing: -0.02em;
+  margin: 0;
+}
+
+.loader-sub-text {
+  font-size: 12.5px;
+  font-weight: 500;
+  color: #64748b;
+  margin: 0;
+  background: linear-gradient(90deg, #64748b 0%, #0f172a 50%, #64748b 100%);
+  background-size: 200% auto;
+  color: transparent;
+  -webkit-background-clip: text;
+  background-clip: text;
+  animation: textShimmer 2s linear infinite;
+}
+
+/* Animations */
+@keyframes fadeInLoader {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes slideUpLoader {
+  from { opacity: 0; transform: translateY(16px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes spinRing {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+@keyframes logoPulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.08); }
+}
+
+@keyframes textShimmer {
+  to { background-position: 200% center; }
+}

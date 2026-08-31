@@ -10,6 +10,7 @@ import './ProcessInspection.css'; // Let's make sure it's pretty and responsive
 const NCRGRSP_SET_SIZES = {
   '4865': 216,  // RT-4865 (6mm Thick Pocket Type 1 in 8.5 Turnout)
   '6154': 345,  // RT-6154 (1 in 12 TWB Switch for 60 Kg)
+  '6155': 120,  // RT-6155 (1 in 12 60kg TWS drg. No. T-6155)
   '4734': 67,   // RT-4734 (1 in 12 CMS x-ing B.G. for 52 Kg)
   '4733': 345,  // RT-4733 (1 in 12 O.R. T/out for 52 Kg)
   '4867': 216,  // RT-4867 (1 in 8.5 T/out for 52 Kg)

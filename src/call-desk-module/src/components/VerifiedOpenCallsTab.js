@@ -290,19 +290,125 @@ const VerifiedOpenCallsTab = ({ callType, calls = [], kpis = {}, onViewHistory }
 
     // Status filter
     if (filters.statuses.length > 0) {
-      result = result.filter(call => filters.statuses.includes(call.status));
+      result = result.filter(call => {
+        const selected = filters.statuses;
+        const callStatus = (call.status || '').toLowerCase();
+        const originalStatus = (call.originalStatus || '').toLowerCase();
+        const detailed = getDetailedStatus(call.originalStatus || call.status);
+        const detailedText = (detailed.combinedText || '').toLowerCase();
+        const mainStatus = (detailed.mainStatus || '').toLowerCase();
+
+        return selected.some(sel => {
+          const s = (sel || '').toLowerCase();
+          if (!s) return true;
+          if (s === 'verified_registered') {
+            return callStatus === 'verified_registered' ||
+                   originalStatus.includes('verif') ||
+                   originalStatus.includes('register') ||
+                   detailedText.includes('registered') ||
+                   detailedText.includes('verified');
+          }
+          if (s === 'assigned_to_ie') {
+            return callStatus === 'assigned_to_ie' ||
+                   originalStatus.includes('assign') ||
+                   detailedText.includes('assigned');
+          }
+          if (s === 'scheduled') {
+            return callStatus === 'scheduled' ||
+                   originalStatus.includes('schedule') ||
+                   detailedText.includes('scheduled');
+          }
+          if (s === 'under_inspection') {
+            return callStatus === 'under_inspection' ||
+                   originalStatus.includes('inspect') ||
+                   originalStatus.includes('initiate') ||
+                   originalStatus.includes('shift') ||
+                   originalStatus.includes('po_details') ||
+                   detailedText.includes('under inspection') ||
+                   mainStatus.includes('under inspection');
+          }
+          if (s === 'inspection_paused') {
+            return callStatus === 'inspection_paused' ||
+                   originalStatus.includes('paus') ||
+                   detailedText.includes('paused');
+          }
+          if (s === 'under_lab_testing') {
+            return callStatus === 'under_lab_testing' ||
+                   originalStatus.includes('lab') ||
+                   detailedText.includes('lab');
+          }
+          if (s === 'withheld') {
+            return callStatus === 'withheld' ||
+                   originalStatus.includes('withheld') ||
+                   detailedText.includes('withheld');
+          }
+          if (s === 'ic_pending') {
+            return callStatus === 'ic_pending' ||
+                   originalStatus.includes('ic') ||
+                   originalStatus.includes('confirm') ||
+                   detailedText.includes('ic');
+          }
+          if (s === 'billing_pending') {
+            return callStatus === 'billing_pending' ||
+                   originalStatus.includes('bill') ||
+                   detailedText.includes('bill');
+          }
+          if (s === 'payment_pending') {
+            return callStatus === 'payment_pending' ||
+                   originalStatus.includes('payment') ||
+                   originalStatus.includes('blocked') ||
+                   detailedText.includes('payment');
+          }
+          return callStatus === s || originalStatus === s || detailedText.includes(s);
+        });
+      });
     }
 
-    // Search term filter
-    if (searchTerm) {
-      const term = searchTerm.toLowerCase();
-      result = result.filter(call =>
-        call.callNumber?.toLowerCase().includes(term) ||
-        call.vendor?.name?.toLowerCase().includes(term) ||
-        call.poNumber?.toLowerCase().includes(term) ||
-        call.placeOfInspection?.toLowerCase().includes(term) ||
-        call.assignedIE?.toLowerCase().includes(term)
-      );
+    // Search term filter - comprehensive search across all scenarios and fields
+    if (searchTerm && searchTerm.trim()) {
+      const term = searchTerm.trim().toLowerCase();
+      result = result.filter(call => {
+        const detailed = getDetailedStatus(call.originalStatus || call.status);
+        const detailedText = (detailed.combinedText || '').toLowerCase();
+        
+        return (
+          // Call number & Request ID
+          (call.callNumber && call.callNumber.toLowerCase().includes(term)) ||
+          (call.id && String(call.id).toLowerCase().includes(term)) ||
+          // Vendor Name & Code
+          (call.vendor?.name && call.vendor.name.toLowerCase().includes(term)) ||
+          (call.vendorCode && call.vendorCode.toLowerCase().includes(term)) ||
+          // PO Number, Raw PO, Railway PO Sr, Item Serial, Railway Short Name, IBS Case No
+          (call.poNumber && call.poNumber.toLowerCase().includes(term)) ||
+          (call.rawPoNo && call.rawPoNo.toLowerCase().includes(term)) ||
+          (call.rlyPoSr && call.rlyPoSr.toLowerCase().includes(term)) ||
+          (call.poSerialNo && call.poSerialNo.toLowerCase().includes(term)) ||
+          (call.rlyShortName && call.rlyShortName.toLowerCase().includes(term)) ||
+          (call.ibsCaseNo && call.ibsCaseNo.toLowerCase().includes(term)) ||
+          // Product & Stage
+          (call.product && call.product.toLowerCase().includes(term)) ||
+          (call.productStage && call.productStage.toLowerCase().includes(term)) ||
+          (call.stage && call.stage.toLowerCase().includes(term)) ||
+          // Place of Inspection / Plant ID / POI Code
+          (call.placeOfInspection && call.placeOfInspection.toLowerCase().includes(term)) ||
+          (call.poiCode && call.poiCode.toLowerCase().includes(term)) ||
+          (call.plantId && call.plantId.toLowerCase().includes(term)) ||
+          // Assigned IE & Employee code
+          (call.assignedIE && call.assignedIE.toLowerCase().includes(term)) ||
+          (call.assignedToUserEmployeeCode && call.assignedToUserEmployeeCode.toLowerCase().includes(term)) ||
+          (call.assignedToUserName && call.assignedToUserName.toLowerCase().includes(term)) ||
+          // Status fields & formatted status badge text
+          (call.status && call.status.toLowerCase().includes(term)) ||
+          (call.originalStatus && call.originalStatus.toLowerCase().includes(term)) ||
+          detailedText.includes(term) ||
+          // Dates
+          (call.submissionDateTime && String(call.submissionDateTime).toLowerCase().includes(term)) ||
+          (call.desiredInspectionDate && String(call.desiredInspectionDate).toLowerCase().includes(term)) ||
+          (call.dpDate && call.dpDate.toLowerCase().includes(term)) ||
+          (call.extDpDate && call.extDpDate.toLowerCase().includes(term)) ||
+          (call.dpDates && call.dpDates.toLowerCase().includes(term))
+        );
+      });
     }
 
     return result;
@@ -335,30 +441,6 @@ const VerifiedOpenCallsTab = ({ callType, calls = [], kpis = {}, onViewHistory }
     });
   };
 
-  // Status mapping for KPI tiles to facilitate filtering (commented out to avoid unused-vars warning)
-  /*
-  const statusKeyMap = {
-    'Verified & Registered': 'verified_registered',
-    'IE Assignment Pending': 'ie_assignment_pending',
-    'Assigned to IE': 'assigned_to_ie',
-    'Scheduled': 'scheduled',
-    'Under Inspection': 'under_inspection',
-    'Under Lab Testing': 'under_lab_testing',
-    'IC Pending': 'ic_pending',
-    'Billing Pending': 'billing_pending',
-    'Payment Pending': 'payment_pending'
-  };
-  */
-
-  /*
-  const handleKpiClick = (label) => {
-    const statusKey = statusKeyMap[label];
-    if (statusKey) {
-      handleMultiSelectToggle('statuses', statusKey);
-    }
-  };
-  */
-
   // Prepare data for CallsFilterSection - map Call Desk data structure to expected format
   const callsForFilter = useMemo(() => calls.map(call => ({
     product_type: call.product,
@@ -368,7 +450,7 @@ const VerifiedOpenCallsTab = ({ callType, calls = [], kpis = {}, onViewHistory }
     requested_date: call.submissionDateTime,
     stage: call.stage,
     status: call.status,
-    status_label: CALL_STATUS_CONFIG[call.status]?.label || call.status
+    status_label: CALL_STATUS_CONFIG[call.status]?.label || getDetailedStatus(call.originalStatus || call.status).combinedText || call.status
   })), [calls]);
 
   // Map filtered calls for CallsFilterSection
@@ -380,7 +462,7 @@ const VerifiedOpenCallsTab = ({ callType, calls = [], kpis = {}, onViewHistory }
     requested_date: call.submissionDateTime,
     stage: call.stage,
     status: call.status,
-    status_label: CALL_STATUS_CONFIG[call.status]?.label || call.status
+    status_label: CALL_STATUS_CONFIG[call.status]?.label || getDetailedStatus(call.originalStatus || call.status).combinedText || call.status
   })), [filteredCalls]);
 
   return (
@@ -412,7 +494,7 @@ const VerifiedOpenCallsTab = ({ callType, calls = [], kpis = {}, onViewHistory }
             }}>🔍</span>
             <input
               type="text"
-              placeholder="Search calls..."
+              placeholder="Search by call no, PO, vendor, status, date..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               style={{
@@ -445,7 +527,7 @@ const VerifiedOpenCallsTab = ({ callType, calls = [], kpis = {}, onViewHistory }
               fontSize: '14px',
               outline: 'none',
               backgroundColor: 'white',
-              minWidth: '180px',
+              minWidth: '200px',
               minHeight: '38px',
               cursor: 'pointer',
               transition: 'all 0.2s'
@@ -453,14 +535,31 @@ const VerifiedOpenCallsTab = ({ callType, calls = [], kpis = {}, onViewHistory }
             onFocus={(e) => e.target.style.borderColor = '#16a34a'}
             onBlur={(e) => e.target.style.borderColor = '#cbd5e1'}
           >
-            <option value="">All Statuses</option>
-            <option value="verified_registered">Verified & Registered</option>
-            <option value="assigned_to_ie">IE Assigned</option>
-            <option value="scheduled">Scheduled</option>
-            <option value="under_inspection">Under Inspection</option>
-            <option value="under_lab_testing">Under Lab Testing</option>
-            <option value="billing_pending">Billing Pending</option>
-            <option value="payment_pending">Payment Pending</option>
+            {callType === 'ERC' ? (
+              <>
+                <option value="">All Statuses</option>
+                <option value="verified_registered">Verified & Registered</option>
+                <option value="assigned_to_ie">IE Assigned</option>
+                <option value="scheduled">Scheduled</option>
+                <option value="under_inspection">Under Inspection</option>
+                <option value="under_lab_testing">Under Lab Testing</option>
+                <option value="billing_pending">Billing Pending</option>
+                <option value="payment_pending">Payment Pending</option>
+              </>
+            ) : (
+              <>
+                <option value="">All Statuses</option>
+                <option value="verified_registered">Verified & Registered</option>
+                <option value="scheduled">Scheduled</option>
+                <option value="under_inspection">Under Inspection</option>
+                <option value="inspection_paused">Inspection Paused</option>
+                <option value="under_lab_testing">Under Lab Testing</option>
+                <option value="withheld">Withheld</option>
+                <option value="ic_pending">IC Pending</option>
+                <option value="billing_pending">Billing Pending</option>
+                <option value="payment_pending">Payment Pending</option>
+              </>
+            )}
           </select>
         </div>
       </div>

@@ -88,6 +88,18 @@ export const CALL_STATUS_CONFIG = {
     bgColor: 'rgba(249, 115, 22, 0.15)',
     borderColor: 'rgba(249, 115, 22, 0.25)'
   },
+  inspection_paused: {
+    label: 'Inspection Paused',
+    color: '#f59e0b',
+    bgColor: 'rgba(245, 158, 11, 0.15)',
+    borderColor: 'rgba(245, 158, 11, 0.25)'
+  },
+  withheld: {
+    label: 'Withheld',
+    color: '#dc2626',
+    bgColor: 'rgba(220, 38, 38, 0.15)',
+    borderColor: 'rgba(220, 38, 38, 0.25)'
+  },
   [CALL_STATUS.UNDER_LAB_TESTING]: {
     label: 'Under Lab Testing',
     color: '#a855f7',

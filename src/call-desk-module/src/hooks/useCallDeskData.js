@@ -8,6 +8,25 @@ import { API_BASE_URL } from '../../../services/apiConfig';
 
 const BASE_URL = API_BASE_URL;
 
+const normalizeRio = (rioStr) => {
+  if (!rioStr) return '';
+  const r = String(rioStr).trim().toUpperCase();
+  if (r === 'ER' || r === 'ERIO' || r.includes('EAST') || r.includes('KOLKATA')) return 'ER';
+  if (r === 'WR' || r === 'WRIO' || r.includes('WEST') || r.includes('MUMBAI')) return 'WR';
+  if (r === 'NR' || r === 'NRIO' || r.includes('NORTH') || r.includes('DELHI')) return 'NR';
+  if (r === 'SR' || r === 'SRIO' || r.includes('SOUTH') || r.includes('CHENNAI')) return 'SR';
+  if (r === 'CR' || r === 'CRIO' || r.includes('CENT') || r.includes('BHILAI')) return 'CR';
+  return r.replace('RIO', '').replace('REGION', '').trim();
+};
+
+const isRioMatching = (userRio, itemRio) => {
+  if (!userRio) return true; // Super admin
+  if (!itemRio) return false;
+  const u = normalizeRio(userRio);
+  const i = normalizeRio(itemRio);
+  return u === i;
+};
+
 const parsePoInfo = (item) => {
   let rlyShortName = item.rlyShortName && item.rlyShortName !== '-' ? item.rlyShortName : '-';
   let actualPoNo = item.poNo && item.poNo !== '-' ? item.poNo : '-';
@@ -145,18 +164,8 @@ export const useCallDeskData = (activeTab = 'pending', callType = 'ERC') => {
 
     const allCalls = response.data.responseData || [];
 
-    // Filter by RIO - match logged-in user's RIO with call's RIO
-    const filteredCalls = allCalls.filter(item => {
-      // For Railpad, if RIO is not yet set, show it to everyone in the role
-      if (callType === 'RAILPAD' && (!item.rio || item.rio === null || item.rio === '')) {
-        return true;
-      }
-      
-      if (!item.rio || item.rio === null || item.rio === '') return false;
-      const itemRio = String(item.rio).trim();
-      const userRio = String(user?.rio || '').trim();
-      return itemRio === userRio;
-    });
+    // Filter strictly by logged-in user's RIO
+    const filteredCalls = allCalls.filter(item => isRioMatching(user?.rio, item.rio));
 
     return filteredCalls.map(item => {
       // Map backend status to internal CALL_STATUS
@@ -258,25 +267,17 @@ export const useCallDeskData = (activeTab = 'pending', callType = 'ERC') => {
     
     // Filter out completed, withdrawn, withheld, and cancelled calls
     const openCalls = data.filter(item => {
-      const status = item.status ? item.status.toString().toUpperCase() : '';
-      const isStatusValid = !(status.includes('COMPLETE') || 
-               status.includes('CONFIRM') || 
-               status.includes('IC') ||
-               status.includes('WITHDRAW') || 
-               status.includes('WITHHELD') || 
-               status.includes('CANCEL'));
-               
-      if (!isStatusValid) return false;
+      const status = [item.status, item.action, item.jobStatus].filter(Boolean).join(' ').toUpperCase();
+      const isDisposed = status.includes('DSC_SIGN_IC') || 
+                         status.includes('INSPECTION_COMPLETE_CONFIRM') ||
+                         status.includes('WITHDRAW') || 
+                         status.includes('WITHHELD') || 
+                         status.includes('CANCEL');
+                
+      if (isDisposed) return false;
 
-      // Filter by RIO - match logged-in user's RIO with call's RIO
-      if (callType === 'RAILPAD' && (!item.rio || item.rio === null || item.rio === '')) {
-        return true;
-      }
-      
-      if (!item.rio || item.rio === null || item.rio === '') return false;
-      const itemRio = String(item.rio).trim();
-      const userRio = String(user?.rio || '').trim();
-      return itemRio === userRio;
+      // Filter strictly by logged-in user's RIO
+      return isRioMatching(user?.rio, item.rio);
     });
     
     return openCalls.map(item => {
@@ -288,12 +289,12 @@ export const useCallDeskData = (activeTab = 'pending', callType = 'ERC') => {
         item.jobStatus || ''
       ].join(' ').toUpperCase();
 
-      if (backendStatus.includes('VERIFIED') || backendStatus.includes('REGISTERED') || backendStatus.includes('COMPLETED')) {
-        internalStatus = 'verified_registered';
-      } else if (backendStatus.includes('SCHEDULE')) {
+      if (backendStatus.includes('SCHEDULE')) {
         internalStatus = 'scheduled';
       } else if (backendStatus.includes('INITIATE') || backendStatus.includes('PROGRESS')) {
         internalStatus = 'under_inspection';
+      } else if (backendStatus.includes('VERIFIED') || backendStatus.includes('REGISTERED')) {
+        internalStatus = 'verified_registered';
       } else if (backendStatus.includes('COMPLETE') || backendStatus.includes('CONFIRM')) {
         internalStatus = 'ic_pending';
       } else if (backendStatus.includes('LAB')) {
@@ -362,7 +363,9 @@ export const useCallDeskData = (activeTab = 'pending', callType = 'ERC') => {
 
     const data = response.data.responseData || [];
     
-    return data.map(item => {
+    const filteredData = data.filter(item => isRioMatching(user?.rio, item.rio));
+
+    return filteredData.map(item => {
       let internalStatus = item.status;
       const backendStatus = item.status ? item.status.toString().toUpperCase() : '';
 

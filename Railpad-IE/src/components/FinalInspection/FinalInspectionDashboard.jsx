@@ -5374,7 +5374,7 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
           const elongVal = parseFloat(v.elongation);
           const twistVal = parseFloat(v.twists);
           if (isNaN(denierVal) || isNaN(epiVal) || isNaN(thickVal) || isNaN(loadVal) || isNaN(elongVal) || isNaN(twistVal)) return { filled: false, out: false };
-          const out = denierVal < 3200 || epiVal < 22 || epiVal > 24 || thickVal < 0.75 || loadVal < 16 || elongVal > 20 || twistVal < 305 || twistVal > 335;
+          const out = denierVal < 3200 || epiVal < 22 || epiVal > 26 || thickVal < 0.75 || loadVal < 16 || elongVal > 20 || twistVal < 305 || twistVal > 335;
           return { filled: true, out };
         };
 
@@ -7853,7 +7853,7 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
                           <tr>
                             <th style={{ padding: '8px', border: '1px solid #e2e8f0', fontSize: '10px', color: '#64748b' }}>Sample</th>
                             <th style={{ padding: '8px', border: '1px solid #e2e8f0', fontSize: '10px', color: '#64748b' }}>Denier (gm/9000m) (3200 min)</th>
-                            <th style={{ padding: '8px', border: '1px solid #e2e8f0', fontSize: '10px', color: '#64748b' }}>No. of ends/inch (22-24)</th>
+                            <th style={{ padding: '8px', border: '1px solid #e2e8f0', fontSize: '10px', color: '#64748b' }}>No. of ends/inch (22-26)</th>
                             <th style={{ padding: '8px', border: '1px solid #e2e8f0', fontSize: '10px', color: '#64748b' }}>Thickness (mm) (0.75 min)</th>
                             <th style={{ padding: '8px', border: '1px solid #e2e8f0', fontSize: '10px', color: '#64748b' }}>Load at Break (kg) (16 min)</th>
                             <th style={{ padding: '8px', border: '1px solid #e2e8f0', fontSize: '10px', color: '#64748b' }}>Elongation at Break (%) (20 max)</th>
@@ -9025,7 +9025,7 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
                                   <tr>
                                     <th style={{ padding: '8px', border: '1px solid #e2e8f0', fontSize: '10px', color: '#64748b' }}>Sample</th>
                                     <th style={{ padding: '8px', border: '1px solid #e2e8f0', fontSize: '10px', color: '#64748b' }}>Denier (gm/9000m) (3200 min)</th>
-                                    <th style={{ padding: '8px', border: '1px solid #e2e8f0', fontSize: '10px', color: '#64748b' }}>No. of ends/inch (22-24)</th>
+                                    <th style={{ padding: '8px', border: '1px solid #e2e8f0', fontSize: '10px', color: '#64748b' }}>No. of ends/inch (22-26)</th>
                                     <th style={{ padding: '8px', border: '1px solid #e2e8f0', fontSize: '10px', color: '#64748b' }}>Thickness (mm) (0.75 min)</th>
                                     <th style={{ padding: '8px', border: '1px solid #e2e8f0', fontSize: '10px', color: '#64748b' }}>Load at Break (kg) (16 min)</th>
                                     <th style={{ padding: '8px', border: '1px solid #e2e8f0', fontSize: '10px', color: '#64748b' }}>Elongation at Break (%) (20 max)</th>

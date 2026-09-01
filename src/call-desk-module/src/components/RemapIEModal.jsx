@@ -270,7 +270,7 @@ const RemapIEModal = ({ callNo, stage, onClose, onSuccess }) => {
 
   const handleSubmit = async () => {
     if (!selectedNewEmpCode) { setError('Please select a new employee to reassign.'); return; }
-    if (selectedNewEmpCode === details.currentMappedEmployeeCode) { setError('Selected employee is already mapped.'); return; }
+    if (selectedNewEmpCode === details.currentMappedEmployeeCode) { setError('Selected employee is already assigned to this call.'); return; }
     try {
       setSubmitting(true); setError('');
       const data = await submitRemapIe({

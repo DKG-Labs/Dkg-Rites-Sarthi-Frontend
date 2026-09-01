@@ -43,20 +43,44 @@ const PendingCallDetailsModal = ({
       const token = localStorage.getItem('authToken');
       let enrichedCall = { ...call, callNumber };
 
+      const headers = {
+        'Content-Type': 'application/json',
+        ...(token && { 'Authorization': `Bearer ${token}` })
+      };
+
+      // 1. Fetch full inspection call details (contains lots, batches, and ieAssignedName)
       try {
-        const res = await fetch(`${baseUrl}/call-letter/details?requestId=${encodeURIComponent(callNumber)}`, {
-          headers: {
-            'Content-Type': 'application/json',
-            ...(token && { 'Authorization': `Bearer ${token}` })
+        const callDetailsUrl = call.id
+          ? `${baseUrl}/rail-inspection-call/${call.id}`
+          : `${baseUrl}/rail-inspection-call/callNo/${encodeURIComponent(callNumber)}`;
+        const callRes = await fetch(callDetailsUrl, { headers });
+        if (callRes.ok) {
+          const callJson = await callRes.json();
+          const callData = callJson.responseData || callJson.data || callJson;
+          if (callData && typeof callData === 'object') {
+            enrichedCall = { ...enrichedCall, ...callData };
           }
-        });
-        if (res.ok) {
-          const json = await res.json();
-          const details = json.responseData || json.data || json;
-          enrichedCall = { ...enrichedCall, ...details };
+        }
+      } catch (err) {
+        console.warn('Could not fetch full call entity:', err);
+      }
+
+      // 2. Fetch PO and commercial summary details
+      try {
+        const summaryRes = await fetch(`${baseUrl}/rail-inspection-call/summary/${encodeURIComponent(callNumber)}`, { headers });
+        if (summaryRes.ok) {
+          const summaryJson = await summaryRes.json();
+          const summaryData = summaryJson.responseData || summaryJson.data || summaryJson;
+          if (summaryData && typeof summaryData === 'object') {
+            Object.entries(summaryData).forEach(([k, v]) => {
+              if (v !== null && v !== undefined && v !== '') {
+                enrichedCall[k] = v;
+              }
+            });
+          }
         }
       } catch (fetchErr) {
-        console.warn('Could not fetch online details, generating from call cache:', fetchErr);
+        console.warn('Could not fetch online summary details:', fetchErr);
       }
 
       generateRailpadCallLetterPDF(enrichedCall);

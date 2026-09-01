@@ -103,6 +103,7 @@ export const generateRailpadCallLetterPDF = (call, shouldDownload = true) => {
     // PO details
     const poNo = merged.poNo || merged.rlyPoSr || merged.poNumber || merged.rlyPoNo || merged.po_no || '';
     const poDate = merged.poDate || '';
+    const caseNo = merged.caseNo || merged.case_no || '';
     const purchaser = merged.purchaserDetail || merged.purchaser || merged.purchasingAuthority || '';
 
     // Item details
@@ -202,6 +203,7 @@ export const generateRailpadCallLetterPDF = (call, shouldDownload = true) => {
 
     const placeOfInspectionDisplay = merged.placeOfInspection || merged.plantId || vendorAddress || '-';
     const offeredInstallmentNoDisplay = merged.offeredInstallmentNo || merged.offeredInstallmentNumber || merged.offeredInstNo || '1';
+    const remarks = merged.remarks || merged.remark || '-';
 
     // Format Batches / Stores Details to be Offered
     let batchesDisplay = '-';
@@ -222,7 +224,7 @@ export const generateRailpadCallLetterPDF = (call, shouldDownload = true) => {
     } else if (merged.drawingRequirementSummary && Array.isArray(merged.drawingRequirementSummary) && merged.drawingRequirementSummary.length > 0) {
         batchesDisplay = merged.drawingRequirementSummary.map(d => `Drawing ${d.drawingNo}: Offered ${d.offeredQty} Nos.`).join('\n');
     } else if (merged.heatDetails && Array.isArray(merged.heatDetails) && merged.heatDetails.length > 0) {
-        batchesDisplay = merged.heatDetails.map(h => `${h.heatNo || 'Batch'}: ${val(h.tcNo)}, Qty: ${val(h.qtyOffered)} Nos.`).join('\n');
+        batchesDisplay = merged.heatDetails.map(h => `${h.heatNo || 'Batch'}: ${h.tcNo || '-'}, Qty: ${h.qtyOffered || '-'} Nos.`).join('\n');
     } else if (merged.noOfLots) {
         batchesDisplay = `Total Lots Offered: ${merged.noOfLots} | Total Offered: ${effectiveOfferedQty} ${effectiveUom}`;
     }
@@ -233,6 +235,7 @@ export const generateRailpadCallLetterPDF = (call, shouldDownload = true) => {
         ['To', redValNormal(displayTo)],
         [{ content: 'Dear Sir,\nPlease arrange to inspect following goods lying ready with us. It is certified that the stores offered conform to governing specifications.', colSpan: 2, styles: { fontSize: 8, fontStyle: 'normal', textColor: labelTextColor } }],
         ['Inspection Call Number', redVal(callNo)],
+        ['Case No.', redVal(caseNo || '-')],
         ['IE', redValNormal(ieName || '-')],
         ['Stage of Inspection', { content: stageDisplay, styles: { textColor: [30, 41, 59], fontStyle: 'normal' } }],
         ['PO Number & Date', redVal(displayPoNoDate)],
@@ -254,6 +257,7 @@ export const generateRailpadCallLetterPDF = (call, shouldDownload = true) => {
         ['Total PO Quantity', redVal(totalPoQtyVal)],
         ['Total PO Value', redVal(totalPoValDisplay)],
         ['Batches / Stores Details to be Offered', redValNormal(batchesDisplay)],
+        ['Remarks', redValNormal(remarks || '-')],
         [{ content: 'I hereby accept all the Terms and Conditions.', colSpan: 2, styles: { fontSize: 8.5, textColor: labelTextColor } }],
         [{ content: 'Thanking you,', colSpan: 2, styles: { fontSize: 8.5, textColor: labelTextColor } }],
         [{ content: 'Yours Faithfully,', colSpan: 2, styles: { fontSize: 8.5, textColor: labelTextColor } }],

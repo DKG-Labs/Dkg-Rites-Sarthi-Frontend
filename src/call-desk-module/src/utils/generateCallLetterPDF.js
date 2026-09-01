@@ -129,6 +129,7 @@ export const generateRailpadCallLetterPDF = (call, shouldDownload = true) => {
     // PO & Case details
     const poNo = merged.poNo || merged.rlyPoSr || merged.poNumber || merged.rlyPoNo || '';
     const poDate = merged.poDate || '';
+    const caseNo = merged.caseNo || merged.case_no || '';
     const purchaser = merged.purchaserDetail || merged.purchaser || merged.purchasingAuthority || '';
 
     // Item details / Description of stores
@@ -355,6 +356,7 @@ export const generateRailpadCallLetterPDF = (call, shouldDownload = true) => {
     const prodSelectedVendor = merged.productSelectedByVendor || merged.ercType || merged.type_of_erc || merged.erc_type || merged.product || merged.productType || merged.railPadType || '-';
     const placeOfInspectionDisplay = merged.placeOfInspection || merged.plantId || vendorAddress || '-';
     const offeredInstallmentNoDisplay = merged.offeredInstallmentNo || merged.offeredInstallmentNumber || merged.offeredInstNo || '1';
+    const remarks = merged.remarks || merged.remark || '-';
 
     // Format Batches / Stores Details to be Offered
     let batchesDisplay = '-';
@@ -386,6 +388,7 @@ export const generateRailpadCallLetterPDF = (call, shouldDownload = true) => {
         ['To', redValNormal(displayTo)],
         [{ content: 'Dear Sir,\nPlease arrange to inspect following goods lying ready with us. It is certified that the stores offered conform to governing specifications.', colSpan: 2, styles: { fontSize: 8, fontStyle: 'normal', textColor: labelTextColor } }],
         ['Inspection Call Number', redVal(callNo)],
+        ['Case No.', redVal(caseNo || '-')],
         ['IE', redValNormal(ieName || '-')],
         ['Stage of Inspection', { content: stageDisplay, styles: { textColor: [30, 41, 59], fontStyle: 'normal' } }],
         ['PO Number & Date', redVal(displayPoNoDate)],
@@ -407,6 +410,7 @@ export const generateRailpadCallLetterPDF = (call, shouldDownload = true) => {
         ['Total PO Quantity', redVal(totalPoQtyVal)],
         ['Total PO Value', redVal(totalPoValDisplay)],
         ['Batches / Stores Details to be Offered', redValNormal(batchesDisplay)],
+        ['Remarks', redValNormal(remarks || '-')],
         [{ content: 'I hereby accept all the Terms and Conditions.', colSpan: 2, styles: { fontSize: 8.5, textColor: labelTextColor } }],
         [{ content: 'Thanking you,', colSpan: 2, styles: { fontSize: 8.5, textColor: labelTextColor } }],
         [{ content: 'Yours Faithfully,', colSpan: 2, styles: { fontSize: 8.5, textColor: labelTextColor } }],
@@ -724,6 +728,9 @@ export const generateCallLetterPDF = (call, shouldDownload = true) => {
     // Inspection Call Number
     drawRow('Inspection Call Number', val(call.callNumber), { rowH: 9 });
 
+    // Case Number
+    drawRow('Case No.', val(call.caseNo || call.case_no), { rowH: 9 });
+
     // IE (empty until verified)
     const assignedIeStr = call.assignedIeName || call.ieName || call.assignedIE;
     const isIeAssigned = assignedIeStr && assignedIeStr !== 'Not Assigned' && assignedIeStr !== '-';
@@ -839,6 +846,9 @@ export const generateCallLetterPDF = (call, shouldDownload = true) => {
             ? `Heat No.: -, TC No. - ${val(call.tcNumber)}, Qty Offered: ${val(call.subPoQuantity || call.quantity)} MT\n\nTotal Qty Offered - ${val(call.subPoQuantity || call.quantity)} MT`
             : '-';
     drawRow('Raw Material Details to be offered', heatDetails);
+
+    // Remarks
+    drawRow('Remarks', val(call.remarks || call.remark), { rowH: 9 });
 
     // ─── Terms & Closing ─────────────────────────────────────────────
     checkPageBreak(40);

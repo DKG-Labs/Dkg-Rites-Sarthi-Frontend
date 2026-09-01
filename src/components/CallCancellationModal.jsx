@@ -426,9 +426,15 @@ const CallCancellationModal = ({
             reader.readAsDataURL(file);
           });
 
-          const uploadResp = await fetch(`${getBaseUrl()}/api/certificate/upload`, {
+          const rawBase = getBaseUrl();
+          const cleanBase = rawBase ? rawBase.replace(/\/api\/?$/, '') : '';
+          const token = localStorage.getItem('authToken') || localStorage.getItem('token') || sessionStorage.getItem('token');
+          const uploadResp = await fetch(`${cleanBase}/api/certificate-storage/upload`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 
+              'Content-Type': 'application/json',
+              ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+            },
             body: JSON.stringify({
               icNumber: call.call_no || call.callNumber || call.requestId,
               signedData: fileBase64,

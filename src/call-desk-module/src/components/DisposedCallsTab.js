@@ -149,16 +149,37 @@ const DisposedCallsTab = ({ calls = [], onViewHistory }) => {
       result = result.filter(call => filters.callNumbers.includes(call.callNumber));
     }
 
-    // Search term filter
-    if (searchTerm) {
-      const term = searchTerm.toLowerCase();
-      result = result.filter(call =>
-        call.callNumber?.toLowerCase().includes(term) ||
-        call.vendor?.name?.toLowerCase().includes(term) ||
-        call.poNumber?.toLowerCase().includes(term) ||
-        call.placeOfInspection?.toLowerCase().includes(term) ||
-        call.disposalReason?.toLowerCase().includes(term)
-      );
+    // Search term filter - comprehensive search across all fields
+    if (searchTerm && searchTerm.trim()) {
+      const term = searchTerm.trim().toLowerCase();
+      result = result.filter(call => {
+        const detailed = getDetailedStatus(call.originalStatus || call.status);
+        const detailedText = (detailed.combinedText || '').toLowerCase();
+
+        return (
+          (call.callNumber && call.callNumber.toLowerCase().includes(term)) ||
+          (call.id && String(call.id).toLowerCase().includes(term)) ||
+          (call.vendor?.name && call.vendor.name.toLowerCase().includes(term)) ||
+          (call.vendorCode && call.vendorCode.toLowerCase().includes(term)) ||
+          (call.poNumber && call.poNumber.toLowerCase().includes(term)) ||
+          (call.rawPoNo && call.rawPoNo.toLowerCase().includes(term)) ||
+          (call.rlyPoSr && call.rlyPoSr.toLowerCase().includes(term)) ||
+          (call.rlyShortName && call.rlyShortName.toLowerCase().includes(term)) ||
+          (call.ibsCaseNo && call.ibsCaseNo.toLowerCase().includes(term)) ||
+          (call.product && call.product.toLowerCase().includes(term)) ||
+          (call.productStage && call.productStage.toLowerCase().includes(term)) ||
+          (call.stage && call.stage.toLowerCase().includes(term)) ||
+          (call.placeOfInspection && call.placeOfInspection.toLowerCase().includes(term)) ||
+          (call.poiCode && call.poiCode.toLowerCase().includes(term)) ||
+          (call.plantId && call.plantId.toLowerCase().includes(term)) ||
+          (call.assignedIE && call.assignedIE.toLowerCase().includes(term)) ||
+          (call.status && call.status.toLowerCase().includes(term)) ||
+          (call.originalStatus && call.originalStatus.toLowerCase().includes(term)) ||
+          (call.disposalReason && call.disposalReason.toLowerCase().includes(term)) ||
+          detailedText.includes(term) ||
+          (call.submissionDateTime && String(call.submissionDateTime).toLowerCase().includes(term))
+        );
+      });
     }
 
     return result;

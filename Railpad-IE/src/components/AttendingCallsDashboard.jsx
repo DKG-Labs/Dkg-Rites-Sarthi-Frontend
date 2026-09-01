@@ -544,23 +544,43 @@ const AttendingCallsDashboard = ({
       </div>
 
       {/* Table */}
-      <div style={{ position: 'relative', minHeight: '260px', background: '#ffffff', borderRadius: '14px', border: '1px solid #e2e8f0', boxShadow: '0 1px 3px rgba(15, 23, 42, 0.03)', overflow: 'hidden' }}>
+      <div style={{ 
+        background: '#ffffff', 
+        borderRadius: '12px', 
+        border: '1px solid #e2e8f0', 
+        boxShadow: '0 1px 3px rgba(15, 23, 42, 0.03)', 
+        overflowX: 'auto',
+        WebkitOverflowScrolling: 'touch'
+      }}>
         {!loading && calls.length === 0 ? (
-          <div style={{ padding: '60px', textAlign: 'center', color: '#94a3b8', fontSize: '13.5px' }}>
+          <div style={{ padding: '60px 24px', textAlign: 'center', color: '#94a3b8', fontSize: '13.5px' }}>
             No inspection calls found in this category.
           </div>
         ) : (
-          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', minWidth: '700px' }}>
             <thead>
               <tr style={{ background: '#f8fafc', borderBottom: '1px solid #e2e8f0' }}>
-                {(activeTab === 'completed'
-                  ? ['CALL NO.', 'PO NO.', 'IBS CASE NUMBER', 'VENDOR NAME', 'PRODUCT TYPE', 'DATE', 'STATUS', 'ACTIONS']
-                  : ['CALL NO', 'VENDOR NAME', 'PLANT ID', 'CREATED DATE', 'STATUS', 'ACTIONS']
-                ).map(header => (
-                  <th key={header} style={{ padding: '13px 18px', textAlign: 'left', fontSize: '11px', fontWeight: '700', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                    {header}
-                  </th>
-                ))}
+                {activeTab === 'completed' ? (
+                  <>
+                    <th style={{ padding: '12px 18px', fontSize: '11px', fontWeight: '700', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em', width: '14%' }}>CALL NO.</th>
+                    <th style={{ padding: '12px 18px', fontSize: '11px', fontWeight: '700', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em', width: '16%' }}>PO NO.</th>
+                    <th style={{ padding: '12px 18px', fontSize: '11px', fontWeight: '700', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em', width: '14%' }}>IBS CASE NUMBER</th>
+                    <th style={{ padding: '12px 18px', fontSize: '11px', fontWeight: '700', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em', width: '20%' }}>VENDOR NAME</th>
+                    <th style={{ padding: '12px 18px', fontSize: '11px', fontWeight: '700', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em', width: '10%' }}>PRODUCT TYPE</th>
+                    <th style={{ padding: '12px 18px', fontSize: '11px', fontWeight: '700', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em', width: '10%' }}>DATE</th>
+                    <th style={{ padding: '12px 18px', fontSize: '11px', fontWeight: '700', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em', width: '8%' }}>STATUS</th>
+                    <th style={{ padding: '12px 18px', fontSize: '11px', fontWeight: '700', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em', width: '8%', textAlign: 'right' }}>ACTIONS</th>
+                  </>
+                ) : (
+                  <>
+                    <th style={{ padding: '12px 18px', fontSize: '11px', fontWeight: '700', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em', width: '18%' }}>CALL NO</th>
+                    <th style={{ padding: '12px 18px', fontSize: '11px', fontWeight: '700', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em', width: '32%' }}>VENDOR NAME</th>
+                    <th style={{ padding: '12px 18px', fontSize: '11px', fontWeight: '700', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em', width: '18%' }}>PLANT ID</th>
+                    <th style={{ padding: '12px 18px', fontSize: '11px', fontWeight: '700', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em', width: '12%' }}>CREATED DATE</th>
+                    <th style={{ padding: '12px 18px', fontSize: '11px', fontWeight: '700', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em', width: '10%' }}>STATUS</th>
+                    <th style={{ padding: '12px 18px', fontSize: '11px', fontWeight: '700', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em', width: '10%', textAlign: 'right' }}>ACTIONS</th>
+                  </>
+                )}
               </tr>
             </thead>
             <tbody>
@@ -572,10 +592,18 @@ const AttendingCallsDashboard = ({
                     if (st === 'CREATED' || jst === 'CREATED') return false;
 
                     const userIdNum = Number(user?.userId);
-                    const hasAccess = !call.accessibleUserIds || 
-                                      call.accessibleUserIds.length === 0 || 
-                                      call.accessibleUserIds.map(Number).includes(userIdNum) || 
-                                      Number(call.assignedToUser) === userIdNum;
+                    const assignedUserId = call.assignedToUser ? Number(call.assignedToUser) : null;
+
+                    let hasAccess = false;
+                    if (assignedUserId && assignedUserId > 0) {
+                      // Once a call is initiated / assigned to a specific IE, it strictly stays with that IE
+                      hasAccess = (assignedUserId === userIdNum);
+                    } else {
+                      // Unassigned call: any mapped IE for that plant can access it
+                      hasAccess = !call.accessibleUserIds || 
+                                  call.accessibleUserIds.length === 0 || 
+                                  call.accessibleUserIds.map(Number).includes(userIdNum);
+                    }
 
                     if (!hasAccess) return false;
 
@@ -597,22 +625,22 @@ const AttendingCallsDashboard = ({
                 return (
                   <>
                     {paginatedCalls.map((call, index) => (
-                    <tr key={index} style={{ borderBottom: '1px solid #f1f5f9', transition: 'background 0.2s' }} onMouseEnter={e => e.currentTarget.style.background = '#f8fafc'} onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
-                  <td style={{ padding: '12px 16px', fontSize: '13px', fontWeight: '700', color: '#0f172a' }}>{call.requestId}</td>
+                    <tr key={index} style={{ borderBottom: '1px solid #f1f5f9', transition: 'background 0.15s' }} onMouseEnter={e => e.currentTarget.style.background = '#f8fafc'} onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
+                  <td style={{ padding: '14px 18px', fontSize: '13px', fontWeight: '700', color: '#0f172a', whiteSpace: 'nowrap' }}>{call.requestId}</td>
                   {activeTab === 'completed' ? (
                     <>
-                      <td style={{ padding: '12px 16px', fontSize: '13px', color: '#334155' }}>
+                      <td style={{ padding: '14px 18px', fontSize: '13px', color: '#334155' }}>
                         {call.rlyPoSrNo && call.rlyPoSrNo !== '-' ? call.rlyPoSrNo : (call.poNo ? `${call.rlyShortName ? call.rlyShortName + ' / ' : ''}${call.poNo} / ${call.poSr || '001'}` : 'N/A')}
                       </td>
-                      <td style={{ padding: '12px 16px', fontSize: '13px', color: '#64748b' }}>
+                      <td style={{ padding: '14px 18px', fontSize: '13px', color: '#64748b' }}>
                         {call.caseNo || call.ibsCaseNo || 'N/A'}
                       </td>
-                      <td style={{ padding: '12px 16px', fontSize: '13px', color: '#475569' }}>{call.vendorName || call.vendorCode}</td>
-                      <td style={{ padding: '12px 16px', fontSize: '13px', color: '#475569' }}>{call.railPadType || call.productType || 'Rail Pad'}</td>
-                      <td style={{ padding: '12px 16px', fontSize: '13px', color: '#64748b' }}>
+                      <td style={{ padding: '14px 18px', fontSize: '13px', color: '#334155' }}>{call.vendorName || call.vendorCode}</td>
+                      <td style={{ padding: '14px 18px', fontSize: '13px', color: '#475569' }}>{call.railPadType || call.productType || 'Rail Pad'}</td>
+                      <td style={{ padding: '14px 18px', fontSize: '13px', color: '#64748b', whiteSpace: 'nowrap' }}>
                         {call.createdDate ? new Date(call.createdDate).toLocaleDateString('en-GB') : 'N/A'}
                       </td>
-                      <td style={{ padding: '12px 16px' }}>
+                      <td style={{ padding: '14px 18px' }}>
                         {(() => {
                           const isCancelled = (call.status || '').toUpperCase().includes('CANCEL') ||
                                               (call.jobStatus || '').toUpperCase().includes('CANCEL') ||
@@ -621,13 +649,14 @@ const AttendingCallsDashboard = ({
                             return (
                               <span style={{
                                 padding: '4px 10px',
-                                borderRadius: '12px',
+                                borderRadius: '9999px',
                                 fontSize: '11px',
                                 fontWeight: '700',
                                 background: '#fee2e2',
                                 color: '#b91c1c',
                                 border: '1px solid #fca5a5',
-                                display: 'inline-block'
+                                display: 'inline-block',
+                                whiteSpace: 'nowrap'
                               }}>
                                 Cancelled
                               </span>
@@ -636,21 +665,22 @@ const AttendingCallsDashboard = ({
                           return (
                             <span style={{
                               padding: '4px 10px',
-                              borderRadius: '12px',
+                              borderRadius: '9999px',
                               fontSize: '11px',
                               fontWeight: '700',
                               background: '#dcfce7',
                               color: '#15803d',
                               border: '1px solid #86efac',
-                              display: 'inline-block'
+                              display: 'inline-block',
+                              whiteSpace: 'nowrap'
                             }}>
                               Completed - E-Signed
                             </span>
                           );
                         })()}
                       </td>
-                      <td style={{ padding: '12px 16px' }}>
-                        <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                      <td style={{ padding: '14px 18px', textAlign: 'right' }}>
+                        <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end', flexWrap: 'nowrap' }}>
                           {(() => {
                             const isCancelled = (call.status || '').toUpperCase().includes('CANCEL') ||
                                                 (call.jobStatus || '').toUpperCase().includes('CANCEL') ||
@@ -747,26 +777,29 @@ const AttendingCallsDashboard = ({
                     </>
                   ) : (
                     <>
-                      <td style={{ padding: '12px 16px', fontSize: '13px', color: '#475569' }}>{call.vendorName || call.vendorCode}</td>
-                      <td style={{ padding: '12px 16px', fontSize: '13px', color: '#475569' }}>{call.plantId}</td>
-                      <td style={{ padding: '12px 16px', fontSize: '13px', color: '#64748b' }}>
-                        {call.createdDate ? new Date(call.createdDate).toLocaleDateString() : 'N/A'}
+                      <td style={{ padding: '14px 18px', fontSize: '13px', color: '#334155' }}>{call.vendorName || call.vendorCode}</td>
+                      <td style={{ padding: '14px 18px', fontSize: '13px', color: '#475569' }}>{call.plantId}</td>
+                      <td style={{ padding: '14px 18px', fontSize: '13px', color: '#64748b', whiteSpace: 'nowrap' }}>
+                        {call.createdDate ? new Date(call.createdDate).toLocaleDateString('en-GB') : 'N/A'}
                       </td>
-                      <td style={{ padding: '12px 16px' }}>
+                      <td style={{ padding: '14px 18px' }}>
                         <span style={{
-                          padding: '2px 8px',
-                          borderRadius: '10px',
-                          fontSize: '10px',
+                          padding: '3px 9px',
+                          borderRadius: '9999px',
+                          fontSize: '11px',
                           fontWeight: '700',
-                          background: call.jobStatus === 'CREATED' ? '#eff6ff' : '#f0fdf4',
-                          color: call.jobStatus === 'CREATED' ? '#1e40af' : '#166534',
-                          border: `1px solid ${call.jobStatus === 'CREATED' ? '#bfdbfe' : '#bbf7d0'}`
+                          letterSpacing: '0.02em',
+                          background: (call.jobStatus || call.status || '').toUpperCase().includes('VERIFIED') ? '#eff6ff' : '#f0fdf4',
+                          color: (call.jobStatus || call.status || '').toUpperCase().includes('VERIFIED') ? '#1d4ed8' : '#166534',
+                          border: `1px solid ${(call.jobStatus || call.status || '').toUpperCase().includes('VERIFIED') ? '#bfdbfe' : '#bbf7d0'}`,
+                          display: 'inline-block',
+                          whiteSpace: 'nowrap'
                         }}>
                           {((call.jobStatus || call.status || '').toUpperCase().includes('IC_ISSUE') || (call.jobStatus || call.status || '').toUpperCase().includes('ISSUE IC')) ? 'IC ISSUED' : (call.jobStatus || call.status)}
                         </span>
                       </td>
-                      <td style={{ padding: '12px 16px' }}>
-                        <div style={{ display: 'flex', gap: '8px' }}>
+                      <td style={{ padding: '14px 18px', textAlign: 'right' }}>
+                        <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end', flexWrap: 'nowrap' }}>
                           {activeTab === 'certificates' ? (
                             <>
                               {(
@@ -795,7 +828,8 @@ const AttendingCallsDashboard = ({
                                     color: '#047857',
                                     fontSize: '11px',
                                     fontWeight: '700',
-                                    cursor: 'pointer'
+                                    cursor: 'pointer',
+                                    whiteSpace: 'nowrap'
                                   }}
                                 >
                                   {(call.action === 'IC_ISSUE' || call.action === 'ISSUE IC' || (call.jobStatus || '').toUpperCase().includes('IC_ISSUE') || (call.status || '').toUpperCase().includes('IC_ISSUE')) ? 'VIEW IC' : 'ISSUE IC'}
@@ -812,7 +846,8 @@ const AttendingCallsDashboard = ({
                                     color: '#1d4ed8',
                                     fontSize: '11px',
                                     fontWeight: '700',
-                                    cursor: 'pointer'
+                                    cursor: 'pointer',
+                                    whiteSpace: 'nowrap'
                                   }}
                                 >
                                   VIEW IC

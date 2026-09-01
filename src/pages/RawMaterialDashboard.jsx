@@ -712,10 +712,10 @@ const RawMaterialDashboard = ({ call, onBack, onNavigateToSubModule, onHeatsChan
             }
 
             if (!materialDataMap[hNo]) materialDataMap[hNo] = { samples: [] };
-            
+
             const sampleIdx = item.sampleNumber - 1;
             const currentSample = materialDataMap[hNo].samples[sampleIdx];
-            
+
             // Only restore if this sample is empty
             const isSampleEmpty = !currentSample || Object.values(currentSample).every(v => !v);
 
@@ -1132,8 +1132,8 @@ const RawMaterialDashboard = ({ call, onBack, onNavigateToSubModule, onHeatsChan
   const validateMaterialTestHeat = useCallback((heatMaterialData) => {
     if (!heatMaterialData) return 'Pending';
 
-    const samples = Array.isArray(heatMaterialData) 
-      ? heatMaterialData 
+    const samples = Array.isArray(heatMaterialData)
+      ? heatMaterialData
       : (heatMaterialData.samples || []);
 
     if (!Array.isArray(samples) || samples.length === 0) return 'Pending';
@@ -1161,7 +1161,7 @@ const RawMaterialDashboard = ({ call, onBack, onNavigateToSubModule, onHeatsChan
     if (activeSamples.length === 0) return 'Pending';
 
     // Check if required fields are filled for each active sample
-    const allFieldsFilled = activeSamples.every(sample => {
+    const allCoreFieldsFilled = activeSamples.every(sample => {
       return (
         isFilled(sample, 'c', 'carbonPercent', 'percentC') &&
         isFilled(sample, 'si', 'siliconPercent', 'percentSi') &&
@@ -1173,12 +1173,13 @@ const RawMaterialDashboard = ({ call, onBack, onNavigateToSubModule, onHeatsChan
         isFilled(sample, 'inclA', 'inclusionA', 'inclusion_a') &&
         isFilled(sample, 'inclB', 'inclusionB', 'inclusion_b') &&
         isFilled(sample, 'inclC', 'inclusionC', 'inclusion_c') &&
-        isFilled(sample, 'inclD', 'inclusionD', 'inclusion_d') &&
-        isFilled(sample, 'hardness', 'hardnessHrc', 'hardness_hrc')
+        isFilled(sample, 'inclD', 'inclusionD', 'inclusion_d')
       );
     });
 
-    if (!allFieldsFilled) return 'Pending';
+    const hasHardness = activeSamples.some(sample => isFilled(sample, 'hardness', 'hardnessHrc', 'hardness_hrc'));
+
+    if (!allCoreFieldsFilled || !hasHardness) return 'Pending';
 
     const isMkV = productModel?.toString().toUpperCase().includes('MK-V') || productModel?.toString().toUpperCase().includes('V');
     const decarbLimit = isMkV ? 0.23 : 0.25;
@@ -1268,11 +1269,11 @@ const RawMaterialDashboard = ({ call, onBack, onNavigateToSubModule, onHeatsChan
         if (inspectionCallNo) {
           const withShift = localStorage.getItem(`${baseKey}_${inspectionCallNo}${getShiftSuffix()}`);
           if (withShift) {
-            try { return JSON.parse(withShift); } catch {}
+            try { return JSON.parse(withShift); } catch { }
           }
           const withoutShift = localStorage.getItem(`${baseKey}_${inspectionCallNo}`);
           if (withoutShift) {
-            try { return JSON.parse(withoutShift); } catch {}
+            try { return JSON.parse(withoutShift); } catch { }
           }
           // Search any key starting with baseKey_callNo (covers shift variants)
           const prefix = `${baseKey}_${inspectionCallNo}`;
@@ -1282,7 +1283,7 @@ const RawMaterialDashboard = ({ call, onBack, onNavigateToSubModule, onHeatsChan
               try {
                 const val = JSON.parse(localStorage.getItem(key));
                 if (val) return val;
-              } catch {}
+              } catch { }
             }
           }
         }
@@ -1328,7 +1329,7 @@ const RawMaterialDashboard = ({ call, onBack, onNavigateToSubModule, onHeatsChan
         if (matStatus === 'Pending' && fetchedCallData?.materialTestingData) {
           const backendItems = fetchedCallData.materialTestingData.filter(
             item => (item.heatNo || '').toString().trim().toUpperCase() === normalizedHNo ||
-                    normalizeHeatKey(item.heatNo) === normalizeHeatKey(normalizedHNo)
+              normalizeHeatKey(item.heatNo) === normalizeHeatKey(normalizedHNo)
           );
           if (backendItems.length > 0) {
             const bStatus = validateMaterialTestHeat({ samples: backendItems });
@@ -1554,7 +1555,7 @@ const RawMaterialDashboard = ({ call, onBack, onNavigateToSubModule, onHeatsChan
     }
 
     if (isProcessingFinishRef.current) return;
-    
+
     setIsSaving(true);
     isProcessingFinishRef.current = true;
     try {
@@ -3326,9 +3327,9 @@ const RawMaterialDashboard = ({ call, onBack, onNavigateToSubModule, onHeatsChan
 
       {/* Image Capture Section */}
       <div style={{ marginBottom: '24px' }}>
-        <ImageCaptureComponent 
-          images={capturedImages} 
-          onImagesChange={setCapturedImages} 
+        <ImageCaptureComponent
+          images={capturedImages}
+          onImagesChange={setCapturedImages}
         />
       </div>
 
@@ -3550,6 +3551,7 @@ const RawMaterialDashboard = ({ call, onBack, onNavigateToSubModule, onHeatsChan
               const isVisualCompleteRejection = heatStatuses.visual === 'NOT OK' || (offeredWeight > 0 && totalRejectedWeight >= offeredWeight);
 
               const isCompleteRejection = dimensionalNotOk || materialTestNotOk || calibrationNotOk || isVisualCompleteRejection || (offeredWeight > 0 && acceptedWeight === 0);
+              const anyPending = Object.values(heatStatuses).some(s => s === 'Pending');
 
               let isAccepted = false;
               let isPartiallyAccepted = false;
@@ -3557,8 +3559,12 @@ const RawMaterialDashboard = ({ call, onBack, onNavigateToSubModule, onHeatsChan
 
               if (isCompleteRejection) {
                 isRejected = true;
-              } else if (acceptedWeight < offeredWeight) {
+              } else if (anyPending) {
+                // Keep all false for Pending
+              } else if (acceptedWeight < offeredWeight && acceptedWeight > 0) {
                 isPartiallyAccepted = true;
+              } else if (acceptedWeight === 0) {
+                isRejected = true;
               } else {
                 isAccepted = true;
               }
@@ -4177,8 +4183,8 @@ const RawMaterialDashboard = ({ call, onBack, onNavigateToSubModule, onHeatsChan
           >
             {isSaving ? 'Pausing...' : 'Pause Inspection'}
           </button>
-          <button 
-            className="btn btn-outline" 
+          <button
+            className="btn btn-outline"
             style={{
               minHeight: '44px',
               padding: '10px 20px',

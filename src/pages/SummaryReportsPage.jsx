@@ -95,14 +95,37 @@ const SummaryReportsPage = ({ onBack, heats = [], productModel = 'MK-III', inspe
     const localPack = loadLocalJson(packKey);
     const localCal = loadLocalJson(calKey);
 
+    const normalizeHeatKey = (key) => {
+      if (!key) return '';
+      return key.toString().trim().toUpperCase().replace(/^HEAT[\s\-_]*/i, '').replace(/[\s\-_]+/g, '');
+    };
+
     const getFromDraft = (draftData, hNo, idx) => {
       if (!draftData) return null;
-      const nh = (hNo || '').toString().trim().toUpperCase();
-      if (typeof draftData === 'object' && !Array.isArray(draftData) && draftData[nh]) {
-        return draftData[nh];
+      if (draftData.materialData) draftData = draftData.materialData;
+      if (draftData.heatDimData) draftData = draftData.heatDimData;
+
+      const rawHNo = (hNo || '').toString().trim().toUpperCase();
+      const cleanHNo = normalizeHeatKey(rawHNo);
+
+      if (typeof draftData === 'object' && !Array.isArray(draftData)) {
+        if (draftData[rawHNo]) return draftData[rawHNo];
+        const foundKey = Object.keys(draftData).find(k => {
+          const cleanK = normalizeHeatKey(k);
+          return cleanK === cleanHNo || k.trim().toUpperCase() === rawHNo;
+        });
+        if (foundKey && draftData[foundKey]) return draftData[foundKey];
+        if (idx !== undefined && idx !== null && draftData[idx]) return draftData[idx];
+        if (idx !== undefined && idx !== null && draftData[String(idx)]) return draftData[String(idx)];
       }
-      if (Array.isArray(draftData) && draftData[idx]) {
-        return draftData[idx];
+      if (Array.isArray(draftData)) {
+        const found = draftData.find(item => {
+          if (!item) return false;
+          const itemHNo = normalizeHeatKey(item.heatNo || item.heat_no);
+          return itemHNo && itemHNo === cleanHNo;
+        });
+        if (found) return found;
+        if (idx !== undefined && idx !== null && draftData[idx]) return draftData[idx];
       }
       return null;
     };

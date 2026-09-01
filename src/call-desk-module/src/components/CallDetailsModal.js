@@ -146,41 +146,21 @@ const CallDetailsModal = ({
     }
 
     try {
-      if (call.callNumber.startsWith('ER') || call.callNumber.startsWith('EF')) {
-        const storedData = JSON.parse(localStorage.getItem('remappingDataER') || localStorage.getItem('remappingData') || "[]");
-        const poiCode = remappingPoiCode || call.placeOfInspection || storedData[0]?.poiCode;
-        
-        let payload = [];
-        if (storedData && storedData.length > 0) {
-          payload = storedData.map(item => ({
-            ...item,
-            poiCode: poiCode,
-            employeeCode: selectedIEData.employeeCode,
-            product: 'ERC'
-          }));
-        } else {
-          payload = [{
-            poiCode: poiCode,
-            employeeCode: selectedIEData.employeeCode,
-            product: 'ERC',
-            pinCode: '000000',
-            ieType: 'PRIMARY'
-          }];
-        }
-        
-        await axios.put(`${API_BASE_URL}/api/auth/company/${poiCode}/updateIemapping`, payload, { headers: getAuthHeaders() });
-        notify('IE assigned/remapped successfully', 'success');
-        fetchMappedIEs();
-      } else if (call.callNumber.startsWith('EP')) {
-        const poiCode = remappingPoiCode || call.placeOfInspection;
-        const userId = selectedIEData.id;
-        const headers = { ...getAuthHeaders(), userId: userId };
-        const payload = [userId];
-        
-        await axios.put(`${API_BASE_URL}/api/auth/poi/${poiCode}/Update/processIe`, payload, { headers: headers });
-        notify('Process IE assigned/remapped successfully', 'success');
-        fetchMappedIEs();
-      }
+      let stageCode = 'ER';
+      if (call.callNumber.startsWith('EP')) stageCode = 'EP';
+      if (call.callNumber.startsWith('EF')) stageCode = 'EF';
+
+      const payload = {
+        callNo: call.callNumber,
+        poiCode: remappingPoiCode || call.placeOfInspection || '',
+        previousEmpCode: '',
+        newEmpCode: selectedIEData.employeeCode,
+        stage: stageCode
+      };
+
+      await axios.post(`${API_BASE_URL}/api/call-desk/remap-submit`, payload, { headers: getAuthHeaders() });
+      notify('Inspection Engineer reassigned successfully', 'success');
+      fetchMappedIEs();
       
       setChangeIE(false);
       setSelectedIE('');
@@ -189,7 +169,7 @@ const CallDetailsModal = ({
       }
     } catch (error) {
       console.error("Error submitting remapping:", error);
-      notify("Failed to submit remapping. Check console for details.", 'error');
+      notify(error.response?.data?.message || "Failed to submit remapping. Check console for details.", 'error');
     }
   };
 

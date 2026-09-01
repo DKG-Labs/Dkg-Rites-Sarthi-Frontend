@@ -126,12 +126,17 @@ export const MaterialTestingWrapper = () => {
     if (route) navigate(route);
   };
 
+  const callNo = selectedCall?.call_no ||
+                 sessionStorage.getItem('selectedInspectionCallNo') ||
+                 sessionStorage.getItem('inspectionCallNo') ||
+                 '';
+
   return (
     <MaterialTestingPage
       onBack={handleBack}
       heats={rmHeats}
       productModel={rmProductModel}
-      inspectionCallNo={selectedCall?.call_no || ''}
+      inspectionCallNo={callNo}
       onNavigateSubmodule={handleNavigateSubmodule}
     />
   );

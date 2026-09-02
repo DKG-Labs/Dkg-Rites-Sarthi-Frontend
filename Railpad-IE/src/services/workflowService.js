@@ -11,7 +11,14 @@ export const isPlantIdMatching = (plantA, plantB) => {
   if (!plantA || !plantB) return false;
   const cleanA = String(plantA).trim().replace(/^:/, '').toLowerCase();
   const cleanB = String(plantB).trim().replace(/^:/, '').toLowerCase();
-  return cleanA === cleanB;
+  if (cleanA === cleanB) return true;
+
+  // Match base plant code if one has a vendor suffix e.g. "1007406/sarthi" vs "1007406"
+  const baseA = cleanA.split('/')[0].trim();
+  const baseB = cleanB.split('/')[0].trim();
+  if (baseA && baseB && baseA === baseB) return true;
+
+  return false;
 };
 
 export const fetchPendingWorkflowTransitions = async (roleName, plantId = '', workflowId = '') => {
@@ -36,14 +43,9 @@ export const fetchPendingWorkflowTransitions = async (roleName, plantId = '', wo
   }
 };
 
-export const fetchMappedPlantIds = async (userId, ieType = 'Main IE') => {
+export const fetchMappedPlantIds = async (userId, ieType = 'ALL') => {
   const cacheKey = `mappedPlantIds_${userId}_${ieType}`;
   try {
-    const cached = localStorage.getItem(cacheKey);
-    if (cached) {
-      return JSON.parse(cached);
-    }
-
     const response = await fetch(`${getBaseUrl()}${API_ENDPOINTS.RAILPAD_WORKFLOW.MAPPED_PLANT_IDS}?userId=${userId}&ieType=${encodeURIComponent(ieType)}`);
     const data = await response.json();
     if (data.responseStatus?.statusCode === 0) {
@@ -51,10 +53,12 @@ export const fetchMappedPlantIds = async (userId, ieType = 'Main IE') => {
       localStorage.setItem(cacheKey, JSON.stringify(plantIds));
       return plantIds;
     }
-    return [];
+    const cached = localStorage.getItem(cacheKey);
+    return cached ? JSON.parse(cached) : [];
   } catch (error) {
     console.error('Error fetching mapped plant IDs:', error);
-    return [];
+    const cached = localStorage.getItem(cacheKey);
+    return cached ? JSON.parse(cached) : [];
   }
 };
 

@@ -17,8 +17,8 @@ const AttendingCallsDashboard = ({
   onBackToPortal, 
   dutyPlantId,
   controlledTab,
-  hideTopHeader = false,
-  hideTopTabs = false,
+  hideTopHeader = true,
+  hideTopTabs = true,
   onCountsChange
 }) => {
   const [activeTab, setActiveTab] = useState(() => {

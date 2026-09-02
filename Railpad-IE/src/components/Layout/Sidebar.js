@@ -1,20 +1,20 @@
 import React from 'react';
 
-const Sidebar = ({ activeItem, onItemClick, isOpen, expanded, onMouseEnter, onMouseLeave, onClick, onClose, isShiftActive }) => {
-    const roleInput = localStorage.getItem('roleName') || '';
-    const roleLower = String(roleInput).toLowerCase();
-    const isStrictMainIe = (roleLower.includes('main ie') || roleLower.includes('rail main ie')) && !roleLower.includes('process ie');
+const Sidebar = ({ activeItem, onItemClick, isOpen, expanded, onMouseEnter, onMouseLeave, onClick, onClose, isShiftActive, user, isProcessMapped }) => {
+    const roleInput = user?.roleName || localStorage.getItem('roleName') || '';
+    const roleLower = (Array.isArray(roleInput) ? roleInput.join(' ') : String(roleInput)).toLowerCase();
+    const hasProcessAccess = roleLower.includes('process ie') || roleLower.includes('rail process ie') || roleLower === 'railpad ie' || isProcessMapped;
 
     const menuSections = [
         {
             label: 'Modules',
-            items: isStrictMainIe
+            items: hasProcessAccess
                 ? [
-                    { id: 'PortalHome', label: 'Portal Home', icon: 'PH' }
-                  ]
-                : [
                     { id: 'PortalHome', label: 'Portal Home', icon: 'PH' },
                     { id: 'IE', label: 'RailPad IE', icon: 'IE' }
+                  ]
+                : [
+                    { id: 'PortalHome', label: 'Portal Home', icon: 'PH' }
                   ]
         }
     ];

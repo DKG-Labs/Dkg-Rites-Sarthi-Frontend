@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import ProductionVerificationScreen from './ProductionVerificationScreen';
 import Pagination from '../common/Pagination';
+import ConfirmationModal from '../common/ConfirmationModal';
 import '../../styles/ProductionVerification.css';
 import { getBaseUrl, API_ENDPOINTS, getDefaultHeaders } from '../../services/apiConfig';
 import { normalizePlantId, isPlantIdMatching } from '../../services/workflowService';
@@ -87,9 +88,13 @@ const ProductionVerificationDashboard = ({ activeCard, setActiveCard, currentShi
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
 
-  // Pagination states
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 5;
+
+  const [unblockModalConfig, setUnblockModalConfig] = useState({
+    isOpen: false,
+    declaration: null
+  });
 
   useEffect(() => {
     setCurrentPage(1);
@@ -413,22 +418,56 @@ const ProductionVerificationDashboard = ({ activeCard, setActiveCard, currentShi
     }
   };
 
-  const handleDeleteVerified = (declaration) => {
-    if (!isModifiable(declaration.verifiedAt)) return;
+  const handleOpenUnblockModal = (declaration) => {
+    if (!declaration) return;
+    setUnblockModalConfig({
+      isOpen: true,
+      declaration: declaration
+    });
+  };
 
-    if (window.confirm('Are you sure you want to delete this verified entry? It will return to the pending list.')) {
-      const pendingEntry = {
-        ...declaration,
-        status: 'Pending',
-        verifiedAt: null,
-        rejections: [],
-        summary: null
-      };
+  const handleCloseUnblockModal = () => {
+    setUnblockModalConfig({
+      isOpen: false,
+      declaration: null
+    });
+  };
 
-      setPendingDeclarations(prev => [pendingEntry, ...prev]);
+  const handleConfirmUnblock = async () => {
+    const declaration = unblockModalConfig.declaration;
+    if (!declaration) return;
+
+    handleCloseUnblockModal();
+    setIsLoading(true);
+    try {
+      const response = await fetch(`${getBaseUrl()}${API_ENDPOINTS.IE_PRODUCTION_VERIFICATION.UNBLOCK}/${declaration.id}`, {
+        method: 'POST',
+        headers: getDefaultHeaders(user?.token)
+      });
+
+      if (!response.ok) {
+        const errData = await response.json().catch(() => ({}));
+        throw new Error(errData.responseStatus?.message || errData.message || 'Failed to unblock declaration');
+      }
+
+      showNotification(`Declaration #${declaration.id} unblocked and returned to Pending list!`, 'success');
+      
+      // Update local state immediately
       setVerifiedDeclarations(prev => prev.filter(d => d.id !== declaration.id));
-      showNotification('Record reverted to pending list.');
+      setSelectedDeclaration(null);
+
+      // Re-fetch declarations from backend
+      await fetchDeclarations();
+    } catch (err) {
+      console.error('Error during unblock:', err);
+      showNotification('Error: ' + err.message, 'error');
+    } finally {
+      setIsLoading(false);
     }
+  };
+
+  const handleUnblockVerified = (declaration) => {
+    handleOpenUnblockModal(declaration);
   };
 
   // ─── Pagination computations (must be above any early returns to follow Rules of Hooks) ───
@@ -446,6 +485,69 @@ const ProductionVerificationDashboard = ({ activeCard, setActiveCard, currentShi
   const totalCount = activeTab === 'pending' ? pendingDeclarations.length : verifiedDeclarations.length;
   const totalPages = Math.ceil(totalCount / itemsPerPage);
 
+  const renderUnblockModalContent = (decl) => {
+    if (!decl) return null;
+
+    const productTypes = [...new Set(decl.items?.map(i => i.productType).filter(Boolean))].join(', ') || 'Rail Pad';
+    const drawingNos = [...new Set(decl.items?.map(i => i.drawingNo).filter(Boolean))].join(', ');
+    const batchNos = [...new Set(decl.items?.flatMap(i => (i.batches || []).map(b => b.batchNo || (b.compoundA && b.compoundB ? `${b.compoundA}+${b.compoundB}` : ''))).filter(Boolean))].join(', ') || '—';
+
+    return (
+      <div style={{ textAlign: 'left', fontSize: '13px' }}>
+        <p style={{ color: '#475569', marginBottom: '14px', textAlign: 'center', fontSize: '14px', lineHeight: '1.4' }}>
+          Are you sure you want to unblock this verified production declaration?
+        </p>
+
+        <div style={{
+          background: '#f8fafc',
+          border: '1px solid #e2e8f0',
+          borderRadius: '10px',
+          padding: '12px 14px',
+          marginBottom: '14px',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '8px'
+        }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px dashed #e2e8f0', paddingBottom: '6px' }}>
+            <span style={{ color: '#64748b', fontWeight: '500' }}>Vendor Name:</span>
+            <span style={{ fontWeight: '700', color: '#1e293b' }}>{decl.vendorName}</span>
+          </div>
+
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px dashed #e2e8f0', paddingBottom: '6px' }}>
+            <span style={{ color: '#64748b', fontWeight: '500' }}>Railpad Type:</span>
+            <span style={{ fontWeight: '700', color: '#0369a1' }}>
+              {productTypes} {drawingNos && `(${drawingNos})`}
+            </span>
+          </div>
+
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px dashed #e2e8f0', paddingBottom: '6px' }}>
+            <span style={{ color: '#64748b', fontWeight: '500' }}>Batch No(s):</span>
+            <span style={{ fontWeight: '700', color: '#b45309', background: '#fef3c7', padding: '2px 8px', borderRadius: '4px', fontSize: '12px' }}>
+              {batchNos}
+            </span>
+          </div>
+
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <span style={{ color: '#64748b', fontWeight: '500' }}>Date / Shift:</span>
+            <span style={{ fontWeight: '600', color: '#334155' }}>{decl.date} ({decl.shift})</span>
+          </div>
+        </div>
+
+        <div style={{
+          background: '#fff1f2',
+          border: '1px solid #ffe4e6',
+          borderRadius: '8px',
+          padding: '10px 12px',
+          color: '#9f1239',
+          fontSize: '12px',
+          lineHeight: '1.4'
+        }}>
+          ⚠️ <strong>Note:</strong> This will clear all verified quantities &amp; rejections, and return this production declaration back to the <strong>Pending for Verification</strong> list.
+        </div>
+      </div>
+    );
+  };
+
   if (selectedDeclaration) {
     return (
       <>
@@ -456,8 +558,20 @@ const ProductionVerificationDashboard = ({ activeCard, setActiveCard, currentShi
             onBack={() => setSelectedDeclaration(null)}
             onVerify={(rejectionData) => handleVerify(selectedDeclaration, rejectionData)}
             onReturn={(remarks) => handleReturn(selectedDeclaration, remarks)}
+            onUnblock={() => handleUnblockVerified(selectedDeclaration)}
           />
         </ErrorBoundary>
+        <ConfirmationModal
+          isOpen={unblockModalConfig.isOpen}
+          type="warning"
+          title="Unblock Production Declaration"
+          confirmText="Yes, Unblock"
+          cancelText="Cancel"
+          onConfirm={handleConfirmUnblock}
+          onCancel={handleCloseUnblockModal}
+        >
+          {renderUnblockModalContent(unblockModalConfig.declaration)}
+        </ConfirmationModal>
         {notification && (
           <div className="pv-notification-container">
             <div className={`pv-notification ${notification.type} ${notification.fading ? 'fade-out' : ''}`}>
@@ -631,39 +745,72 @@ const ProductionVerificationDashboard = ({ activeCard, setActiveCard, currentShi
                           <td className="pv-qty-accepted">{(decl.summary?.totalAccepted ?? 0).toLocaleString()}</td>
                           <td className="pv-qty-rejected">{(decl.summary?.totalRejected ?? 0).toLocaleString()}</td>
                           <td>
-                            <span className="pv-status-locked">
-                              {modifiable ? '🔓 Modifiable' : '🔒 Locked'}
+                            <span className="pv-status-verified" style={{
+                              background: '#ecfdf5',
+                              color: '#059669',
+                              border: '1px solid #a7f3d0',
+                              padding: '4px 10px',
+                              borderRadius: '20px',
+                              fontSize: '11px',
+                              fontWeight: '700',
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '4px'
+                            }}>
+                              <span>✓</span> Verified
                             </span>
                           </td>
                           <td>
-                            <div className="pv-row-actions">
-                              {modifiable && (
-                                <button
-                                  className="pv-icon-btn edit"
-                                  onClick={() => setSelectedDeclaration({ ...decl, forceEdit: true })}
-                                  title="Edit Rejections"
-                                >
-                                  ✏️
-                                </button>
-                              )}
+                            <div className="pv-row-actions" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                               <button
                                 className="pv-icon-btn view"
                                 onClick={() => setSelectedDeclaration(decl)}
-                                title="View Details"
+                                title="View Verification Details"
+                                style={{
+                                  background: '#f8fafc',
+                                  border: '1px solid #cbd5e1',
+                                  borderRadius: '6px',
+                                  padding: '5px 8px',
+                                  cursor: 'pointer',
+                                  fontSize: '14px',
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center'
+                                }}
                               >
                                 👁️
                               </button>
-                              {modifiable ? (
-                                <button
-                                  className="pv-icon-btn delete"
-                                  onClick={() => handleDeleteVerified(decl)}
-                                  title="Delete & Return to Pending"
-                                >
-                                  🗑️
-                                </button>
-                              ) : (
-                                <span className="pv-lock-icon" title="Permanently Locked">🔒</span>
-                              )}
+                              
+                              <button
+                                className="pv-action-btn unblock"
+                                onClick={() => handleUnblockVerified(decl)}
+                                title="Unblock and return to Pending list"
+                                style={{
+                                  background: '#fff1f2',
+                                  color: '#e11d48',
+                                  border: '1px solid #fecdd3',
+                                  borderRadius: '6px',
+                                  padding: '5px 10px',
+                                  fontSize: '12px',
+                                  fontWeight: '700',
+                                  cursor: 'pointer',
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  gap: '5px',
+                                  transition: 'all 0.2s ease',
+                                  boxShadow: '0 1px 2px rgba(225, 29, 72, 0.08)'
+                                }}
+                                onMouseEnter={(e) => {
+                                  e.currentTarget.style.background = '#ffe4e6';
+                                  e.currentTarget.style.borderColor = '#fda4af';
+                                }}
+                                onMouseLeave={(e) => {
+                                  e.currentTarget.style.background = '#fff1f2';
+                                  e.currentTarget.style.borderColor = '#fecdd3';
+                                }}
+                              >
+                                <span>🔓</span> Unblock
+                              </button>
                             </div>
                           </td>
                         </tr>
@@ -684,6 +831,18 @@ const ProductionVerificationDashboard = ({ activeCard, setActiveCard, currentShi
           </div>
         )}
       </div>
+
+      <ConfirmationModal
+        isOpen={unblockModalConfig.isOpen}
+        type="warning"
+        title="Unblock Production Declaration"
+        confirmText="Yes, Unblock"
+        cancelText="Cancel"
+        onConfirm={handleConfirmUnblock}
+        onCancel={handleCloseUnblockModal}
+      >
+        {renderUnblockModalContent(unblockModalConfig.declaration)}
+      </ConfirmationModal>
 
       {notification && (
         <div className="pv-notification-container">

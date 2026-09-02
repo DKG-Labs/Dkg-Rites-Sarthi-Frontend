@@ -14,7 +14,7 @@ const REJECTION_REASONS = [
   'Improper Grooves'
 ];
 
-const ProductionVerificationScreen = ({ declaration, onBack, onVerify, onReturn, isSubmitting }) => {
+const ProductionVerificationScreen = ({ declaration, onBack, onVerify, onReturn, onUnblock, isSubmitting }) => {
   // ─── ALL HOOKS MUST BE CALLED UNCONDITIONALLY AT THE TOP ───
   const isReadOnly = (declaration?.status === 'Verified') && !declaration?.forceEdit;
 
@@ -548,6 +548,35 @@ const ProductionVerificationScreen = ({ declaration, onBack, onVerify, onReturn,
             style={{ padding: '12px 24px', fontSize: '16px', minWidth: '200px' }}
           >
             {isSubmitting ? 'Processing...' : (declaration.forceEdit ? 'Update Verification' : 'Finalize & Accept')}
+          </button>
+        </div>
+      )}
+
+      {isReadOnly && onUnblock && (
+        <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '24px', gap: '12px' }}>
+          <button
+            type="button"
+            className="pv-action-btn unblock"
+            onClick={onUnblock}
+            disabled={isSubmitting}
+            style={{
+              padding: '12px 24px',
+              fontSize: '15px',
+              minWidth: '220px',
+              background: '#fff1f2',
+              color: '#e11d48',
+              border: '1px solid #fecdd3',
+              borderRadius: '8px',
+              fontWeight: '700',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '8px',
+              boxShadow: '0 2px 4px rgba(225, 29, 72, 0.1)'
+            }}
+          >
+            <span>🔓</span> Unblock &amp; Return to Pending
           </button>
         </div>
       )}

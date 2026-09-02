@@ -63,7 +63,13 @@ export const storeAuthData = (authData) => {
   localStorage.setItem('authToken', authData.token);
   localStorage.setItem('userId', authData.userId);
   localStorage.setItem('userName', authData.userName);
-  localStorage.setItem('roleName', authData.roleName);
+  const roles = Array.isArray(authData.roleName)
+    ? authData.roleName.join(',')
+    : String(authData.roleName || '');
+  localStorage.setItem('roleName', roles);
+  if (authData.employeeCode) {
+    localStorage.setItem('employeeCode', authData.employeeCode);
+  }
 };
 
 export const getAuthToken = () => {

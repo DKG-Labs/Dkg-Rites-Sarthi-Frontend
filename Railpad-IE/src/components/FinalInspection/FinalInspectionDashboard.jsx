@@ -26,6 +26,9 @@ import { finalPeriodicDurabilityService } from '../../services/finalPeriodicDura
 import { finalPeriodicAbrasionService } from '../../services/finalPeriodicAbrasionService';
 import { performTransitionAction } from '../../services/workflowService';
 import { getStoredUser } from '../../services/authService';
+import { fetchCallImages, saveCallImages } from '../../services/imageService';
+import { getImages, saveImages } from '../../utils/imageStorage';
+import ImageCaptureComponent from '../ImageCaptureComponent';
 import Notification from '../Notification';
 import AnnexureLoader from '../annexures/AnnexureLoader';
 import PeriodicTestingTab from './PeriodicTestingTab';
@@ -356,6 +359,39 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
   };
 
 
+
+  const [capturedImages, setCapturedImages] = useState([]);
+
+  // Fetch saved inspection photos for this final call
+  useEffect(() => {
+    if (!currentCallId) {
+      setCapturedImages([]);
+      return;
+    }
+    setCapturedImages([]);
+    let isMounted = true;
+    fetchCallImages(currentCallId, 'RAILPAD_FINAL').then(imgs => {
+      if (!isMounted) return;
+      if (imgs && imgs.length > 0) {
+        setCapturedImages(imgs);
+      } else {
+        getImages(`railpad_final_images_${currentCallId}`).then(cached => {
+          if (isMounted && cached && cached.length > 0) setCapturedImages(cached);
+        });
+      }
+    }).catch(err => {
+      console.warn('Error fetching final call images:', err);
+      if (isMounted) {
+        getImages(`railpad_final_images_${currentCallId}`).then(cached => {
+          if (isMounted && cached && cached.length > 0) setCapturedImages(cached);
+        });
+      }
+    });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [currentCallId]);
 
   // State for Final Inspection Results
   const [remarks, setRemarks] = useState('');
@@ -2274,6 +2310,11 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
         }
       }
 
+      if (!capturedImages || capturedImages.length < 5) {
+        showNotification(`At least 5 inspection images are required to finish inspection (Currently: ${capturedImages?.length || 0})`, 'error');
+        return;
+      }
+
       try {
         setIsSubmitting(true);
         setSubmitMessage('Saving Inspection Data...');
@@ -3456,6 +3497,22 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
 
         await Promise.all(savePromises);
         setDbDimensionalStatus(dimensionalResult);
+
+        // Save captured inspection photos
+        if (capturedImages && capturedImages.length > 0) {
+          try {
+            await saveCallImages(currentCallId, {
+              typeOfCall: 'RAILPAD_FINAL',
+              capturedImages,
+              shift: call?.shift || 'A',
+              dateOfInspection: formattedDate,
+              userId: userId ? String(userId) : '0'
+            });
+            await saveImages(`railpad_final_images_${currentCallId}`, capturedImages);
+          } catch (imgErr) {
+            console.error('Error saving captured images on finish:', imgErr);
+          }
+        }
 
         setSubmitMessage('Finishing Inspection...');
         const workflowActionData = {
@@ -4691,6 +4748,22 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
 
         await Promise.all(pausePromises);
         setDbDimensionalStatus(dimensionalResult);
+
+        // Save captured inspection photos
+        if (capturedImages && capturedImages.length > 0) {
+          try {
+            await saveCallImages(currentCallId, {
+              typeOfCall: 'RAILPAD_FINAL',
+              capturedImages,
+              shift: call?.shift || 'A',
+              dateOfInspection: formattedDate,
+              userId: userId ? String(userId) : '0'
+            });
+            await saveImages(`railpad_final_images_${currentCallId}`, capturedImages);
+          } catch (imgErr) {
+            console.error('Error saving captured images on draft/pause:', imgErr);
+          }
+        }
 
         if (actionType === 'DRAFT') {
           setIsSubmitting(false);
@@ -9897,6 +9970,20 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
                   </div>
                 </div>
               )}
+
+              {/* Visual Inspection Photo Capture Section (Same as ERC) */}
+              <ImageCaptureComponent
+                images={capturedImages}
+                onImagesChange={(imgs) => {
+                  setCapturedImages(imgs);
+                  if (currentCallId) {
+                    saveImages(`railpad_final_images_${currentCallId}`, imgs);
+                  }
+                  markDirty();
+                }}
+                minImages={5}
+                maxImages={10}
+              />
             </div>
 
             {/* Actions */}

@@ -279,13 +279,16 @@ const LoginPage = () => {
 
     // Handle Railpad Role
     if (roles.some(r => r === 'Railpad IE' || r === 'Rail Process IE' || r === 'Rail Main IE')) {
-      const isProcessRole = roles.includes('Rail Process IE') && !roles.includes('Railpad IE') && !roles.includes('Rail Main IE');
+      const isProcessOnly = roles.includes('Rail Process IE') && !roles.includes('Railpad IE') && !roles.includes('Rail Main IE');
+      const isDual = (roles.includes('Rail Main IE') || roles.includes('Main IE')) && (roles.includes('Rail Process IE') || roles.includes('Process IE'));
+      const railpadRoles = roles.filter(r => r === 'Railpad IE' || r === 'Rail Process IE' || r === 'Rail Main IE');
+
       options.push({
         id: 'railpad_option',
-        label: isProcessRole ? 'Railpad Process IE Dashboard' : 'Railpad Dashboard',
-        description: isProcessRole ? 'Access Railpad Process IE platform' : 'Access Railpad IE modules',
+        label: isDual ? 'Railpad Main & Process IE Dashboard' : (isProcessOnly ? 'Railpad Process IE Dashboard' : 'Railpad Dashboard'),
+        description: isDual ? 'Access Railpad Main IE & Process IE modules' : (isProcessOnly ? 'Access Railpad Process IE platform' : 'Access Railpad IE modules'),
         icon: '🛤️',
-        roleToStore: roles.includes('Rail Main IE') ? 'Rail Main IE' : (roles.includes('Railpad IE') ? 'Railpad IE' : 'Rail Process IE')
+        roleToStore: (railpadRoles.length > 0 ? railpadRoles : ['Railpad IE']).join(',')
       });
       seenConsolidated.add('Railpad IE');
       seenConsolidated.add('Rail Process IE');

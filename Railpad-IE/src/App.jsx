@@ -17,7 +17,8 @@ import VisualInspectionForm from './components/VisualInspectionForm';
 import TableView from './components/TableView';
 import MainLayout from './components/Layout/MainLayout';
 import LoginPage from './pages/LoginPage';
-import { isAuthenticated, logoutUser, getStoredUser } from './services/authService';
+import { isAuthenticated, logoutUser, getStoredUser, getAuthToken } from './services/authService';
+import { getBaseUrl } from './services/apiConfig';
 import ConfirmationModal from './components/common/ConfirmationModal';
 import RawMaterialVerificationList from './components/RawMaterialVerificationList';
 import ProductionVerificationDashboard from './components/ProductionVerification/ProductionVerificationDashboard';
@@ -98,7 +99,8 @@ const isRailpadRole = (role) => {
 
 const App = () => {
   const [activeItem, setActiveItem] = useState(() => {
-    return localStorage.getItem('railpad_ie_active_item') || 'PortalHome';
+    const saved = localStorage.getItem('railpad_ie_active_item');
+    return (!saved || saved === 'ATTENDING_CALLS') ? 'PortalHome' : saved;
   });
   const [selectedModule, setSelectedModule] = useState(() => {
     return localStorage.getItem('railpad_ie_selected_module') || 'batch-prep';
@@ -149,7 +151,37 @@ const App = () => {
     type: 'info'
   });
 
-  const loggedInUser = getStoredUser();
+  const [currentUser, setCurrentUser] = useState(getStoredUser);
+  const loggedInUser = currentUser || getStoredUser();
+
+  useEffect(() => {
+    const syncUserProfile = async () => {
+      const token = getAuthToken();
+      if (!token) return;
+      try {
+        const res = await fetch(`${getBaseUrl()}/v1/profile`, {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
+        if (res.ok) {
+          const json = await res.json();
+          const profile = json.responseData || json.data || json;
+          const assignedRoles = profile.assignedRoles || profile.roleName || '';
+          if (assignedRoles) {
+            const currentRole = localStorage.getItem('roleName') || '';
+            if (currentRole !== assignedRoles) {
+              localStorage.setItem('roleName', assignedRoles);
+              setCurrentUser(getStoredUser());
+            }
+          }
+        }
+      } catch (err) {
+        console.warn('Could not sync user profile:', err);
+      }
+    };
+    syncUserProfile();
+  }, []);
 
   const [currentShift, setCurrentShift] = useState(() => {
     const saved = localStorage.getItem('railpad_ie_current_shift');
@@ -961,7 +993,7 @@ const App = () => {
               if (shiftData?.tab) {
                 localStorage.setItem('railpad_attending_calls_tab', shiftData.tab);
               }
-              setActiveItem('ATTENDING_CALLS');
+              setActiveItem('PortalHome');
             } else {
               setActiveItem(moduleId);
             }
@@ -1067,7 +1099,7 @@ const App = () => {
             </div>
             
             <button 
-              onClick={() => setActiveItem('ATTENDING_CALLS')}
+              onClick={() => setActiveItem('PortalHome')}
               style={{
                 padding: '12px 24px',
                 borderRadius: '14px',
@@ -1183,21 +1215,22 @@ const App = () => {
                 }));
               }}
               onPauseComplete={() => {
-                localStorage.setItem('railpad_ie_active_item', 'ATTENDING_CALLS');
-                setActiveItem('ATTENDING_CALLS');
+                localStorage.setItem('railpad_ie_active_item', 'PortalHome');
+                setActiveItem('PortalHome');
                 window.location.reload();
               }}
             />
           </div>
         </div>
       ) : activeItem === 'ATTENDING_CALLS' ? (
-        <AttendingCallsDashboard 
-          dutyPlantId={currentShift?.unit}
-          onBackToPortal={() => setActiveItem('PortalHome')}
+        <PortalHome 
+          user={loggedInUser}
+          isShiftActive={isShiftActive}
+          currentShift={currentShift}
           onStart={(call) => {
             setSelectedCallForInitiation(call);
             setActiveItem('INSPECTION_INITIATION');
-          }} 
+          }}
           onResume={(call, shiftData) => {
             setSelectedCallForInitiation(call);
             setIsShiftActive(true);
@@ -1219,6 +1252,24 @@ const App = () => {
             setSelectedCallForInitiation(call);
             setIsViewOnly(viewOnly);
             setActiveItem('ISSUE_IC');
+          }}
+          onModuleSelect={(moduleId, shiftData) => {
+            if (moduleId === 'IE') {
+              setIsShiftActive(true);
+              if (shiftData) {
+                setCurrentShift({
+                  ...shiftData,
+                  user: loggedInUser ? `${loggedInUser.userName}` : 'Railpad-IE'
+                });
+              }
+              setActiveItem('IE');
+              setSelectedModule('batch-prep');
+              setActiveCard('raw-material');
+            } else if (moduleId === 'FINAL_INSPECTION') {
+              setActiveItem('FINAL_INSPECTION');
+            } else {
+              setActiveItem(moduleId);
+            }
           }}
         />
       ) : activeItem === 'INSPECTION_INITIATION' ? (
@@ -1244,14 +1295,14 @@ const App = () => {
               setActiveItem('FINAL_INSPECTION');
             }
           }}
-          onBack={() => setActiveItem('ATTENDING_CALLS')}
+          onBack={() => setActiveItem('PortalHome')}
         />
       ) : activeItem === 'PROCESS_INSPECTION' ? (
         <RailpadProcessInspectionDashboard 
           user={loggedInUser}
           call={selectedCallForInitiation}
           currentShift={currentShift}
-          onBack={() => setActiveItem('ATTENDING_CALLS')}
+          onBack={() => setActiveItem('PortalHome')}
           onUpdateCall={(updatedData) => {
             setSelectedCallForInitiation(prev => ({
               ...prev,
@@ -1259,8 +1310,8 @@ const App = () => {
             }));
           }}
           onPauseComplete={() => {
-            localStorage.setItem('railpad_ie_active_item', 'ATTENDING_CALLS');
-            setActiveItem('ATTENDING_CALLS');
+            localStorage.setItem('railpad_ie_active_item', 'PortalHome');
+            setActiveItem('PortalHome');
             window.location.reload();
           }}
         />
@@ -1269,7 +1320,7 @@ const App = () => {
           call={selectedCallForInitiation}
           isViewOnly={isViewOnly}
           onBack={() => {
-            setActiveItem('ATTENDING_CALLS');
+            setActiveItem('PortalHome');
           }}
         />
       ) : (

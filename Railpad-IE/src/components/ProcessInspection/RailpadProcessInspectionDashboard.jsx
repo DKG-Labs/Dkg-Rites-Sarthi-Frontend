@@ -2,6 +2,9 @@ import React, { useState, useEffect } from 'react';
 import ReactDOM from 'react-dom';
 import { getBaseUrl, getDefaultHeaders } from '../../services/apiConfig';
 import { performTransitionAction } from '../../services/workflowService';
+import { fetchCallImages, saveCallImages } from '../../services/imageService';
+import { getImages, saveImages } from '../../utils/imageStorage';
+import ImageCaptureComponent from '../ImageCaptureComponent';
 import Notification from '../Notification';
 import AnnexureLoader from '../annexures/AnnexureLoader';
 import './ProcessInspection.css'; // Let's make sure it's pretty and responsive
@@ -49,6 +52,7 @@ const getQtyPerSet = (drawingStr, railPadTypeStr) => {
 const RailpadProcessInspectionDashboard = ({ user, call, currentShift, onBack, onUpdateCall, onPauseComplete }) => {
   const [batches, setBatches] = useState([]);
   const [selectedBatches, setSelectedBatches] = useState({}); // { declarationBatchId: { qtyRejected: 0 } }
+  const [capturedImages, setCapturedImages] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [notification, setNotification] = useState({ message: '', type: 'info' });
@@ -197,6 +201,22 @@ const RailpadProcessInspectionDashboard = ({ user, call, currentShift, onBack, o
         }
       } catch (e) {
         console.error('Error restoring local draft state', e);
+      }
+
+      // 4. Fetch inspection images
+      try {
+        const rawCallNo = call.requestId || call.callNo;
+        const serverImages = await fetchCallImages(rawCallNo, 'RAILPAD_PROCESS');
+        if (serverImages && serverImages.length > 0) {
+          setCapturedImages(serverImages);
+        } else {
+          const cachedImages = await getImages(getDraftKey() + '_images');
+          if (cachedImages && cachedImages.length > 0) {
+            setCapturedImages(cachedImages);
+          }
+        }
+      } catch (imgErr) {
+        console.warn('Error fetching process inspection images:', imgErr);
       }
 
       setBatches(allBatches);
@@ -380,6 +400,11 @@ const RailpadProcessInspectionDashboard = ({ user, call, currentShift, onBack, o
         }
       }
 
+      if (!capturedImages || capturedImages.length < 5) {
+        showNotification(`At least 5 inspection images are required to finish inspection (Currently: ${capturedImages?.length || 0})`, 'error');
+        return;
+      }
+
       setPendingAction(actionType);
       setShowConfirmModal(true);
       return;
@@ -500,6 +525,22 @@ const RailpadProcessInspectionDashboard = ({ user, call, currentShift, onBack, o
       });
 
       if (!req.ok) throw new Error('Failed to save inspection data');
+
+      // Save captured inspection images
+      if (capturedImages && capturedImages.length > 0) {
+        try {
+          await saveCallImages(call.requestId || call.callNo, {
+            typeOfCall: 'RAILPAD_PROCESS',
+            capturedImages,
+            shift: currentShift?.shift || 'A',
+            dateOfInspection: currentShift?.date,
+            userId: String(user?.userId || 1)
+          });
+          await saveImages(getDraftKey() + '_images', capturedImages);
+        } catch (imgErr) {
+          console.error('Error saving process inspection images:', imgErr);
+        }
+      }
 
       if (actionType === 'FINISH') {
         const transitionPayload = {
@@ -910,6 +951,17 @@ const RailpadProcessInspectionDashboard = ({ user, call, currentShift, onBack, o
                 );
               })()}
             </div>
+
+            {/* Visual Inspection Photo Capture Section (Same as ERC) */}
+            <ImageCaptureComponent
+              images={capturedImages}
+              onImagesChange={(imgs) => {
+                setCapturedImages(imgs);
+                saveImages(getDraftKey() + '_images', imgs);
+              }}
+              minImages={5}
+              maxImages={10}
+            />
 
             <div className="form-group">
               <label>Remarks <span style={{color: 'red'}}>*</span></label>

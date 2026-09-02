@@ -27,7 +27,8 @@ export const API_ENDPOINTS = {
   IE_PRODUCTION_VERIFICATION: {
     SAVE: '/ie-production-verification',
     GET_BY_REQUEST_ID: '/ie-production-verification/request',
-    DELETE: '/ie-production-verification/request'
+    DELETE: '/ie-production-verification/request',
+    UNBLOCK: '/ie-production-verification/unblock'
   },
   RAILPAD_SCHEDULE: {
     BASE: '/rail-inspection-schedule',

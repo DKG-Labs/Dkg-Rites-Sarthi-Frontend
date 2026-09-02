@@ -75,24 +75,23 @@ const PortalHome = ({
   const roleInput = user?.roleName || localStorage.getItem('roleName') || '';
   const roleLower = (Array.isArray(roleInput) ? roleInput.join(' ') : String(roleInput)).toLowerCase();
 
-  const isStrictMainIe = (roleLower.includes('main ie') || roleLower.includes('rail main ie') || isMainIeMapped) && !roleLower.includes('process ie');
   const hasProcessAccess = roleLower.includes('process ie') || roleLower.includes('rail process ie') || roleLower === 'railpad ie' || isProcessIeMapped;
   const hasMainAccess = roleLower.includes('main ie') || roleLower.includes('rail main ie') || roleLower === 'railpad ie' || isMainIeMapped;
 
-  const dutyPlantId = isStrictMainIe ? null : (currentShift?.unit || null);
+  const dutyPlantId = hasMainAccess ? null : (currentShift?.unit || null);
   const [showShiftForm, setShowShiftForm] = useState(false);
   const [showPlantDeclaration, setShowPlantDeclaration] = useState(false);
   const [hoveredLocked, setHoveredLocked] = useState(null); // 'calls' | 'plant' | null
 
   useEffect(() => {
     if (defaultShowPlantDeclaration) {
-      if (isStrictMainIe) {
+      if (hasMainAccess) {
         setSelectedMainTab('plant');
       } else {
         setShowPlantDeclaration(true);
       }
     }
-  }, [defaultShowPlantDeclaration, isStrictMainIe]);
+  }, [defaultShowPlantDeclaration, hasMainAccess]);
 
   // Check mappings for user
   useEffect(() => {
@@ -101,12 +100,17 @@ const PortalHome = ({
       if (!uId) return;
 
       try {
-        const mainPlants = await fetchMappedPlantIds(uId, 'Main IE');
+        const [mainPlants, processPlants] = await Promise.all([
+          fetchMappedPlantIds(uId, 'Main IE').catch(() => []),
+          fetchMappedPlantIds(uId, 'Process IE').catch(() => [])
+        ]);
+        const allPlants = Array.from(new Set([...(mainPlants || []), ...(processPlants || [])]));
+        if (allPlants && allPlants.length > 0) {
+          setMappedPlants(allPlants);
+        }
         if (mainPlants && mainPlants.length > 0) {
           setIsMainIeMapped(true);
-          setMappedPlants(mainPlants);
         }
-        const processPlants = await fetchMappedPlantIds(uId, 'Process IE');
         if (processPlants && processPlants.length > 0) {
           setIsProcessIeMapped(true);
         }
@@ -493,11 +497,15 @@ const PortalHome = ({
             <span>Operations Dashboard</span>
           </div>
           <h1 className="ph-header-title" style={{ margin: 0 }}>
-            {isStrictMainIe ? 'Railpad Main IE – Operations Portal' : 'Railpad IE – Portal Home'}
+            {hasMainAccess && hasProcessAccess 
+              ? 'Railpad Main & Process IE – Operations Portal' 
+              : (hasMainAccess 
+                  ? 'Railpad Main IE – Operations Portal' 
+                  : (hasProcessAccess ? 'Railpad Process IE – Operations Portal' : 'Railpad IE – Portal Home'))}
           </h1>
         </div>
 
-        {isStrictMainIe && mappedPlants.length > 0 && (
+        {hasMainAccess && mappedPlants.length > 0 && (
           <div className="ph-mapped-pill">
             <span className="ph-pulse-dot"></span>
             <span style={{ color: '#64748b' }}>Assigned Units:</span>
@@ -507,11 +515,68 @@ const PortalHome = ({
       </header>
 
       {/* ============================================================ */}
-      {/* CASE 1: STRICT MAIN IE (Direct 4 Operational Selection Cards) */}
+      {/* CASE 1: MAIN IE & DUAL-ROLE (Direct 4 Operational Selection Cards + Table) */}
       {/* ============================================================ */}
-      {isStrictMainIe ? (
+      {hasMainAccess ? (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
           
+          {/* Dual-Role Process Duty Status Banner */}
+          {hasProcessAccess && (
+            <div style={{
+              background: isShiftActive ? '#f0fdf4' : '#f8fafc',
+              border: `1px solid ${isShiftActive ? '#bbf7d0' : '#e2e8f0'}`,
+              borderRadius: '12px',
+              padding: '12px 18px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              boxShadow: '0 1px 3px rgba(0,0,0,0.03)'
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <span style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  width: '32px',
+                  height: '32px',
+                  borderRadius: '8px',
+                  background: isShiftActive ? '#dcfce7' : '#e2e8f0',
+                  color: isShiftActive ? '#15803d' : '#64748b',
+                  fontSize: '15px'
+                }}>
+                  {isShiftActive ? '🟢' : '⚪'}
+                </span>
+                <div>
+                  <div style={{ fontSize: '13px', fontWeight: '700', color: '#1e293b' }}>
+                    Process IE Shift Duty: <span style={{ color: isShiftActive ? '#16a34a' : '#64748b' }}>{isShiftActive ? `Active (${currentShift?.unit || 'Assigned Unit'} • Shift ${currentShift?.shift || 'A'})` : 'Inactive / Not Started'}</span>
+                  </div>
+                  <div style={{ fontSize: '11px', color: '#64748b' }}>
+                    {isShiftActive ? 'Your Process IE shift is running. In-process verification modules are active in sidebar.' : 'Click to start your daily shift duty for in-process inspection verification.'}
+                  </div>
+                </div>
+              </div>
+
+              <button
+                onClick={handleStartDutyClick}
+                style={{
+                  padding: '7px 14px',
+                  borderRadius: '8px',
+                  border: 'none',
+                  background: isShiftActive ? '#16a34a' : '#0284c7',
+                  color: '#ffffff',
+                  fontWeight: '700',
+                  fontSize: '12px',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px'
+                }}
+              >
+                {isShiftActive ? '▶ Resume Duty' : '+ Start Shift Duty'}
+              </button>
+            </div>
+          )}
+
           {/* Top 4 Navigation/Selector Cards */}
           <div className="ph-cards-container">
             <div className="ph-cards-grid">
@@ -648,7 +713,7 @@ const PortalHome = ({
         </div>
       ) : (
         /* ============================================================ */
-        /* CASE 2: PROCESS IE / OTHERS (Preserved exact existing layout) */
+        /* CASE 2: PURE PROCESS IE (Shift Duty Only)                     */
         /* ============================================================ */
         <div style={{ background: '#ffffff', borderRadius: '14px', border: '1px solid #e2e8f0', padding: '24px' }}>
           <p style={{ fontSize: '11px', fontWeight: '700', color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.07em', margin: '0 0 16px 0' }}>
@@ -656,23 +721,18 @@ const PortalHome = ({
           </p>
 
           <div className="ph-cards-grid">
-
-            {/* ── Start Duty Card ────────────────────────────── */}
+            {/* Start Duty Card */}
             <div
               className={`ph-card ${isClickableStartCard ? 'ph-card--clickable' : ''}`}
               onClick={isClickableStartCard ? handleStartDutyClick : undefined}
             >
               <div className="ph-card-text">
                 <span className="ph-card-title">
-                  {isShiftActive 
-                    ? (hasProcessAccess ? 'Resume Duty' : 'Duty Active') 
-                    : 'Start Duty'}
+                  {isShiftActive ? 'Resume Duty' : 'Start Duty'}
                 </span>
                 <span className="ph-card-sub">
                   {isShiftActive
-                    ? (hasProcessAccess 
-                        ? 'Your shift is active. Click to resume operations.' 
-                        : 'Your shift is active. Main IE functions unlocked.')
+                    ? 'Your shift is active. Click to resume operations.'
                     : 'Initialize your daily productivity and duty assignment.'}
                 </span>
               </div>
@@ -688,74 +748,11 @@ const PortalHome = ({
                 </div>
               </div>
             </div>
-
-            {/* ── Attending the Call Raised Card ─────────────── */}
-            {hasMainAccess && (
-              <div
-                className={`ph-card ${isShiftActive ? 'ph-card--clickable' : ''}`}
-                onClick={() => { if (!isShiftActive) return; onModuleSelect('ATTENDING_CALLS'); }}
-                onMouseEnter={() => { if (!isShiftActive) setHoveredLocked('calls'); }}
-                onMouseLeave={() => setHoveredLocked(null)}
-              >
-                <LockedCardOverlay visible={hoveredLocked === 'calls' && !isShiftActive} />
-                <div className="ph-card-text">
-                  <span className="ph-card-title">Attending the Call Raised</span>
-                  <span className="ph-card-sub">Manage Call Inspection &amp; IC Issuance</span>
-                </div>
-                <div className="ph-card-icon-wrap">
-                  <div className="ph-card-icon" style={{
-                    background: '#f0fdfa',
-                    color: '#0d9488',
-                    border: '1px solid #ccfbf1'
-                  }}>
-                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/>
-                    </svg>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* ── Plant Setup & Declaration Card ─────────────── */}
-            {hasMainAccess && (
-              <div
-                className={`ph-card ${isShiftActive ? 'ph-card--clickable' : ''}`}
-                onClick={() => {
-                  if (!isShiftActive) return;
-                  const next = !showPlantDeclaration;
-                  setShowPlantDeclaration(next);
-                  if (!next && onClosePlantDeclaration) onClosePlantDeclaration();
-                }}
-                onMouseEnter={() => { if (!isShiftActive) setHoveredLocked('plant'); }}
-                onMouseLeave={() => setHoveredLocked(null)}
-              >
-                <LockedCardOverlay visible={hoveredLocked === 'plant' && !isShiftActive} />
-                <div className="ph-card-text">
-                  <span className="ph-card-title">Plant Setup &amp; Declaration</span>
-                  <span className="ph-card-sub">Verify Plant Setup, Recipes &amp; QAP limits</span>
-                </div>
-                <div className="ph-card-icon-wrap">
-                  <div className="ph-card-icon" style={{
-                    background: '#faf5ff',
-                    color: '#8b5cf6',
-                    border: '1px solid #ede9fe'
-                  }}>
-                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
-                      <line x1="9" y1="9" x2="15" y2="9"/>
-                      <line x1="9" y1="13" x2="15" y2="13"/>
-                      <line x1="9" y1="17" x2="15" y2="17"/>
-                    </svg>
-                  </div>
-                </div>
-              </div>
-            )}
-
           </div>
         </div>
       )}
 
-      {showPlantDeclaration && !isStrictMainIe && (
+      {showPlantDeclaration && !hasMainAccess && (
         <div className="ph-plant-panel">
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
             <h4 style={{ margin: 0, fontSize: '15px', fontWeight: 800, color: '#0f172a' }}>

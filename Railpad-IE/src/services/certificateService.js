@@ -26,8 +26,8 @@ export const generateFinalProductCertificate = async (icNumber) => {
     certificateDate: new Date().toLocaleDateString('en-GB'), // DD/MM/YYYY
     bookNo: "002",
     setNo: "004",
-    offeredInstNo: "1",
-    passedInstNo: "1ST & FINAL",
+    offeredInstNo: "",
+    passedInstNo: "",
     contractor: "M/s MG Rubber Plot No 633/3 Village Sankra Post Somani District Rajnandgaon Chhattisgarh-491441 RAINANDGAON",
     placeOfInspection: "M/s MG Rubber Plot No 633/3 Village Sankra Post Somani District Rajnandgaon Chhattisgarh-491441 RAINANDGAON",
     contractRef: "PO NO. 06260116100764 dated 05/03/2026\nUpto Latest 4 Amendments\nM.A.NO. 000977 dated 27/04/2026\nRB LETTER NO. 2024/RS(G)/779/12(E3462675) dated 19/12/2025\nRB LETTER NO. 2024/RS(G)/779/12 dated 16/10/2025\nRB LETTER NO. 2022/RS(G)/779/8 dated 18/03/2024",

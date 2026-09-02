@@ -417,7 +417,9 @@ const CorrectionSlipPDF = ({ icData = {}, corrections = [], callNo = '', icField
     } catch { return raw; }
   };
   const certDate    = formatIcDate(icData?.icEditDate) || icData?.certificateDate || '—';
-  const installment = icData?.passedInstNo     || icData?.offeredInstNo || '—';
+  const isProcess   = String(callNo || '').toUpperCase().startsWith('RPP') ||
+    String(icData?.product_type || icData?.productType || icData?.railPadType || icData?.callType || '').toLowerCase().includes('process');
+  const installment = icData?.passedInstNo     || icData?.offeredInstNo || (isProcess ? '' : '1ST & FINAL');
   const bookNo      = icData?.bookNo || '—';
   const setNo       = icData?.setNo  || '—';
   const description = icData?.description || icData?.descriptionOfStores || icData?.itemDescription || '';

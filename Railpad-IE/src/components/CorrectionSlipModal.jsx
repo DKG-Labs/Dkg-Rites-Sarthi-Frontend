@@ -373,14 +373,14 @@ const CorrectionSlipModal = ({ row, onClose }) => {
           noOfVisits: editData?.noOfVisits || merged.noOfVisits || '',
           datesOfInspection: editData?.datesOfInspection || merged.datesOfInspection || merged.dateOfInspection || '',
           inspectionDates: editData?.datesOfInspection || merged.inspectionDates || merged.datesOfInspection || merged.dateOfInspection || '',
-          sealingPattern: editData?.sealingPattern || merged.sealingPattern || 'RITES HOLOGRAM SEAL',
-          facsimileText: merged.facsimileText || 'RITES HOLOGRAM SEAL',
+          sealingPattern: editData?.sealingPattern || merged.sealingPattern || (isProcess ? 'NA' : 'RITES HOLOGRAM SEAL'),
+          facsimileText: editData?.facsimileText || merged.facsimileText || (isProcess ? 'NA' : 'RITES HOLOGRAM SEAL'),
           reasonsForRejection: editData?.reasonsForRejection || merged.reasonsForRejection || merged.reasonOfRejection || 'N/A',
           inspectingEngineer: editData?.inspectingEngineer || merged.inspectingEngineer || currentUser?.userName || 'Inspecting Engineer',
           bookNo: editData?.bookNo || merged.bookNo || '001',
           setNo: editData?.setNo || merged.setNo || '001',
-          offeredInstNo: editData?.offeredInstNo || editData?.installmentNo || merged.offeredInstNo || merged.offeredInsttNo || '1',
-          passedInstNo: editData?.passedInstNo || merged.passedInstNo || merged.passedInsttNo || '1ST & FINAL',
+          offeredInstNo: editData?.offeredInstNo || editData?.installmentNo || merged.offeredInstNo || merged.offeredInsttNo || (isProcess ? '' : '1'),
+          passedInstNo: editData?.passedInstNo || merged.passedInstNo || merged.passedInsttNo || (isProcess ? '' : '1ST & FINAL'),
         };
 
         setIcData(normalizedData);
@@ -416,14 +416,15 @@ const CorrectionSlipModal = ({ row, onClose }) => {
     return 'FINAL';
   })();
 
-  /* Build Section 1 key-value pairs (filtered out empty/null fields) */
+  /* Build Section 1 key-value pairs (always include installment rows for process even if blank) */
   const icFields = icData
     ? Object.entries(getFieldMap(productType))
         .filter(([key]) => {
+          if (productType === 'PROCESS' && (key === 'offeredInstNo' || key === 'passedInstNo')) return true;
           const val = icData[key];
           return val !== undefined && val !== null && val !== '' && !Array.isArray(val);
         })
-        .map(([key, label]) => ({ key, label, value: String(icData[key]) }))
+        .map(([key, label]) => ({ key, label, value: icData[key] !== undefined && icData[key] !== null ? String(icData[key]) : '' }))
     : [];
 
   /* ── Row helpers ── */

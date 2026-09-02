@@ -249,9 +249,33 @@
 }
 
 .status-action-pill.scheduled {
+    background: #eff6ff;
+    color: #1d4ed8;
+    border: 1px solid #bfdbfe;
+}
+
+.status-action-pill.rio-verified {
     background: #f1f5f9;
     color: #475569;
-    border: 1px solid #e2e8f0;
+    border: 1px solid #cbd5e1;
+}
+
+.status-action-pill.initiated {
+    background: #fdf2f8;
+    color: #be185d;
+    border: 1px solid #fbcfe8;
+}
+
+.status-action-pill.po-verification {
+    background: #fefce8;
+    color: #a16207;
+    border: 1px solid #fef08a;
+}
+
+.status-action-pill.paused {
+    background: #fff7ed;
+    color: #c2410c;
+    border: 1px solid #fed7aa;
 }
 
 .status-action-pill.completed {

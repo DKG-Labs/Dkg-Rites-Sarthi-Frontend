@@ -151,6 +151,7 @@ export const useCallDeskData = (activeTab = 'pending', callType = 'ERC') => {
       {
         params: {
           roleName: 'RIO Help Desk',
+          ...(user?.rio ? { rio: user.rio } : {})
         },
         headers: {
           ...getAuthHeaders(),
@@ -201,7 +202,10 @@ export const useCallDeskData = (activeTab = 'pending', callType = 'ERC') => {
         dpDates: `${item.dpDate || '-'} / ${item.extDpDate || '-'}`,
         status: internalStatus,
         originalStatus: item.status,
-        assignedIE: item.assignedToUserName || item.ieName || '-',
+        assignedIE: item.assignedToUserName || item.ieName || (item.assignedToUserEmployeeCode ? `${item.assignedToUserName || 'IE'} (${item.assignedToUserEmployeeCode})` : '-'),
+        assignedIeName: item.assignedToUserName || item.ieName || null,
+        ieName: item.ieName || item.assignedToUserName || null,
+        assignedToUserName: item.assignedToUserName || item.ieName || null,
         assignedToUser: item.assignedToUser,
         assignedToUserEmployeeCode: item.assignedToUserEmployeeCode,
         rio: item.rio,

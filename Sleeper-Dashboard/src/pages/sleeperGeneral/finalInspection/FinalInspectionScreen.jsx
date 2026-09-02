@@ -2,11 +2,107 @@ import React, { useState, useEffect } from 'react';
 import './FinalInspectionScreen.css';
 import { apiService } from '../../../services/api';
 import { getStoredUser } from '../../../services/authService';
+import ModernSearchableSelect from '../../../components/common/ModernSearchableSelect';
+
+const PoVerificationSkeleton = ({ onBack }) => (
+    <div className="verification-modal-page skeleton-screen-wrapper">
+        <div className="verification-card-modern skeleton-card-box" style={{ width: '92%', maxWidth: '1200px', margin: '30px auto' }}>
+            <div className="verification-header-modern" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px 24px', borderBottom: '1px solid #e2e8f0' }}>
+                <div className="skeleton-line" style={{ width: '320px', height: '26px', borderRadius: '6px' }} />
+                <div className="skeleton-line" style={{ width: '120px', height: '26px', borderRadius: '20px' }} />
+            </div>
+            <div style={{ padding: '24px' }}>
+                <div className="skeleton-line" style={{ height: '52px', borderRadius: '8px', marginBottom: '16px' }} />
+                <div className="skeleton-grid-2col" style={{ marginBottom: '20px' }}>
+                    <div className="skeleton-line" style={{ height: '42px', borderRadius: '6px' }} />
+                    <div className="skeleton-line" style={{ height: '42px', borderRadius: '6px' }} />
+                    <div className="skeleton-line" style={{ height: '42px', borderRadius: '6px' }} />
+                    <div className="skeleton-line" style={{ height: '42px', borderRadius: '6px' }} />
+                </div>
+                <div className="skeleton-line" style={{ height: '52px', borderRadius: '8px', marginBottom: '16px' }} />
+            </div>
+            <div className="verification-footer sticky" style={{ display: 'flex', justifyContent: 'space-between', padding: '16px 24px', borderTop: '1px solid #e2e8f0' }}>
+                <div className="skeleton-line" style={{ width: '180px', height: '40px', borderRadius: '8px' }} />
+                <div className="skeleton-line" style={{ width: '180px', height: '40px', borderRadius: '8px' }} />
+            </div>
+        </div>
+    </div>
+);
+
+const FinalInspectionSkeleton = ({ onBack }) => (
+    <div className="inspection-screen skeleton-screen-wrapper">
+        <header className="inspection-header skeleton-header">
+            <div className="header-left" style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+                <button className="back-icon-btn" onClick={onBack} title="Back to Dashboard">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="m15 18-6-6 6-6"/></svg>
+                </button>
+                <div className="skeleton-line" style={{ width: '220px', height: '28px', borderRadius: '8px' }} />
+                <div className="skeleton-capsules-row">
+                    <div className="skeleton-line" style={{ width: '140px', height: '26px', borderRadius: '20px' }} />
+                    <div className="skeleton-line" style={{ width: '100px', height: '26px', borderRadius: '20px' }} />
+                    <div className="skeleton-line" style={{ width: '130px', height: '26px', borderRadius: '20px' }} />
+                </div>
+            </div>
+        </header>
+
+        <main className="inspection-content" style={{ padding: '24px' }}>
+            {/* Section 1 Skeleton */}
+            <section className="section skeleton-card-box">
+                <div className="skeleton-line" style={{ width: '280px', height: '24px', marginBottom: '16px', borderRadius: '6px' }} />
+                <div className="skeleton-grid-2col">
+                    <div className="skeleton-line" style={{ height: '36px', borderRadius: '6px' }} />
+                    <div className="skeleton-line" style={{ height: '36px', borderRadius: '6px' }} />
+                    <div className="skeleton-line" style={{ height: '36px', borderRadius: '6px' }} />
+                    <div className="skeleton-line" style={{ height: '36px', borderRadius: '6px' }} />
+                </div>
+            </section>
+
+            {/* Section 2 Skeleton */}
+            <section className="section skeleton-card-box">
+                <div className="skeleton-title-between">
+                    <div className="skeleton-line" style={{ width: '320px', height: '24px', borderRadius: '6px' }} />
+                    <div className="skeleton-line" style={{ width: '140px', height: '26px', borderRadius: '20px' }} />
+                </div>
+                <div style={{ marginTop: '16px' }}>
+                    <div className="skeleton-line" style={{ height: '42px', borderRadius: '6px', marginBottom: '10px' }} />
+                    {[1, 2, 3, 4].map(idx => (
+                        <div key={idx} className="skeleton-line" style={{ height: '46px', borderRadius: '6px', marginBottom: '8px' }} />
+                    ))}
+                </div>
+            </section>
+
+            {/* Section 3 Skeleton */}
+            <section className="section skeleton-card-box">
+                <div className="skeleton-line" style={{ width: '300px', height: '24px', marginBottom: '16px', borderRadius: '6px' }} />
+                <div className="skeleton-grid-2col">
+                    <div className="skeleton-line" style={{ height: '110px', borderRadius: '12px' }} />
+                    <div className="skeleton-line" style={{ height: '110px', borderRadius: '12px' }} />
+                </div>
+            </section>
+
+            {/* Section 4 Skeleton */}
+            <section className="section skeleton-card-box">
+                <div className="skeleton-line" style={{ width: '280px', height: '24px', marginBottom: '16px', borderRadius: '6px' }} />
+                <div className="skeleton-kpi-grid">
+                    {[1, 2, 3, 4, 5].map(idx => (
+                        <div key={idx} className="skeleton-line" style={{ height: '75px', borderRadius: '10px' }} />
+                    ))}
+                </div>
+                <div style={{ display: 'flex', gap: '14px', marginTop: '20px' }}>
+                    {[1, 2, 3, 4].map(idx => (
+                        <div key={idx} className="skeleton-line" style={{ flex: 1, height: '44px', borderRadius: '10px' }} />
+                    ))}
+                </div>
+            </section>
+        </main>
+    </div>
+);
 
 const FinalInspectionScreen = ({ call, onBack }) => {
     const isVerificationMode = call?.jobStatus !== 'PO_VERIFICATION' && call?.jobStatus !== 'INSPECTION';
     const [step, setStep] = useState(isVerificationMode ? 'po-verification' : 'inspection-form');
     const [poVerified, setPoVerified] = useState(false);
+    const [isLoadingData, setIsLoadingData] = useState(true);
 
     useEffect(() => {
         // Handle Resuming from Pause or previously initiated steps
@@ -18,37 +114,8 @@ const FinalInspectionScreen = ({ call, onBack }) => {
         }
     }, [call]);
     
-    // Mock Batch and Sleeper Data
-    const [batches, setBatches] = useState([
-        { 
-            batchNo: 'B-2024-001', 
-            dateCasted: '2024-04-10', 
-            qtyCasted: 100, 
-            offeredPrev: 0, 
-            offeredNow: 100, 
-            passed: 100, 
-            rejected: 0, 
-            unoffered: 0,
-            sleepers: Array.from({length: 100}, (_, i) => `S-001-${i+1}`),
-            rejectedSleepers: [],
-            etSleepers: [],
-            mfTestedSleepers: [`S-001-10`, `S-001-50`]
-        },
-        { 
-            batchNo: 'B-2024-002', 
-            dateCasted: '2024-04-11', 
-            qtyCasted: 150, 
-            offeredPrev: 50, 
-            offeredNow: 100, 
-            passed: 100, 
-            rejected: 0, 
-            unoffered: 0,
-            sleepers: Array.from({length: 100}, (_, i) => `S-002-${i+51}`),
-            rejectedSleepers: [],
-            etSleepers: [],
-            mfTestedSleepers: []
-        }
-    ]);
+    // Batch and Sleeper Data
+    const [batches, setBatches] = useState([]);
 
     const [expandedBatches, setExpandedBatches] = useState({});
     const [activeAction, setActiveAction] = useState(null); // 'rejection' or 'et'
@@ -58,36 +125,128 @@ const FinalInspectionScreen = ({ call, onBack }) => {
 
     // Verification Form State
     const [poForm, setPoForm] = useState({
-        poNo: 'WCR / DummyPo_001 / 001',
-        poDate: '20-04-2024',
-        poQty: '500 Nos',
-        vendorName: 'Dummy Vendor',
+        poNo: '',
+        poDate: '',
+        poQty: '',
+        vendorName: '',
         maNo: 'N/A',
         maDate: 'N/A',
-        purchasingAuthority: 'Manager, Procurement',
-        billPayingOfficer: 'BPO-001'
+        purchasingAuthority: '',
+        billPayingOfficer: ''
     });
 
     const [icForm, setIcForm] = useState({
-        callNo: 'EF-02200002',
-        callDate: '23/04/2026',
-        desiredDate: '20/02/2026',
-        rlyPoSr: 'WCR/DummyPo_001/001',
-        itemDesc: 'Manufacture and Supply of Elastic Rail Clip MK-V with Flat Toe for 60 Kg UIC/ 52 Kg Rail Section (Alt. 2) RDSO Drg. No. T-5919 and As per corrigendum no.-1 of IRS specification No-T-31-2021 (Fifth Revision) with latest amendment. (The alteration/revision/amendment in Drawing and specification issued by RDSO as on date of publishing of tender shall be applicable to this tender). Make/Brand: kr',
+        callNo: call?.requestId || '',
+        callDate: '',
+        desiredDate: '',
+        rlyPoSr: '',
+        itemDesc: '',
         productType: 'Sleeper',
         ercType: 'PSC Sleeper',
-        poSrQty: '500 Nos.',
-        consignee: 'SE/PWAY/STORE/BPL',
-        origDp: '20/10/2025',
-        extDp: '15/11/2025',
-        origDpStart: '21/07/2025',
+        poSrQty: '',
+        consignee: '',
+        origDp: '',
+        extDp: '',
+        origDpStart: '',
         stage: 'Final',
-        callQty: '2000',
+        callQty: '',
         qtyUnit: 'Nos',
-        place: 'Dummy Po Hyd Company (Dummy address HYD)',
-        processIc: 'W/EP-02190007/TIE2',
-        remarks: 'IE has scheduled the call'
+        place: '',
+        processIc: '',
+        remarks: ''
     });
+
+    useEffect(() => {
+        const loadInitialVerificationDetails = async () => {
+            if (!call?.requestId) return;
+            if (step !== 'po-verification') return;
+            try {
+                setIsLoadingData(true);
+                const [sec1Res, sec2Res, summaryRes] = await Promise.allSettled([
+                    apiService.getSection1Details(call.requestId),
+                    apiService.getSection2Details(call.requestId),
+                    apiService.getInspectionCallSummary(call.requestId)
+                ]);
+
+                const sec1 = sec1Res.status === 'fulfilled' ? sec1Res.value?.responseData : null;
+                const sec2 = sec2Res.status === 'fulfilled' ? sec2Res.value?.responseData : null;
+                const summary = summaryRes.status === 'fulfilled' ? summaryRes.value?.responseData : null;
+
+                if (sec1) {
+                    setPoForm({
+                        poNo: sec1.rlyPoNo || summary?.poNo || call.requestId,
+                        poDate: sec1.poDate ? sec1.poDate.split('T')[0] : '',
+                        poQty: sec1.poQty ? `${sec1.poQty} Nos` : (summary?.qtyOfferedNow ? `${summary.qtyOfferedNow} Nos` : ''),
+                        vendorName: sec1.vendorName || call.vendorCode || '',
+                        maNo: sec1.maNo || 'N/A',
+                        maDate: sec1.maDate ? sec1.maDate.split('T')[0] : 'N/A',
+                        purchasingAuthority: sec1.purchasingAuthority || '',
+                        billPayingOfficer: sec1.billPayingOfficer || ''
+                    });
+                    setSectionAStatus('approved');
+                    setIsSectionBVisible(true);
+                    setSectionBExpanded(true);
+                    setSectionAExpanded(false);
+                } else if (summary) {
+                    setPoForm(prev => ({
+                        ...prev,
+                        poNo: summary.poNo || call.requestId,
+                        poDate: summary.callDate || '',
+                        poQty: summary.qtyOfferedNow ? `${summary.qtyOfferedNow} Nos` : '',
+                        vendorName: call.vendorCode || ''
+                    }));
+                }
+
+                if (sec2) {
+                    setIcForm({
+                        callNo: sec2.inspectionCallNo || call.requestId,
+                        callDate: sec2.inspectionCallDate ? sec2.inspectionCallDate.split('T')[0] : '',
+                        desiredDate: sec2.inspectionDesiredDate ? sec2.inspectionDesiredDate.split('T')[0] : (summary?.desiredInspectionDate || ''),
+                        rlyPoSr: sec2.rlyPoSr || (summary?.rlyPoNo ? `${summary.rlyPoNo}/001` : ''),
+                        itemDesc: sec2.itemDesc || (summary?.itemDescription || ''),
+                        productType: sec2.productType || 'Sleeper',
+                        ercType: sec2.typeOfErc || summary?.sleeperType || 'PSC Sleeper',
+                        poSrQty: sec2.poSrQtyUnit || (summary?.poQty ? `${summary.poQty} Nos.` : ''),
+                        consignee: sec2.consignee || (summary?.consignee || ''),
+                        origDp: sec2.origDp ? sec2.origDp.split('T')[0] : (summary?.deliveryDate ? summary.deliveryDate.split('T')[0] : ''),
+                        extDp: sec2.extDp ? sec2.extDp.split('T')[0] : (summary?.extendedDeliveryDate ? summary.extendedDeliveryDate.split('T')[0] : ''),
+                        origDpStart: sec2.origDpStart ? sec2.origDpStart.split('T')[0] : '',
+                        stage: sec2.stageOfInspection || 'Final',
+                        callQty: sec2.callQtyMt ? String(sec2.callQtyMt) : (summary?.qtyOfferedNow ? String(summary.qtyOfferedNow) : ''),
+                        qtyUnit: 'Nos',
+                        place: sec2.placeOfInspection || (summary?.placeOfInspection || ''),
+                        processIc: sec2.processIcNumbers || '',
+                        remarks: sec2.remarks || ''
+                    });
+                    setSectionBStatus('approved');
+                } else if (summary) {
+                    setIcForm(prev => ({
+                        ...prev,
+                        callNo: call.requestId,
+                        callDate: summary.callDate ? summary.callDate.split('T')[0] : '',
+                        desiredDate: summary.desiredInspectionDate ? summary.desiredInspectionDate.split('T')[0] : '',
+                        rlyPoSr: summary.rlyPoNo ? `${summary.rlyPoNo}/001` : '',
+                        itemDesc: summary.itemDescription || '',
+                        productType: 'Sleeper',
+                        ercType: summary.sleeperType || 'PSC Sleeper',
+                        poSrQty: summary.poQty ? `${summary.poQty} Nos.` : '',
+                        consignee: summary.consignee || '',
+                        origDp: summary.deliveryDate ? summary.deliveryDate.split('T')[0] : '',
+                        extDp: summary.extendedDeliveryDate ? summary.extendedDeliveryDate.split('T')[0] : '',
+                        stage: 'Final',
+                        callQty: summary.qtyOfferedNow ? String(summary.qtyOfferedNow) : '',
+                        place: summary.placeOfInspection || ''
+                    }));
+                }
+            } catch (err) {
+                console.error("Error loading verification details:", err);
+            } finally {
+                setIsLoadingData(false);
+            }
+        };
+
+        loadInitialVerificationDetails();
+    }, [call, step]);
 
     const [sectionAStatus, setSectionAStatus] = useState(null); // 'approved' or 'rejected'
     const [sectionBStatus, setSectionBStatus] = useState(null); // 'approved' or 'rejected'
@@ -99,9 +258,15 @@ const FinalInspectionScreen = ({ call, onBack }) => {
     const [summaryData, setSummaryData] = useState(null);
     const [batchDetails, setBatchDetails] = useState([]);
 
+    const [isSavingSectionA, setIsSavingSectionA] = useState(false);
+    const [isSavingSectionB, setIsSavingSectionB] = useState(false);
+    const [isVerifyingPo, setIsVerifyingPo] = useState(false);
+    const isVerificationBusy = isSavingSectionA || isSavingSectionB || isVerifyingPo;
+
     const formatDateISO = (dateStr) => {
-        if (!dateStr || dateStr === 'N/A') return null;
-        const datePart = dateStr.split('T')[0];
+        if (!dateStr || dateStr === 'N/A' || dateStr === 'null' || dateStr === 'undefined') return null;
+        const datePart = String(dateStr).split('T')[0].trim();
+        if (!datePart || datePart === 'null' || datePart === 'undefined' || datePart === 'N/A') return null;
         const parts = datePart.split(/[-/]/);
         if (parts.length === 3) {
             if (parts[0].length === 4) {
@@ -112,9 +277,15 @@ const FinalInspectionScreen = ({ call, onBack }) => {
         return datePart;
     };
 
+    const toDateTimeISO = (dateStr) => {
+        const iso = formatDateISO(dateStr);
+        return iso ? `${iso}T00:00:00` : null;
+    };
+
     const formatDateDMY = (dateStr) => {
-        if (!dateStr || dateStr === 'N/A') return null;
-        const datePart = dateStr.split('T')[0];
+        if (!dateStr || dateStr === 'N/A' || dateStr === 'null' || dateStr === 'undefined') return null;
+        const datePart = String(dateStr).split('T')[0].trim();
+        if (!datePart || datePart === 'null' || datePart === 'undefined') return null;
         const parts = datePart.split(/[-/]/);
         if (parts.length === 3) {
             if (parts[0].length === 4) {
@@ -126,15 +297,17 @@ const FinalInspectionScreen = ({ call, onBack }) => {
     };
 
     const handleSectionAOk = async () => {
+        if (isVerificationBusy) return;
+        setIsSavingSectionA(true);
         try {
             const user = getStoredUser();
             const payload = {
                 callNo: call.requestId || icForm.callNo,
                 rlyPoNo: poForm.poNo,
-                poDate: formatDateISO(poForm.poDate) + "T00:00:00",
+                poDate: toDateTimeISO(poForm.poDate),
                 poQty: parseInt(poForm.poQty) || 0,
                 vendorName: poForm.vendorName,
-                maNo: poForm.maNo === 'N/A' ? '' : poForm.maNo,
+                maNo: (!poForm.maNo || poForm.maNo === 'N/A') ? '' : poForm.maNo,
                 maDate: formatDateISO(poForm.maDate),
                 purchasingAuthority: poForm.purchasingAuthority,
                 billPayingOfficer: poForm.billPayingOfficer,
@@ -152,15 +325,19 @@ const FinalInspectionScreen = ({ call, onBack }) => {
         } catch (error) {
             console.error("Error saving Section 1:", error);
             alert("Failed to save Section 1: " + error.message);
+        } finally {
+            setIsSavingSectionA(false);
         }
     };
 
     const handleSectionBOk = async () => {
+        if (isVerificationBusy) return;
+        setIsSavingSectionB(true);
         try {
             const user = getStoredUser();
             const payload = {
                 callNo: call.requestId || icForm.callNo,
-                inspectionCallDate: formatDateISO(icForm.callDate) + "T00:00:00",
+                inspectionCallDate: toDateTimeISO(icForm.callDate),
                 inspectionDesiredDate: formatDateISO(icForm.desiredDate),
                 rlyPoSr: icForm.rlyPoSr,
                 itemDesc: icForm.itemDesc,
@@ -168,8 +345,8 @@ const FinalInspectionScreen = ({ call, onBack }) => {
                 typeOfErc: icForm.ercType,
                 poSrQtyUnit: icForm.poSrQty,
                 consignee: icForm.consignee,
-                origDp: formatDateISO(icForm.origDp) + "T00:00:00",
-                extDp: formatDateISO(icForm.extDp) + "T00:00:00",
+                origDp: toDateTimeISO(icForm.origDp),
+                extDp: toDateTimeISO(icForm.extDp),
                 origDpStart: formatDateISO(icForm.origDpStart),
                 stageOfInspection: icForm.stage,
                 callQtyMt: parseInt(icForm.callQty) || 0,
@@ -187,10 +364,14 @@ const FinalInspectionScreen = ({ call, onBack }) => {
         } catch (error) {
             console.error("Error saving Section 2:", error);
             alert("Failed to save Section 2: " + error.message);
+        } finally {
+            setIsSavingSectionB(false);
         }
     };
 
     const handlePoVerify = async () => {
+        if (isVerificationBusy) return;
+        setIsVerifyingPo(true);
         try {
             const user = getStoredUser();
             // Call the workflow API to transition to the next state
@@ -212,18 +393,58 @@ const FinalInspectionScreen = ({ call, onBack }) => {
             // Even if it fails, we proceed to allow the user to work
             setPoVerified(true);
             setStep('inspection-form');
+        } finally {
+            setIsVerifyingPo(false);
         }
     };
 
+    const [activeActionLoading, setActiveActionLoading] = useState(null); // 'draft' | 'pause' | 'withdraw' | 'finish' | null
+    const isProcessing = Boolean(activeActionLoading);
+    const hasLoadedRef = React.useRef(false);
+
     useEffect(() => {
         const fetchInspectionData = async () => {
-            if (step === 'inspection-form' && call?.requestId) {
-                const callNo = call.requestId;
-                console.log(`Fetching inspection data for ${callNo}...`);
-                
-                let hasSavedData = false;
+            const callNo = call?.requestId || call?.callNo || call?.id;
+            if (!callNo || (step !== 'inspection-form' && !poVerified)) return;
+            if (hasLoadedRef.current) return; // Prevent duplicate refetches
 
-                // 1. Try fetching SAVED Inspection Data first
+            console.log(`[Inspection Data] Initializing data for ${callNo}...`);
+            hasLoadedRef.current = true;
+            setIsLoadingData(true);
+
+            try {
+                // 1. Check Local Draft FIRST (Priority for edits and refreshed sessions)
+                const savedDraft = localStorage.getItem(`inspection_draft_${callNo}`);
+                let loadedFromDraft = false;
+                if (savedDraft) {
+                    try {
+                        const draft = JSON.parse(savedDraft);
+                        if (draft && Array.isArray(draft.batches) && draft.batches.length > 0) {
+                            setBatches(draft.batches);
+                            if (draft.summaryData) {
+                                setSummaryData(draft.summaryData);
+                            }
+                            loadedFromDraft = true;
+                            console.log(`[Inspection Data] Restored latest draft for ${callNo} from local cache.`);
+                        }
+                    } catch (e) {
+                        console.error("Error parsing saved draft:", e);
+                    }
+                }
+
+                // If draft loaded, fetch any missing summary metadata but DO NOT overwrite batches
+                if (loadedFromDraft) {
+                    try {
+                        const summaryResp = await apiService.getInspectionCallSummary(callNo);
+                        if (summaryResp && summaryResp.responseData) {
+                            setSummaryData(prev => ({ ...summaryResp.responseData, ...(prev || {}) }));
+                        }
+                    } catch (e) {}
+                    return;
+                }
+
+                // 2. If no local draft, check SAVED inspection data from backend
+                let hasSavedBackendData = false;
                 try {
                     const savedHeader = await apiService.getSavedMainIeHeader(callNo);
                     if (savedHeader && savedHeader.responseData) {
@@ -240,10 +461,10 @@ const FinalInspectionScreen = ({ call, onBack }) => {
                             noOfEtSleepers: savedHeader.responseData.etSleepers,
                             callDate: savedHeader.responseData.callDate
                         });
-                        hasSavedData = true;
+                        hasSavedBackendData = true;
                     }
                 } catch (err) {
-                    console.log("No saved header found, falling back to initial summary.");
+                    console.log("No saved header found on backend.");
                 }
 
                 try {
@@ -258,26 +479,31 @@ const FinalInspectionScreen = ({ call, onBack }) => {
                             passed: b.passed || 0,
                             rejected: b.rejected || 0,
                             unoffered: b.unoffered || 0,
-                            // Reconstruct sleeper lists from the DTO arrays
-                            acceptedSleepers: (b.goodSleepers || []).map(s => s.sleeperCode),
-                            rejectedSleepers: (b.rejectedSleepers || []).map(s => s.sleeperCode),
-                            etSleepers: (b.etSleepers || []).map(s => s.sleeperCode),
-                            mfTestedSleepers: (b.mfSleepers || []).map(s => s.sleeperCode),
+                            acceptedSleepers: (b.goodSleepers || []).map(s => typeof s === 'string' ? s : s.sleeperCode),
+                            rejectedSleepers: (b.rejectedSleepers || []).map(s => ({
+                                sleeperCode: typeof s === 'string' ? s : s.sleeperCode,
+                                reason: s.reason || 'Rejected',
+                                type: s.type || 'Main IE Rejection'
+                            })),
+                            etSleepers: (b.etSleepers || []).map(s => ({
+                                sleeperCode: typeof s === 'string' ? s : s.sleeperCode,
+                                reason: s.reason || 'Epoxy Treatment'
+                            })),
+                            mfTestedSleepers: (b.mfSleepers || []).map(s => typeof s === 'string' ? s : s.sleeperCode),
                             sleepers: [
-                                ...(b.goodSleepers || []).map(s => s.sleeperCode), 
-                                ...(b.rejectedSleepers || []).map(s => s.sleeperCode)
+                                ...(b.goodSleepers || []).map(s => typeof s === 'string' ? s : s.sleeperCode), 
+                                ...(b.rejectedSleepers || []).map(s => typeof s === 'string' ? s : s.sleeperCode)
                             ]
                         }));
                         setBatches(mappedSaved);
-                        hasSavedData = true;
+                        hasSavedBackendData = true;
                     }
                 } catch (err) {
-                    console.log("No saved batches found, falling back to initial batch details.");
+                    console.log("No saved batches found on backend.");
                 }
 
-                // 2. If no saved data found, fallback to INITIAL Production Data
-                if (!hasSavedData) {
-                    // Fetch Initial Inspection Call Summary
+                // 3. Fallback to Initial Production Data if nothing was saved yet
+                if (!hasSavedBackendData) {
                     try {
                         const summaryResp = await apiService.getInspectionCallSummary(callNo);
                         if (summaryResp && summaryResp.responseData) {
@@ -287,7 +513,6 @@ const FinalInspectionScreen = ({ call, onBack }) => {
                         console.error("Error fetching initial inspection summary:", err);
                     }
 
-                    // Fetch Initial Batch-wise details
                     try {
                         const batchResp = await apiService.getBatchWiseDetails(callNo);
                         if (batchResp && batchResp.responseData && Array.isArray(batchResp.responseData)) {
@@ -312,124 +537,217 @@ const FinalInspectionScreen = ({ call, onBack }) => {
                         console.error("Error fetching initial batch details:", err);
                     }
                 }
+            } catch (err) {
+                console.error("Error initializing inspection data:", err);
+            } finally {
+                setIsLoadingData(false);
             }
         };
 
         fetchInspectionData();
-    }, [step, call?.requestId]);
+    }, [step, poVerified, call?.requestId]);
 
-    const handleWorkflowAction = async (actionName) => {
+    // Auto-save local draft whenever batches are updated in memory
+    useEffect(() => {
+        const callNo = call?.requestId || call?.callNo || call?.call_no || call?.id;
+        if (callNo && Array.isArray(batches) && batches.length > 0) {
+            const draft = {
+                batches,
+                summaryData,
+                shift: call?.shift || icForm?.shift,
+                inspectionDate: summaryData?.callDate || icForm?.callDate || new Date().toISOString(),
+                lastUpdated: new Date().toISOString()
+            };
+            localStorage.setItem(`inspection_draft_${callNo}`, JSON.stringify(draft));
+        }
+    }, [batches, summaryData, call?.requestId, call?.shift, icForm?.shift, icForm?.callDate]);
+
+    const getSCode = (s) => (typeof s === 'string' ? s : (s?.sleeperCode || ''));
+    const getSReason = (s) => (typeof s === 'string' ? '' : (s?.reason || ''));
+
+    const saveAllInspectionData = async () => {
+        const user = getStoredUser();
+        const plantId = localStorage.getItem('plantId');
+        const callNo = call.requestId || call.callNo || call.call_no || call.id;
+        const chosenShift = call.shift || icForm.shift || 'Shift A';
+        const inspectionDate = formatDateDMY(summaryData?.callDate || icForm.callDate || new Date());
+        const sleeperType = icForm.ercType || summaryData?.sleeperType || 'PSC Sleeper';
+
+        // 1. Save SleeperFinalResult (Dedicated Table & Batch Results Table)
+        const finalResultPayload = {
+            callNumber: callNo,
+            poNo: summaryData?.poNo || poForm.poNo,
+            srNo: String(call.srNo || icForm.itemSrNo || '1'),
+            shift: chosenShift,
+            dateOfInspection: inspectionDate,
+            sleeperType: sleeperType,
+            totalOfferedQuantity: totalOfferedNow,
+            totalAccepted: totalAccepted,
+            totalRejected: totalRejected,
+            plantId: plantId,
+            createdBy: String(user?.userId || ''),
+            updatedBy: String(user?.userId || ''),
+            batches: batches.map(batch => ({
+                batchNo: batch.batchNo,
+                batchOfferedQuantity: batch.offeredNow,
+                batchPassedQuantity: batch.passed,
+                batchRejectedQuantity: batch.rejected,
+                rejectedSleepers: (batch.rejectedSleepers || []).map(s => typeof s === 'string' ? { sleeperCode: s, reason: 'Rejected', type: 'Main IE Rejection' } : { sleeperCode: s.sleeperCode, reason: s.reason || 'Rejected', type: s.type || 'Main IE Rejection' }),
+                epoxyTreatedSleepers: (batch.etSleepers || []).map(s => typeof s === 'string' ? { sleeperCode: s, reason: 'Epoxy Treatment' } : { sleeperCode: s.sleeperCode, reason: s.reason || 'Epoxy Treatment' })
+            }))
+        };
+        
+        let savedResultId = null;
         try {
-            const user = getStoredUser();
-            const plantId = localStorage.getItem('plantId');
-            
-            // 1. Save Header Details
-            const headerPayload = {
-                rlyPoNo: summaryData?.poNo || poForm.poNo,
-                poDate: formatDateDMY(summaryData?.poDate || poForm.poDate),
-                vendorName: summaryData?.vendorName || poForm.vendorName,
-                callNo: call.requestId,
-                poQty: Number(String(summaryData?.quantityOnOrder || poForm.poQty).replace(/\D/g, '')),
-                maNo: poForm.maNo === 'N/A' ? '' : poForm.maNo,
-                maDate: formatDateDMY(poForm.maDate),
-                qtyOfferedNow: totalOfferedNow,
-                acceptedQty: totalAccepted,
-                rejectedQty: totalRejected,
-                etSleepers: totalEt,
-                callDate: formatDateDMY(summaryData?.callDate || icForm.callDate),
-                noOfBatches: batches.length,
-                shift: icForm.shift || 'Day',
+            const sfrRes = await apiService.saveSleeperFinalResult(finalResultPayload);
+            if (sfrRes && (sfrRes.id || sfrRes.responseData?.id)) {
+                savedResultId = sfrRes.id || sfrRes.responseData?.id;
+            }
+        } catch (err) {
+            console.warn("Error saving to saveSleeperFinalResult:", err);
+        }
+
+        // 2. Save Header Details (Existing final_call_inspection_header table)
+        const headerPayload = {
+            rlyPoNo: summaryData?.poNo || poForm.poNo,
+            poDate: formatDateDMY(summaryData?.poDate || poForm.poDate),
+            vendorName: summaryData?.vendorName || poForm.vendorName,
+            callNo: callNo,
+            poQty: Number(String(summaryData?.quantityOnOrder || poForm.poQty).replace(/\D/g, '')),
+            maNo: poForm.maNo === 'N/A' ? '' : poForm.maNo,
+            maDate: formatDateDMY(poForm.maDate),
+            qtyOfferedNow: totalOfferedNow,
+            acceptedQty: totalAccepted,
+            rejectedQty: totalRejected,
+            etSleepers: totalEt,
+            callDate: inspectionDate,
+            noOfBatches: batches.length,
+            shift: chosenShift,
+            plantId: plantId,
+            vendorCode: call.vendorCode || icForm.vendorCode,
+            createdBy: String(user?.userId || ''),
+            updatedBy: String(user?.userId || '')
+        };
+        
+        await apiService.saveMainIeInspectionHeader(headerPayload);
+
+        // 3. Save Batch-wise details with ET reason
+        for (const batch of batches) {
+            const batchPayload = {
+                batchNo: batch.batchNo,
+                callNo: callNo,
+                dateCasted: formatDateDMY(batch.dateCasted),
+                casted: batch.qtyCasted,
+                offeredPrev: batch.offeredPrev,
+                offeredNow: batch.offeredNow,
+                passed: batch.passed,
+                rejected: batch.rejected,
+                totalOffered: totalOfferedNow,
+                totalAccepted: totalAccepted,
+                totalRejected: totalRejected,
+                shift: chosenShift,
                 plantId: plantId,
                 vendorCode: call.vendorCode || icForm.vendorCode,
                 createdBy: String(user?.userId || ''),
-                updatedBy: String(user?.userId || '')
+                updatedBy: String(user?.userId || ''),
+                goodSleepers: (batch.acceptedSleepers || []).map(s => ({ sleeperCode: typeof s === 'string' ? s : s.sleeperCode })),
+                rejectedSleepers: (batch.rejectedSleepers || []).map(s => ({ 
+                    sleeperCode: typeof s === 'string' ? s : s.sleeperCode, 
+                    reason: (typeof s === 'object' && s.reason) ? s.reason : 'Rejected', 
+                    type: (typeof s === 'object' && s.type) ? s.type : 'Main IE Rejection',
+                    sleeperFinalResultId: savedResultId
+                })),
+                etSleepers: (batch.etSleepers || []).map(s => ({ 
+                    sleeperCode: typeof s === 'string' ? s : s.sleeperCode,
+                    reason: (typeof s === 'object' && s.reason) ? s.reason : 'Epoxy Treatment',
+                    sleeperFinalResultId: savedResultId
+                })),
+                mfSleepers: (batch.mfTestedSleepers || []).map(s => ({ sleeperCode: typeof s === 'string' ? s : s.sleeperCode })),
+                finalRejections: (batch.rejectedSleepers || []).map(s => ({ 
+                    sleeperCode: typeof s === 'string' ? s : s.sleeperCode, 
+                    reason: (typeof s === 'object' && s.reason) ? s.reason : 'Final Rejection', 
+                    type: 'Final',
+                    sleeperFinalResultId: savedResultId
+                }))
             };
-            
-            await apiService.saveMainIeInspectionHeader(headerPayload);
+            await apiService.saveMainIeInspectionBatch(batchPayload);
+        }
 
-            // 2. Save Batch-wise details (Loop through each batch)
-            for (const batch of batches) {
-                const batchPayload = {
-                    batchNo: batch.batchNo,
-                    callNo: call.requestId,
-                    dateCasted: formatDateDMY(batch.dateCasted),
-                    casted: batch.qtyCasted,
-                    offeredPrev: batch.offeredPrev,
-                    offeredNow: batch.offeredNow,
-                    passed: batch.passed,
-                    rejected: batch.rejected,
-                    totalOffered: totalOfferedNow,
-                    totalAccepted: totalAccepted,
-                    totalRejected: totalRejected,
-                    shift: icForm.shift || 'Day',
-                    plantId: plantId,
-                    vendorCode: call.vendorCode || icForm.vendorCode,
-                    createdBy: String(user?.userId || ''),
-                    updatedBy: String(user?.userId || ''),
-                    goodSleepers: (batch.acceptedSleepers || []).map(s => ({ sleeperCode: s })),
-                    rejectedSleepers: (batch.rejectedSleepers || []).map(s => ({ 
-                        sleeperCode: s, 
-                        reason: 'Rejected', 
-                        type: 'Main IE Rejection' 
-                    })),
-                    etSleepers: (batch.etSleepers || []).map(s => ({ sleeperCode: s })),
-                    mfSleepers: (batch.mfTestedSleepers || []).map(s => ({ sleeperCode: s })),
-                    finalRejections: (batch.rejectedSleepers || []).map(s => ({ 
-                        sleeperCode: s, 
-                        reason: 'Final Rejection', 
-                        type: 'Final' 
-                    }))
-                };
-                await apiService.saveMainIeInspectionBatch(batchPayload);
-            }
-            
-            // 3. Workflow Transition
-            const transitionPayload = {
-                workflowTransitionId: call.workflowTransitionId,
-                moduleId: call.moduleId || 0,
-                requestId: call.requestId,
-                action: actionName, 
-                remarks: actionName === 'PAUSE' ? "Inspection paused" : "Inspection performed from inspection screen",
-                actionBy: Number(user?.userId || 0)
-            };
-            await apiService.performTransitionAction(transitionPayload);
-            
-            // 4. Save local draft on PAUSE for extra safety
-            const draftData = {
-                batches,
-                lastSaved: new Date().toISOString()
-            };
-            localStorage.setItem(`inspection_draft_${call.requestId}`, JSON.stringify(draftData));
+        // 4. Save local draft
+        const draftData = {
+            batches,
+            summaryData,
+            shift: chosenShift,
+            inspectionDate,
+            lastSaved: new Date().toISOString()
+        };
+        localStorage.setItem(`inspection_draft_${callNo}`, JSON.stringify(draftData));
+    };
 
-            // 5. Clear local draft on completion
-            if (actionName === 'FINISH') {
-                localStorage.removeItem(`inspection_draft_${call.requestId}`);
-            }
-            
-            onBack(); // Go back to dashboard after saving
+    const handleSaveDraft = async () => {
+        if (isProcessing) return;
+        try {
+            setActiveActionLoading('draft');
+            await saveAllInspectionData();
+            alert("Inspection draft saved successfully!");
         } catch (error) {
-            console.error(`Error saving inspection data for ${actionName}:`, error);
-            alert(`Failed to save inspection data: ` + (error.response?.data?.message || error.message));
+            console.error("Error saving draft:", error);
+            alert("Failed to save draft: " + (error.response?.data?.message || error.message));
+        } finally {
+            setActiveActionLoading(null);
         }
     };
 
-    useEffect(() => {
-        // Load draft if it exists for this call
-        if (call?.requestId) {
-            const savedDraft = localStorage.getItem(`inspection_draft_${call.requestId}`);
-            if (savedDraft) {
-                try {
-                    const draft = JSON.parse(savedDraft);
-                    if (draft && draft.batches) {
-                        setBatches(draft.batches);
-                        console.log("Loaded draft from local storage");
-                    }
-                } catch (e) {
-                    console.error("Error parsing saved draft:", e);
+    const handleWorkflowAction = async (actionName) => {
+        if (isProcessing) return;
+        try {
+            if (actionName === 'PAUSE') setActiveActionLoading('pause');
+            else if (actionName === 'WITHDRAW') setActiveActionLoading('withdraw');
+            else if (actionName === 'FINISH') setActiveActionLoading('finish');
+
+            const user = getStoredUser();
+            const callNo = call.requestId || call.callNo || call.call_no || call.id;
+
+            if (actionName === 'WITHDRAW') {
+                const confirmed = window.confirm("Are you sure you want to withdraw this inspection call?");
+                if (!confirmed) {
+                    setActiveActionLoading(null);
+                    return;
                 }
             }
+
+            // 1. Save all inspection data
+            await saveAllInspectionData();
+
+            // 2. Perform Workflow Transition
+            let remarks = "Inspection performed from inspection screen";
+            if (actionName === 'PAUSE') remarks = "Inspection paused";
+            else if (actionName === 'WITHDRAW') remarks = "Inspection withdrawn";
+            else if (actionName === 'FINISH') remarks = "Inspection completed";
+
+            const transitionPayload = {
+                workflowTransitionId: call.workflowTransitionId || call.id,
+                moduleId: call.moduleId || 0,
+                requestId: callNo,
+                action: actionName,
+                remarks: remarks,
+                actionBy: Number(user?.userId || 0)
+            };
+            await apiService.performTransitionAction(transitionPayload);
+
+            // 3. Clear draft only on finish or withdraw
+            if (actionName === 'FINISH' || actionName === 'WITHDRAW') {
+                localStorage.removeItem(`inspection_draft_${callNo}`);
+            }
+
+            onBack();
+        } catch (error) {
+            console.error(`Error performing action ${actionName}:`, error);
+            alert(`Failed to perform ${actionName}: ` + (error.response?.data?.message || error.message));
+        } finally {
+            setActiveActionLoading(null);
         }
-    }, [call?.requestId]);
+    };
 
     const toggleBatchExpand = (batchNo) => {
         setExpandedBatches(prev => ({ ...prev, [batchNo]: !prev[batchNo] }));
@@ -446,9 +764,13 @@ const FinalInspectionScreen = ({ call, onBack }) => {
 
         setBatches(prev => prev.map(batch => {
             if (batch.batchNo === rejectionEntry.batchNo) {
-                if (batch.rejectedSleepers.includes(rejectionEntry.sleeperNo)) return batch;
-                const newAccepted = batch.acceptedSleepers.filter(s => s !== rejectionEntry.sleeperNo);
-                const newRejected = [...batch.rejectedSleepers, rejectionEntry.sleeperNo];
+                if (batch.rejectedSleepers.some(s => getSCode(s) === rejectionEntry.sleeperNo)) return batch;
+                const newAccepted = batch.acceptedSleepers.filter(s => getSCode(s) !== rejectionEntry.sleeperNo);
+                const newRejected = [...batch.rejectedSleepers, { 
+                    sleeperCode: rejectionEntry.sleeperNo, 
+                    reason: rejectionEntry.reason, 
+                    type: 'Main IE Rejection' 
+                }];
                 return {
                     ...batch,
                     acceptedSleepers: newAccepted,
@@ -468,13 +790,17 @@ const FinalInspectionScreen = ({ call, onBack }) => {
 
         setBatches(prev => prev.map(batch => {
             if (batch.batchNo === etEntry.batchNo) {
-                if (batch.etSleepers.includes(etEntry.sleeperNo)) return batch;
+                if (batch.etSleepers.some(s => getSCode(s) === etEntry.sleeperNo)) return batch;
                 
-                const newAccepted = batch.acceptedSleepers.filter(s => s !== etEntry.sleeperNo);
+                const newAccepted = batch.acceptedSleepers.filter(s => getSCode(s) !== etEntry.sleeperNo);
+                const newEt = [...batch.etSleepers, { 
+                    sleeperCode: etEntry.sleeperNo, 
+                    reason: etEntry.reason 
+                }];
                 return {
                     ...batch,
                     acceptedSleepers: newAccepted,
-                    etSleepers: [...batch.etSleepers, etEntry.sleeperNo]
+                    etSleepers: newEt
                 };
             }
             return batch;
@@ -486,7 +812,7 @@ const FinalInspectionScreen = ({ call, onBack }) => {
     const removeRejection = (batchNo, sleeperNo) => {
         setBatches(prev => prev.map(batch => {
             if (batch.batchNo === batchNo) {
-                const newRejected = batch.rejectedSleepers.filter(s => s !== sleeperNo);
+                const newRejected = batch.rejectedSleepers.filter(s => getSCode(s) !== sleeperNo);
                 const newAccepted = [...batch.acceptedSleepers, sleeperNo];
                 return {
                     ...batch,
@@ -503,7 +829,7 @@ const FinalInspectionScreen = ({ call, onBack }) => {
     const removeEt = (batchNo, sleeperNo) => {
         setBatches(prev => prev.map(batch => {
             if (batch.batchNo === batchNo) {
-                const newEt = batch.etSleepers.filter(s => s !== sleeperNo);
+                const newEt = batch.etSleepers.filter(s => getSCode(s) !== sleeperNo);
                 const newAccepted = [...batch.acceptedSleepers, sleeperNo];
                 return {
                     ...batch,
@@ -515,76 +841,173 @@ const FinalInspectionScreen = ({ call, onBack }) => {
         }));
     };
 
+    if (isLoadingData) {
+        if (step === 'po-verification') {
+            return <PoVerificationSkeleton onBack={onBack} />;
+        }
+        return <FinalInspectionSkeleton onBack={onBack} />;
+    }
+
+    const renderTildeFormatted = (text, type = 'vendor') => {
+        if (!text || text === '-' || text === 'N/A') return <span style={{ color: '#94a3b8' }}>-</span>;
+        const textStr = String(text);
+        if (!textStr.includes('~')) {
+            return <div className="tilde-primary-title">{textStr}</div>;
+        }
+        const parts = textStr.split('~').map(p => p.trim()).filter(Boolean);
+        return (
+            <div className="tilde-formatted-block">
+                <div className={`tilde-primary-title ${type}-title`}>{parts[0]}</div>
+                {parts.slice(1).length > 0 && (
+                    <div className="tilde-sub-details">
+                        {parts.slice(1).map((part, idx) => (
+                            <span key={idx} className={`tilde-sub-pill pill-${type}`}>{part}</span>
+                        ))}
+                    </div>
+                )}
+            </div>
+        );
+    };
+
     if (step === 'po-verification') {
+        const currentDateFormatted = new Date().toLocaleString('en-US', {
+            month: '2-digit', day: '2-digit', year: 'numeric',
+            hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true
+        });
+
         return (
             <div className="inspection-screen verification-mode">
                 <div className="verification-card-modern scrollable">
+                    {/* TOP HEADER */}
                     <div className="verification-card-header sticky">
                         <div className="header-titles-left">
-                            <h2>Inspection Initiation for {icForm.callNo}</h2>
-                            <p className="subtitle">11/14/2025, 5:00:00 PM</p>
+                            <div className="header-badge-title-row">
+                                <div className="initiation-icon-box">🛡️</div>
+                                <div>
+                                    <h2>Inspection Initiation for <span className="call-no-highlight">{icForm.callNo || call.requestId}</span></h2>
+                                    <div className="header-meta-tags">
+                                        <span className="meta-tag-pill po-tag">PO: {poForm.poNo || 'N/A'}</span>
+                                        <span className="meta-tag-pill time-tag">🕒 {currentDateFormatted}</span>
+                                        <span className="meta-tag-pill vendor-tag">🏢 {poForm.vendorName ? (poForm.vendorName.split('~')[0] || poForm.vendorName.substring(0, 30)) : 'Vendor'}</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div className="header-progress-indicator">
+                            <span className="step-badge active">Step 1 of 2: PO Verification</span>
                         </div>
                     </div>
 
                     <div className="verification-content-wrapper">
                         {/* SECTION A */}
-                        <div className="verification-collapsible-card">
+                        <div className={`verification-collapsible-card ${sectionAStatus === 'approved' ? 'card-verified' : ''}`}>
                             <div className="card-header-toggle" onClick={() => setSectionAExpanded(!sectionAExpanded)}>
-                                <h3>SECTION A: Main PO Information - {poForm.poNo}</h3>
-                                <button className="accordion-toggle-btn">{sectionAExpanded ? '-' : '+'}</button>
+                                <div className="toggle-title-left">
+                                    <span className="section-dot dot-a"></span>
+                                    <h3>SECTION A: Main PO Information <span className="section-po-sub">— {poForm.poNo}</span></h3>
+                                </div>
+                                <div className="toggle-header-right">
+                                    {sectionAStatus === 'approved' && (
+                                        <span className="status-chip chip-approved">✓ Section A Verified</span>
+                                    )}
+                                    {sectionAStatus === 'rejected' && (
+                                        <span className="status-chip chip-rejected">✕ Marked Not OK</span>
+                                    )}
+                                    {!sectionAStatus && (
+                                        <span className="status-chip chip-pending">Pending Review</span>
+                                    )}
+                                    <button className="accordion-toggle-btn" aria-label="Toggle Section A">
+                                        {sectionAExpanded ? '▲' : '▼'}
+                                    </button>
+                                </div>
                             </div>
                             
                             {sectionAExpanded && (
                                 <div className="verification-form-body-modern">
-                                    <div className="form-grid-modern-2col">
+                                    <div className="form-grid-modern-4col">
                                         <div className="form-group-modern">
-                                            <label>RLY + PO_NO</label>
-                                            <div className="input-field-mock">{poForm.poNo}</div>
+                                            <label>🔖 RLY + PO_NO</label>
+                                            <div className="input-field-mock po-number-field">{poForm.poNo || '-'}</div>
                                         </div>
                                         <div className="form-group-modern">
-                                            <label>PO DATE</label>
-                                            <div className="input-field-mock">{poForm.poDate}</div>
+                                            <label>📅 PO DATE</label>
+                                            <div className="input-field-mock">{poForm.poDate || '-'}</div>
                                             <span className="date-check-label">✓ PO Date ≤ Today</span>
                                         </div>
                                         <div className="form-group-modern">
-                                            <label>PO_QTY</label>
-                                            <div className="input-field-mock">{poForm.poQty}</div>
+                                            <label>🔢 PO_QTY</label>
+                                            <div className="input-field-mock qty-field">{poForm.poQty || '-'}</div>
                                         </div>
-                                        <div className="form-group-modern">
-                                            <label>VENDOR_NAME</label>
-                                            <div className="input-field-mock">{poForm.vendorName}</div>
+                                        <div className="form-group-modern span-2">
+                                            <label className="highlight-label-vendor">🏢 VENDOR_NAME</label>
+                                            <div className="input-field-mock highlight-vendor-field">
+                                                {renderTildeFormatted(poForm.vendorName, 'vendor')}
+                                            </div>
                                         </div>
                                         <div className="form-group-modern">
                                             <label>MA_NO</label>
-                                            <div className="input-field-mock">{poForm.maNo}</div>
+                                            <div className="input-field-mock">{poForm.maNo || 'N/A'}</div>
                                         </div>
                                         <div className="form-group-modern">
                                             <label>MA_DATE</label>
-                                            <div className="input-field-mock">{poForm.maDate}</div>
+                                            <div className="input-field-mock">{poForm.maDate || 'N/A'}</div>
                                         </div>
-                                        <div className="form-group-modern">
-                                            <label>PURCHASING AUTHORITY</label>
-                                            <div className="input-field-mock">{poForm.purchasingAuthority}</div>
+                                        <div className="form-group-modern span-2">
+                                            <label className="highlight-label-authority">🏛️ PURCHASING AUTHORITY</label>
+                                            <div className="input-field-mock highlight-authority-field">
+                                                {renderTildeFormatted(poForm.purchasingAuthority, 'authority')}
+                                            </div>
                                         </div>
-                                        <div className="form-group-modern">
-                                            <label>BILL PAYING OFFICER</label>
-                                            <div className="input-field-mock">{poForm.billPayingOfficer}</div>
+                                        <div className="form-group-modern span-2">
+                                            <label className="highlight-label-billpay">💳 BILL PAYING OFFICER</label>
+                                            <div className="input-field-mock highlight-billpay-field">
+                                                {renderTildeFormatted(poForm.billPayingOfficer, 'billpay')}
+                                            </div>
                                         </div>
                                     </div>
                                     
                                     <div className="section-status-actions">
-                                        <button 
-                                            className={`btn-status-not-ok ${sectionAStatus === 'rejected' ? 'active' : ''}`}
-                                            onClick={() => setSectionAStatus('rejected')}
-                                        >
-                                            Not OK
-                                        </button>
-                                        <button 
-                                            className={`btn-status-ok ${sectionAStatus === 'approved' ? 'active' : ''}`}
-                                            onClick={handleSectionAOk}
-                                        >
-                                            OK
-                                        </button>
+                                        {sectionAStatus === 'approved' ? (
+                                            <div className="section-verified-confirmation-row">
+                                                <div className="section-verified-notice">
+                                                    <span className="verified-check-icon">✓</span>
+                                                    <span className="verified-check-text">Section A Information Verified & Saved</span>
+                                                </div>
+                                                <button 
+                                                    type="button"
+                                                    className="btn-status-reverify"
+                                                    disabled={isVerificationBusy}
+                                                    onClick={() => setSectionAStatus(null)}
+                                                >
+                                                    ✏️ Re-verify Section A
+                                                </button>
+                                            </div>
+                                        ) : (
+                                            <>
+                                                <button 
+                                                    type="button"
+                                                    className={`btn-status-not-ok ${sectionAStatus === 'rejected' ? 'active' : ''}`}
+                                                    disabled={isVerificationBusy}
+                                                    onClick={() => setSectionAStatus('rejected')}
+                                                >
+                                                    ✕ Not OK
+                                                </button>
+                                                <button 
+                                                    type="button"
+                                                    className="btn-status-ok"
+                                                    disabled={isVerificationBusy}
+                                                    onClick={handleSectionAOk}
+                                                >
+                                                    {isSavingSectionA ? (
+                                                        <span className="btn-loading-content">
+                                                            <span className="spinner-mini"></span> Saving Section A...
+                                                        </span>
+                                                    ) : (
+                                                        '✓ OK & Verify Section A'
+                                                    )}
+                                                </button>
+                                            </>
+                                        )}
                                     </div>
                                 </div>
                             )}
@@ -592,46 +1015,62 @@ const FinalInspectionScreen = ({ call, onBack }) => {
 
                         {/* SECTION B */}
                         {isSectionBVisible && (
-                            <div className="verification-collapsible-card">
+                            <div className={`verification-collapsible-card ${sectionBStatus === 'approved' ? 'card-verified' : ''}`}>
                                 <div className="card-header-toggle" onClick={() => setSectionBExpanded(!sectionBExpanded)}>
-                                    <h3>SECTION B: Inspection Call Details - {poForm.poNo}</h3>
-                                    <button className="accordion-toggle-btn">{sectionBExpanded ? '-' : '+'}</button>
+                                    <div className="toggle-title-left">
+                                        <span className="section-dot dot-b"></span>
+                                        <h3>SECTION B: Inspection Call Details <span className="section-po-sub">— {poForm.poNo}</span></h3>
+                                    </div>
+                                    <div className="toggle-header-right">
+                                        {sectionBStatus === 'approved' && (
+                                            <span className="status-chip chip-approved">✓ Section B Verified</span>
+                                        )}
+                                        {sectionBStatus === 'rejected' && (
+                                            <span className="status-chip chip-rejected">✕ Marked Not OK</span>
+                                        )}
+                                        {!sectionBStatus && (
+                                            <span className="status-chip chip-pending">Pending Review</span>
+                                        )}
+                                        <button className="accordion-toggle-btn" aria-label="Toggle Section B">
+                                            {sectionBExpanded ? '▲' : '▼'}
+                                        </button>
+                                    </div>
                                 </div>
 
                                 {sectionBExpanded && (
                                     <div className="verification-form-body-modern">
-                                        <div className="form-grid-modern-2col">
+                                        <div className="form-grid-modern-4col">
                                             <div className="form-group-modern">
                                                 <label>INSPECTION CALL NO.</label>
-                                                <div className="input-field-mock">{icForm.callNo}</div>
+                                                <div className="input-field-mock call-no-field">{icForm.callNo || '-'}</div>
                                             </div>
                                             <div className="form-group-modern">
                                                 <label>INSPECTION CALL DATE</label>
-                                                <div className="input-field-mock">{icForm.callDate}</div>
+                                                <div className="input-field-mock">{icForm.callDate || '-'}</div>
                                             </div>
                                             <div className="form-group-modern">
                                                 <label>INSPECTION DESIRED DATE</label>
-                                                <div className="input-field-mock">{icForm.desiredDate}</div>
+                                                <div className="input-field-mock desired-date-field">{icForm.desiredDate || '-'}</div>
                                             </div>
                                             <div className="form-group-modern">
                                                 <label>RLY + PO_NO + PO_SR</label>
-                                                <div className="input-field-mock">{icForm.rlyPoSr}</div>
+                                                <div className="input-field-mock">{icForm.rlyPoSr || '-'}</div>
                                             </div>
                                             <div className="form-group-modern full-width">
-                                                <label>ITEM DESC</label>
-                                                <div className="input-field-mock text-wrap">{icForm.itemDesc}</div>
+                                                <label className="highlight-label-itemdesc">📑 ITEM DESC</label>
+                                                <div className="input-field-mock highlight-itemdesc-field text-wrap">{icForm.itemDesc || '-'}</div>
                                             </div>
                                             <div className="form-group-modern">
                                                 <label>PRODUCT TYPE</label>
-                                                <div className="input-field-mock">{icForm.productType}</div>
+                                                <div className="input-field-mock product-pill">{icForm.productType || 'Sleeper'}</div>
                                             </div>
                                             <div className="form-group-modern">
-                                                <label>Type of Sleeper</label>
+                                                <label>Type of Sleeper <span className="req-star">*</span></label>
                                                 <select 
-                                                    className="input-field-mock"
+                                                    className="input-field-mock modern-select"
                                                     value={icForm.ercType}
+                                                    disabled={isVerificationBusy}
                                                     onChange={(e) => setIcForm({...icForm, ercType: e.target.value})}
-                                                    style={{ width: '100%', height: '45px', border: '1px solid #e2e8f0', background: '#f8fafc' }}
                                                 >
                                                     <option value="PSC Sleeper">PSC Sleeper</option>
                                                     <option value="Normal Sleeper">Normal Sleeper</option>
@@ -641,74 +1080,91 @@ const FinalInspectionScreen = ({ call, onBack }) => {
                                             </div>
                                             <div className="form-group-modern">
                                                 <label>PO_SR_QTY + UNIT</label>
-                                                <div className="input-field-mock">{icForm.poSrQty}</div>
+                                                <div className="input-field-mock">{icForm.poSrQty || '-'}</div>
                                             </div>
-                                            <div className="form-group-modern">
-                                                <label>CONSIGNEE</label>
-                                                <div className="input-field-mock">{icForm.consignee}</div>
-                                            </div>
-                                            <div className="form-group-modern">
-                                                <label>ORIG_DP</label>
-                                                <div className="input-field-mock">{icForm.origDp}</div>
-                                            </div>
-                                            <div className="form-group-modern">
-                                                <label>EXT_DP</label>
-                                                <div className="input-field-mock">{icForm.extDp}</div>
-                                            </div>
-                                            <div className="form-group-modern">
-                                                <label>ORIG_DP_START</label>
-                                                <div className="input-field-mock">{icForm.origDpStart}</div>
-                                            </div>
-                                            <div className="form-group-modern">
-                                                <label>STAGE OF INSPECTION</label>
-                                                <div className="input-field-mock">{icForm.stage}</div>
-                                            </div>
-                                            <div className="form-group-modern">
-                                                <label>Call Qty (Nos/Set/RMT)</label>
-                                                <div style={{ display: 'flex', gap: '8px' }}>
-                                                    <input 
-                                                        type="text"
-                                                        className="input-field-mock"
-                                                        value={icForm.callQty}
-                                                        onChange={(e) => setIcForm({...icForm, callQty: e.target.value})}
-                                                        style={{ flex: 1, height: '45px', border: '1px solid #e2e8f0', background: '#f8fafc' }}
-                                                    />
-                                                    <select 
-                                                        className="input-field-mock"
-                                                        value={icForm.qtyUnit}
-                                                        onChange={(e) => setIcForm({...icForm, qtyUnit: e.target.value})}
-                                                        style={{ width: '80px', height: '45px', border: '1px solid #e2e8f0', background: '#f8fafc' }}
-                                                    >
-                                                        <option value="Nos">Nos</option>
-                                                        <option value="Set">Set</option>
-                                                        <option value="RMT">RMT</option>
-                                                    </select>
+                                            <div className="form-group-modern span-2">
+                                                <label className="highlight-label-consignee">📦 CONSIGNEE</label>
+                                                <div className="input-field-mock highlight-consignee-field">
+                                                    {renderTildeFormatted(icForm.consignee, 'consignee')}
                                                 </div>
                                             </div>
                                             <div className="form-group-modern">
-                                                <label>PLACE OF INSPECTION</label>
-                                                <div className="input-field-mock">{icForm.place}</div>
+                                                <label>ORIG_DP</label>
+                                                <div className="input-field-mock">{icForm.origDp || '-'}</div>
+                                            </div>
+                                            <div className="form-group-modern">
+                                                <label>EXT_DP</label>
+                                                <div className="input-field-mock">{icForm.extDp || '-'}</div>
+                                            </div>
+                                            <div className="form-group-modern">
+                                                <label>ORIG_DP_START</label>
+                                                <div className="input-field-mock">{icForm.origDpStart || '-'}</div>
+                                            </div>
+                                            <div className="form-group-modern">
+                                                <label>STAGE OF INSPECTION</label>
+                                                <div className="input-field-mock">{icForm.stage || 'Final'}</div>
+                                            </div>
+                                            <div className="form-group-modern">
+                                                <label>CALL QTY</label>
+                                                <div className="input-field-mock qty-field">
+                                                    {icForm.callQty ? `${icForm.callQty} ${icForm.qtyUnit || 'Nos'}` : '-'}
+                                                </div>
+                                            </div>
+                                            <div className="form-group-modern span-2">
+                                                <label className="highlight-label-place">📍 PLACE OF INSPECTION</label>
+                                                <div className="input-field-mock highlight-place-field">
+                                                    {renderTildeFormatted(icForm.place, 'place')}
+                                                </div>
                                             </div>
 
                                             <div className="form-group-modern full-width">
                                                 <label>REMARKS</label>
-                                                <div className="input-field-mock">{icForm.remarks}</div>
+                                                <div className="input-field-mock text-wrap text-sm">{icForm.remarks || '-'}</div>
                                             </div>
                                         </div>
 
                                         <div className="section-status-actions">
-                                            <button 
-                                                className={`btn-status-not-ok ${sectionBStatus === 'rejected' ? 'active' : ''}`}
-                                                onClick={() => setSectionBStatus('rejected')}
-                                            >
-                                                Not OK
-                                            </button>
-                                            <button 
-                                                className={`btn-status-ok ${sectionBStatus === 'approved' ? 'active' : ''}`}
-                                                onClick={handleSectionBOk}
-                                            >
-                                                OK
-                                            </button>
+                                            {sectionBStatus === 'approved' ? (
+                                                <div className="section-verified-confirmation-row">
+                                                    <div className="section-verified-notice">
+                                                        <span className="verified-check-icon">✓</span>
+                                                        <span className="verified-check-text">Section B Information Verified & Saved</span>
+                                                    </div>
+                                                    <button 
+                                                        type="button"
+                                                        className="btn-status-reverify"
+                                                        disabled={isVerificationBusy}
+                                                        onClick={() => setSectionBStatus(null)}
+                                                    >
+                                                        ✏️ Re-verify Section B
+                                                    </button>
+                                                </div>
+                                            ) : (
+                                                <>
+                                                    <button 
+                                                        type="button"
+                                                        className={`btn-status-not-ok ${sectionBStatus === 'rejected' ? 'active' : ''}`}
+                                                        disabled={isVerificationBusy}
+                                                        onClick={() => setSectionBStatus('rejected')}
+                                                    >
+                                                        ✕ Not OK
+                                                    </button>
+                                                    <button 
+                                                        type="button"
+                                                        className="btn-status-ok"
+                                                        disabled={isVerificationBusy}
+                                                        onClick={handleSectionBOk}
+                                                    >
+                                                        {isSavingSectionB ? (
+                                                            <span className="btn-loading-content">
+                                                                <span className="spinner-mini"></span> Saving Section B...
+                                                            </span>
+                                                        ) : (
+                                                            '✓ OK & Verify Section B'
+                                                        )}
+                                                    </button>
+                                                </>
+                                            )}
                                         </div>
                                     </div>
                                 )}
@@ -716,17 +1172,30 @@ const FinalInspectionScreen = ({ call, onBack }) => {
                         )}
                     </div>
                     
+                    {/* FOOTER */}
                     <div className="verification-footer sticky">
                         <div className="footer-actions-left">
-                            <button className="back-landing-btn" onClick={onBack}>Back to Landing Page</button>
+                            <button 
+                                className="back-landing-btn-modern" 
+                                disabled={isVerificationBusy}
+                                onClick={onBack}
+                            >
+                                ← Back to Calls Dashboard
+                            </button>
                         </div>
                         <div className="footer-actions-right">
                             <button 
-                                className="open-verify-btn" 
-                                disabled={sectionBStatus !== 'approved'}
+                                className="open-verify-btn-modern" 
+                                disabled={sectionBStatus !== 'approved' || isVerificationBusy}
                                 onClick={handlePoVerify}
                             >
-                                Open & Verify Form
+                                {isVerifyingPo ? (
+                                    <span className="btn-loading-content">
+                                        <span className="spinner-mini"></span> Opening & Verifying Form...
+                                    </span>
+                                ) : (
+                                    'Open & Verify Form →'
+                                )}
                             </button>
                         </div>
                     </div>
@@ -739,44 +1208,68 @@ const FinalInspectionScreen = ({ call, onBack }) => {
         <div className="inspection-screen">
             <header className="inspection-header">
                 <div className="header-left">
-                    <button className="back-icon-btn" onClick={onBack}>
-                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="m15 18-6-6 6-6"/></svg>
+                    <button className="back-icon-btn" onClick={onBack} title="Back to Dashboard">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="m15 18-6-6 6-6"/></svg>
                     </button>
-                    <div>
-                        <h1>Final Inspection Form</h1>
-                        <span className="call-ref">Call Ref: {call?.id || 'N/A'}</span>
+                    <div className="header-call-meta">
+                        <div className="title-row">
+                            <h1>Final Inspection</h1>
+                            <span className="pill-badge call-badge">
+                                Call No: {call?.requestId || call?.callNo || call?.call_no || call?.id || 'N/A'}
+                            </span>
+                            <span className="pill-badge shift-badge">
+                                Shift: {call?.shift || icForm?.shift || 'Shift A'}
+                            </span>
+                            <span className="pill-badge date-badge">
+                                Date: {summaryData?.callDate ? new Date(summaryData.callDate).toLocaleDateString('en-GB') : (call.date || icForm.callDate || new Date().toLocaleDateString('en-GB'))}
+                            </span>
+                        </div>
                     </div>
                 </div>
                 <div className="header-status">
-                    <span className="status-indicator live">INSPECTION IN PROGRESS</span>
+                    <span className="status-indicator live">● INSPECTION IN PROGRESS</span>
                     <span className="timer">00:45:12</span>
                 </div>
             </header>
 
             <main className="inspection-layout">
-                {/* Section 1: Header Summary */}
-                <section className="section summary-header">
-                    <div className="section-title">Section 1: Header Details</div>
-                    <div className="summary-grid">
-                        <div className="summary-col">
-                            <div className="data-item"><label>RLY + PO_NO:</label> <span>{summaryData?.poNo || poForm.poNo}</span></div>
-                            <div className="data-item"><label>PO DATE:</label> <span>{summaryData?.poDate || poForm.poDate}</span></div>
-                            <div className="data-item"><label>VENDOR_NAME:</label> <span>{summaryData?.vendorName || poForm.vendorName}</span></div>
+                {/* Section 1: PO & Vendor Details */}
+                <section className="section summary-header-modern">
+                    <div className="section-title-bar">
+                        <div className="title-left">
+                            <span className="section-step-num">01</span>
+                            <h3>Section 1: PO & Vendor Details</h3>
                         </div>
-                        <div className="summary-col">
-                            <div className="data-item"><label>PO_QTY:</label> <span>{summaryData?.quantityOnOrder || poForm.poQty}</span></div>
-                            <div className="data-item"><label>MA_NO:</label> <span>{summaryData?.maNo || poForm.maNo}</span></div>
-                            <div className="data-item"><label>MA_DATE:</label> <span>{summaryData?.maDate || poForm.maDate}</span></div>
+                        <div className="title-right">
+                            <span className="plant-tag">Plant: {call.placeOfInspection || summaryData?.placeOfInspection || poForm.vendorName || 'Plant-1'}</span>
                         </div>
-                        <div className="summary-col">
-                            <div className="data-item highlight"><label>Qty Offered Now:</label> <span>{summaryData?.qtyOfferedNow || totalOfferedNow}</span></div>
-                            <div className="data-item success"><label>Accepted:</label> <span>{totalAccepted}</span></div>
-                            <div className="data-item danger"><label>Rejected:</label> <span>{totalRejected}</span></div>
-                        </div>
-                        <div className="summary-col">
-                            <div className="data-item warning"><label>ET Sleepers:</label> <span>{totalEt}</span></div>
-                            <div className="data-item"><label>Call Date:</label> <span>{summaryData?.callDate ? new Date(summaryData.callDate).toLocaleDateString() : (call.date || icForm.callDate)}</span></div>
-                            <div className="data-item"><label>No. of Batches:</label> <span>{summaryData?.noOfBatches || batches.length}</span></div>
+                    </div>
+
+                    <div className="header-cards-container single-card-layout">
+                        {/* Purchase Order & Vendor Details Card */}
+                        <div className="header-info-card po-meta-card full-width-card">
+                            <div className="card-fields-grid-po">
+                                <div className="meta-field">
+                                    <span className="label">RLY + PO Number</span>
+                                    <span className="value po-val">{summaryData?.poNo || poForm.poNo || 'N/A'}</span>
+                                </div>
+                                <div className="meta-field">
+                                    <span className="label">PO Date</span>
+                                    <span className="value">{summaryData?.poDate || poForm.poDate || 'N/A'}</span>
+                                </div>
+                                <div className="meta-field">
+                                    <span className="label">PO Quantity</span>
+                                    <span className="value">{summaryData?.quantityOnOrder || poForm.poQty || 'N/A'}</span>
+                                </div>
+                                <div className="meta-field">
+                                    <span className="label">MA No / Date</span>
+                                    <span className="value">{poForm.maNo && poForm.maNo !== 'N/A' ? `${poForm.maNo} (${poForm.maDate})` : 'N/A'}</span>
+                                </div>
+                                <div className="meta-field full-row">
+                                    <span className="label">Vendor Name & Address</span>
+                                    <span className="value vendor-val">{summaryData?.vendorName || poForm.vendorName || 'N/A'}</span>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </section>
@@ -784,7 +1277,17 @@ const FinalInspectionScreen = ({ call, onBack }) => {
                 <div className="main-working-area">
                     {/* Section 2: Batch Details */}
                     <section className="section batch-details">
-                        <div className="section-title">Section 2: Batch-Wise Summary</div>
+                        <div className="section-title-bar">
+                            <div className="title-left">
+                                <span className="section-step-num">02</span>
+                                <h3>Section 2: Batch-Wise Summary</h3>
+                            </div>
+                            <div className="title-right">
+                                <span className="sleeper-type-tag">
+                                    Sleeper Type: <strong>{icForm.ercType || summaryData?.sleeperType || 'PSC Sleeper (RT-8746)'}</strong>
+                                </span>
+                            </div>
+                        </div>
                         <div className="batch-table-container">
                             <table className="batch-table">
                                 <thead>
@@ -819,27 +1322,46 @@ const FinalInspectionScreen = ({ call, onBack }) => {
                                                             <div className="detail-list">
                                                                 <h6>Rejected Sleepers ({batch.rejectedSleepers.length})</h6>
                                                                 <div className="tag-container">
-                                                                    {batch.rejectedSleepers.map(s => (
-                                                                        <span key={s} className="tag rejected">{s} <i onClick={() => removeRejection(batch.batchNo, s)}>×</i></span>
-                                                                    ))}
+                                                                    {batch.rejectedSleepers.map(s => {
+                                                                        const sCode = getSCode(s);
+                                                                        const sReason = getSReason(s);
+                                                                        return (
+                                                                            <span key={sCode} className="tag rejected">
+                                                                                <strong>{sCode}</strong>
+                                                                                {sReason && <span className="tag-reason"> ({sReason})</span>}
+                                                                                <i onClick={() => removeRejection(batch.batchNo, sCode)}>×</i>
+                                                                            </span>
+                                                                        );
+                                                                    })}
                                                                     {batch.rejectedSleepers.length === 0 && <span className="empty">None</span>}
                                                                 </div>
                                                             </div>
                                                             <div className="detail-list">
                                                                 <h6>Epoxy Treated (ET) ({batch.etSleepers.length})</h6>
                                                                 <div className="tag-container">
-                                                                    {batch.etSleepers.map(s => (
-                                                                        <span key={s} className="tag et">{s} <i onClick={() => removeEt(batch.batchNo, s)}>×</i></span>
-                                                                    ))}
+                                                                    {batch.etSleepers.map(s => {
+                                                                        const sCode = getSCode(s);
+                                                                        const sReason = getSReason(s);
+                                                                        return (
+                                                                            <span key={sCode} className="tag et">
+                                                                                <strong>{sCode}</strong>
+                                                                                {sReason && <span className="tag-reason"> ({sReason})</span>}
+                                                                                <i onClick={() => removeEt(batch.batchNo, sCode)}>×</i>
+                                                                            </span>
+                                                                        );
+                                                                    })}
                                                                     {batch.etSleepers.length === 0 && <span className="empty">None</span>}
                                                                 </div>
                                                             </div>
                                                             <div className="detail-list">
                                                                 <h6>MF Tested ({batch.mfTestedSleepers.length})</h6>
                                                                 <div className="tag-container">
-                                                                    {batch.mfTestedSleepers.map(s => (
-                                                                        <span key={s} className="tag mf">{s}</span>
-                                                                    ))}
+                                                                    {batch.mfTestedSleepers.map(s => {
+                                                                        const sCode = getSCode(s);
+                                                                        return (
+                                                                            <span key={sCode} className="tag mf">{sCode}</span>
+                                                                        );
+                                                                    })}
                                                                     {batch.mfTestedSleepers.length === 0 && <span className="empty">None</span>}
                                                                 </div>
                                                             </div>
@@ -855,124 +1377,156 @@ const FinalInspectionScreen = ({ call, onBack }) => {
                     </section>
 
                     {/* Section 3: Final Verdict Data Entry */}
-                    <section className="section verdict-entry">
-                        <div className="section-title">Section 3: Final Verdict (Data Entry)</div>
+                    <section className="section verdict-entry-modern">
+                        <div className="section-title-bar">
+                            <div className="title-left">
+                                <span className="section-step-num">03</span>
+                                <h3>Section 3: Final Verdict (Data Entry)</h3>
+                            </div>
+                            <div className="title-right">
+                                <span className="verdict-hint-tag">Log Rejections & Epoxy Treatments (ET)</span>
+                            </div>
+                        </div>
                         
-                        <div className="entry-actions-row" style={{ display: 'flex', gap: '15px', alignItems: 'start' }}>
-                            {/* Action A: Add Rejection */}
-                            <div className={`collapsible-entry-card ${activeAction === 'rejection' ? 'active' : ''}`} style={{ flex: 1, border: '1px solid #e2e8f0', borderRadius: '8px', background: '#fff' }}>
+                        <div className="verdict-cards-grid">
+                            {/* Card 1: Add Rejection */}
+                            <div className={`verdict-interactive-card card-rejection ${activeAction === 'rejection' ? 'expanded' : ''}`}>
                                 <div 
-                                    className="card-header-toggle" 
+                                    className="verdict-card-header" 
                                     onClick={() => setActiveAction(activeAction === 'rejection' ? null : 'rejection')}
-                                    style={{ padding: '12px 16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer', background: '#fff1f1' }}
                                 >
-                                    <h5 style={{ margin: 0, color: '#dc2626', fontSize: '0.9rem' }}>Add Rejection {activeAction === 'rejection' ? '▼' : '▶'}</h5>
+                                    <div className="header-left-group">
+                                        <span className="action-icon-badge icon-rejection">✕</span>
+                                        <div>
+                                            <h4 className="card-title-red">Log Sleeper Rejection</h4>
+                                            <p className="card-subtitle">Record defective or rejected sleepers by batch</p>
+                                        </div>
+                                    </div>
+                                    <div className="header-right-group">
+                                        <span className="status-pill-toggle red-toggle">
+                                            {activeAction === 'rejection' ? 'Collapse ▲' : '+ Add Rejection ▼'}
+                                        </span>
+                                    </div>
                                 </div>
+
                                 {activeAction === 'rejection' && (
-                                    <div className="entry-form" style={{ padding: '16px', borderTop: '1px solid #e2e8f0' }}>
-                                        <div className="field-group" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '12px' }}>
-                                            <div className="field">
-                                                <label style={{ fontSize: '0.75rem', fontWeight: '700' }}>Batch Number</label>
-                                                <select 
-                                                    style={{ width: '100%', height: '35px', fontSize: '0.8rem' }}
-                                                    value={rejectionEntry.batchNo} 
-                                                    onChange={(e) => setRejectionEntry({...rejectionEntry, batchNo: e.target.value, sleeperNo: ''})}
-                                                >
-                                                    <option value="">Select Batch</option>
-                                                    {batches.map(b => <option key={b.batchNo} value={b.batchNo}>{b.batchNo}</option>)}
-                                                </select>
+                                    <div className="verdict-form-body">
+                                        <div className="form-row-2col">
+                                            <div className="form-input-group">
+                                                <label>Batch Number <span className="req">*</span></label>
+                                                <ModernSearchableSelect
+                                                    value={rejectionEntry.batchNo}
+                                                    onChange={(val) => setRejectionEntry({...rejectionEntry, batchNo: val, sleeperNo: ''})}
+                                                    options={batches.map(b => ({ value: b.batchNo, label: `Batch ${b.batchNo}` }))}
+                                                    placeholder="Search or Select Batch"
+                                                    theme="red"
+                                                />
                                             </div>
-                                            <div className="field">
-                                                <label style={{ fontSize: '0.75rem', fontWeight: '700' }}>Sleeper Number</label>
-                                                <select 
-                                                    style={{ width: '100%', height: '35px', fontSize: '0.8rem' }}
-                                                    value={rejectionEntry.sleeperNo} 
-                                                    onChange={(e) => setRejectionEntry({...rejectionEntry, sleeperNo: e.target.value})}
+                                            <div className="form-input-group">
+                                                <label>Sleeper Number <span className="req">*</span></label>
+                                                <ModernSearchableSelect
+                                                    value={rejectionEntry.sleeperNo}
+                                                    onChange={(val) => setRejectionEntry({...rejectionEntry, sleeperNo: val})}
+                                                    options={(batches.find(b => b.batchNo === rejectionEntry.batchNo)?.acceptedSleepers || [])
+                                                        .map(s => {
+                                                            const code = typeof s === 'string' ? s : s?.sleeperCode;
+                                                            return { value: code, label: code };
+                                                        })}
+                                                    placeholder={rejectionEntry.batchNo ? "Search or Select Sleeper" : "Select Batch first"}
                                                     disabled={!rejectionEntry.batchNo}
-                                                >
-                                                    <option value="">Select Sleeper</option>
-                                                    {rejectionEntry.batchNo && batches.find(b => b.batchNo === rejectionEntry.batchNo).acceptedSleepers
-                                                        .map(s => (
-                                                        <option key={s} value={s}>{s}</option>
-                                                    ))}
-                                                </select>
+                                                    theme="red"
+                                                />
                                             </div>
                                         </div>
-                                        <div className="field" style={{ marginBottom: '15px' }}>
-                                            <label style={{ fontSize: '0.75rem', fontWeight: '700' }}>Reason for Rejection</label>
+                                        <div className="form-input-group full-width-input">
+                                            <label>Reason for Rejection <span className="req">*</span></label>
                                             <select 
-                                                style={{ width: '100%', height: '35px', fontSize: '0.8rem' }}
                                                 value={rejectionEntry.reason} 
                                                 onChange={(e) => setRejectionEntry({...rejectionEntry, reason: e.target.value})}
                                             >
-                                                <option value="">Select Reason</option>
+                                                <option value="">Select Reason for Rejection</option>
                                                 <option value="Surface Crack">Surface Crack</option>
                                                 <option value="Dimensional Variation">Dimensional Variation</option>
                                                 <option value="Honeycombing">Honeycombing</option>
                                                 <option value="Broken Edge">Broken Edge</option>
                                                 <option value="END DAMAGE">END DAMAGE</option>
+                                                <option value="Insert Misalignment">Insert Misalignment</option>
                                             </select>
                                         </div>
-                                        <button className="add-btn reject" onClick={handleAddRejection} style={{ width: '100%', padding: '10px', background: '#dc2626', color: '#fff', border: 'none', borderRadius: '4px', fontWeight: '700', fontSize: '0.8rem' }}>Log Rejection</button>
+                                        <button className="btn-submit-verdict btn-red" onClick={handleAddRejection}>
+                                            <span>✕</span> Log Rejection Record
+                                        </button>
                                     </div>
                                 )}
                             </div>
     
-                            {/* Action B: Add ET */}
-                            <div className={`collapsible-entry-card ${activeAction === 'et' ? 'active' : ''}`} style={{ flex: 1, border: '1px solid #e2e8f0', borderRadius: '8px', background: '#fff' }}>
+                            {/* Card 2: Add ET */}
+                            <div className={`verdict-interactive-card card-et ${activeAction === 'et' ? 'expanded' : ''}`}>
                                 <div 
-                                    className="card-header-toggle" 
+                                    className="verdict-card-header" 
                                     onClick={() => setActiveAction(activeAction === 'et' ? null : 'et')}
-                                    style={{ padding: '12px 16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer', background: '#f0f9ff' }}
                                 >
-                                    <h5 style={{ margin: 0, color: '#0284c7', fontSize: '0.9rem' }}>Add Epoxy Treatment (ET) {activeAction === 'et' ? '▼' : '▶'}</h5>
+                                    <div className="header-left-group">
+                                        <span className="action-icon-badge icon-et">🧪</span>
+                                        <div>
+                                            <h4 className="card-title-blue">Log Epoxy Treatment (ET)</h4>
+                                            <p className="card-subtitle">Record epoxy-treated sleepers with defect reasons</p>
+                                        </div>
+                                    </div>
+                                    <div className="header-right-group">
+                                        <span className="status-pill-toggle blue-toggle">
+                                            {activeAction === 'et' ? 'Collapse ▲' : '+ Add ET ▼'}
+                                        </span>
+                                    </div>
                                 </div>
+
                                 {activeAction === 'et' && (
-                                    <div className="entry-form" style={{ padding: '16px', borderTop: '1px solid #e2e8f0' }}>
-                                        <div className="field-group" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '12px' }}>
-                                            <div className="field">
-                                                <label style={{ fontSize: '0.75rem', fontWeight: '700' }}>Batch Number</label>
-                                                <select 
-                                                    style={{ width: '100%', height: '35px', fontSize: '0.8rem' }}
-                                                    value={etEntry.batchNo} 
-                                                    onChange={(e) => setEtEntry({...etEntry, batchNo: e.target.value, sleeperNo: ''})}
-                                                >
-                                                    <option value="">Select Batch</option>
-                                                    {batches.map(b => <option key={b.batchNo} value={b.batchNo}>{b.batchNo}</option>)}
-                                                </select>
+                                    <div className="verdict-form-body">
+                                        <div className="form-row-2col">
+                                            <div className="form-input-group">
+                                                <label>Batch Number <span className="req">*</span></label>
+                                                <ModernSearchableSelect
+                                                    value={etEntry.batchNo}
+                                                    onChange={(val) => setEtEntry({...etEntry, batchNo: val, sleeperNo: ''})}
+                                                    options={batches.map(b => ({ value: b.batchNo, label: `Batch ${b.batchNo}` }))}
+                                                    placeholder="Search or Select Batch"
+                                                    theme="blue"
+                                                />
                                             </div>
-                                            <div className="field">
-                                                <label style={{ fontSize: '0.75rem', fontWeight: '700' }}>Sleeper Number</label>
-                                                <select 
-                                                    style={{ width: '100%', height: '35px', fontSize: '0.8rem' }}
-                                                    value={etEntry.sleeperNo} 
-                                                    onChange={(e) => setEtEntry({...etEntry, sleeperNo: e.target.value})}
+                                            <div className="form-input-group">
+                                                <label>Sleeper Number <span className="req">*</span></label>
+                                                <ModernSearchableSelect
+                                                    value={etEntry.sleeperNo}
+                                                    onChange={(val) => setEtEntry({...etEntry, sleeperNo: val})}
+                                                    options={(batches.find(b => b.batchNo === etEntry.batchNo)?.acceptedSleepers || [])
+                                                        .map(s => {
+                                                            const code = typeof s === 'string' ? s : s?.sleeperCode;
+                                                            return { value: code, label: code };
+                                                        })}
+                                                    placeholder={etEntry.batchNo ? "Search or Select Sleeper" : "Select Batch first"}
                                                     disabled={!etEntry.batchNo}
-                                                >
-                                                    <option value="">Select Sleeper</option>
-                                                    {etEntry.batchNo && batches.find(b => b.batchNo === etEntry.batchNo).acceptedSleepers
-                                                        .map(s => (
-                                                        <option key={s} value={s}>{s}</option>
-                                                    ))}
-                                                </select>
+                                                    theme="blue"
+                                                />
                                             </div>
                                         </div>
-                                        <div className="field" style={{ marginBottom: '15px' }}>
-                                            <label style={{ fontSize: '0.75rem', fontWeight: '700' }}>Reason for ET</label>
+                                        <div className="form-input-group full-width-input">
+                                            <label>Reason for Epoxy Treatment <span className="req">*</span></label>
                                             <select 
-                                                style={{ width: '100%', height: '35px', fontSize: '0.8rem' }}
                                                 value={etEntry.reason} 
                                                 onChange={(e) => setEtEntry({...etEntry, reason: e.target.value})}
                                             >
-                                                <option value="">Select Reason</option>
+                                                <option value="">Select Reason for ET</option>
                                                 <option value="Surface Crack">Surface Crack</option>
                                                 <option value="Dimensional Variation">Dimensional Variation</option>
                                                 <option value="Honeycombing">Honeycombing</option>
                                                 <option value="Broken Edge">Broken Edge</option>
                                                 <option value="END DAMAGE">END DAMAGE</option>
+                                                <option value="Minor Pitting">Minor Pitting</option>
                                             </select>
                                         </div>
-                                        <button className="add-btn et" onClick={handleAddEt} style={{ width: '100%', padding: '10px', background: '#0284c7', color: '#fff', border: 'none', borderRadius: '4px', fontWeight: '700', fontSize: '0.8rem' }}>Log Epoxy Treatment</button>
+                                        <button className="btn-submit-verdict btn-blue" onClick={handleAddEt}>
+                                            <span>🧪</span> Log Epoxy Treatment Record
+                                        </button>
                                     </div>
                                 )}
                             </div>
@@ -980,35 +1534,73 @@ const FinalInspectionScreen = ({ call, onBack }) => {
                     </section>
                 </div>
 
-                {/* Section 4: Summary & Actions */}
-                <section className="section actions-bar">
-                    <div className="visual-summary">
-                        <div className="summary-circle">
-                            <svg viewBox="0 0 36 36" className="circular-chart">
-                                <path className="circle-bg" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
-                                <path className="circle" strokeDasharray={`${(totalAccepted/totalOfferedNow)*100}, 100`} d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
-                            </svg>
-                            <div className="percentage">{Math.round((totalAccepted/totalOfferedNow)*100)}%</div>
-                        </div>
-                        <div className="summary-text">
-                            <div><strong>Offered:</strong> {totalOfferedNow}</div>
-                            <div className="text-success"><strong>Accepted:</strong> {totalAccepted}</div>
-                            <div className="text-danger"><strong>Rejected:</strong> {totalRejected}</div>
+                {/* Section 4: Final Inspection Result */}
+                <section className="section final-result-section">
+                    <div className="section-title-bar">
+                        <div className="title-left">
+                            <span className="section-step-num">04</span>
+                            <h3>Section 4: Final Inspection Result</h3>
                         </div>
                     </div>
-                    
-                    <div className="action-buttons">
-                        {/* PAUSE INSPECTION button below now handles saving */}
-                        {/* Section 4: Summary & Actions (Simplified to Footer Actions) */}
-                        <div className="inspection-footer-actions">
-                            <button className="btn-pause" onClick={() => handleWorkflowAction('PAUSE')}>
-                                PAUSE INSPECTION
+
+                    <div className="final-result-card-body">
+                        {/* Inspection Quantities Metric Cards */}
+                        <div className="kpi-metrics-grid-modern">
+                            <div className="kpi-box kpi-offered">
+                                <span className="kpi-num">{totalOfferedNow}</span>
+                                <span className="kpi-title">Offered Now</span>
+                            </div>
+                            <div className="kpi-box kpi-accepted">
+                                <span className="kpi-num">{totalAccepted}</span>
+                                <span className="kpi-title">Accepted</span>
+                            </div>
+                            <div className="kpi-box kpi-rejected">
+                                <span className="kpi-num">{totalRejected}</span>
+                                <span className="kpi-title">Rejected</span>
+                            </div>
+                            <div className="kpi-box kpi-et">
+                                <span className="kpi-num">{totalEt}</span>
+                                <span className="kpi-title">ET Sleepers</span>
+                            </div>
+                            <div className="kpi-box kpi-batches">
+                                <span className="kpi-num">{batches.length}</span>
+                                <span className="kpi-title">Total Batches</span>
+                            </div>
+                        </div>
+
+                        {/* Action Buttons Row with Concurrency Lockout */}
+                        <div className="final-action-buttons-row">
+                            <button 
+                                className="btn-action-custom btn-save-draft" 
+                                onClick={handleSaveDraft} 
+                                disabled={isProcessing}
+                                style={{ opacity: isProcessing ? 0.6 : 1, cursor: isProcessing ? 'not-allowed' : 'pointer' }}
+                            >
+                                {activeActionLoading === 'draft' ? '⏳ Saving Draft...' : '💾 SAVE DRAFT'}
                             </button>
-                            <button className="btn-withheld" onClick={() => handleWorkflowAction('WITHHELD')}>
-                                WITHHELD
+                            <button 
+                                className="btn-action-custom btn-pause-inspection" 
+                                onClick={() => handleWorkflowAction('PAUSE')} 
+                                disabled={isProcessing}
+                                style={{ opacity: isProcessing ? 0.6 : 1, cursor: isProcessing ? 'not-allowed' : 'pointer' }}
+                            >
+                                {activeActionLoading === 'pause' ? '⏳ Pausing...' : '⏸️ PAUSE INSPECTION'}
                             </button>
-                            <button className="btn-complete" onClick={() => handleWorkflowAction('FINISH')}>
-                                COMPLETE INSPECTION
+                            <button 
+                                className="btn-action-custom btn-withdraw-inspection" 
+                                onClick={() => handleWorkflowAction('WITHDRAW')} 
+                                disabled={isProcessing}
+                                style={{ opacity: isProcessing ? 0.6 : 1, cursor: isProcessing ? 'not-allowed' : 'pointer' }}
+                            >
+                                {activeActionLoading === 'withdraw' ? '⏳ Withdrawing...' : '🚫 WITHDRAW'}
+                            </button>
+                            <button 
+                                className="btn-action-custom btn-finish-inspection" 
+                                onClick={() => handleWorkflowAction('FINISH')} 
+                                disabled={isProcessing}
+                                style={{ opacity: isProcessing ? 0.6 : 1, cursor: isProcessing ? 'not-allowed' : 'pointer' }}
+                            >
+                                {activeActionLoading === 'finish' ? '⏳ Completing...' : '✅ FINISH INSPECTION'}
                             </button>
                         </div>
                     </div>

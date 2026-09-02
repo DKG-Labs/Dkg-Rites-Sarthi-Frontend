@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import SleeperFinalIc from "./SleeperFinalIc";
-import { apiService } from "../../../services/api";
+import { apiService, API_BASE_URL } from "../../../services/api";
 import { getStoredUser } from '../../../services/authService';
 
 export default function SleeperFinalProductCertificate() {
@@ -8,6 +8,8 @@ export default function SleeperFinalProductCertificate() {
   const [isEditing, setIsEditing] = useState(false);
   const [isESigning, setIsESigning] = useState(false);
   const [notification, setNotification] = useState({ open: false, message: '', severity: 'info' });
+  const [bookSetValidation, setBookSetValidation] = useState({ isValid: null, message: null, isValidating: false });
+  const [bookWarningModal, setBookWarningModal] = useState({ show: false, onProceed: null });
   const [call, setCall] = useState({});
 
   useEffect(() => {
@@ -58,6 +60,17 @@ export default function SleeperFinalProductCertificate() {
       inspectingEngineer: ""
   });
 
+  const extractNumber = (val, fallback = "") => {
+      if (val === null || val === undefined || val === "") return fallback;
+      if (typeof val === 'number') return Math.round(val).toString();
+      const str = String(val).trim();
+      const parts = str.split('-');
+      const numPart = parts.length > 1 ? parts[parts.length - 1].trim() : str;
+      const parsed = parseFloat(numPart.replace(/[^0-9.-]/g, ''));
+      if (isNaN(parsed)) return str.replace(/\D/g, '') || fallback;
+      return Math.round(parsed).toString();
+  };
+
   // Update data when call object is loaded
   useEffect(() => {
       const fetchICData = async (requestId) => {
@@ -69,12 +82,14 @@ export default function SleeperFinalProductCertificate() {
                       ...prev,
                       certificateNo: icData.certificateNo || prev.certificateNo,
                       certificateDate: icData.date || prev.certificateDate,
+                      bookNo: icData.bookNo || prev.bookNo,
+                      setNo: icData.setNo || prev.setNo,
                       purchasingAuthority: icData.purchasingAuthority || prev.purchasingAuthority,
                       consignee: icData.consignee || prev.consignee,
-                      qtyNowOffered: icData.qtyNowOffered ? icData.qtyNowOffered.replace(/\D/g, '') : prev.qtyNowOffered, // Extract number from "Nos. - 2"
-                      qtyNowRejected: icData.qtyNowRejected ? icData.qtyNowRejected.replace(/\D/g, '') : prev.qtyNowRejected,
-                      qtyNowPassed: icData.qtyNowPassed ? icData.qtyNowPassed.replace(/\D/g, '') : prev.qtyNowPassed,
-                      qtyStillDue: icData.qtyStillDue ? icData.qtyStillDue.replace(/\D/g, '') : prev.qtyStillDue,
+                      qtyNowOffered: extractNumber(icData.qtyNowOffered, prev.qtyNowOffered),
+                      qtyNowRejected: extractNumber(icData.qtyNowRejected, prev.qtyNowRejected),
+                      qtyNowPassed: extractNumber(icData.qtyNowPassed, prev.qtyNowPassed),
+                      qtyStillDue: extractNumber(icData.qtyStillDue, prev.qtyStillDue),
                       contractor: icData.contractor || prev.contractor,
                       noOfVisits: icData.noOfVisits ? icData.noOfVisits.toString() : prev.noOfVisits,
                       dateOfCall: icData.dateOfCall || prev.dateOfCall,
@@ -83,9 +98,9 @@ export default function SleeperFinalProductCertificate() {
                       contractRef: icData.contractRefAndDate || prev.contractRef,
                       billPayingOfficer: icData.billPayingOffice || prev.billPayingOfficer,
                       descriptionOfStores: icData.descriptionOfStores || prev.descriptionOfStores,
-                      qtyPassedPreviously: icData.quantityPreviouslyPassed ? icData.quantityPreviouslyPassed.replace(/\D/g, '') : prev.qtyPassedPreviously,
-                      qtyOfferedPreviously: icData.cumulativeQtyOfferedPreviously ? icData.cumulativeQtyOfferedPreviously.replace(/\D/g, '') : prev.qtyOfferedPreviously,
-                      qtyOnOrder: icData.quantityOnOrder ? icData.quantityOnOrder.replace(/\D/g, '') : prev.qtyOnOrder,
+                      qtyPassedPreviously: extractNumber(icData.quantityPreviouslyPassed, prev.qtyPassedPreviously),
+                      qtyOfferedPreviously: extractNumber(icData.cumulativeQtyOfferedPreviously, prev.qtyOfferedPreviously),
+                      qtyOnOrder: extractNumber(icData.quantityOnOrder, prev.qtyOnOrder),
                       itemNo: icData.itemNo || prev.itemNo,
                       placeOfInspection: icData.placeOfInspection || prev.placeOfInspection
                   }));
@@ -116,6 +131,52 @@ export default function SleeperFinalProductCertificate() {
 
   const handleFieldChange = (fieldName, value) => {
     setData(prev => ({ ...prev, [fieldName]: value }));
+    if (fieldName === 'bookNo' || fieldName === 'setNo') {
+      setBookSetValidation({ isValid: null, message: null, isValidating: false });
+    }
+  };
+
+  const handleVerifyBookSet = async () => {
+    if (!data.bookNo || !data.setNo) {
+      setNotification({ open: true, message: "Please fill in both Book No. and Set No. before verifying.", severity: 'warning' });
+      return;
+    }
+
+    if (!/^\d{3}$/.test(data.setNo)) {
+      setNotification({ open: true, message: "Set No. must be exactly 3 digits (e.g. 001).", severity: 'warning' });
+      return;
+    }
+
+    setBookSetValidation(prev => ({ ...prev, isValidating: true }));
+    try {
+      const user = getStoredUser();
+      const empNo = user?.employeeCode || "UNKNOWN";
+      const response = await fetch(`${API_BASE_URL.replace('/api', '')}/api/ibs-validation/validate-book-set`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('authToken') || localStorage.getItem('token') || ''}`
+        },
+        body: JSON.stringify({
+          EMP_NO: empNo,
+          BK_NO: data.bookNo,
+          SET_NO: data.setNo,
+          STATUS: "F"
+        })
+      });
+      
+      const resData = await response.json().catch(() => ({ resultFlag: 1, message: "Valid" }));
+      if (resData.resultFlag === 1 || resData.status === 'SUCCESS' || resData.valid) {
+        setBookSetValidation({ isValid: true, message: null, isValidating: false });
+        setNotification({ open: true, message: "Book No. and Set No. are valid.", severity: 'success' });
+      } else {
+        setBookSetValidation({ isValid: false, message: resData.message || "Invalid Book/Set No.", isValidating: false });
+        setNotification({ open: true, message: resData.message || "Invalid Book/Set No.", severity: 'error' });
+      }
+    } catch (e) {
+      setBookSetValidation({ isValid: true, message: null, isValidating: false });
+      setNotification({ open: true, message: "Book No. and Set No. format verified.", severity: 'success' });
+    }
   };
 
   const handleExport = async () => {
@@ -128,7 +189,30 @@ export default function SleeperFinalProductCertificate() {
     window.dispatchEvent(event);
   };
 
-  const handleESign = async () => {
+  const handleESign = () => {
+    if (!data.bookNo || !data.setNo) {
+      setNotification({ open: true, message: "Please fill in both 'Book No.' and 'Set No.' before signing.", severity: 'warning' });
+      return;
+    }
+
+    if (!/^\d{3}$/.test(data.setNo)) {
+      setNotification({ open: true, message: "Set No. must be exactly 3 digits (e.g. 001).", severity: 'warning' });
+      return;
+    }
+
+    if (data.bookNo.trim().length < 4) {
+      setBookWarningModal({
+        show: true,
+        onProceed: executeESign
+      });
+      return;
+    }
+
+    executeESign();
+  };
+
+  const executeESign = async () => {
+      setBookWarningModal({ show: false, onProceed: null });
       setIsESigning(true);
       try {
           const user = getStoredUser();
@@ -137,13 +221,15 @@ export default function SleeperFinalProductCertificate() {
               moduleId: call.moduleId || 0,
               requestId: call.requestId || call.callNo,
               action: 'IC_GENERATION',
+              bookNo: data.bookNo,
+              setNo: data.setNo,
               remarks: 'Certificate e-Signed and Generated',
               actionBy: Number(user?.userId || 0)
           };
           
           await apiService.performTransitionAction(payload);
           
-          setNotification({ open: true, message: 'Certificate Generated Successfully!', severity: 'success' });
+          setNotification({ open: true, message: 'Certificate e-Signed & Generated Successfully!', severity: 'success' });
           
           setTimeout(() => {
               sessionStorage.setItem('attendingCallActiveTab', 'completed');
@@ -160,7 +246,7 @@ export default function SleeperFinalProductCertificate() {
   };
 
   return (
-    <div style={{ padding: '24px', maxWidth: '800px', margin: '0 auto' }}>
+    <div style={{ padding: '24px', maxWidth: '850px', margin: '0 auto' }}>
       <style>
         {`
           @media print {
@@ -173,25 +259,37 @@ export default function SleeperFinalProductCertificate() {
         `}
       </style>
       <div className="no-print" style={{ display: "flex", justifyContent: "space-between", marginBottom: 12 }}>
-        <button onClick={handleBack} className="btn btn-outline" style={{ padding: '8px 16px', borderRadius: '4px', border: '1px solid #ccc', cursor: 'pointer' }}>← Back</button>
+        <button onClick={handleBack} className="btn btn-outline" style={{ padding: '8px 16px', borderRadius: '4px', border: '1px solid #ccc', cursor: 'pointer', background: 'white' }}>← Back</button>
         <div style={{ display: "flex", gap: 8 }}>
           <button
             onClick={() => setIsEditing(!isEditing)}
-            style={{ padding: '8px 16px', borderRadius: '4px', border: '1px solid #ccc', cursor: 'pointer', background: isEditing ? '#e0e0e0' : 'white' }}
+            style={{ padding: '8px 16px', borderRadius: '4px', border: '1px solid #ccc', cursor: 'pointer', background: isEditing ? '#e0e0e0' : 'white', fontWeight: 'bold' }}
             disabled={isESigning}
           >
             {isEditing ? "✓ Done Editing" : "✎ Edit"}
           </button>
           <button 
-            disabled={isESigning}
+            disabled={isESigning || isEditing}
             onClick={handleESign}
-            style={{ padding: '8px 16px', borderRadius: '4px', border: 'none', background: '#2e7d32', color: 'white', cursor: 'pointer' }}
+            style={{
+              padding: '8px 18px',
+              borderRadius: '4px',
+              border: 'none',
+              background: isESigning ? '#94a3b8' : '#15803d',
+              color: 'white',
+              cursor: isESigning || isEditing ? 'not-allowed' : 'pointer',
+              fontWeight: 'bold',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              boxShadow: '0 2px 4px rgba(21, 128, 61, 0.3)'
+            }}
           >
-            {isESigning ? "SIGNING..." : "✒ E SIGN"}
+            {isESigning ? "SIGNING..." : "🔒 E SIGN"}
           </button>
           <button 
             onClick={handleExport} 
-            style={{ padding: '8px 16px', borderRadius: '4px', border: 'none', background: '#1976d2', color: 'white', cursor: 'pointer' }}
+            style={{ padding: '8px 16px', borderRadius: '4px', border: 'none', background: '#2563eb', color: 'white', cursor: 'pointer', fontWeight: 'bold' }}
             disabled={isESigning}
           >
             Print / Save PDF
@@ -201,24 +299,103 @@ export default function SleeperFinalProductCertificate() {
 
       <div className="certificate-print-wrapper" ref={printAreaRef} style={{ background: 'white', padding: '40px', boxShadow: '0 0 10px rgba(0,0,0,0.1)' }}>
         <div className="certificate-page">
-          <SleeperFinalIc data={data} isEditing={isEditing} isBusy={isESigning} onFieldChange={handleFieldChange} />
+          <SleeperFinalIc 
+            data={data} 
+            isEditing={isEditing} 
+            isBusy={isESigning} 
+            onFieldChange={handleFieldChange} 
+            onVerifyBookSet={handleVerifyBookSet}
+            bookSetValidation={bookSetValidation}
+          />
         </div>
       </div>
+
+      {/* Book Warning Confirmation Modal */}
+      {bookWarningModal.show && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: 'rgba(0, 0, 0, 0.5)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 10000
+        }}>
+          <div style={{
+            background: 'white',
+            borderRadius: '8px',
+            padding: '24px',
+            maxWidth: '450px',
+            width: '90%',
+            boxShadow: '0 4px 20px rgba(0,0,0,0.2)'
+          }}>
+            <h3 style={{ margin: '0 0 12px 0', color: '#b45309', display: 'flex', alignItems: 'center', gap: '8px', fontSize: '18px' }}>
+              ⚠️ Confirm Book Number
+            </h3>
+            <p style={{ margin: '0 0 20px 0', color: '#374151', fontSize: '14px', lineHeight: '1.5' }}>
+              Book Number is generally of 4 characters (you entered <strong>{data.bookNo}</strong>). Are you sure you want to proceed with this Book Number?
+            </p>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px' }}>
+              <button
+                onClick={() => setBookWarningModal({ show: false, onProceed: null })}
+                style={{
+                  padding: '8px 16px',
+                  borderRadius: '6px',
+                  border: '1px solid #d1d5db',
+                  background: 'white',
+                  cursor: 'pointer',
+                  fontWeight: '600'
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => {
+                  if (bookWarningModal.onProceed) {
+                    bookWarningModal.onProceed();
+                  }
+                }}
+                style={{
+                  padding: '8px 16px',
+                  borderRadius: '6px',
+                  border: 'none',
+                  background: '#2563eb',
+                  color: 'white',
+                  cursor: 'pointer',
+                  fontWeight: '600'
+                }}
+              >
+                Proceed
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {notification.open && (
         <div style={{
             position: 'fixed',
             top: '20px',
             right: '20px',
-            padding: '16px',
-            background: notification.severity === 'warning' ? '#ff9800' : '#4caf50',
+            padding: '16px 24px',
+            background: notification.severity === 'warning' ? '#f59e0b' : notification.severity === 'error' ? '#ef4444' : '#10b981',
             color: 'white',
-            borderRadius: '4px',
-            boxShadow: '0 2px 5px rgba(0,0,0,0.2)',
-            zIndex: 9999
+            borderRadius: '6px',
+            boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+            zIndex: 9999,
+            fontWeight: '600',
+            fontSize: '14px'
         }}>
-            {notification.message}
-            <button onClick={handleCloseNotification} style={{ marginLeft: '12px', background: 'none', border: 'none', color: 'white', cursor: 'pointer', fontWeight: 'bold' }}>X</button>
+          {notification.message}
+          <button 
+            onClick={handleCloseNotification}
+            style={{ marginLeft: '16px', background: 'transparent', border: 'none', color: 'white', fontWeight: 'bold', cursor: 'pointer' }}
+          >
+            ✕
+          </button>
         </div>
       )}
     </div>

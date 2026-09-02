@@ -54,12 +54,72 @@ const getShiftSuffix = () => {
   return shift ? `_${shift}` : '';
 };
 
+// Helper to normalize heat numbers for flexible lookup
+const normalizeHeatKey = (key) => {
+  if (!key) return '';
+  return key
+    .toString()
+    .trim()
+    .toUpperCase()
+    .replace(/^HEAT[\s\-_]*/i, '') // strip leading "HEAT", "HEAT-", "HEAT_"
+    .replace(/[\s\-_]+/g, '');     // strip internal spaces, dashes, underscores
+};
+
 // Helper to extract heat data from either array format or new robust object format
 const getStoredHeatData = (storageData, hNo, idx) => {
   if (!storageData) return null;
-  const nhNo = (hNo || '').toString().trim().toUpperCase();
-  if (typeof storageData === 'object' && !Array.isArray(storageData) && storageData[nhNo]) return storageData[nhNo];
-  if (Array.isArray(storageData) && storageData[idx]) return storageData[idx];
+
+  // If storageData is wrapped in an object like { materialData: ... } or { heatDimData: ... }
+  if (storageData.materialData) storageData = storageData.materialData;
+  if (storageData.heatDimData) storageData = storageData.heatDimData;
+
+  const rawHNo = (hNo || '').toString().trim().toUpperCase();
+  const cleanHNo = normalizeHeatKey(rawHNo);
+
+  // 1. Object format
+  if (typeof storageData === 'object' && !Array.isArray(storageData)) {
+    if (storageData[rawHNo]) return storageData[rawHNo];
+
+    const foundKey = Object.keys(storageData).find(k => {
+      const cleanK = normalizeHeatKey(k);
+      return cleanK === cleanHNo || k.trim().toUpperCase() === rawHNo;
+    });
+    if (foundKey && storageData[foundKey]) return storageData[foundKey];
+
+    // Fallback: If keyed by index ("0", "1", "2")
+    if (idx !== undefined && idx !== null && storageData[idx]) return storageData[idx];
+    if (idx !== undefined && idx !== null && storageData[String(idx)]) return storageData[String(idx)];
+
+    // Fallback: Check if any item inside has matching heatNo property
+    const itemByProp = Object.values(storageData).find(item => {
+      if (!item) return false;
+      const itemHNo = normalizeHeatKey(item.heatNo || item.heat_no);
+      return itemHNo && itemHNo === cleanHNo;
+    });
+    if (itemByProp) return itemByProp;
+
+    // Fallback by array of values at index
+    const values = Object.values(storageData);
+    if (idx !== undefined && idx !== null && idx >= 0 && idx < values.length && values[idx]) {
+      const valHNo = normalizeHeatKey(values[idx].heatNo || values[idx].heat_no);
+      if (!valHNo || valHNo === cleanHNo) {
+        return values[idx];
+      }
+    }
+  }
+
+  // 2. Array format
+  if (Array.isArray(storageData)) {
+    const found = storageData.find(item => {
+      if (!item) return false;
+      const itemHNo = normalizeHeatKey(item.heatNo || item.heat_no);
+      return itemHNo && itemHNo === cleanHNo;
+    });
+    if (found) return found;
+
+    if (idx !== undefined && idx !== null && storageData[idx]) return storageData[idx];
+  }
+
   return null;
 };
 
@@ -652,10 +712,10 @@ const RawMaterialDashboard = ({ call, onBack, onNavigateToSubModule, onHeatsChan
             }
 
             if (!materialDataMap[hNo]) materialDataMap[hNo] = { samples: [] };
-            
+
             const sampleIdx = item.sampleNumber - 1;
             const currentSample = materialDataMap[hNo].samples[sampleIdx];
-            
+
             // Only restore if this sample is empty
             const isSampleEmpty = !currentSample || Object.values(currentSample).every(v => !v);
 
@@ -1062,50 +1122,81 @@ const RawMaterialDashboard = ({ call, onBack, onNavigateToSubModule, onHeatsChan
   /**
    * Validate material testing for a heat
    * Rules:
-   * - All required fields (C, Si, Mn, P, S, Grain Size, Decarb, Inclusions A/B/C/D, Hardness) must be filled for all samples
+   * - All required fields (C, Si, Mn, P, S, Grain Size, Decarb, Inclusions A/B/C/D, Hardness) must be filled for samples
    * - C: 0.5-0.6, Si: 1.5-2.0, Mn: 0.8-1.0, P: ≤0.030, S: ≤0.030
-   * - GrainSize: ≥6, Decarb: ≤0.25, Inclusions A/B/C/D: ≤2.0
+   * - GrainSize: ≥6, Decarb: ≤0.25 (MK-V: ≤0.23), Inclusions A/B/C/D: ≤2.0
    * - Returns 'Pending' if not all required fields are filled
    * - Returns 'OK' if all fields pass validation
    * - Returns 'NOT OK' if any field fails validation
    */
   const validateMaterialTestHeat = useCallback((heatMaterialData) => {
-    if (!heatMaterialData?.samples || !Array.isArray(heatMaterialData.samples)) return 'Pending';
+    if (!heatMaterialData) return 'Pending';
 
-    const samples = heatMaterialData.samples;
+    const samples = Array.isArray(heatMaterialData)
+      ? heatMaterialData
+      : (heatMaterialData.samples || []);
 
-    // Check if ALL required fields are filled for all samples (excluding remarks)
-    const allFieldsFilled = samples.every(sample => {
-      const isFilled = (val) => val !== null && val !== undefined && String(val).trim() !== '';
-      return isFilled(sample.c) &&
-        isFilled(sample.si) &&
-        isFilled(sample.mn) &&
-        isFilled(sample.p) &&
-        isFilled(sample.s) &&
-        isFilled(sample.grainSize) &&
-        isFilled(sample.decarb) &&
-        isFilled(sample.inclA) &&
-        isFilled(sample.inclB) &&
-        isFilled(sample.inclC) &&
-        isFilled(sample.inclD) &&
-        isFilled(sample.hardness);
+    if (!Array.isArray(samples) || samples.length === 0) return 'Pending';
+
+    // Helper to get field value supporting both frontend and backend names
+    const getFieldVal = (sample, ...keys) => {
+      if (!sample) return null;
+      for (const k of keys) {
+        if (sample[k] !== null && sample[k] !== undefined && String(sample[k]).trim() !== '') {
+          return sample[k];
+        }
+      }
+      return null;
+    };
+
+    const isFilled = (sample, ...keys) => getFieldVal(sample, ...keys) !== null;
+
+    // Check if sample has any data at all
+    const sampleHasData = (sample) => {
+      if (!sample) return false;
+      return Object.values(sample).some(v => v !== null && v !== undefined && String(v).trim() !== '');
+    };
+
+    const activeSamples = samples.filter(sampleHasData);
+    if (activeSamples.length === 0) return 'Pending';
+
+    // Check if required fields are filled for each active sample
+    const allCoreFieldsFilled = activeSamples.every(sample => {
+      return (
+        isFilled(sample, 'c', 'carbonPercent', 'percentC') &&
+        isFilled(sample, 'si', 'siliconPercent', 'percentSi') &&
+        isFilled(sample, 'mn', 'manganesePercent', 'percentMn') &&
+        isFilled(sample, 'p', 'phosphorusPercent', 'percentP') &&
+        isFilled(sample, 's', 'sulphurPercent', 'percentS') &&
+        isFilled(sample, 'grainSize', 'grain_size') &&
+        isFilled(sample, 'decarb', 'decarbDepthMm', 'decarb_depth_mm') &&
+        isFilled(sample, 'inclA', 'inclusionA', 'inclusion_a') &&
+        isFilled(sample, 'inclB', 'inclusionB', 'inclusion_b') &&
+        isFilled(sample, 'inclC', 'inclusionC', 'inclusion_c') &&
+        isFilled(sample, 'inclD', 'inclusionD', 'inclusion_d')
+      );
     });
 
-    if (!allFieldsFilled) return 'Pending';
+    const hasHardness = activeSamples.some(sample => isFilled(sample, 'hardness', 'hardnessHrc', 'hardness_hrc'));
+
+    if (!allCoreFieldsFilled || !hasHardness) return 'Pending';
+
+    const isMkV = productModel?.toString().toUpperCase().includes('MK-V') || productModel?.toString().toUpperCase().includes('V');
+    const decarbLimit = isMkV ? 0.23 : 0.25;
 
     // All fields are filled, now validate values
-    const hasFailure = samples.some(sample => {
-      const c = parseFloat(sample.c);
-      const si = parseFloat(sample.si);
-      const mn = parseFloat(sample.mn);
-      const p = parseFloat(sample.p);
-      const s = parseFloat(sample.s);
-      const grainSize = parseFloat(sample.grainSize);
-      const decarb = parseFloat(sample.decarb);
-      const inclA = parseFloat(sample.inclA);
-      const inclB = parseFloat(sample.inclB);
-      const inclC = parseFloat(sample.inclC);
-      const inclD = parseFloat(sample.inclD);
+    const hasFailure = activeSamples.some(sample => {
+      const c = parseFloat(getFieldVal(sample, 'c', 'carbonPercent', 'percentC'));
+      const si = parseFloat(getFieldVal(sample, 'si', 'siliconPercent', 'percentSi'));
+      const mn = parseFloat(getFieldVal(sample, 'mn', 'manganesePercent', 'percentMn'));
+      const p = parseFloat(getFieldVal(sample, 'p', 'phosphorusPercent', 'percentP'));
+      const s = parseFloat(getFieldVal(sample, 's', 'sulphurPercent', 'percentS'));
+      const grainSize = parseFloat(getFieldVal(sample, 'grainSize', 'grain_size'));
+      const decarb = parseFloat(getFieldVal(sample, 'decarb', 'decarbDepthMm', 'decarb_depth_mm'));
+      const inclA = parseFloat(getFieldVal(sample, 'inclA', 'inclusionA', 'inclusion_a'));
+      const inclB = parseFloat(getFieldVal(sample, 'inclB', 'inclusionB', 'inclusion_b'));
+      const inclC = parseFloat(getFieldVal(sample, 'inclC', 'inclusionC', 'inclusion_c'));
+      const inclD = parseFloat(getFieldVal(sample, 'inclD', 'inclusionD', 'inclusion_d'));
 
       return (
         (!isNaN(c) && (c < 0.5 || c > 0.6)) ||
@@ -1114,7 +1205,7 @@ const RawMaterialDashboard = ({ call, onBack, onNavigateToSubModule, onHeatsChan
         (!isNaN(p) && p > 0.030) ||
         (!isNaN(s) && s > 0.030) ||
         (!isNaN(grainSize) && grainSize < 6) ||
-        (!isNaN(decarb) && decarb > 0.25) ||
+        (!isNaN(decarb) && decarb > decarbLimit) ||
         (!isNaN(inclA) && inclA > 2.0) ||
         (!isNaN(inclB) && inclB > 2.0) ||
         (!isNaN(inclC) && inclC > 2.0) ||
@@ -1123,7 +1214,7 @@ const RawMaterialDashboard = ({ call, onBack, onNavigateToSubModule, onHeatsChan
     });
 
     return hasFailure ? 'NOT OK' : 'OK';
-  }, []);
+  }, [productModel]);
 
   /**
    * Validate packing & storage checklist - per heat
@@ -1167,36 +1258,43 @@ const RawMaterialDashboard = ({ call, onBack, onNavigateToSubModule, onHeatsChan
    * Runs on mount and when activeHeats changes
    */
   useEffect(() => {
-    const inspectionCallNo = call?.call_no;
-    if (!inspectionCallNo || !activeHeats?.length) return;
+    const inspectionCallNo = (call?.call_no || sessionStorage.getItem('selectedInspectionCallNo') || sessionStorage.getItem('inspectionCallNo') || '').toString().trim();
+    if (!activeHeats?.length) return;
 
     const computeStatuses = () => {
       const heatStatuses = {};
 
-      // Get calibration data
-      const calKey = `${STORAGE_KEYS.CALIBRATION}_${inspectionCallNo}${getShiftSuffix()}`;
-      const calRaw = localStorage.getItem(calKey);
-      const calData = calRaw ? JSON.parse(calRaw) : null;
+      // Resilient draft data loader that handles shift suffixes, plain keys, and callNo variants
+      const loadDraft = (baseKey) => {
+        if (inspectionCallNo) {
+          const withShift = localStorage.getItem(`${baseKey}_${inspectionCallNo}${getShiftSuffix()}`);
+          if (withShift) {
+            try { return JSON.parse(withShift); } catch { }
+          }
+          const withoutShift = localStorage.getItem(`${baseKey}_${inspectionCallNo}`);
+          if (withoutShift) {
+            try { return JSON.parse(withoutShift); } catch { }
+          }
+          // Search any key starting with baseKey_callNo (covers shift variants)
+          const prefix = `${baseKey}_${inspectionCallNo}`;
+          for (let i = 0; i < localStorage.length; i++) {
+            const key = localStorage.key(i);
+            if (key && key.startsWith(prefix)) {
+              try {
+                const val = JSON.parse(localStorage.getItem(key));
+                if (val) return val;
+              } catch { }
+            }
+          }
+        }
+        return null;
+      };
 
-      // Get visual inspection data
-      const visualKey = `${STORAGE_KEYS.VISUAL_INSPECTION}_${inspectionCallNo}${getShiftSuffix()}`;
-      const visualRaw = localStorage.getItem(visualKey);
-      const visualData = visualRaw ? JSON.parse(visualRaw) : [];
-
-      // Get dimensional check data
-      const dimKey = `${STORAGE_KEYS.DIMENSIONAL_CHECK}_${inspectionCallNo}${getShiftSuffix()}`;
-      const dimRaw = localStorage.getItem(dimKey);
-      const dimData = dimRaw ? JSON.parse(dimRaw) : null;
-
-      // Get material testing data
-      const matKey = `${STORAGE_KEYS.MATERIAL_TESTING}_${inspectionCallNo}${getShiftSuffix()}`;
-      const matRaw = localStorage.getItem(matKey);
-      const matData = matRaw ? JSON.parse(matRaw) : null;
-
-      // Get packing & storage data
-      const packKey = `${STORAGE_KEYS.PACKING_STORAGE}_${inspectionCallNo}${getShiftSuffix()}`;
-      const packRaw = localStorage.getItem(packKey);
-      const packData = packRaw ? JSON.parse(packRaw) : null;
+      const calData = loadDraft(STORAGE_KEYS.CALIBRATION);
+      const visualData = loadDraft(STORAGE_KEYS.VISUAL_INSPECTION) || [];
+      const dimData = loadDraft(STORAGE_KEYS.DIMENSIONAL_CHECK);
+      const matData = loadDraft(STORAGE_KEYS.MATERIAL_TESTING);
+      const packData = loadDraft(STORAGE_KEYS.PACKING_STORAGE);
 
       // Compute status for each heat
       consolidatedHeats.forEach((heat, heatIndex) => {
@@ -1225,8 +1323,22 @@ const RawMaterialDashboard = ({ call, onBack, onNavigateToSubModule, onHeatsChan
         const dh = getHeatData(dimData?.heatDimData, normalizedHNo, heatIndex);
         if (dh?.dimSamples) statuses.dimensional = validateDimensionalHeat(dh.dimSamples, productModel);
 
-        const mh = getHeatData(matData?.materialData, normalizedHNo, heatIndex);
-        if (mh) statuses.materialTest = validateMaterialTestHeat(mh);
+        let mh = getHeatData(matData?.materialData || matData, normalizedHNo, heatIndex);
+        let matStatus = mh ? validateMaterialTestHeat(mh) : 'Pending';
+
+        if (matStatus === 'Pending' && fetchedCallData?.materialTestingData) {
+          const backendItems = fetchedCallData.materialTestingData.filter(
+            item => (item.heatNo || '').toString().trim().toUpperCase() === normalizedHNo ||
+              normalizeHeatKey(item.heatNo) === normalizeHeatKey(normalizedHNo)
+          );
+          if (backendItems.length > 0) {
+            const bStatus = validateMaterialTestHeat({ samples: backendItems });
+            if (bStatus !== 'Pending') {
+              matStatus = bStatus;
+            }
+          }
+        }
+        statuses.materialTest = matStatus;
 
         statuses.packing = validatePackingStorage(packData, normalizedHNo);
 
@@ -1443,7 +1555,7 @@ const RawMaterialDashboard = ({ call, onBack, onNavigateToSubModule, onHeatsChan
     }
 
     if (isProcessingFinishRef.current) return;
-    
+
     setIsSaving(true);
     isProcessingFinishRef.current = true;
     try {
@@ -3215,9 +3327,9 @@ const RawMaterialDashboard = ({ call, onBack, onNavigateToSubModule, onHeatsChan
 
       {/* Image Capture Section */}
       <div style={{ marginBottom: '24px' }}>
-        <ImageCaptureComponent 
-          images={capturedImages} 
-          onImagesChange={setCapturedImages} 
+        <ImageCaptureComponent
+          images={capturedImages}
+          onImagesChange={setCapturedImages}
         />
       </div>
 
@@ -3439,6 +3551,7 @@ const RawMaterialDashboard = ({ call, onBack, onNavigateToSubModule, onHeatsChan
               const isVisualCompleteRejection = heatStatuses.visual === 'NOT OK' || (offeredWeight > 0 && totalRejectedWeight >= offeredWeight);
 
               const isCompleteRejection = dimensionalNotOk || materialTestNotOk || calibrationNotOk || isVisualCompleteRejection || (offeredWeight > 0 && acceptedWeight === 0);
+              const anyPending = Object.values(heatStatuses).some(s => s === 'Pending');
 
               let isAccepted = false;
               let isPartiallyAccepted = false;
@@ -3446,8 +3559,12 @@ const RawMaterialDashboard = ({ call, onBack, onNavigateToSubModule, onHeatsChan
 
               if (isCompleteRejection) {
                 isRejected = true;
-              } else if (acceptedWeight < offeredWeight) {
+              } else if (anyPending) {
+                // Keep all false for Pending
+              } else if (acceptedWeight < offeredWeight && acceptedWeight > 0) {
                 isPartiallyAccepted = true;
+              } else if (acceptedWeight === 0) {
+                isRejected = true;
               } else {
                 isAccepted = true;
               }
@@ -4066,8 +4183,8 @@ const RawMaterialDashboard = ({ call, onBack, onNavigateToSubModule, onHeatsChan
           >
             {isSaving ? 'Pausing...' : 'Pause Inspection'}
           </button>
-          <button 
-            className="btn btn-outline" 
+          <button
+            className="btn btn-outline"
             style={{
               minHeight: '44px',
               padding: '10px 20px',

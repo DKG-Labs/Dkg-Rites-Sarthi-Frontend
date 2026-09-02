@@ -109,14 +109,28 @@ const MaterialTestingPage = ({ onBack, heats = [], productModel, onNavigateSubmo
 
   // Load draft data from localStorage or initialize empty
   const loadDraftData = useCallback(() => {
-    const storageKey = `${STORAGE_KEY}_${inspectionCallNo}${getShiftSuffix()}`;
-    const savedDraft = localStorage.getItem(storageKey);
-    if (savedDraft) {
-      try {
-        const parsed = JSON.parse(savedDraft);
-        return parsed?.materialData || null;
-      } catch (e) {
-        console.error('Error parsing draft data:', e);
+    const cleanCallNo = (inspectionCallNo || sessionStorage.getItem('selectedInspectionCallNo') || sessionStorage.getItem('inspectionCallNo') || '').toString().trim();
+
+    if (!cleanCallNo) return null;
+
+    // Check with shift suffix first, then without
+    const withShift = localStorage.getItem(`${STORAGE_KEY}_${cleanCallNo}${getShiftSuffix()}`);
+    if (withShift) {
+      try { const p = JSON.parse(withShift); return p?.materialData || p || null; } catch {}
+    }
+    const plain = localStorage.getItem(`${STORAGE_KEY}_${cleanCallNo}`);
+    if (plain) {
+      try { const p = JSON.parse(plain); return p?.materialData || p || null; } catch {}
+    }
+    // Scan any key that starts with STORAGE_KEY_callNo (covers shift variants)
+    const prefix = `${STORAGE_KEY}_${cleanCallNo}`;
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (key && key.startsWith(prefix)) {
+        try {
+          const p = JSON.parse(localStorage.getItem(key));
+          if (p) return p?.materialData || p || null;
+        } catch {}
       }
     }
     return null;
@@ -184,19 +198,26 @@ const MaterialTestingPage = ({ onBack, heats = [], productModel, onNavigateSubmo
       
     if (heatEntries.length === 0) return true;
 
+    const hasValue = (v) => v !== null && v !== undefined && String(v).trim() !== '';
+
     return heatEntries.every(heat => 
       heat.samples?.every(sample => 
-        !sample.c && !sample.si && !sample.mn && !sample.p && !sample.s && 
-        !sample.grainSize && !sample.hardness && !sample.decarb && !sample.remarks &&
-        !sample.inclA && !sample.inclB && !sample.inclC && !sample.inclD
+        !hasValue(sample.c) && !hasValue(sample.si) && !hasValue(sample.mn) && !hasValue(sample.p) && !hasValue(sample.s) && 
+        !hasValue(sample.grainSize) && !hasValue(sample.hardness) && !hasValue(sample.decarb) && !hasValue(sample.remarks) &&
+        !hasValue(sample.inclA) && !hasValue(sample.inclB) && !hasValue(sample.inclC) && !hasValue(sample.inclD)
       )
     );
   }, []);
 
-  // Auto-save to localStorage on materialData change
+  // Auto-save to localStorage on materialData change - always scoped to call number
   useEffect(() => {
-    const storageKey = `${STORAGE_KEY}_${inspectionCallNo}${getShiftSuffix()}`;
-    localStorage.setItem(storageKey, JSON.stringify({ materialData }));
+    const cleanCallNo = (inspectionCallNo || sessionStorage.getItem('selectedInspectionCallNo') || sessionStorage.getItem('inspectionCallNo') || '').toString().trim();
+    if (!cleanCallNo) return;
+    const payload = JSON.stringify({ materialData });
+    localStorage.setItem(`${STORAGE_KEY}_${cleanCallNo}${getShiftSuffix()}`, payload);
+    localStorage.setItem(`${STORAGE_KEY}_${cleanCallNo}`, payload);
+    window.dispatchEvent(new Event('rm:statusRefresh'));
+    window.dispatchEvent(new Event('storage'));
   }, [materialData, inspectionCallNo]);
 
   const updateMaterialField = (heatIdx, sampleIndex, field, value) => {
@@ -253,28 +274,19 @@ const MaterialTestingPage = ({ onBack, heats = [], productModel, onNavigateSubmo
   }, [inspectionCallNo]);
 
   // Load existing material testing data from backend if available
+  // Load existing material testing data from backend if available
   // ONLY load from backend if localStorage is empty (preserve user edits)
   useEffect(() => {
     const loadExistingData = async () => {
       if (!inspectionCallNo) return;
 
-      // Check if localStorage already has MEANINGFUL data
-      const storageKey = `${STORAGE_KEY}_${inspectionCallNo}${getShiftSuffix()}`;
-      const existingLocalData = localStorage.getItem(storageKey);
+      // Check if localStorage already has MEANINGFUL data using loadDraftData helper
+      const existingDraft = loadDraftData();
 
-      if (existingLocalData) {
-        try {
-          const parsed = JSON.parse(existingLocalData);
-          const draft = parsed?.materialData;
-          if (draft && !isMaterialDataEmpty(draft)) {
-            console.log('⏭️ Skipping backend load - valid draft exists in localStorage');
-            setIsDataLoaded(true);
-            return;
-          }
-          console.log('🔄 Local draft is empty, proceeding with backend load');
-        } catch (e) {
-          console.error('Error checking local data:', e);
-        }
+      if (existingDraft && !isMaterialDataEmpty(existingDraft)) {
+        console.log('⏭️ Skipping backend load - valid draft exists in localStorage');
+        setIsDataLoaded(true);
+        return;
       }
 
       try {
@@ -324,9 +336,26 @@ const MaterialTestingPage = ({ onBack, heats = [], productModel, onNavigateSubmo
             }
           });
 
-          // Convert backend data to state
-          setMaterialData(prev => ({ ...prev, ...materialDataByHeat }));
-          console.log('✅ Material testing data loaded from backend and saved to state');
+          // Safely merge: only overwrite samples that are truly empty locally
+          setMaterialData(prev => {
+            const next = { ...prev };
+            Object.entries(materialDataByHeat).forEach(([hNo, bHeat]) => {
+              if (!next[hNo]) {
+                next[hNo] = bHeat;
+              } else {
+                const localSamples = next[hNo].samples || [];
+                const mergedSamples = [0, 1].map(sIdx => {
+                  const localS = localSamples[sIdx];
+                  const backendS = bHeat.samples?.[sIdx];
+                  const localHasData = localS && Object.values(localS).some(v => v !== null && v !== undefined && String(v).trim() !== '');
+                  return localHasData ? localS : (backendS || localS || createEmptyHeat().samples[sIdx]);
+                });
+                next[hNo] = { ...next[hNo], samples: mergedSamples };
+              }
+            });
+            return next;
+          });
+          console.log('✅ Material testing data safely merged from backend');
         } else {
           console.log('ℹ️ No existing material testing data found on backend');
         }
@@ -338,7 +367,7 @@ const MaterialTestingPage = ({ onBack, heats = [], productModel, onNavigateSubmo
     };
 
     loadExistingData();
-  }, [inspectionCallNo, heats, createEmptyHeat, isMaterialDataEmpty]);
+  }, [inspectionCallNo, heats, createEmptyHeat, isMaterialDataEmpty, loadDraftData]);
 
   // Get ladle values for the currently selected heat
   const currentLadleHeat = useMemo(() => {

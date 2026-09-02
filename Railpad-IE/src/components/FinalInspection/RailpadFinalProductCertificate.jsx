@@ -149,16 +149,17 @@ export default function RailpadFinalProductCertificate({ call = {}, onBack, isVi
           const currentData = dataRef.current;
 
           showToast("Saving IC edit details...", "info");
+          const targetIcNo = certificateNo || currentData.certificateNo || callNo;
           if (isProcessCall) {
             await saveProcessIcEditData({
               ...currentData,
-              icNumber: callNo,
+              icNumber: targetIcNo,
               installmentNo: currentData.offeredInstNo,
               offeredInstNo: currentData.offeredInstNo,
               passedInstNo: currentData.passedInstNo
             });
           } else {
-            await saveFinalIcEditData({ ...currentData, icNumber: callNo });
+            await saveFinalIcEditData({ ...currentData, icNumber: targetIcNo });
           }
 
           // Step 1: Auto-download the signed IC PDF first
@@ -365,15 +366,28 @@ export default function RailpadFinalProductCertificate({ call = {}, onBack, isVi
         }
 
         // Attempt to fetch saved draft or final edit
+        const lookupIcNo = mappedData.certificateNo || callNo;
         let savedEdit = null;
         if (isProcessCall) {
-          savedEdit = await getProcessIcSaveChanges(callNo);
+          savedEdit = await getProcessIcSaveChanges(lookupIcNo);
+          if (!savedEdit && lookupIcNo !== callNo) {
+            savedEdit = await getProcessIcSaveChanges(callNo);
+          }
           if (!savedEdit) {
+            savedEdit = await getProcessIcEditData(lookupIcNo);
+          }
+          if (!savedEdit && lookupIcNo !== callNo) {
             savedEdit = await getProcessIcEditData(callNo);
           }
         } else {
-          savedEdit = await getFinalIcSaveChanges(callNo);
+          savedEdit = await getFinalIcSaveChanges(lookupIcNo);
+          if (!savedEdit && lookupIcNo !== callNo) {
+            savedEdit = await getFinalIcSaveChanges(callNo);
+          }
           if (!savedEdit) {
+            savedEdit = await getFinalIcEditData(lookupIcNo);
+          }
+          if (!savedEdit && lookupIcNo !== callNo) {
             savedEdit = await getFinalIcEditData(callNo);
           }
         }
@@ -506,16 +520,17 @@ export default function RailpadFinalProductCertificate({ call = {}, onBack, isVi
     try {
       showToast("Saving draft changes...", "info");
       const callNo = call.callNo || call.call_no || call.requestId;
+      const targetIcNo = data.certificateNo || callNo;
       if (isProcessCall) {
         await saveProcessIcSaveChanges({
           ...data,
-          icNumber: callNo,
+          icNumber: targetIcNo,
           installmentNo: data.offeredInstNo,
           offeredInstNo: data.offeredInstNo,
           passedInstNo: data.passedInstNo
         });
       } else {
-        await saveFinalIcSaveChanges({ ...data, icNumber: callNo });
+        await saveFinalIcSaveChanges({ ...data, icNumber: targetIcNo });
       }
       showToast("Draft changes saved successfully!", "success");
       setIsEditing(false);
@@ -529,16 +544,17 @@ export default function RailpadFinalProductCertificate({ call = {}, onBack, isVi
     try {
       showToast("Saving IC details...", "info");
       const callNo = call.callNo || call.call_no || call.requestId;
+      const targetIcNo = data.certificateNo || callNo;
       if (isProcessCall) {
         await saveProcessIcEditData({
           ...data,
-          icNumber: callNo,
+          icNumber: targetIcNo,
           installmentNo: data.offeredInstNo,
           offeredInstNo: data.offeredInstNo,
           passedInstNo: data.passedInstNo
         });
       } else {
-        await saveFinalIcEditData({ ...data, icNumber: callNo });
+        await saveFinalIcEditData({ ...data, icNumber: targetIcNo });
       }
       showToast("IC saved successfully!", "success");
       setIsEditing(false);

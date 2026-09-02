@@ -72,37 +72,71 @@ const SummaryReportsPage = ({ onBack, heats = [], productModel = 'MK-III', inspe
     const shift = sessionStorage.getItem('inspectionShift');
     const shiftSuffix = shift ? `_${shift}` : '';
 
-    const mainKey = `rm_main_inspection_data_${inspectionCallNo}${shiftSuffix}`;
-    const visualKey = `visual_inspection_draft_data_${inspectionCallNo}${shiftSuffix}`;
-    const dimKey = `dimensional_check_draft_data_${inspectionCallNo}${shiftSuffix}`;
-    const matKey = `material_testing_draft_data_${inspectionCallNo}${shiftSuffix}`;
-    const packKey = `packing_storage_draft_data_${inspectionCallNo}${shiftSuffix}`;
-    const calKey = `calibration_draft_data_${inspectionCallNo}${shiftSuffix}`;
+    const cleanCallNo = (inspectionCallNo || sessionStorage.getItem('selectedInspectionCallNo') || sessionStorage.getItem('inspectionCallNo') || '').toString().trim();
 
-    const loadLocalJson = (key) => {
-      try {
-        const val = localStorage.getItem(key) || localStorage.getItem(key.replace(shiftSuffix, ''));
-        return val ? JSON.parse(val) : null;
-      } catch {
-        return null;
+    const loadDraftByBaseKey = (baseKey) => {
+      if (!cleanCallNo) return null;
+
+      const withShift = localStorage.getItem(`${baseKey}_${cleanCallNo}${shiftSuffix}`);
+      if (withShift) {
+        try { return JSON.parse(withShift); } catch {}
       }
+      const withoutShift = localStorage.getItem(`${baseKey}_${cleanCallNo}`);
+      if (withoutShift) {
+        try { return JSON.parse(withoutShift); } catch {}
+      }
+      const prefix = `${baseKey}_${cleanCallNo}`;
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key && key.startsWith(prefix)) {
+          try {
+            const val = JSON.parse(localStorage.getItem(key));
+            if (val) return val;
+          } catch {}
+        }
+      }
+      return null;
     };
 
-    const localMain = loadLocalJson(mainKey);
-    const localVisual = loadLocalJson(visualKey);
-    const localDim = loadLocalJson(dimKey);
-    const localMat = loadLocalJson(matKey);
-    const localPack = loadLocalJson(packKey);
-    const localCal = loadLocalJson(calKey);
+    const localMain = loadDraftByBaseKey('rm_main_inspection_data');
+    const localVisual = loadDraftByBaseKey('visual_inspection_draft_data');
+    const localDim = loadDraftByBaseKey('dimensional_check_draft_data');
+    const localMat = loadDraftByBaseKey('material_testing_draft_data');
+    const localPack = loadDraftByBaseKey('packing_storage_draft_data');
+    const localCal = loadDraftByBaseKey('calibration_draft_data');
+
+    const normalizeHeatKey = (key) => {
+      if (!key) return '';
+      return key.toString().trim().toUpperCase().replace(/^HEAT[\s\-_]*/i, '').replace(/[\s\-_]+/g, '');
+    };
 
     const getFromDraft = (draftData, hNo, idx) => {
       if (!draftData) return null;
-      const nh = (hNo || '').toString().trim().toUpperCase();
-      if (typeof draftData === 'object' && !Array.isArray(draftData) && draftData[nh]) {
-        return draftData[nh];
+      if (draftData.materialData) draftData = draftData.materialData;
+      if (draftData.heatDimData) draftData = draftData.heatDimData;
+      if (draftData.packingDataByHeat) draftData = draftData.packingDataByHeat;
+
+      const rawHNo = (hNo || '').toString().trim().toUpperCase();
+      const cleanHNo = normalizeHeatKey(rawHNo);
+
+      if (typeof draftData === 'object' && !Array.isArray(draftData)) {
+        if (draftData[rawHNo]) return draftData[rawHNo];
+        const foundKey = Object.keys(draftData).find(k => {
+          const cleanK = normalizeHeatKey(k);
+          return cleanK === cleanHNo || k.trim().toUpperCase() === rawHNo;
+        });
+        if (foundKey && draftData[foundKey]) return draftData[foundKey];
+        if (idx !== undefined && idx !== null && draftData[idx]) return draftData[idx];
+        if (idx !== undefined && idx !== null && draftData[String(idx)]) return draftData[String(idx)];
       }
-      if (Array.isArray(draftData) && draftData[idx]) {
-        return draftData[idx];
+      if (Array.isArray(draftData)) {
+        const found = draftData.find(item => {
+          if (!item) return false;
+          const itemHNo = normalizeHeatKey(item.heatNo || item.heat_no);
+          return itemHNo && itemHNo === cleanHNo;
+        });
+        if (found) return found;
+        if (idx !== undefined && idx !== null && draftData[idx]) return draftData[idx];
       }
       return null;
     };
@@ -217,34 +251,67 @@ const SummaryReportsPage = ({ onBack, heats = [], productModel = 'MK-III', inspe
       ];
       let matStatus = 'Pending';
 
-      const draftMatHeat = getFromDraft(localMat?.materialData, normalizedHNo, heatIndex);
-      if (draftMatHeat && draftMatHeat.samples) {
-        matSamples = draftMatHeat.samples;
+      const draftMatHeat = getFromDraft(localMat?.materialData || localMat, normalizedHNo, heatIndex);
+      if (draftMatHeat && draftMatHeat.samples && Array.isArray(draftMatHeat.samples)) {
+        matSamples = draftMatHeat.samples.map(sample => ({
+          c: sample?.c !== undefined && sample?.c !== null ? String(sample.c) : (sample?.carbonPercent !== undefined && sample?.carbonPercent !== null ? String(sample.carbonPercent) : ''),
+          si: sample?.si !== undefined && sample?.si !== null ? String(sample.si) : (sample?.siliconPercent !== undefined && sample?.siliconPercent !== null ? String(sample.siliconPercent) : ''),
+          mn: sample?.mn !== undefined && sample?.mn !== null ? String(sample.mn) : (sample?.manganesePercent !== undefined && sample?.manganesePercent !== null ? String(sample.manganesePercent) : ''),
+          p: sample?.p !== undefined && sample?.p !== null ? String(sample.p) : (sample?.phosphorusPercent !== undefined && sample?.phosphorusPercent !== null ? String(sample.phosphorusPercent) : ''),
+          s: sample?.s !== undefined && sample?.s !== null ? String(sample.s) : (sample?.sulphurPercent !== undefined && sample?.sulphurPercent !== null ? String(sample.sulphurPercent) : ''),
+          grainSize: sample?.grainSize !== undefined && sample?.grainSize !== null ? String(sample.grainSize) : (sample?.grain_size !== undefined && sample?.grain_size !== null ? String(sample.grain_size) : ''),
+          hardness: sample?.hardness !== undefined && sample?.hardness !== null && String(sample.hardness).trim() !== ''
+            ? String(sample.hardness)
+            : (sample?.hardnessHrc !== undefined && sample?.hardnessHrc !== null && String(sample.hardnessHrc).trim() !== ''
+                ? String(sample.hardnessHrc)
+                : (sample?.hardness_hrc !== undefined && sample?.hardness_hrc !== null && String(sample.hardness_hrc).trim() !== ''
+                    ? String(sample.hardness_hrc)
+                    : '')),
+          decarb: sample?.decarb !== undefined && sample?.decarb !== null ? String(sample.decarb) : (sample?.decarbDepthMm !== undefined && sample?.decarbDepthMm !== null ? String(sample.decarbDepthMm) : (sample?.decarb_depth_mm !== undefined && sample?.decarb_depth_mm !== null ? String(sample.decarb_depth_mm) : '')),
+          inclTypeA: sample?.inclTypeA || sample?.inclusionTypeA || sample?.inclusion_type_a || '',
+          inclA: sample?.inclA !== undefined && sample?.inclA !== null ? String(sample.inclA) : (sample?.inclusionA !== undefined && sample?.inclusionA !== null ? String(sample.inclusionA) : (sample?.inclusion_a !== undefined && sample?.inclusion_a !== null ? String(sample.inclusion_a) : '')),
+          inclTypeB: sample?.inclTypeB || sample?.inclusionTypeB || sample?.inclusion_type_b || '',
+          inclB: sample?.inclB !== undefined && sample?.inclB !== null ? String(sample.inclB) : (sample?.inclusionB !== undefined && sample?.inclusionB !== null ? String(sample.inclusionB) : (sample?.inclusion_b !== undefined && sample?.inclusion_b !== null ? String(sample.inclusion_b) : '')),
+          inclTypeC: sample?.inclTypeC || sample?.inclusionTypeC || sample?.inclusion_type_c || '',
+          inclC: sample?.inclC !== undefined && sample?.inclC !== null ? String(sample.inclC) : (sample?.inclusionC !== undefined && sample?.inclusionC !== null ? String(sample.inclusionC) : (sample?.inclusion_c !== undefined && sample?.inclusion_c !== null ? String(sample.inclusion_c) : '')),
+          inclTypeD: sample?.inclTypeD || sample?.inclusionTypeD || sample?.inclusion_type_d || '',
+          inclD: sample?.inclD !== undefined && sample?.inclD !== null ? String(sample.inclD) : (sample?.inclusionD !== undefined && sample?.inclusionD !== null ? String(sample.inclusionD) : (sample?.inclusion_d !== undefined && sample?.inclusion_d !== null ? String(sample.inclusion_d) : '')),
+          remarks: sample?.remarks || ''
+        }));
       } else {
         const backendMatItems = backendData?.materialTestingData?.filter(
-          item => (item.heatNo || '').toString().trim().toUpperCase() === normalizedHNo
+          item => (item.heatNo || '').toString().trim().toUpperCase() === normalizedHNo ||
+                  normalizeHeatKey(item.heatNo) === normalizeHeatKey(normalizedHNo)
         ) || [];
         if (backendMatItems.length > 0) {
           backendMatItems.forEach(item => {
             const idx = (item.sampleNumber || 1) - 1;
             if (idx >= 0 && idx < 2) {
               matSamples[idx] = {
-                c: item.carbonPercent !== null ? String(item.carbonPercent) : '',
-                si: item.siliconPercent !== null ? String(item.siliconPercent) : '',
-                mn: item.manganesePercent !== null ? String(item.manganesePercent) : '',
-                p: item.phosphorusPercent !== null ? String(item.phosphorusPercent) : '',
-                s: item.sulphurPercent !== null ? String(item.sulphurPercent) : '',
-                grainSize: item.grainSize !== null ? String(item.grainSize) : '',
-                hardness: item.hardnessHrc !== null ? String(item.hardnessHrc) : '',
-                decarb: item.decarbDepthMm !== null ? String(item.decarbDepthMm) : '',
-                inclTypeA: item.inclusionTypeA || '',
-                inclA: item.inclusionA !== null ? String(item.inclusionA) : '',
-                inclTypeB: item.inclusionTypeB || '',
-                inclB: item.inclusionB !== null ? String(item.inclusionB) : '',
-                inclTypeC: item.inclusionTypeC || '',
-                inclC: item.inclusionC !== null ? String(item.inclusionC) : '',
-                inclTypeD: item.inclusionTypeD || '',
-                inclD: item.inclusionD !== null ? String(item.inclusionD) : '',
+                c: item.carbonPercent !== null && item.carbonPercent !== undefined ? String(item.carbonPercent) : '',
+                si: item.siliconPercent !== null && item.siliconPercent !== undefined ? String(item.siliconPercent) : '',
+                mn: item.manganesePercent !== null && item.manganesePercent !== undefined ? String(item.manganesePercent) : '',
+                p: item.phosphorusPercent !== null && item.phosphorusPercent !== undefined ? String(item.phosphorusPercent) : '',
+                s: item.sulphurPercent !== null && item.sulphurPercent !== undefined ? String(item.sulphurPercent) : '',
+                grainSize: item.grainSize !== null && item.grainSize !== undefined ? String(item.grainSize) : '',
+                hardness: item.hardnessHrc !== null && item.hardnessHrc !== undefined && String(item.hardnessHrc).trim() !== ''
+                  ? String(item.hardnessHrc)
+                  : (item.hardness !== null && item.hardness !== undefined && String(item.hardness).trim() !== ''
+                      ? String(item.hardness)
+                      : (item.hardness_hrc !== null && item.hardness_hrc !== undefined && String(item.hardness_hrc).trim() !== ''
+                          ? String(item.hardness_hrc)
+                          : '')),
+                decarb: item.decarbDepthMm !== null && item.decarbDepthMm !== undefined
+                  ? String(item.decarbDepthMm)
+                  : (item.decarb !== null && item.decarb !== undefined ? String(item.decarb) : ''),
+                inclTypeA: item.inclusionTypeA || item.inclusion_type_a || '',
+                inclA: item.inclusionA !== null && item.inclusionA !== undefined ? String(item.inclusionA) : (item.inclusion_a !== null && item.inclusion_a !== undefined ? String(item.inclusion_a) : ''),
+                inclTypeB: item.inclusionTypeB || item.inclusion_type_b || '',
+                inclB: item.inclusionB !== null && item.inclusionB !== undefined ? String(item.inclusionB) : (item.inclusion_b !== null && item.inclusion_b !== undefined ? String(item.inclusion_b) : ''),
+                inclTypeC: item.inclusionTypeC || item.inclusion_type_c || '',
+                inclC: item.inclusionC !== null && item.inclusionC !== undefined ? String(item.inclusionC) : (item.inclusion_c !== null && item.inclusion_c !== undefined ? String(item.inclusion_c) : ''),
+                inclTypeD: item.inclusionTypeD || item.inclusion_type_d || '',
+                inclD: item.inclusionD !== null && item.inclusionD !== undefined ? String(item.inclusionD) : (item.inclusion_d !== null && item.inclusion_d !== undefined ? String(item.inclusion_d) : ''),
                 remarks: item.remarks || ''
               };
             }
@@ -257,16 +324,17 @@ const SummaryReportsPage = ({ onBack, heats = [], productModel = 'MK-III', inspe
         Object.values(sample).some(v => v !== null && v !== undefined && String(v).trim() !== '')
       );
 
-      const matAllFilled = matSamples.every(sample => {
-        const isFilled = (val) => val !== null && val !== undefined && String(val).trim() !== '';
+      const isFilled = (val) => val !== null && val !== undefined && String(val).trim() !== '';
+
+      const matCoreFilled = matSamples.every(sample => {
         return isFilled(sample.c) && isFilled(sample.si) && isFilled(sample.mn) && isFilled(sample.p) && isFilled(sample.s) &&
-          isFilled(sample.grainSize) && isFilled(sample.decarb) && isFilled(sample.hardness) &&
+          isFilled(sample.grainSize) && isFilled(sample.decarb) &&
           isFilled(sample.inclA) && isFilled(sample.inclB) && isFilled(sample.inclC) && isFilled(sample.inclD);
       });
 
-      if (!matAnyFilled) {
-        matStatus = 'Pending';
-      } else if (!matAllFilled) {
+      const matHasHardness = matSamples.some(sample => isFilled(sample.hardness));
+
+      if (!matAnyFilled || !matCoreFilled || !matHasHardness) {
         matStatus = 'Pending';
       } else {
         const decarbLimit = productModel?.toUpperCase().includes('V') ? 0.23 : 0.2064;

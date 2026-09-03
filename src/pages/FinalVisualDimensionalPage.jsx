@@ -3,30 +3,7 @@ import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { useInspection } from "../context/InspectionContext";
 import FinalSubmoduleNav from "../components/FinalSubmoduleNav";
 import { getVisualInspectionByCallNo, getDimensionalInspectionFlatByCallNo } from "../services/finalVisualDimensionalService";
-
-// Table 2 mapping for Dimension & Weight AQL 2.5
-const samplingTable = [
-  // ✔ LOT SIZE 2–150 → single sampling ONLY
-  { min: 2, max: 150, n1: 20, ac1: 0, re1: 3, n2: null, cumulative: null },
-
-  { min: 151, max: 280, n1: 20, ac1: 0, re1: 3, n2: 20, cumulative: 4 },
-  { min: 281, max: 500, n1: 32, ac1: 1, re1: 3, n2: 32, cumulative: 5 },
-  { min: 501, max: 1200, n1: 50, ac1: 2, re1: 5, n2: 50, cumulative: 7 },
-  { min: 1201, max: 3200, n1: 80, ac1: 3, re1: 6, n2: 125, cumulative: 10 },
-  { min: 3201, max: 10000, n1: 125, ac1: 5, re1: 9, n2: 200, cumulative: 13 },
-  { min: 10001, max: 35000, n1: 200, ac1: 7, re1: 11, n2: 315, cumulative: 19 },
-  { min: 35001, max: 150000, n1: 315, ac1: 11, re1: 16, n2: 500, cumulative: 27 },
-  { min: 150001, max: 500000, n1: 500, ac1: 11, re1: 16, n2: 800, cumulative: 27 }
-];
-
-function getSamplingValues(lotSize) {
-  for (const row of samplingTable) {
-    if (lotSize >= row.min && lotSize <= row.max) {
-      return { ac: row.ac1, re: row.re1, sample: row.n1, cumulative: row.cumulative };
-    }
-  }
-  return { ac: null, re: null, sample: null, cumulative: null };
-}
+import { getDimensionWeightAQL } from "../utils/is2500Calculations";
 
 // This will be populated from context with live data
 // Fallback to empty array if no lots available
@@ -49,16 +26,17 @@ const getAvailableLots = (lotsFromVendor = [], callNo = null) => {
     const heatNo = lot.heatNo || lot.heatNumber;
     const lotSize = lot.lotSize || lot.offeredQty || 0;
 
-    const { ac, re, sample, cumulative } = getSamplingValues(lotSize);
-    const sampleSize = (customSizes && customSizes[lotNo] !== undefined) ? customSizes[lotNo] : sample;
+    const aql = getDimensionWeightAQL(lotSize, customSizes[lotNo]);
     return {
       lotNo: lotNo,
       heatNo: heatNo,
       quantity: lotSize,
-      sampleSize: sampleSize,
-      accpNo: ac,
-      rejNo: re,
-      cummRejNo: cumulative
+      sampleSize: aql.n1,
+      sampleSize2nd: aql.n2,
+      accpNo: aql.ac1,
+      rejNo: aql.re1,
+      cummRejNo: aql.cummRej,
+      singleSampling: aql.useSingleSampling || false
     };
   });
 };

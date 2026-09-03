@@ -65,6 +65,11 @@ const InspectionInitiationFormContent = ({ call, formData, onFormDataChange, sho
   const [sectionBExpanded, setSectionBExpanded] = useState(false);
   const [sectionCExpanded, setSectionCExpanded] = useState(false);
 
+  // Check if current call is an ERC call (ER: Raw Material, EP: Process, EF: Final)
+  const callNumber = String(call?.call_no || call?.callNo || call?.requestId || call?.ic_number || call?.icNo || '').toUpperCase();
+  const isErcCall = callNumber.startsWith('ER') || callNumber.startsWith('EP') || callNumber.startsWith('EF') ||
+    String(call?.product_name || call?.productType || call?.product_type || '').toLowerCase().includes('erc');
+
   /* State for API operations */
   const [isSaving, setIsSaving] = useState(false);
   const [saveError, setSaveError] = useState(null);
@@ -1036,7 +1041,9 @@ const InspectionInitiationFormContent = ({ call, formData, onFormDataChange, sho
                   type="button"
                   className="btn btn-danger"
                   onClick={handleSectionAReject}
-                  disabled={isSaving || formData.sectionAStatus === 'approved' || formData.sectionAStatus === 'rejected'}
+                  disabled={isErcCall || isSaving || formData.sectionAStatus === 'approved' || formData.sectionAStatus === 'rejected'}
+                  style={isErcCall ? { opacity: 0.5, cursor: 'not-allowed' } : undefined}
+                  title={isErcCall ? 'Not OK is disabled for ERC inspections' : undefined}
                 >
                   {isSaving ? 'Saving...' : formData.sectionAStatus === 'rejected' ? 'Not OK' : 'Not OK'}
                 </button>
@@ -1218,7 +1225,9 @@ const InspectionInitiationFormContent = ({ call, formData, onFormDataChange, sho
                   type="button"
                   className="btn btn-danger"
                   onClick={handleSectionBReject}
-                  disabled={isSaving || formData.sectionBStatus === 'approved' || formData.sectionBStatus === 'rejected'}
+                  disabled={isErcCall || isSaving || formData.sectionBStatus === 'approved' || formData.sectionBStatus === 'rejected'}
+                  style={isErcCall ? { opacity: 0.5, cursor: 'not-allowed' } : undefined}
+                  title={isErcCall ? 'Not OK is disabled for ERC inspections' : undefined}
                 >
                   {isSaving ? 'Saving...' : formData.sectionBStatus === 'rejected' ? 'Not OK' : 'Not OK'}
                 </button>
@@ -1398,7 +1407,9 @@ const InspectionInitiationFormContent = ({ call, formData, onFormDataChange, sho
                   type="button"
                   className="btn btn-danger"
                   onClick={handleSectionCReject}
-                  disabled={isSaving || formData.sectionCStatus === 'approved' || formData.sectionCStatus === 'rejected'}
+                  disabled={isErcCall || isSaving || formData.sectionCStatus === 'approved' || formData.sectionCStatus === 'rejected'}
+                  style={isErcCall ? { opacity: 0.5, cursor: 'not-allowed' } : undefined}
+                  title={isErcCall ? 'Not OK is disabled for ERC inspections' : undefined}
                 >
                   {isSaving ? 'Saving...' : formData.sectionCStatus === 'rejected' ? 'Not OK' : 'Not OK'}
                 </button>

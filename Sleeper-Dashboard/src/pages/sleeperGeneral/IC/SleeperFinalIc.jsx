@@ -1,9 +1,21 @@
 import React from "react";
 
-const SleeperFinalIc = ({ data = {}, isEditing = false, isBusy = false, onFieldChange = () => {} }) => {
+const SleeperFinalIc = ({ data = {}, isEditing = false, isBusy = false, onFieldChange = () => {}, onVerifyBookSet, bookSetValidation }) => {
+  const allowedFields = [
+    "bookNo", "setNo", "offeredInstNo", "passedInstNo", "contractRef",
+    "billPayingOfficer", "consignee", "purchasingAuthority", "itemNo",
+    "descriptionOfStores", "qtyOnOrder", "qtyOfferedPreviously",
+    "qtyPassedPreviously", "qtyNowOffered", "qtyNowPassed", "qtyNowRejected",
+    "qtyStillDue", "quantityNowPassedText", "noOfItemsChecked", "dateOfCall",
+    "noOfVisits", "datesOfInspection", "trRecDate", "sealingPattern",
+    "reasonsForRejection", "inspectingEngineer", "certificateNo", "certificateDate"
+  ];
+
   const {
     certificateNo = "",
     certificateDate = "",
+    bookNo = "",
+    setNo = "",
     offeredInstNo = "",
     passedInstNo = "",
     contractor = "",
@@ -30,26 +42,15 @@ const SleeperFinalIc = ({ data = {}, isEditing = false, isBusy = false, onFieldC
     quantityNowPassedText = "",
     sealingPattern = "",
     facsimileText = "",
-    reasonsForRejection = "ONE NUMBER IS REJECTED DURING INSPECTION AS DETAILED IN ANNEXURE - I TO IC ATTACHED.",
-    inspectingEngineer = "",
-    bookNo = "",
-    setNo = "",
+    reasonsForRejection = "",
+    inspectingEngineer = ""
   } = data;
 
-  const allowedFields = [
-    "bookNo", "setNo", "offeredInstNo", "passedInstNo", "contractRef",
-    "consignee", "purchasingAuthority", "descriptionOfStores", 
-    "qtyOfferedPreviously", "qtyPassedPreviously", "qtyStillDue", "trRecDate",
-    "quantityNowPassedText", "sealingPattern", "facsimileText", "reasonsForRejection",
-    "certificateNo", "certificateDate"
-  ];
-
-  const displayCertificateNo = String(certificateNo || '')
-    .replace(/[\uFEFF\u200B]/g, '')
-    .replace(/[\r\n]+/g, ' ')
+  const displayCertificateNo = (certificateNo || "")
+    .replace(/^(\/[^\/]+)/, "")
     .trim();
 
-  const EditableField = ({ value, fieldName, placeholder = "", style = {}, type = "text", disabled = false }) => {
+  const EditableField = ({ value, fieldName, placeholder = "", style = {}, type = "text", disabled = false, maxLength }) => {
     const safeValue = value !== null && value !== undefined ? String(value) : "";
     
     if (isEditing && allowedFields.includes(fieldName)) {
@@ -71,6 +72,7 @@ const SleeperFinalIc = ({ data = {}, isEditing = false, isBusy = false, onFieldC
           value={safeValue}
           onChange={(e) => onFieldChange(fieldName, e.target.value)}
           placeholder={placeholder}
+          maxLength={maxLength}
           style={{ width: '100%', padding: '2px', border: '1px solid #60a5fa', backgroundColor: '#eff6ff', fontSize: '11px', boxSizing: 'border-box', ...style }}
           disabled={disabled || isBusy}
         />
@@ -102,14 +104,64 @@ const SleeperFinalIc = ({ data = {}, isEditing = false, isBusy = false, onFieldC
             </tr>
             <tr>
               <td style={{ border: '2px solid black', padding: '2px', textAlign: 'center', height: '20px' }}>
-                <EditableField value={bookNo} fieldName="bookNo" style={{ fontWeight: 'bold', fontSize: '12px' }} disabled={isBusy} />
+                <EditableField value={bookNo} fieldName="bookNo" style={{ fontWeight: 'bold', fontSize: '12px' }} maxLength={10} disabled={isBusy} />
               </td>
               <td style={{ border: '2px solid black', padding: '2px', textAlign: 'center', height: '20px' }}>
-                <EditableField value={setNo} fieldName="setNo" style={{ fontWeight: 'bold', fontSize: '12px' }} disabled={isBusy} />
+                <EditableField value={setNo} fieldName="setNo" style={{ fontWeight: 'bold', fontSize: '12px' }} maxLength={3} disabled={isBusy} />
               </td>
             </tr>
           </tbody>
         </table>
+
+        {/* Verify Book & Set No Button and Warnings (Hidden in PDF) */}
+        {isEditing && (
+          <div className="no-print" style={{ marginTop: '6px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <button 
+                onClick={onVerifyBookSet} 
+                disabled={isBusy || bookSetValidation?.isValidating}
+                style={{
+                  background: '#2563eb',
+                  color: 'white',
+                  padding: '3px 10px',
+                  borderRadius: '4px',
+                  fontSize: '10px',
+                  fontWeight: 'bold',
+                  border: 'none',
+                  cursor: isBusy || bookSetValidation?.isValidating ? 'not-allowed' : 'pointer'
+                }}
+              >
+                {bookSetValidation?.isValidating ? "Validating..." : "Verify Book & Set No."}
+              </button>
+              {bookSetValidation && !bookSetValidation.isValidating && (
+                <span style={{ fontSize: '10px', fontWeight: 'bold' }}>
+                  {bookSetValidation.isValid ? (
+                    <span style={{ color: '#16a34a' }}>✅ Valid</span>
+                  ) : (
+                    <span style={{ color: '#dc2626' }}>❌ {bookSetValidation.message || "Invalid"}</span>
+                  )}
+                </span>
+              )}
+            </div>
+
+            {bookNo && String(bookNo).trim().length > 0 && String(bookNo).trim().length < 4 && (
+              <div style={{
+                fontSize: '9px',
+                fontWeight: 'bold',
+                color: '#92400e',
+                backgroundColor: '#fef3c7',
+                border: '1px solid #fcd34d',
+                borderRadius: '4px',
+                padding: '4px 8px',
+                textAlign: 'center',
+                maxWidth: '240px',
+                lineHeight: '1.2'
+              }}>
+                ⚠️ Book Number is generally of 4 characters. Please ensure that the correct Book Number has been entered.
+              </div>
+            )}
+          </div>
+        )}
 
         <div style={{ fontWeight: 'bold', fontSize: '14px', marginTop: '10px' }}>
           RITES LTD, CENTRAL REGION, BHILAI

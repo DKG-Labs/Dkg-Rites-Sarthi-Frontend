@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import FinalInspectionScreen from './FinalInspectionScreen';
+import PendingCallDetailsModal from '../../../components/PendingCallDetailsModal';
+import ResumeCallModal from '../../../components/ResumeCallModal';
 import './AttendingCallDashboard.css';
 import { apiService } from '../../../services/api';
 import { getStoredUser } from '../../../services/authService';
@@ -13,12 +15,30 @@ const AttendingCallDashboard = () => {
         setActiveTab(tab);
         sessionStorage.setItem('attendingCallActiveTab', tab);
     };
-    const [selectedCall, setSelectedCall] = useState(null);
-    const [isInspecting, setIsInspecting] = useState(false);
+    const [selectedCall, setSelectedCall] = useState(() => {
+        const saved = sessionStorage.getItem('activeInspectionCall');
+        try {
+            return saved ? JSON.parse(saved) : null;
+        } catch (e) {
+            return null;
+        }
+    });
+    const [isInspecting, setIsInspecting] = useState(() => {
+        return sessionStorage.getItem('isInspectingCall') === 'true';
+    });
     const [showDetailsPopup, setShowDetailsPopup] = useState(false);
     const [popupCall, setPopupCall] = useState(null);
 
+    const [showDetailsModal, setShowDetailsModal] = useState(false);
+    const [selectedCallForView, setSelectedCallForView] = useState(null);
+    const [selectedCallActions, setSelectedCallActions] = useState([]);
+
+    const [showShiftModal, setShowShiftModal] = useState(false);
+    const [selectedCallForShift, setSelectedCallForShift] = useState(null);
+    const [isResumeShift, setIsResumeShift] = useState(true);
+
     const [pendingCalls, setPendingCalls] = useState([]);
+    const [searchTerm, setSearchTerm] = useState('');
     const [isLoading, setIsLoading] = useState(false);
     const [showSchedulePopup, setShowSchedulePopup] = useState(false);
     const [selectedCallForSchedule, setSelectedCallForSchedule] = useState(null);
@@ -40,161 +60,176 @@ const AttendingCallDashboard = () => {
         return modules[id] || `Module ${id}`;
     };
 
-    useEffect(() => {
-        if (activeTab === 'pending') {
-            fetchPendingCalls();
-        } else if (activeTab === 'issuance') {
-            fetchIssuanceCalls();
-        } else if (activeTab === 'completed') {
-            fetchCompletedCalls();
-        }
-    }, [activeTab]);
-
-    const handleWorkflowAction = async (call, actionName) => {
-        try {
-            const user = getStoredUser();
-            const payload = {
-                workflowTransitionId: call.workflowTransitionId,
-                moduleId: call.moduleId || 0,
-                requestId: call.requestId,
-                action: actionName,
-                remarks: "Action performed from dashboard",
-                actionBy: Number(user?.userId || 0)
-            };
-            
-            const response = await apiService.performTransitionAction(payload);
-            
-            // Capture updated transition data from response
-            let updatedCall = call;
-            if (response && response.responseData) {
-                updatedCall = {
-                    ...call,
-                    ...response.responseData,
-                    id: response.responseData.workflowTransitionId // Maintain unique ID consistency
-                };
-            }
-            
-            handleInitiate(updatedCall);
-            fetchPendingCalls(); // Refresh the list
-        } catch (error) {
-            console.error(`Error performing ${actionName}:`, error);
-            // Fallback to current call if transition fail/redundant
-            handleInitiate(call);
-        }
-    };
-
-    const fetchPendingCalls = async () => {
-        setIsLoading(true);
-        try {
-            const user = getStoredUser();
-            const userId = user?.userId;
-            const plantId = localStorage.getItem('plantId');
-            
-            const response = await apiService.getAllPendingWorkflowTransitions('Main IE', userId, plantId);
-            
-            if (response && response.responseData) {
-                const filtered = response.responseData.filter(item => {
-                    const matchesPlant = !plantId || item.plantId === plantId;
-                    const status = item.jobStatus || item.status;
-                    return matchesPlant && status !== 'IC_ISSUE' && status !== 'IC_GENERATION' && status !== 'GENERATED';
-                });
-                
-                setPendingCalls(filtered.map(item => ({
-                    ...item,
-                    id: item.workflowTransitionId,
-                    status: item.jobStatus || item.status || 'Pending',
-                    jobStatus: item.jobStatus,
-                    checked: false
-                })));
-            }
-        } catch (error) {
-            console.error("Error fetching pending calls:", error);
-        } finally {
-            setIsLoading(false);
-        }
-    };
-
-    const fetchIssuanceCalls = async () => {
-        setIsLoading(true);
-        try {
-            const user = getStoredUser();
-            const userId = user?.userId;
-            const plantId = localStorage.getItem('plantId');
-
-            const [completedRes, pendingRes] = await Promise.all([
-                apiService.getCompletedFinalCalls(),
-                apiService.getAllPendingWorkflowTransitions('Main IE', userId, plantId)
-            ]);
-            
-            let combined = [];
-            if (completedRes && completedRes.responseData) {
-                // Filter out stale completed calls if a newer pending transition exists for the same requestId
-                const activeCompleted = completedRes.responseData.filter(compItem => {
-                    const newerPending = pendingRes?.responseData?.find(
-                        pendItem => pendItem.requestId === compItem.requestId && pendItem.workflowTransitionId > compItem.workflowTransitionId
-                    );
-                    return !newerPending; // Keep only if there is no newer pending transition
-                });
-                combined = [...combined, ...activeCompleted];
-            }
-            
-            if (pendingRes && pendingRes.responseData) {
-                // Add the ones that are currently in IC_ISSUE state
-                const pendingIC = pendingRes.responseData.filter(item => {
-                    const matchesPlant = !plantId || item.plantId === plantId;
-                    const status = item.jobStatus || item.status;
-                    return matchesPlant && status === 'IC_ISSUE';
-                });
-                combined = [...combined, ...pendingIC];
-            }
-
-            setIssuanceCalls(combined.map(item => ({
-                ...item,
-                id: item.workflowTransitionId,
-                status: item.jobStatus || item.status || 'Completed',
-                checked: false
-            })));
-        } catch (error) {
-            console.error("Error fetching issuance calls:", error);
-        } finally {
-            setIsLoading(false);
-        }
-    };
-
-    const fetchCompletedCalls = async () => {
-        setIsLoading(true);
-        try {
-            const user = getStoredUser();
-            const userId = user?.userId;
-            const plantId = localStorage.getItem('plantId');
-
-            const response = await apiService.getAllPendingWorkflowTransitions('Main IE', userId, plantId);
-            
-            if (response && response.responseData) {
-                const filtered = response.responseData.filter(item => {
-                    const matchesPlant = !plantId || item.plantId === plantId;
-                    const status = item.jobStatus || item.status;
-                    return matchesPlant && (status === 'IC_GENERATION' || status === 'GENERATED');
-                });
-                
-                setCompletedCalls(filtered.map(item => ({
-                    ...item,
-                    id: item.workflowTransitionId,
-                    status: item.jobStatus || item.status || 'Completed',
-                    jobStatus: item.jobStatus,
-                    checked: false
-                })));
-            }
-        } catch (error) {
-            console.error("Error fetching completed calls:", error);
-        } finally {
-            setIsLoading(false);
-        }
-    };
-
     const [issuanceCalls, setIssuanceCalls] = useState([]);
     const [completedCalls, setCompletedCalls] = useState([]);
-    const [expandedActions, setExpandedActions] = useState({}); // Track which call has actions shown
+    const [expandedActions, setExpandedActions] = useState({});
+
+    const loadCalls = async () => {
+        setIsLoading(true);
+        try {
+            const user = getStoredUser();
+            const userId = user?.userId;
+            const plantId = localStorage.getItem('plantId');
+
+            const [pendingRes, completedRes] = await Promise.allSettled([
+                apiService.getAllPendingWorkflowTransitions('Main IE', userId, plantId),
+                apiService.getCompletedFinalCalls()
+            ]);
+
+            const pendingData = (pendingRes.status === 'fulfilled' && pendingRes.value?.responseData) ? pendingRes.value.responseData : [];
+            const completedDataAll = (completedRes.status === 'fulfilled' && completedRes.value?.responseData) ? completedRes.value.responseData : [];
+
+            const isNonPendingActionOrStatus = (c) => {
+                const action = (c.action || '').toUpperCase();
+                const status = (c.status || '').toUpperCase();
+                const jobStatus = (c.jobStatus || '').toUpperCase();
+                return (
+                    action === 'FINISH' ||
+                    action === 'COMPLETED' ||
+                    action === 'IC_ISSUE' ||
+                    action === 'ISSUE IC' ||
+                    action === 'IC_GENERATION' ||
+                    action === 'GENERATE_IC' ||
+                    action === 'DSC_SIGN_IC' ||
+                    action.includes('CANCEL') ||
+                    action.includes('WITHDRAW') ||
+                    jobStatus === 'COMPLETED' ||
+                    jobStatus === 'FINISH' ||
+                    jobStatus === 'IC_ISSUE' ||
+                    jobStatus === 'ISSUE IC' ||
+                    jobStatus === 'IC_GENERATION' ||
+                    jobStatus === 'GENERATED' ||
+                    jobStatus === 'IC_SIGNED' ||
+                    jobStatus.includes('CANCEL') ||
+                    jobStatus.includes('WITHDRAW') ||
+                    status === 'COMPLETED' ||
+                    status === 'IC_ISSUE' ||
+                    status === 'IC_GENERATION' ||
+                    status === 'GENERATED' ||
+                    status === 'IC_SIGNED' ||
+                    status.includes('CANCEL') ||
+                    status.includes('WITHDRAW')
+                );
+            };
+
+            // 1. List of Calls Pending: ONLY active pending inspection calls
+            const pendingList = pendingData.filter(item => {
+                const matchesPlant = !plantId || item.plantId === plantId;
+                return matchesPlant && !isNonPendingActionOrStatus(item);
+            }).map(item => {
+                let displayStatus = item.jobStatus;
+                if (!displayStatus || displayStatus === 'PENDING') {
+                    if (item.scheduleDate || item.scheduledDate || item.action === 'MAIN_IE_SCHEDULE_CALL') {
+                        displayStatus = 'SCHEDULED';
+                    } else if (item.status === 'RIO_VERIFIED' || item.action === 'VERIFY') {
+                        displayStatus = 'RIO_VERIFIED';
+                    } else {
+                        displayStatus = item.status || 'RIO_VERIFIED';
+                    }
+                }
+                return {
+                    ...item,
+                    id: item.workflowTransitionId,
+                    status: displayStatus,
+                    jobStatus: displayStatus,
+                    checked: false
+                };
+            });
+
+            // 2. Issuance of IC & Completed Calls sources (from /allFInalCallCompletedCalls and completed transitions)
+            const isSignedOrArchived = (c) => {
+                const action = (c.action || '').toUpperCase();
+                const status = (c.status || '').toUpperCase();
+                const jobStatus = (c.jobStatus || '').toUpperCase();
+                return (
+                    action === 'GENERATE_IC' ||
+                    action === 'IC_GENERATION' ||
+                    action === 'DSC_SIGN_IC' ||
+                    action === 'IC_SIGNED' ||
+                    action.includes('CANCEL') ||
+                    action.includes('WITHDRAW') ||
+                    jobStatus === 'GENERATE_IC' ||
+                    jobStatus === 'IC_GENERATION' ||
+                    jobStatus === 'GENERATED' ||
+                    jobStatus === 'DSC_SIGN_IC' ||
+                    jobStatus === 'IC_SIGNED' ||
+                    jobStatus.includes('CANCEL') ||
+                    jobStatus.includes('WITHDRAW') ||
+                    status === 'GENERATE_IC' ||
+                    status === 'IC_GENERATION' ||
+                    status === 'GENERATED' ||
+                    status === 'DSC_SIGN_IC' ||
+                    status === 'IC_SIGNED' ||
+                    status.includes('CANCEL') ||
+                    status.includes('WITHDRAW')
+                );
+            };
+
+            const allCompletedSource = [...completedDataAll, ...pendingData.filter(isNonPendingActionOrStatus)];
+            
+            const uniqueCompletedMap = new Map();
+            allCompletedSource.forEach(item => {
+                const reqId = item.requestId || item.callNo;
+                if (reqId) {
+                    if (!uniqueCompletedMap.has(reqId) || (item.workflowTransitionId > uniqueCompletedMap.get(reqId).workflowTransitionId)) {
+                        uniqueCompletedMap.set(reqId, item);
+                    }
+                }
+            });
+            const dedupedCompleted = Array.from(uniqueCompletedMap.values());
+
+            // 2. Issuance of IC tab
+            const certCalls = dedupedCompleted.filter(c => {
+                const matchesPlant = !plantId || c.plantId === plantId;
+                return matchesPlant && !isSignedOrArchived(c);
+            }).map(item => ({
+                ...item,
+                id: item.workflowTransitionId,
+                status: item.jobStatus || item.status || 'COMPLETED',
+                jobStatus: item.jobStatus || item.status || 'COMPLETED',
+                checked: false
+            }));
+
+            // 3. Completed Calls tab
+            const finalCompletedCalls = dedupedCompleted.filter(c => {
+                const matchesPlant = !plantId || c.plantId === plantId;
+                return matchesPlant && isSignedOrArchived(c);
+            }).map(item => {
+                const action = (item.action || '').toUpperCase();
+                const jobStatus = (item.jobStatus || '').toUpperCase();
+                const status = (item.status || '').toUpperCase();
+                let displayStatus = 'Completed - E-Signed';
+                if (action.includes('CANCEL') || jobStatus.includes('CANCEL') || status.includes('CANCEL')) {
+                    displayStatus = 'Cancelled';
+                } else if (action.includes('WITHDRAW') || jobStatus.includes('WITHDRAW') || status.includes('WITHDRAW')) {
+                    displayStatus = 'Withdrawn';
+                }
+                return {
+                    ...item,
+                    id: item.workflowTransitionId,
+                    status: displayStatus,
+                    jobStatus: 'COMPLETED',
+                    checked: false
+                };
+            });
+
+            setPendingCalls(pendingList);
+            setIssuanceCalls(certCalls);
+            setCompletedCalls(finalCompletedCalls);
+        } catch (error) {
+            console.error("Error loading calls:", error);
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    const fetchPendingCalls = loadCalls;
+    const fetchIssuanceCalls = loadCalls;
+    const fetchCompletedCalls = loadCalls;
+
+    useEffect(() => {
+        loadCalls();
+    }, [activeTab]); // Track which call has actions shown
 
     const toggleCheck = (id) => {
         setPendingCalls(prev => prev.map(call => 
@@ -209,52 +244,182 @@ const AttendingCallDashboard = () => {
         }));
     };
 
+    const handleWorkflowAction = async (call, actionName) => {
+        try {
+            const user = getStoredUser();
+            const payload = {
+                workflowTransitionId: call.workflowTransitionId || call.id,
+                moduleId: call.moduleId || 0,
+                requestId: call.requestId,
+                action: actionName,
+                remarks: "Action performed from dashboard",
+                actionBy: Number(user?.userId || 0)
+            };
+            
+            const response = await apiService.performTransitionAction(payload);
+            
+            let updatedCall = call;
+            if (response && response.responseData) {
+                updatedCall = {
+                    ...call,
+                    ...response.responseData,
+                    id: response.responseData.workflowTransitionId
+                };
+            }
+            
+            handleInitiate(updatedCall);
+            loadCalls();
+        } catch (error) {
+            console.error(`Error performing ${actionName}:`, error);
+            handleInitiate(call);
+        }
+    };
+
+    const handleShiftDetailsConfirm = async ({ shift, date, remarks }) => {
+        try {
+            const user = getStoredUser();
+            const call = selectedCallForShift;
+            if (!call) return;
+
+            let updatedCall = {
+                ...call,
+                shift: shift,
+                dateOfInspection: date,
+                inspectionDate: date,
+                date: date
+            };
+
+            if (!isResumeShift) {
+                try {
+                    const payload = {
+                        workflowTransitionId: call.id || call.workflowTransitionId,
+                        moduleId: call.moduleId || 0,
+                        requestId: call.requestId || call.call_no || call.callNumber,
+                        action: 'INITIATE_CALL',
+                        remarks: remarks || "Initiated inspection with shift details",
+                        actionBy: Number(user?.userId || 0)
+                    };
+                    const response = await apiService.performTransitionAction(payload);
+                    if (response && response.responseData) {
+                        updatedCall = {
+                            ...updatedCall,
+                            ...response.responseData,
+                            shift: shift,
+                            dateOfInspection: date,
+                            inspectionDate: date,
+                            date: date,
+                            id: response.responseData.workflowTransitionId || updatedCall.id
+                        };
+                    }
+                } catch (err) {
+                    console.warn("Transition action warning (proceeding to inspection):", err);
+                }
+            }
+
+            setShowShiftModal(false);
+            setSelectedCallForShift(null);
+            handleInitiate(updatedCall);
+            loadCalls();
+        } catch (error) {
+            console.error("Error confirming shift details:", error);
+            alert("Failed to proceed: " + error.message);
+        }
+    };
+
     const handleInitiate = (call) => {
         setSelectedCall(call);
         setIsInspecting(true);
+        sessionStorage.setItem('activeInspectionCall', JSON.stringify(call));
+        sessionStorage.setItem('isInspectingCall', 'true');
+    };
+
+    const handleOpenViewActions = (call) => {
+        const availableActions = [];
+        const jst = (call.jobStatus || call.status || '').toUpperCase();
+        if (jst === 'RIO_VERIFIED') {
+            availableActions.push('schedule');
+        } else if (jst === 'SCHEDULED') {
+            availableActions.push('reschedule');
+            availableActions.push('start');
+        } else if (jst === 'INITIATED' || jst === 'PO_VERIFICATION' || jst === 'RESUME') {
+            availableActions.push('resume');
+        } else if (jst === 'PAUSED') {
+            availableActions.push('enterShiftDetails');
+        }
+        setSelectedCallForView(call);
+        setSelectedCallActions(availableActions);
+        setShowDetailsModal(true);
     };
 
     const handleIssueIC = async (call) => {
         try {
-            const user = getStoredUser();
-            const currentStatus = call.jobStatus || call.status;
+            const currentStatus = (call.jobStatus || call.status || call.action || '').toUpperCase();
+            let updatedCall = call;
             
+            // Only trigger performTransitionAction if status is not already IC_ISSUE
             if (currentStatus !== 'IC_ISSUE') {
+                const user = getStoredUser();
                 const payload = {
                     workflowTransitionId: call.id || call.workflowTransitionId,
                     moduleId: call.moduleId || 0,
-                    requestId: call.requestId,
+                    requestId: call.requestId || call.callNo,
                     action: 'IC_ISSUE',
                     remarks: 'System updated status to IC_ISSUE',
                     actionBy: Number(user?.userId || 0)
                 };
+                
                 try {
-                    await apiService.performTransitionAction(payload);
+                    const res = await apiService.performTransitionAction(payload);
+                    if (res && res.responseData) {
+                        updatedCall = {
+                            ...call,
+                            ...res.responseData,
+                            id: res.responseData.workflowTransitionId || call.id
+                        };
+                    }
                 } catch (e) {
-                    console.error('Failed to update status to IC_ISSUE:', e);
-                    alert('Failed to issue IC: ' + (e.message || 'Unknown error'));
-                    return; // Prevent navigating if API fails
+                    console.warn('Transition to IC_ISSUE warning:', e);
                 }
             }
 
-            localStorage.setItem('selectedICCall', JSON.stringify(call));
+            localStorage.setItem('selectedICCall', JSON.stringify(updatedCall));
             const event = new CustomEvent('navigate', { detail: { target: 'Sleeper Final IC' } });
             window.dispatchEvent(event);
         } catch (error) {
             console.error('Error in handleIssueIC:', error);
-            alert('Failed to issue IC');
+            alert('Failed to open IC');
         }
     };
 
-    const handleViewDetails = (call) => {
-        setPopupCall(call);
+    const handleViewDetails = async (call) => {
+        try {
+            const summaryRes = await apiService.getInspectionCallSummary(call.requestId);
+            if (summaryRes && summaryRes.responseData) {
+                setPopupCall({
+                    ...call,
+                    po: summaryRes.responseData.poNo || call.requestId,
+                    sleeperType: summaryRes.responseData.sleeperType || '-',
+                    qty: summaryRes.responseData.qtyOfferedNow || 0,
+                    accepted: summaryRes.responseData.totalAccepted || 0,
+                    rejected: summaryRes.responseData.totalRejected || 0
+                });
+            } else {
+                setPopupCall(call);
+            }
+        } catch (e) {
+            console.error("Error fetching popup call details:", e);
+            setPopupCall(call);
+        }
         setShowDetailsPopup(true);
     };
 
-    if (isInspecting) {
+    if (isInspecting && selectedCall) {
         return <FinalInspectionScreen call={selectedCall} onBack={() => {
             setIsInspecting(false);
-            fetchPendingCalls();
+            setSelectedCall(null);
+            sessionStorage.removeItem('activeInspectionCall');
+            sessionStorage.removeItem('isInspectingCall');
+            loadCalls();
         }} />;
     }
 
@@ -291,161 +456,22 @@ const AttendingCallDashboard = () => {
                 {activeTab === 'pending' && (
                     <div className="table-container-modern">
                         <div className="table-search-header">
-                            <input type="text" placeholder="Search..." className="search-input-modern" />
+                            <input 
+                                type="text" 
+                                placeholder="Search..." 
+                                className="search-input-modern" 
+                                value={searchTerm}
+                                onChange={(e) => setSearchTerm(e.target.value)}
+                            />
                         </div>
                         <div className="calls-table-wrapper-modern">
                             <table className="calls-table-modern">
                                 <thead>
                                     <tr>
                                         <th className="checkbox-col"><input type="checkbox" /></th>
-                                        <th>TRANSITION ID</th>
-                                        <th>REQUEST ID</th>
-                                        <th>VENDOR CODE</th>
+                                        <th>CALL NO</th>
+                                        <th>VENDOR NAME</th>
                                         <th>PLANT ID</th>
-                                        <th>POI CODE</th>
-                                        <th>CREATED DATE</th>
-                                        <th>STATUS</th>
-                                        {pendingCalls.some(c => expandedActions[c.id]) && <th>ACTIONS</th>}
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {isLoading ? (
-                                        <tr>
-                                            <td colSpan="9" style={{ textAlign: 'center', padding: '20px' }}>Loading pending calls...</td>
-                                        </tr>
-                                    ) : pendingCalls.length === 0 ? (
-                                        <tr>
-                                            <td colSpan="9" style={{ textAlign: 'center', padding: '20px' }}>No pending calls found.</td>
-                                        </tr>
-                                    ) : (
-                                        pendingCalls.map(call => (
-                                            <tr key={call.id} className={call.checked ? 'row-selected' : ''}>
-                                                <td className="checkbox-col">
-                                                    <input 
-                                                        type="checkbox" 
-                                                        checked={call.checked} 
-                                                        onChange={() => toggleCheck(call.id)} 
-                                                    />
-                                                </td>
-                                                <td>{call.workflowTransitionId}</td>
-                                                <td>{call.requestId}</td>
-                                                <td>{call.vendorCode || '-'}</td>
-                                                <td>{call.plantId || '-'}</td>
-                                                <td>{call.poiCode || '-'}</td>
-                                                <td>{call.createdDate ? new Date(call.createdDate).toLocaleDateString() : '-'}</td>
-                                                <td>
-                                                    <button 
-                                                        className={`status-action-pill ${call.status.toLowerCase().replace(' ', '-')}`}
-                                                        onClick={() => toggleActions(call.id)}
-                                                    >
-                                                        {call.status}
-                                                    </button>
-                                                </td>
-                                                {expandedActions[call.id] && (
-                                                    <td>
-                                                        <div className="table-actions-modern">
-                                                            {/* RIO_VERIFIED -> SCHEDULE (only if not already scheduled) */}
-                                                            {(call.jobStatus === 'RIO_VERIFIED' || !call.jobStatus) && !call.scheduleDate && (
-                                                                <button 
-                                                                    className="btn-start" 
-                                                                    onClick={() => {
-                                                                        setSelectedCallForSchedule(call);
-                                                                        setShowSchedulePopup(true);
-                                                                    }}
-                                                                >
-                                                                    SCHEDULE
-                                                                </button>
-                                                            )}
-
-                                                            {/* SCHEDULED or already has a date -> START & RESCHEDULE */}
-                                                            {(call.jobStatus === 'SCHEDULED' || call.jobStatus === 'scheduled' || !!call.scheduleDate) && (
-                                                                <>
-                                                                    <button 
-                                                                        className="btn-start" 
-                                                                        onClick={() => handleWorkflowAction(call, 'INITIATE_CALL')}
-                                                                    >
-                                                                        START
-                                                                    </button>
-                                                                    <button 
-                                                                        className="btn-start" 
-                                                                        style={{ background: '#f59e0b', marginLeft: '8px' }}
-                                                                        onClick={() => {
-                                                                            setSelectedCallForSchedule(call);
-                                                                            setShowSchedulePopup(true);
-                                                                        }}
-                                                                    >
-                                                                        RESCHEDULE
-                                                                    </button>
-                                                                </>
-                                                            )}
-
-                                                            {/* INITIATED -> RESUME */}
-                                                            {(call.jobStatus === 'INITIATED' || call.jobStatus === 'initiated') && (
-                                                                <button 
-                                                                    className="btn-start" 
-                                                                    onClick={() => handleInitiate(call)}
-                                                                >
-                                                                    RESUME
-                                                                </button>
-                                                            )}
-
-                                                            {/* PO_VERIFICATION -> OPEN INSPECTION DETAILS */}
-                                                            {call.jobStatus === 'PO_VERIFICATION' && (
-                                                                <button 
-                                                                    className="btn-start" 
-                                                                    onClick={() => handleInitiate(call)}
-                                                                >
-                                                                    OPEN INSPECTION DETAILS
-                                                                </button>
-                                                            )}
-
-                                                            {/* pause -> RESUME */}
-                                                            {(call.jobStatus === 'PAUSED' || call.jobStatus === 'pause') && (
-                                                                <button 
-                                                                    className="btn-start" 
-                                                                    onClick={() => handleInitiate(call)}
-                                                                >
-                                                                    RESUME
-                                                                </button>
-                                                            )}
-                                                            
-                                                            {/* General Actions for non-matched states */}
-                                                            {!['RIO_VERIFIED', 'SCHEDULED', 'scheduled', 'INITIATED', 'initiated', 'PO_VERIFICATION', 'PAUSED', 'pause'].includes(call.jobStatus) && call.jobStatus && (
-                                                                <>
-                                                                    <button className="btn-start" onClick={() => handleInitiate(call)}>
-                                                                        {call.status === 'Under Inspection' ? 'RESUME' : 'START'}
-                                                                    </button>
-                                                                </>
-                                                            )}
-                                                        </div>
-                                                    </td>
-                                                )}
-                                            </tr>
-                                        ))
-                                    )}
-                                </tbody>
-                            </table>
-                        </div>
-                        
-
-                    </div>
-                )}
-
-                {activeTab === 'issuance' && (
-                    <div className="table-container-modern">
-                        <div className="table-search-header">
-                            <input type="text" placeholder="Search..." className="search-input-modern" />
-                        </div>
-                        <div className="calls-table-wrapper-modern">
-                            <table className="calls-table-modern">
-                                <thead>
-                                    <tr>
-                                        <th className="checkbox-col"><input type="checkbox" /></th>
-                                        <th>TRANSITION ID</th>
-                                        <th>REQUEST ID</th>
-                                        <th>VENDOR CODE</th>
-                                        <th>PLANT ID</th>
-                                        <th>POI CODE</th>
                                         <th>CREATED DATE</th>
                                         <th>STATUS</th>
                                         <th>ACTIONS</th>
@@ -454,67 +480,179 @@ const AttendingCallDashboard = () => {
                                 <tbody>
                                     {isLoading ? (
                                         <tr>
-                                            <td colSpan="9" style={{ textAlign: 'center', padding: '20px' }}>Loading issuance calls...</td>
+                                            <td colSpan="7" style={{ textAlign: 'center', padding: '20px' }}>Loading pending calls...</td>
                                         </tr>
-                                    ) : issuanceCalls.length === 0 ? (
+                                    ) : pendingCalls.filter(c => {
+                                        const q = (searchTerm || '').toLowerCase();
+                                        return (c.requestId?.toLowerCase() || '').includes(q) ||
+                                               (c.vendorName?.toLowerCase() || '').includes(q) ||
+                                               (c.vendorCode?.toLowerCase() || '').includes(q) ||
+                                               (c.plantId?.toLowerCase() || '').includes(q);
+                                    }).length === 0 ? (
                                         <tr>
-                                            <td colSpan="9" style={{ textAlign: 'center', padding: '20px' }}>No calls for IC issuance found</td>
+                                            <td colSpan="7" style={{ textAlign: 'center', padding: '20px' }}>No pending calls found.</td>
                                         </tr>
                                     ) : (
-                                        issuanceCalls.map(call => (
-                                            <React.Fragment key={call.id}>
-                                                <tr>
-                                                    <td className="checkbox-col"><input type="checkbox" checked={call.checked} onChange={() => {}} /></td>
-                                                    <td>{call.workflowTransitionId}</td>
-                                                    <td className="req-id-cell">{call.requestId}</td>
-                                                    <td>{call.vendorCode}</td>
-                                                    <td>{call.plantId}</td>
-                                                    <td>{call.poiCode}</td>
-                                                    <td>{call.createdDate ? new Date(call.createdDate).toLocaleDateString() : 'N/A'}</td>
-                                                    <td>
-                                                        <span 
-                                                            className={`status-pill ${call.jobStatus?.toLowerCase() || 'pending'}`}
-                                                            onClick={() => toggleActions(call.id)}
-                                                            style={{ cursor: 'pointer' }}
+                                        pendingCalls.filter(c => {
+                                            const q = (searchTerm || '').toLowerCase();
+                                            return (c.requestId?.toLowerCase() || '').includes(q) ||
+                                                   (c.vendorName?.toLowerCase() || '').includes(q) ||
+                                                   (c.vendorCode?.toLowerCase() || '').includes(q) ||
+                                                   (c.plantId?.toLowerCase() || '').includes(q);
+                                        }).map(call => (
+                                            <tr key={call.id} className={call.checked ? 'row-selected' : ''}>
+                                                <td className="checkbox-col">
+                                                    <input 
+                                                        type="checkbox" 
+                                                        checked={call.checked} 
+                                                        onChange={() => toggleCheck(call.id)} 
+                                                    />
+                                                </td>
+                                                <td style={{ fontWeight: '700', color: '#0f172a' }}>{call.requestId}</td>
+                                                <td>{call.vendorName || call.vendorCode || '-'}</td>
+                                                <td>{call.plantId || '-'}</td>
+                                                <td>{call.createdDate ? new Date(call.createdDate).toLocaleDateString('en-GB') : '-'}</td>
+                                                <td>
+                                                    <span 
+                                                        className={`status-action-pill ${(call.jobStatus || call.status || '').toLowerCase().replace(/[\s_]+/g, '-')}`}
+                                                        onClick={() => handleOpenViewActions(call)}
+                                                        style={{ cursor: 'pointer' }}
+                                                    >
+                                                        {call.jobStatus || call.status}
+                                                    </span>
+                                                </td>
+                                                <td>
+                                                    <div className="table-actions-modern">
+                                                        <button 
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                handleOpenViewActions(call);
+                                                            }}
+                                                            style={{
+                                                                padding: '6px 14px',
+                                                                borderRadius: '6px',
+                                                                border: 'none',
+                                                                background: '#2563eb',
+                                                                color: '#ffffff',
+                                                                fontSize: '11px',
+                                                                fontWeight: '700',
+                                                                cursor: 'pointer',
+                                                                boxShadow: '0 1px 2px rgba(37, 99, 235, 0.2)',
+                                                                whiteSpace: 'nowrap'
+                                                            }}
                                                         >
-                                                            {call.jobStatus || call.status}
-                                                        </span>
-                                                    </td>
-                                                    <td>
-                                                        <div className="table-actions-modern">
-                                                            <button className="btn-start" onClick={() => handleIssueIC(call)}>
-                                                                {(call.jobStatus === 'IC_ISSUE' || call.status === 'IC_ISSUE') ? 'View IC' : 'Issue IC'}
-                                                            </button>
-                                                            <button className="btn-reschedule" style={{ marginLeft: '8px' }}>Download Annexures</button>
-                                                        </div>
-                                                    </td>
-                                                </tr>
-                                            </React.Fragment>
+                                                            VIEW ACTIONS
+                                                        </button>
+                                                    </div>
+                                                </td>
+                                            </tr>
                                         ))
                                     )}
                                 </tbody>
                             </table>
                         </div>
-
                     </div>
                 )}
 
-                {activeTab === 'completed' && (
+                {activeTab === 'issuance' && (
                     <div className="table-container-modern">
                         <div className="table-search-header">
-                            <input type="text" placeholder="Search..." className="search-input-modern" />
+                            <input 
+                                type="text" 
+                                placeholder="Search..." 
+                                className="search-input-modern" 
+                                value={searchTerm}
+                                onChange={(e) => setSearchTerm(e.target.value)}
+                            />
                         </div>
                         <div className="calls-table-wrapper-modern">
                             <table className="calls-table-modern">
                                 <thead>
                                     <tr>
                                         <th className="checkbox-col"><input type="checkbox" /></th>
-                                        <th>TRANSITION ID</th>
-                                        <th>REQUEST ID</th>
-                                        <th>VENDOR CODE</th>
+                                        <th>CALL NO</th>
+                                        <th>VENDOR NAME</th>
                                         <th>PLANT ID</th>
-                                        <th>POI CODE</th>
                                         <th>CREATED DATE</th>
+                                        <th>STATUS</th>
+                                        <th>ACTIONS</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {isLoading ? (
+                                        <tr>
+                                            <td colSpan="7" style={{ textAlign: 'center', padding: '20px' }}>Loading issuance calls...</td>
+                                        </tr>
+                                    ) : issuanceCalls.filter(c => {
+                                        const q = (searchTerm || '').toLowerCase();
+                                        return (c.requestId?.toLowerCase() || '').includes(q) ||
+                                               (c.vendorName?.toLowerCase() || '').includes(q) ||
+                                               (c.vendorCode?.toLowerCase() || '').includes(q) ||
+                                               (c.plantId?.toLowerCase() || '').includes(q);
+                                    }).length === 0 ? (
+                                        <tr>
+                                            <td colSpan="7" style={{ textAlign: 'center', padding: '20px' }}>No calls for IC issuance found</td>
+                                        </tr>
+                                    ) : (
+                                        issuanceCalls.filter(c => {
+                                            const q = (searchTerm || '').toLowerCase();
+                                            return (c.requestId?.toLowerCase() || '').includes(q) ||
+                                                   (c.vendorName?.toLowerCase() || '').includes(q) ||
+                                                   (c.vendorCode?.toLowerCase() || '').includes(q) ||
+                                                   (c.plantId?.toLowerCase() || '').includes(q);
+                                        }).map(call => (
+                                            <tr key={call.id}>
+                                                <td className="checkbox-col"><input type="checkbox" checked={call.checked} onChange={() => toggleCheck(call.id)} /></td>
+                                                <td className="req-id-cell" style={{ fontWeight: '700', color: '#0f172a' }}>{call.requestId}</td>
+                                                <td>{call.vendorName || call.vendorCode || '-'}</td>
+                                                <td>{call.plantId || '-'}</td>
+                                                <td>{call.createdDate ? new Date(call.createdDate).toLocaleDateString('en-GB') : 'N/A'}</td>
+                                                <td>
+                                                    <span 
+                                                        className={`status-pill ${call.jobStatus?.toLowerCase() || 'pending'}`}
+                                                    >
+                                                        {call.jobStatus || call.status}
+                                                    </span>
+                                                </td>
+                                                <td>
+                                                    <div className="table-actions-modern">
+                                                        <button className="btn-start" onClick={() => handleIssueIC(call)}>
+                                                            {((call.jobStatus || call.status || '').toUpperCase() === 'IC_ISSUE') ? 'View IC' : 'IC Issue'}
+                                                        </button>
+                                                        <button className="btn-reschedule" style={{ marginLeft: '8px' }}>Download Annexures</button>
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                        ))
+                                    )}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                )}
+
+                {activeTab === 'completed' && (
+                    <div className="table-container-modern">
+                        <div className="table-search-header">
+                            <input 
+                                type="text" 
+                                placeholder="Search..." 
+                                className="search-input-modern" 
+                                value={searchTerm}
+                                onChange={(e) => setSearchTerm(e.target.value)}
+                            />
+                        </div>
+                        <div className="calls-table-wrapper-modern">
+                            <table className="calls-table-modern">
+                                <thead>
+                                    <tr>
+                                        <th className="checkbox-col"><input type="checkbox" /></th>
+                                        <th>CALL NO.</th>
+                                        <th>PO NO.</th>
+                                        <th>IBS CASE NUMBER</th>
+                                        <th>VENDOR NAME</th>
+                                        <th>PRODUCT TYPE</th>
+                                        <th>DATE</th>
                                         <th>STATUS</th>
                                         <th>ACTIONS</th>
                                     </tr>
@@ -524,44 +662,49 @@ const AttendingCallDashboard = () => {
                                         <tr>
                                             <td colSpan="9" style={{ textAlign: 'center', padding: '20px' }}>Loading completed calls...</td>
                                         </tr>
-                                    ) : completedCalls.length === 0 ? (
+                                    ) : completedCalls.filter(c => {
+                                        const q = (searchTerm || '').toLowerCase();
+                                        return (c.requestId?.toLowerCase() || '').includes(q) ||
+                                               (c.vendorName?.toLowerCase() || '').includes(q) ||
+                                               (c.vendorCode?.toLowerCase() || '').includes(q) ||
+                                               (c.plantId?.toLowerCase() || '').includes(q) ||
+                                               (c.poNo?.toLowerCase() || '').includes(q);
+                                    }).length === 0 ? (
                                         <tr>
                                             <td colSpan="9" style={{ textAlign: 'center', padding: '20px' }}>No completed calls found</td>
                                         </tr>
                                     ) : (
-                                        completedCalls.map(call => (
-                                            <React.Fragment key={call.id}>
-                                                <tr>
-                                                    <td className="checkbox-col"><input type="checkbox" checked={call.checked} onChange={() => {}} /></td>
-                                                    <td>{call.workflowTransitionId}</td>
-                                                    <td className="req-id-cell">{call.requestId}</td>
-                                                    <td>{call.vendorCode}</td>
-                                                    <td>{call.plantId}</td>
-                                                    <td>{call.poiCode}</td>
-                                                    <td>{call.createdDate ? new Date(call.createdDate).toLocaleDateString() : 'N/A'}</td>
-                                                    <td>
-                                                        <span 
-                                                            className={`status-pill ${call.jobStatus?.toLowerCase() || 'pending'}`}
-                                                            onClick={() => toggleActions(call.id)}
-                                                            style={{ cursor: 'pointer' }}
-                                                        >
-                                                            {call.jobStatus || call.status}
-                                                        </span>
-                                                    </td>
-                                                    <td>
-                                                        <div className="table-actions-modern">
-                                                            <button className="btn-reschedule">Download IC</button>
-                                                            <button className="btn-start" style={{ marginLeft: '8px' }}>Download Annexures</button>
-                                                        </div>
-                                                    </td>
-                                                </tr>
-                                            </React.Fragment>
+                                        completedCalls.filter(c => {
+                                            const q = (searchTerm || '').toLowerCase();
+                                            return (c.requestId?.toLowerCase() || '').includes(q) ||
+                                                   (c.vendorName?.toLowerCase() || '').includes(q) ||
+                                                   (c.vendorCode?.toLowerCase() || '').includes(q) ||
+                                                   (c.plantId?.toLowerCase() || '').includes(q) ||
+                                                   (c.poNo?.toLowerCase() || '').includes(q);
+                                        }).map(call => (
+                                            <tr key={call.id}>
+                                                <td className="checkbox-col"><input type="checkbox" checked={call.checked} onChange={() => toggleCheck(call.id)} /></td>
+                                                <td className="req-id-cell" style={{ fontWeight: '700', color: '#0f172a' }}>{call.requestId}</td>
+                                                <td>{call.rlyPoSrNo || call.poNo || '-'}</td>
+                                                <td>{call.caseNo || call.ibsCaseNo || '-'}</td>
+                                                <td>{call.vendorName || call.vendorCode || '-'}</td>
+                                                <td>{call.productType || 'Sleeper'}</td>
+                                                <td>{call.createdDate ? new Date(call.createdDate).toLocaleDateString('en-GB') : 'N/A'}</td>
+                                                <td>
+                                                    <span className="status-pill completed">Completed - E-Signed</span>
+                                                </td>
+                                                <td>
+                                                    <div className="table-actions-modern">
+                                                        <button className="btn-reschedule">Download IC</button>
+                                                        <button className="btn-start" style={{ marginLeft: '8px' }}>Download Annexures</button>
+                                                    </div>
+                                                </td>
+                                            </tr>
                                         ))
                                     )}
                                 </tbody>
                             </table>
                         </div>
-
                     </div>
                 )}
             </div>
@@ -621,9 +764,11 @@ const AttendingCallDashboard = () => {
                     onConfirm={async (data) => {
                         try {
                             const user = getStoredUser();
-                            const isReschedule = selectedCallForSchedule.jobStatus === 'SCHEDULED' || 
-                                                selectedCallForSchedule.jobStatus === 'scheduled' || 
-                                                !!selectedCallForSchedule.scheduleDate;
+                            const isReschedule = data.isReschedule ?? (
+                                selectedCallForSchedule.jobStatus === 'SCHEDULED' || 
+                                selectedCallForSchedule.jobStatus === 'scheduled' || 
+                                !!selectedCallForSchedule.scheduleDate
+                            );
                             
                             const payload = {
                                 callNo: selectedCallForSchedule.requestId,
@@ -637,8 +782,21 @@ const AttendingCallDashboard = () => {
                                 ...(isReschedule ? { updatedBy: Number(user?.userId || 0) } : {})
                             };
 
-                            const apiCall = isReschedule ? apiService.updateScheduleCall : apiService.scheduleCall;
-                            const response = await apiCall(payload);
+                            let response;
+                            if (isReschedule) {
+                                response = await apiService.updateScheduleCall(payload);
+                            } else {
+                                try {
+                                    response = await apiService.scheduleCall(payload);
+                                } catch (err) {
+                                    if (err.message && err.message.toLowerCase().includes('already exists')) {
+                                        payload.updatedBy = Number(user?.userId || 0);
+                                        response = await apiService.updateScheduleCall(payload);
+                                    } else {
+                                        throw err;
+                                    }
+                                }
+                            }
                             
                             if (response) {
                                 alert(isReschedule ? "Call rescheduled successfully!" : "Call scheduled successfully!");
@@ -652,74 +810,233 @@ const AttendingCallDashboard = () => {
                     }}
                 />
             )}
+
+            {showDetailsModal && selectedCallForView && (
+                <PendingCallDetailsModal
+                    isOpen={showDetailsModal}
+                    onClose={() => {
+                        setShowDetailsModal(false);
+                        setSelectedCallForView(null);
+                        setSelectedCallActions([]);
+                    }}
+                    call={selectedCallForView}
+                    availableActions={selectedCallActions}
+                    onSchedule={() => {
+                        setSelectedCallForSchedule(selectedCallForView);
+                        setShowSchedulePopup(true);
+                        setShowDetailsModal(false);
+                    }}
+                    onReschedule={() => {
+                        setSelectedCallForSchedule(selectedCallForView);
+                        setShowSchedulePopup(true);
+                        setShowDetailsModal(false);
+                    }}
+                    onStart={() => {
+                        setSelectedCallForShift(selectedCallForView);
+                        setIsResumeShift(false);
+                        setShowShiftModal(true);
+                        setShowDetailsModal(false);
+                    }}
+                    onResume={() => {
+                        setSelectedCallForShift(selectedCallForView);
+                        setIsResumeShift(true);
+                        setShowShiftModal(true);
+                        setShowDetailsModal(false);
+                    }}
+                    onEnterShiftDetails={() => {
+                        setSelectedCallForShift(selectedCallForView);
+                        setIsResumeShift(true);
+                        setShowShiftModal(true);
+                        setShowDetailsModal(false);
+                    }}
+                    onDone={() => {
+                        fetchPendingCalls();
+                    }}
+                />
+            )}
+
+            {showShiftModal && selectedCallForShift && (
+                <ResumeCallModal
+                    isOpen={showShiftModal}
+                    onClose={() => {
+                        setShowShiftModal(false);
+                        setSelectedCallForShift(null);
+                    }}
+                    call={selectedCallForShift}
+                    isResume={isResumeShift}
+                    onConfirm={handleShiftDetailsConfirm}
+                />
+            )}
         </div>
     );
 };
 
 const RescheduleModal = ({ call, onClose, onConfirm }) => {
-    const [newDate, setNewDate] = useState('2026-02-19');
+    const [loadingDetails, setLoadingDetails] = useState(true);
+    const [isSubmitting, setIsSubmitting] = useState(false);
+    const [callDetails, setCallDetails] = useState({
+        poNo: '',
+        desiredDate: '',
+        scheduledDate: '',
+        previousRemark: ''
+    });
+    const [newDate, setNewDate] = useState('');
     const [reason, setReason] = useState('');
+
+    useEffect(() => {
+        let isMounted = true;
+        const fetchDetails = async () => {
+            if (!call?.requestId) return;
+            setLoadingDetails(true);
+            try {
+                const [summaryRes, scheduleRes, sec1Res, sec2Res] = await Promise.allSettled([
+                    apiService.getInspectionCallSummary(call.requestId),
+                    apiService.getSchedule(call.requestId),
+                    apiService.getSection1Details(call.requestId),
+                    apiService.getSection2Details(call.requestId)
+                ]);
+
+                const summary = summaryRes.status === 'fulfilled' ? summaryRes.value?.responseData : null;
+                const schedule = scheduleRes.status === 'fulfilled' ? scheduleRes.value?.responseData : null;
+                const sec1 = sec1Res.status === 'fulfilled' ? sec1Res.value?.responseData : null;
+                const sec2 = sec2Res.status === 'fulfilled' ? sec2Res.value?.responseData : null;
+
+                const po = sec1?.rlyPoNo || summary?.poNo || (call.poNo ? call.poNo : call.requestId);
+                const desired = sec2?.inspectionDesiredDate || summary?.desiredInspectionDate || (call.createdDate ? new Date(call.createdDate).toISOString().split('T')[0] : '');
+                const schedDate = schedule?.scheduleDate || call.scheduleDate || '';
+                const remark = schedule?.reason || call.remarks || '-';
+
+                const todayISO = new Date().toISOString().split('T')[0];
+                const initialDate = schedDate || desired || todayISO;
+
+                if (isMounted) {
+                    setCallDetails({
+                        poNo: po || 'N/A',
+                        desiredDate: desired || 'N/A',
+                        scheduledDate: schedDate ? (schedDate.includes('-') ? schedDate.split('-').reverse().join('/') : schedDate) : 'Not Scheduled',
+                        previousRemark: remark
+                    });
+                    setNewDate(initialDate);
+                }
+            } catch (err) {
+                console.error("Error fetching reschedule modal details:", err);
+            } finally {
+                if (isMounted) setLoadingDetails(false);
+            }
+        };
+
+        fetchDetails();
+        return () => { isMounted = false; };
+    }, [call]);
+
+    const isReschedule = (call.jobStatus === 'SCHEDULED' || 
+                         call.jobStatus === 'scheduled' || 
+                         call.status === 'SCHEDULED' || 
+                         call.status === 'scheduled') && 
+                         (callDetails.scheduledDate && callDetails.scheduledDate !== 'Not Scheduled' && callDetails.scheduledDate !== '-');
+
+    const handleConfirm = async () => {
+        if (isSubmitting) return;
+        setIsSubmitting(true);
+        try {
+            await onConfirm({ newDate, reason, isReschedule });
+        } catch (err) {
+            console.error("Error confirming schedule:", err);
+        } finally {
+            setIsSubmitting(false);
+        }
+    };
 
     return (
         <div className="modal-overlay">
             <div className="reschedule-modal">
                 <div className="reschedule-header">
-                    <h3>Reschedule Inspection</h3>
-                    <button className="close-btn-blue" onClick={onClose}>×</button>
+                    <h3>{isReschedule ? 'Reschedule Inspection' : 'Schedule Inspection'}</h3>
+                    <button className="close-btn-blue" disabled={isSubmitting} onClick={onClose}>×</button>
                 </div>
                 
-                <div className="reschedule-info-card">
-                    <div className="info-main">
-                        <div className="req-id">{call.requestId || 'ER-02190008'}</div>
-                        <div className="po-info">PO: {call.poNo || 'WCR / DummyPo_001 / 001'}</div>
+                {loadingDetails ? (
+                    <div style={{ padding: '30px', textAlign: 'center', color: '#64748b' }}>
+                        Loading call details...
                     </div>
-                    <div className="desired-date-section">
-                        <label>Desired Date</label>
-                        <span className="date-val-orange">2026-02-19</span>
-                    </div>
-                </div>
-
-                <div className="previous-details-card">
-                    <h4>Previous Schedule Details</h4>
-                    <div className="prev-grid">
-                        <div className="prev-item">
-                            <label>Scheduled Date:</label>
-                            <span>19/02/2026</span>
+                ) : (
+                    <>
+                        <div className="reschedule-info-card">
+                            <div className="info-main">
+                                <div className="req-id">{call.requestId}</div>
+                                <div className="po-info">PO: {callDetails.poNo}</div>
+                            </div>
+                            <div className="desired-date-section">
+                                <label>Desired Date</label>
+                                <span className="date-val-orange">{callDetails.desiredDate}</span>
+                            </div>
                         </div>
-                        <div className="prev-item">
-                            <label>Previous Remark:</label>
-                            <span>-</span>
+
+                        {/* Previous Schedule info only shown when rescheduling */}
+                        {isReschedule && callDetails.scheduledDate && callDetails.scheduledDate !== 'Not Scheduled' && (
+                            <div className="previous-details-card">
+                                <h4>Previous Schedule Details</h4>
+                                <div className="prev-grid">
+                                    <div className="prev-item">
+                                        <label>Scheduled Date:</label>
+                                        <span>{callDetails.scheduledDate}</span>
+                                    </div>
+                                    <div className="prev-item">
+                                        <label>Previous Remark:</label>
+                                        <span>{callDetails.previousRemark}</span>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+
+                        <div className="form-group">
+                            <label className="input-label">
+                                {isReschedule ? 'New Schedule Date' : 'Schedule Date'}{' '}
+                                <span className="req-star">for {call.requestId} *</span>
+                            </label>
+                            <div className="date-input-wrapper">
+                                <input 
+                                    type="date" 
+                                    className="reschedule-date-input" 
+                                    value={newDate}
+                                    min={callDetails.desiredDate !== 'N/A' && callDetails.desiredDate.includes('-') ? callDetails.desiredDate : ''}
+                                    onChange={(e) => setNewDate(e.target.value)}
+                                    disabled={isSubmitting}
+                                />
+                            </div>
+                            <p className="input-hint">
+                                {isReschedule ? 'Select new date for inspection' : 'Select the date for inspection'}{' '}
+                                {callDetails.desiredDate !== 'N/A' && <span className="min-hint">(Min: {callDetails.desiredDate})</span>}
+                            </p>
                         </div>
-                    </div>
-                </div>
 
-                <div className="form-group">
-                    <label className="input-label">New Schedule Date <span className="req-star">for {call.requestId || 'ER-02190008'} *</span></label>
-                    <div className="date-input-wrapper">
-                        <input 
-                            type="date" 
-                            className="reschedule-date-input" 
-                            value={newDate}
-                            onChange={(e) => setNewDate(e.target.value)}
-                        />
-                    </div>
-                    <p className="input-hint">Select new date for inspection <span className="min-hint">(Min: 2026-02-19)</span></p>
-                </div>
+                        <div className="form-group">
+                            <label className="input-label">{isReschedule ? 'Reason for Reschedule' : 'Remarks'}</label>
+                            <textarea 
+                                className="reschedule-textarea" 
+                                placeholder={isReschedule ? "Enter reason for rescheduling..." : "Enter remarks for scheduling..."}
+                                value={reason}
+                                onChange={(e) => setReason(e.target.value)}
+                                disabled={isSubmitting}
+                            ></textarea>
+                        </div>
 
-                <div className="form-group">
-                    <label className="input-label">Reason for Reschedule</label>
-                    <textarea 
-                        className="reschedule-textarea" 
-                        placeholder="Enter reason for rescheduling..."
-                        value={reason}
-                        onChange={(e) => setReason(e.target.value)}
-                    ></textarea>
-                </div>
-
-                <div className="reschedule-footer">
-                    <button className="btn-cancel-grey" onClick={onClose}>Cancel</button>
-                    <button className="btn-confirm-blue" onClick={() => onConfirm({ newDate, reason })}>Confirm</button>
-                </div>
+                        <div className="reschedule-footer">
+                            <button className="btn-cancel-grey" disabled={isSubmitting} onClick={onClose}>Cancel</button>
+                            <button 
+                                className="btn-confirm-blue" 
+                                disabled={isSubmitting || loadingDetails} 
+                                onClick={handleConfirm}
+                                style={{
+                                    opacity: isSubmitting ? 0.65 : 1,
+                                    cursor: (isSubmitting || loadingDetails) ? 'not-allowed' : 'pointer'
+                                }}
+                            >
+                                {isSubmitting ? 'Confirming...' : 'Confirm'}
+                            </button>
+                        </div>
+                    </>
+                )}
             </div>
         </div>
     );

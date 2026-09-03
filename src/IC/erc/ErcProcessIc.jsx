@@ -94,7 +94,7 @@ const ErcProcessIC = ({ data = {}, isEditing = false, isBusy = false, onChange =
     if (!typeStr) return 0.91;
     const lower = String(typeStr).toLowerCase().trim();
 
-    // MK-V: 1.08
+    // MK-V: 1.088
     if (
       lower.includes('mk-v') ||
       lower.includes('mk v') ||
@@ -104,7 +104,7 @@ const ErcProcessIC = ({ data = {}, isEditing = false, isBusy = false, onChange =
       lower.includes('mkv') ||
       lower === '6025'
     ) {
-      return 1.08;
+      return 1.088;
     }
 
     // J Type: 0.915

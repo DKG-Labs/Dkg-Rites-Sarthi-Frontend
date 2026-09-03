@@ -321,6 +321,9 @@ export const apiService = {
     getCompletedBatches: (sleeperType, userId) => api.get(`/FinalInspectionController/completed-batches?sleeperType=${sleeperType}&userId=${userId}`),
     scheduleCall: (payload) => api.post('/FinalCallinspection/scheduleingCall', payload),
     updateScheduleCall: (payload) => api.put('/FinalCallinspection/UpdatescheduleingCall', payload),
+    getSchedule: (callNo) => api.get(`/FinalCallinspection/schedule/${callNo}`),
+    getSection1Details: (callNo) => api.get(`/FinalCallinspection/section1/${callNo}`),
+    getSection2Details: (callNo) => api.get(`/FinalCallinspection/section2/${callNo}`),
     saveSection1: (payload) => api.post('/FinalCallinspection/section1', payload),
     saveSection2: (payload) => api.post('/FinalCallinspection/section2', payload),
     getInspectionCallSummary: (callNo) => api.get(`/main-ie/inspection-call-summary/${callNo}`),
@@ -329,6 +332,8 @@ export const apiService = {
     saveMainIeInspectionHeader: (payload) => api.post('/MainIe-finalcallsleeperInspection/finalCallHeader/save', payload),
     getSavedMainIeHeader: (callNo) => api.get(`/MainIe-finalcallsleeperInspection/finalCallHeader/${callNo}`),
     getSavedMainIeBatches: (callNo) => api.get(`/MainIe-finalcallsleeperInspection/call-no/${callNo}`),
+    saveSleeperFinalResult: (payload) => api.post('/MainIe-finalcallsleeperInspection/saveFinalResult', payload),
+    getSleeperFinalResult: (callNo) => api.get(`/MainIe-finalcallsleeperInspection/getFinalResult/${callNo}`),
 
     // ================= Moment of Resistance (MR) =================
     createMRRecord: (payload) => api.post('/moment-of-resistance/create', payload),

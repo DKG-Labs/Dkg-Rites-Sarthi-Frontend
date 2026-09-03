@@ -797,9 +797,15 @@ const FinalInspectionScreen = ({ call, onBack }) => {
 
         // 1. Save SleeperFinalResult (Dedicated Table & Batch Results Table)
         const effectiveSrNo = String(summaryData?.srNo || call?.srNo || call?.itemSrNo || call?.poSrNo || icForm?.itemSrNo || (icForm?.rlyPoSr ? icForm.rlyPoSr.split('/').pop().trim() : '') || '001').trim();
+        let purePo = String(call?.poNo || summaryData?.poNo || poForm?.poNo || '').trim();
+        if (purePo.includes('/')) {
+            const segments = purePo.split('/').map(s => s.trim()).filter(Boolean);
+            const foundNumericPo = segments.find(s => s.length >= 8 && /^\d+$/.test(s));
+            if (foundNumericPo) purePo = foundNumericPo;
+        }
         const finalResultPayload = {
             callNumber: callNo,
-            poNo: summaryData?.poNo || poForm.poNo,
+            poNo: purePo,
             srNo: effectiveSrNo,
             shift: chosenShift,
             dateOfInspection: inspectionDate,

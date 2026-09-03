@@ -460,7 +460,41 @@ const ErcProcessIC = ({ data = {}, isEditing = false, isBusy = false, onChange =
                     ""
                   )}
                 </div>
-                <div className="border-r border-black py-2.5 px-2 pb-3.5 flex items-center justify-center font-bold">{lot.heatNo}</div>
+                <div className="border-r border-black py-2.5 px-2 pb-3.5 flex items-center justify-center font-bold text-[10px]">
+                  {(() => {
+                    const rawHeatStr = lot.heatNo || "";
+                    let heatPart = rawHeatStr;
+                    let lotPart = lot.lotNo || "";
+
+                    if (rawHeatStr.includes(" - ")) {
+                      const parts = rawHeatStr.split(" - ");
+                      heatPart = parts[0];
+                      if (lot.lotNo === undefined) {
+                        lotPart = parts.slice(1).join(" - ");
+                      }
+                    }
+
+                    if (!isEditing) {
+                      return `${heatPart}${lotPart ? " - " + lotPart : ""}`;
+                    }
+
+                    return (
+                      <div className="flex items-center justify-center gap-1 w-full">
+                        <span>{heatPart}{heatPart ? " - " : ""}</span>
+                        <input
+                          type="text"
+                          className="p-1 border border-blue-400 bg-blue-50 text-xs font-bold text-center w-24 rounded"
+                          value={lot.lotNo !== undefined ? lot.lotNo : lotPart}
+                          onChange={(e) => {
+                            const newLotVal = e.target.value;
+                            onArrayChange("lots", idx, "lotNo", newLotVal);
+                            onArrayChange("lots", idx, "heatNo", `${heatPart}${heatPart ? " - " : ""}${newLotVal}`);
+                          }}
+                        />
+                      </div>
+                    );
+                  })()}
+                </div>
                 <div className="border-r border-black py-2.5 px-2 pb-3.5 flex items-center justify-center font-bold">{displayProc}</div>
                 <div className="border-r border-black py-2.5 px-2 pb-3.5 flex items-center justify-center font-bold">{displayAcc}</div>
                 <div className="py-2.5 px-2 pb-3.5 flex items-center justify-center font-bold">{displayRej}</div>

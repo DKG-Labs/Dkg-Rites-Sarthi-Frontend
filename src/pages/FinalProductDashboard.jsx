@@ -45,6 +45,29 @@ export default function FinalProductDashboard({ onBack, onNavigateToSubModule })
   const [pauseErrorData, setPauseErrorData] = useState(null);    // for pause failure modal
   const [showPauseConfirm, setShowPauseConfirm] = useState(false); // for pause confirmation modal
 
+  /* Custom sample size state for user override */
+  const [customSampleSizes, setCustomSampleSizes] = useState(() => {
+    const callNo = selectedCall?.call_no;
+    if (!callNo) return {};
+    try {
+      const saved = localStorage.getItem(`fpCustomSampleSizes_${callNo}`);
+      return saved ? JSON.parse(saved) : {};
+    } catch (e) {
+      return {};
+    }
+  });
+
+  const handleSampleSizeChange = (lotNo, newSize) => {
+    setCustomSampleSizes(prev => {
+      const next = { ...prev, [lotNo]: newSize };
+      const callNo = selectedCall?.call_no;
+      if (callNo) {
+        localStorage.setItem(`fpCustomSampleSizes_${callNo}`, JSON.stringify(next));
+      }
+      return next;
+    });
+  };
+
   // Calculate Rejected Counts (R1 + R2) per lot from all submodules
   useEffect(() => {
     if (!selectedCall?.call_no || lotsFromVendorCall.length === 0) return;
@@ -54,6 +77,7 @@ export default function FinalProductDashboard({ onBack, onNavigateToSubModule })
 
     lotsFromVendorCall.forEach(lot => {
       let totalRejected = 0;
+      const customSampleSize = customSampleSizes?.[lot.lotNo];
 
       // 1. Visual & Dimensional
       try {
@@ -61,7 +85,7 @@ export default function FinalProductDashboard({ onBack, onNavigateToSubModule })
         if (stored) {
           const data = JSON.parse(stored)[lot.lotNo];
           if (data) {
-            const aql = getDimensionWeightAQL(lot.lotSize || 0);
+            const aql = getDimensionWeightAQL(lot.lotSize || 0, customSampleSize);
 
             // Visual
             const vR1 = data.visualR1 === '' ? 0 : parseInt(data.visualR1);
@@ -98,7 +122,7 @@ export default function FinalProductDashboard({ onBack, onNavigateToSubModule })
         if (stored) {
           const data = JSON.parse(stored)[lot.lotNo];
           if (data) {
-            const aql = getHardnessToeLoadAQL(lot.lotSize || 0);
+            const aql = getHardnessToeLoadAQL(lot.lotSize || 0, customSampleSize);
             const r1 = (data.hardness1st || []).filter(v => v && (parseFloat(v) < 40 || parseFloat(v) > 44)).length;
             
             if (r1 >= aql.re1) {
@@ -124,7 +148,7 @@ export default function FinalProductDashboard({ onBack, onNavigateToSubModule })
             const min = springType === 'MK-V' ? 1200 : (springType === 'ERC-J' ? 650 : 850);
             const max = springType === 'MK-V' ? 1500 : (springType === 'ERC-J' ? Infinity : 1100);
 
-            const aql = getHardnessToeLoadAQL(lot.lotSize || 0);
+            const aql = getHardnessToeLoadAQL(lot.lotSize || 0, customSampleSize);
 
             const check = (v) => {
               if (!v || v === '') return false;
@@ -161,7 +185,7 @@ export default function FinalProductDashboard({ onBack, onNavigateToSubModule })
             const minWeight = springType === 'MK-V' ? 1068 : 904;
             const maxWeight = springType === 'MK-V' ? 1108 : 937;
 
-            const aql = getDimensionWeightAQL(lot.lotSize || 0);
+            const aql = getDimensionWeightAQL(lot.lotSize || 0, customSampleSize);
             const check = (v) => {
               if (!v || v === '') return false;
               const val = parseFloat(String(v).replace(',', '.'));
@@ -189,7 +213,7 @@ export default function FinalProductDashboard({ onBack, onNavigateToSubModule })
         if (stored) {
           const data = JSON.parse(stored)[lot.lotNo];
           if (data) {
-            const aql = getDimensionWeightAQL(lot.lotSize || 0);
+            const aql = getDimensionWeightAQL(lot.lotSize || 0, customSampleSize);
 
             // Deflection
             const defR1 = data.deflectionR1 === '' ? 0 : parseInt(data.deflectionR1);
@@ -292,7 +316,7 @@ export default function FinalProductDashboard({ onBack, onNavigateToSubModule })
     });
 
     setRejectedCountsPerLot(counts);
-  }, [selectedCall?.call_no, lotsFromVendorCall, testResultsPerLot, selectedCall?.ercType]);
+  }, [selectedCall?.call_no, lotsFromVendorCall, testResultsPerLot, selectedCall?.ercType, customSampleSizes]);
 
   // Fetch live data from backend with caching
   useEffect(() => {
@@ -440,7 +464,8 @@ export default function FinalProductDashboard({ onBack, onNavigateToSubModule })
     if (!hasVisualData && !hasDimData) return 'Pending';
 
     // Get AQL values based on Lot Size using central utility (AQL 2.5)
-    const aql = getDimensionWeightAQL(lot?.lotSize || 0);
+    const customSampleSize = customSampleSizes?.[lot?.lotNo];
+    const aql = getDimensionWeightAQL(lot?.lotSize || 0, customSampleSize);
 
     // Check Visual
     const vR1 = lotData.visualR1 === '' ? null : parseInt(lotData.visualR1);
@@ -482,13 +507,14 @@ export default function FinalProductDashboard({ onBack, onNavigateToSubModule })
     if (lotData.visualR1 === '' || !hasDimR1) return 'Pending';
 
     return 'OK';
-  }, []);
+  }, [customSampleSizes]);
 
   // Validation function for hardness test data
   const validateHardnessData = useCallback((lotData, lot) => {
     if (!lotData) return 'Pending';
     // Get AQL using central utility
-    const aql = getHardnessToeLoadAQL(lot?.lotSize || 0);
+    const customSampleSize = customSampleSizes?.[lot?.lotNo];
+    const aql = getHardnessToeLoadAQL(lot?.lotSize || 0, customSampleSize);
 
     const h1 = (lotData.hardness1st || []).filter(v => v && (parseFloat(v) < 40 || parseFloat(v) > 44)).length;
     const h2 = (lotData.hardness2nd || []).filter(v => v && (parseFloat(v) < 40 || parseFloat(v) > 44)).length;
@@ -510,7 +536,7 @@ export default function FinalProductDashboard({ onBack, onNavigateToSubModule })
     }
 
     return 'OK';
-  }, []);
+  }, [customSampleSizes]);
 
   const validateInclusionData = useCallback((lotData, lot) => {
     if (!lotData) return 'Pending';
@@ -563,7 +589,8 @@ export default function FinalProductDashboard({ onBack, onNavigateToSubModule })
     if (!lotData) return 'Pending';
 
     // AQL Check (Dimension & Weight AQL 2.5)
-    const aql = getDimensionWeightAQL(lot.lotSize || 0);
+    const customSampleSize = customSampleSizes?.[lot?.lotNo];
+    const aql = getDimensionWeightAQL(lot?.lotSize || 0, customSampleSize);
 
     // 1. Check Deflection Failures
     const defR1 = lotData.deflectionR1 === '' ? null : parseInt(lotData.deflectionR1);
@@ -605,7 +632,7 @@ export default function FinalProductDashboard({ onBack, onNavigateToSubModule })
     if (lotData.deflectionR1 === '' || !hasDimR1) return 'Pending';
 
     return 'OK';
-  }, []);
+  }, [customSampleSizes]);
 
   // Validation function for toe load test data
   const validateToeLoadData = useCallback((lotData, lot) => {
@@ -617,7 +644,8 @@ export default function FinalProductDashboard({ onBack, onNavigateToSubModule })
     const max = springType === 'MK-V' ? 1500 : (springType === 'ERC-J' ? Infinity : 1100);
 
     // Get AQL using central utility
-    const aql = getHardnessToeLoadAQL(lot.lotSize || 0);
+    const customSampleSize = customSampleSizes?.[lot?.lotNo];
+    const aql = getHardnessToeLoadAQL(lot?.lotSize || 0, customSampleSize);
 
     const check = (v) => {
       if (!v || v === '') return false;
@@ -646,7 +674,7 @@ export default function FinalProductDashboard({ onBack, onNavigateToSubModule })
     if ((r1 + r2) >= aql.cummRej) return 'NOT OK';
 
     return 'OK';
-  }, []);
+  }, [customSampleSizes]);
 
   // Validation function for weight test data
   const validateWeightData = useCallback((lotData, lot) => {
@@ -659,7 +687,8 @@ export default function FinalProductDashboard({ onBack, onNavigateToSubModule })
     const maxWeight = springType === 'MK-V' ? 1108 : 937;
 
     // Get AQL using central utility
-    const aql = getDimensionWeightAQL(lot?.lotSize || 0);
+    const customSampleSize = customSampleSizes?.[lot?.lotNo];
+    const aql = getDimensionWeightAQL(lot?.lotSize || 0, customSampleSize);
 
     const check = (v) => {
       if (!v || v === '') return false;
@@ -688,7 +717,7 @@ export default function FinalProductDashboard({ onBack, onNavigateToSubModule })
     }
 
     return 'OK';
-  }, []);
+  }, [customSampleSizes]);
 
   // Validation function for chemical analysis data
   const validateChemicalData = useCallback((allChemData, lot) => {
@@ -850,29 +879,6 @@ export default function FinalProductDashboard({ onBack, onNavigateToSubModule })
 
   /* -------------------- LOTS DATA (Fetched from Backend) -------------------- */
   // lotsFromVendorCall is now fetched from backend in useEffect above
-
-  /* Custom sample size state for user override */
-  const [customSampleSizes, setCustomSampleSizes] = useState(() => {
-    const callNo = selectedCall?.call_no;
-    if (!callNo) return {};
-    try {
-      const saved = localStorage.getItem(`fpCustomSampleSizes_${callNo}`);
-      return saved ? JSON.parse(saved) : {};
-    } catch (e) {
-      return {};
-    }
-  });
-
-  const handleSampleSizeChange = (lotNo, newSize) => {
-    setCustomSampleSizes(prev => {
-      const next = { ...prev, [lotNo]: newSize };
-      const callNo = selectedCall?.call_no;
-      if (callNo) {
-        localStorage.setItem(`fpCustomSampleSizes_${callNo}`, JSON.stringify(next));
-      }
-      return next;
-    });
-  };
 
   /* Calculate Sample Size for each lot based on Lot Size (IS 2500 Table 2) or user override */
   const lotsWithSampling = useMemo(() => {

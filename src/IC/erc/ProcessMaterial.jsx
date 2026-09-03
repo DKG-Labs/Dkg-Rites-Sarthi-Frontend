@@ -6,11 +6,12 @@ import {
     CircularProgress, 
     Snackbar, 
     Alert,
-    Box
+    Box,
+    Tooltip
 } from "@mui/material";
 import { formatDate } from "../../utils/helpers";
 import ErcProcessIc from "./ErcProcessIc";
-import { exportToPdf, generatePdfBase64 } from "../../utils/exportUtils";
+import { exportToPdf } from "../../utils/exportUtils";
 import { uploadSignedCertificate, saveProcessIcEditData, getProcessIcEditData, saveProcessIcSaveChanges, getProcessIcSaveChanges, validateBookSetNo } from "../../services/certificateService";
 import { performTransitionAction } from "../../services/workflowService";
 import { getCurrentUserId } from "../../services/workflowApiService";
@@ -20,15 +21,19 @@ import reportService from "../../services/reportService";
 
 export default function ProcessMaterialCertificate({ call = {}, onBack }) {
   const printAreaRef = useRef();
+  const fileInputRef = useRef();
   const [isEditing, setIsEditing] = useState(false);
-  const [isESigning, setIsESigning] = useState(false);
   const [editableData, setEditableData] = useState(null);
   const [notification, setNotification] = useState({ open: false, message: '', severity: 'info' });
   const [bookSetValidation, setBookSetValidation] = useState({ isValid: false, message: null, isValidating: false });
   const [bookWarningModal, setBookWarningModal] = useState({ show: false, onProceed: null });
 
-
-  // Removed pki-status event listener as we no longer use DSC e-sign for Process IC
+  // Upload E-Signed IC Modal state
+  const [showUploadModal, setShowUploadModal] = useState(false);
+  const [selectedSignedFile, setSelectedSignedFile] = useState(null);
+  const [isUploadingSigned, setIsUploadingSigned] = useState(false);
+  const [uploadError, setUploadError] = useState(null);
+  const [isDraggingFile, setIsDraggingFile] = useState(false);
 
   const handleCloseNotification = () => setNotification({ ...notification, open: false });
 
@@ -106,6 +111,18 @@ export default function ProcessMaterialCertificate({ call = {}, onBack }) {
             savedEdit = await getProcessIcEditData(icNumber);
           }
           if (savedEdit) {
+            let restoredLots = initialData.lots;
+            if (savedEdit.lotDetails) {
+              try {
+                const parsedLots = JSON.parse(savedEdit.lotDetails);
+                if (Array.isArray(parsedLots) && parsedLots.length > 0) {
+                  restoredLots = parsedLots;
+                }
+              } catch (e) {
+                console.error("Failed to parse saved lot details", e);
+              }
+            }
+
             initialData = {
               ...initialData,
               qapNo: savedEdit.qapNo || initialData.qapNo,
@@ -122,6 +139,7 @@ export default function ProcessMaterialCertificate({ call = {}, onBack }) {
               purchasingAuthority: savedEdit.purchasingAuthority || initialData.purchasingAuthority,
               description: savedEdit.description || initialData.description,
               placeOfInspection: savedEdit.placeOfInspection || initialData.placeOfInspection,
+              lots: restoredLots,
             };
           }
           
@@ -160,6 +178,12 @@ export default function ProcessMaterialCertificate({ call = {}, onBack }) {
     });
   };
   const dataToPass = editableData || transformCallToIC(call);
+  const hasBookAndSetNo = Boolean(
+    dataToPass?.bookNo && 
+    String(dataToPass.bookNo).trim() !== "" && 
+    dataToPass?.setNo && 
+    String(dataToPass.setNo).trim() !== ""
+  );
 
   const executeSaveChanges = async () => {
     const setNo = dataToPass?.setNo || '';
@@ -189,6 +213,7 @@ export default function ProcessMaterialCertificate({ call = {}, onBack }) {
           chpClause: dataToPass.chpClause,
           inspectionDate: dataToPass.inspectionDate,
           manDays: dataToPass.manDays,
+          lotDetails: JSON.stringify(dataToPass.lots || []),
           createdBy: getCurrentUserId()?.toString(),
           updatedBy: getCurrentUserId()?.toString()
       });
@@ -276,6 +301,31 @@ export default function ProcessMaterialCertificate({ call = {}, onBack }) {
     executeVerifyBookSet();
   };
 
+  const handleOpenUploadModal = () => {
+    const bookNo = dataToPass?.bookNo || '';
+    const setNo = dataToPass?.setNo || '';
+
+    if (!bookNo || !setNo) {
+      setNotification({ open: true, message: "Please fill in both Book No. and Set No. before uploading signed IC.", severity: 'warning' });
+      return;
+    }
+
+    if (!/^\d{3}$/.test(setNo)) {
+      setNotification({ open: true, message: "Set No. must be exactly 3 digits.", severity: 'warning' });
+      return;
+    }
+
+    if (bookNo.trim().length < 4) {
+      setBookWarningModal({
+        show: true,
+        onProceed: () => setShowUploadModal(true)
+      });
+      return;
+    }
+
+    setShowUploadModal(true);
+  };
+
   const handleExport = async () => {
     if (!printAreaRef.current) return;
     if (isEditing) {
@@ -286,33 +336,74 @@ export default function ProcessMaterialCertificate({ call = {}, onBack }) {
     await exportToPdf(printAreaRef.current, `${sanitizedFilename}.pdf`);
   };
 
-  const executeSaveIC = async () => {
+  /**
+   * Download the generated IC PDF so the IE can sign it externally
+   */
+  const handleDownloadForSigning = async () => {
+    if (!printAreaRef.current) return;
     try {
-      setIsESigning(true);
-      
-      if (!/^\d{3}$/.test(dataToPass.setNo)) {
-          setNotification({ open: true, message: "Set No. must be exactly 3 digits.", severity: 'warning' });
-          setIsESigning(false);
-          return;
-      }
-      
-      if (dataToPass.icType === 'new' && !bookSetValidation.isValid) {
-          console.warn("⚠️ Validation failed: Book No or Set No has not been verified.");
-          setNotification({ open: true, message: "Please Verify the Book No. and Set No. before saving.", severity: 'warning' });
-          setIsESigning(false);
-          return;
-      }
+      const sanitizedFilename = (dataToPass.certificateNo || "ProcessMaterialIC").replace(/[/\\?%*:|"<>]/g, '-');
+      await exportToPdf(printAreaRef.current, `${sanitizedFilename}_unsigned.pdf`);
+      setNotification({ open: true, message: "IC downloaded. Please sign with your digital signature and upload below.", severity: "info" });
+    } catch (err) {
+      console.error("PDF generation error:", err);
+      setNotification({ open: true, message: "Failed to download PDF for signing.", severity: "error" });
+    }
+  };
 
-      setNotification({ open: true, message: "Saving edited data...", severity: 'info' });
-      
-      if (isEditing) {
-          setIsEditing(false);
-          await new Promise(resolve => setTimeout(resolve, 300));
-      }
+  /**
+   * Handle File Selection for E-Signed IC
+   */
+  const handleSignedFileSelect = (file) => {
+    if (!file) return;
+    if (file.type !== "application/pdf" && !file.name.toLowerCase().endsWith(".pdf")) {
+      setUploadError("Only PDF files (.pdf) are supported.");
+      setSelectedSignedFile(null);
+      return;
+    }
+    if (file.size === 0) {
+      setUploadError("Selected file is empty.");
+      setSelectedSignedFile(null);
+      return;
+    }
+    if (file.size > 25 * 1024 * 1024) { // 25MB max
+      setUploadError("File size exceeds 25MB limit.");
+      setSelectedSignedFile(null);
+      return;
+    }
+    setUploadError(null);
+    setSelectedSignedFile(file);
+  };
 
-      // 2. Save Edited Data to DB
+  /**
+   * Finalize and Upload the E-Signed IC
+   * Sequence:
+   * 1. Save in IC Edit (POST /api/process-ic-edit)
+   * 2. Storage of IC (POST /api/certificate-storage/upload)
+   * 3. Workflow Transition (POST /api/workflow/transition)
+   */
+  const handleFinalizeSignedIC = async () => {
+    if (!selectedSignedFile) {
+      setUploadError("Please select a signed PDF file before submitting.");
+      return;
+    }
+
+    if (!dataToPass?.bookNo || !dataToPass?.setNo) {
+      setUploadError("Please ensure both Book No. and Set No. are filled before finalizing.");
+      return;
+    }
+
+    setIsUploadingSigned(true);
+    setUploadError(null);
+
+    try {
+      const icNumber = dataToPass.certificateNo || call.icNo || call.call_no || "ProcessMaterial_IC";
+      const fileName = icNumber + ".pdf";
+
+      // 1. First: Save in IC Edit (POST /api/process-ic-edit)
+      setNotification({ open: true, message: "Saving IC details to database...", severity: "info" });
       await saveProcessIcEditData({
-          icNumber: dataToPass.certificateNo || call.icNo || call.call_no || "ProcessMaterial_IC",
+          icNumber: icNumber,
           certificateId: null,
           bookNo: dataToPass.bookNo,
           setNo: dataToPass.setNo,
@@ -329,76 +420,64 @@ export default function ProcessMaterialCertificate({ call = {}, onBack }) {
           chpClause: dataToPass.chpClause,
           inspectionDate: dataToPass.inspectionDate,
           manDays: dataToPass.manDays,
+          lotDetails: JSON.stringify(dataToPass.lots || []),
           createdBy: getCurrentUserId()?.toString(),
           updatedBy: getCurrentUserId()?.toString()
       });
 
-      // 3. Generate PDF Snapshot from Frontend (Bypasses PE-02 Backend parsing issues)
-      const base64Pdf = await generatePdfBase64(printAreaRef.current);
-
-      if (!base64Pdf || !base64Pdf.startsWith("JVBER")) {
-          throw new Error("Failed to generate PDF snapshot from UI.");
-      }
-
-      // 4. Upload the generated PDF directly to Azure without DSC signing
-      const icNumber = dataToPass.certificateNo || call.icNo || call.call_no || "ProcessMaterial_IC";
-      const fileName = icNumber + ".pdf";
-      
-      setNotification({ open: true, message: "Uploading certificate to Azure...", severity: "info" });
-      await uploadSignedCertificate({
-          icNumber: icNumber,
-          signedData: base64Pdf, // uploading the unsigned base64 PDF
-          fileName: fileName,
-          uploadedBy: "Inspecting Engineer"
+      // Convert file to base64
+      const base64Data = await new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = (err) => reject(err);
+        reader.readAsDataURL(selectedSignedFile);
       });
-      setNotification({ open: true, message: "Certificate successfully saved to Azure!", severity: "success" });
-      
-      // 5. Update workflow status
-      try {
-          console.log('🔄 Calling performTransitionAction to update status to DSC_SIGN_IC');
-          await performTransitionAction({
-              workflowTransitionId: call?.id || call?.transitionId,
-              requestId: typeof call?.call_no === 'string' && call.call_no.includes('/') ? call.call_no.split('/')[1] : call?.call_no,
-              action: 'DSC_SIGN_IC',
-              remarks: 'Process IC saved and stored in Azure',
-              actionBy: getCurrentUserId()
-          });
 
-          console.log('✅ Workflow status updated. Redirecting to Completed Calls Tab.');
-          sessionStorage.setItem('ie_landing_active_tab', 'completed');
-          
-          window.location.href = '/';
+      // Extract raw base64 string if prefixed with data URI
+      const cleanBase64 = typeof base64Data === 'string' && base64Data.includes(',') 
+        ? base64Data.split(',')[1] 
+        : base64Data;
+
+      // 2. Second: Storage of IC (POST /api/certificate-storage/upload)
+      setNotification({ open: true, message: "Uploading final e-signed certificate to Azure Storage...", severity: "info" });
+
+      await uploadSignedCertificate({
+        icNumber: icNumber,
+        signedData: cleanBase64,
+        fileName: fileName,
+        uploadedBy: getStoredUser()?.name || "Inspecting Engineer"
+      });
+
+      setNotification({ open: true, message: "E-signed certificate successfully saved!", severity: "success" });
+
+      // 3. Third: Workflow Transaction (POST /api/workflow/transition)
+      try {
+        console.log('🔄 Calling performTransitionAction to update status to DSC_SIGN_IC');
+        await performTransitionAction({
+          workflowTransitionId: call?.id || call?.transitionId,
+          requestId: typeof call?.call_no === 'string' && call.call_no.includes('/') ? call.call_no.split('/')[1] : call?.call_no,
+          action: 'DSC_SIGN_IC',
+          remarks: 'E-signed Process IC uploaded and stored in Azure',
+          actionBy: getCurrentUserId()
+        });
+
+        console.log('✅ Workflow status updated. Redirecting to Completed Calls Tab.');
+        sessionStorage.setItem('ie_landing_active_tab', 'completed');
+        setShowUploadModal(false);
+        
+        window.location.href = '/';
       } catch (workflowErr) {
-          console.error('⚠️ Failed to update workflow status to DSC_SIGN_IC:', workflowErr);
-          setNotification({ open: true, message: "Saved successfully, but workflow transition failed: " + workflowErr.message, severity: "error" });
+        console.error('⚠️ Failed to update workflow status to DSC_SIGN_IC:', workflowErr);
+        setNotification({ open: true, message: "Certificate saved, but workflow transition failed: " + workflowErr.message, severity: "error" });
       }
 
     } catch (error) {
-        console.error("Saving Error:", error);
-        setNotification({ open: true, message: error.message || "Failed to save document.", severity: 'error' });
+      console.error("Upload E-Signed IC Error:", error);
+      setUploadError(error.message || "Failed to upload e-signed certificate.");
+      setNotification({ open: true, message: error.message || "Failed to upload e-signed certificate.", severity: 'error' });
     } finally {
-        setIsESigning(false);
+      setIsUploadingSigned(false);
     }
-  };
-
-  const handleSaveIC = () => {
-    const bookNo = dataToPass?.bookNo || '';
-    const setNo = dataToPass?.setNo || '';
-
-    if (!bookNo || !setNo) {
-        setNotification({ open: true, message: "Please fill in the 'Book No.' and 'Set No.' before saving.", severity: 'warning' });
-        return;
-    }
-
-    if (bookNo.trim().length < 4) {
-      setBookWarningModal({
-        show: true,
-        onProceed: executeSaveIC
-      });
-      return;
-    }
-
-    executeSaveIC();
   };
 
   const handleCancelChanges = async () => {
@@ -411,6 +490,18 @@ export default function ProcessMaterialCertificate({ call = {}, onBack }) {
         savedEdit = await getProcessIcEditData(icNumber);
       }
       if (savedEdit) {
+        let restoredLots = initialData.lots;
+        if (savedEdit.lotDetails) {
+          try {
+            const parsedLots = JSON.parse(savedEdit.lotDetails);
+            if (Array.isArray(parsedLots) && parsedLots.length > 0) {
+              restoredLots = parsedLots;
+            }
+          } catch (e) {
+            console.error("Failed to parse saved lot details", e);
+          }
+        }
+
         initialData = {
           ...initialData,
           qapNo: savedEdit.qapNo || initialData.qapNo,
@@ -426,6 +517,7 @@ export default function ProcessMaterialCertificate({ call = {}, onBack }) {
           billPayingOfficer: savedEdit.billPayingOfficer || initialData.billPayingOfficer,
           purchasingAuthority: savedEdit.purchasingAuthority || initialData.purchasingAuthority,
           description: savedEdit.description || initialData.description,
+          lots: restoredLots,
         };
       }
     }
@@ -459,13 +551,13 @@ export default function ProcessMaterialCertificate({ call = {}, onBack }) {
         >
           ← Back
         </Button>
-        <div style={{ display: "flex", gap: 8 }}>
+        <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
           <Button
             variant="outlined" 
             color="primary" 
             size="small" 
             onClick={isEditing ? handleSaveChanges : () => setIsEditing(true)}
-            disabled={isESigning}
+            disabled={isUploadingSigned}
           >
             {isEditing ? "Save Changes" : "Edit Certificate"}
           </Button>
@@ -475,27 +567,36 @@ export default function ProcessMaterialCertificate({ call = {}, onBack }) {
               color="error"
               size="small"
               onClick={handleCancelChanges}
-              disabled={isESigning}
+              disabled={isUploadingSigned}
             >
               Cancel Changes
             </Button>
           )}
+          <Tooltip title={!hasBookAndSetNo ? "Please enter Book No. and Set No. before uploading signed IC" : ""}>
+            <span>
+              <Button
+                variant="contained"
+                color="secondary"
+                size="small"
+                onClick={handleOpenUploadModal}
+                disabled={isEditing || isUploadingSigned || !hasBookAndSetNo}
+                sx={{ 
+                  backgroundColor: '#6366f1', 
+                  fontWeight: 700, 
+                  px: 2,
+                  '&:hover': { backgroundColor: '#4f46e5' } 
+                }}
+              >
+                📤 Upload Signed IC
+              </Button>
+            </span>
+          </Tooltip>
           <Button 
-            variant="contained" 
-            color="success" 
-            size="small" 
-            onClick={handleSaveIC} 
-            disabled={isESigning || isEditing}
-            startIcon={isESigning ? <CircularProgress size={20} color="inherit" /> : null}
-          >
-            {isESigning ? "SAVING..." : "💾 SAVE IC"}
-          </Button>
-          <Button 
-            variant="contained" 
+            variant="outlined" 
             color="primary" 
             size="small" 
             onClick={handleExport} 
-            disabled={isESigning || isEditing}
+            disabled={isEditing || isUploadingSigned}
           >
             Export PDF
           </Button>
@@ -518,7 +619,7 @@ export default function ProcessMaterialCertificate({ call = {}, onBack }) {
           <ErcProcessIc 
             data={dataToPass} 
             isEditing={isEditing} 
-            isBusy={isESigning} 
+            isBusy={isUploadingSigned} 
             onChange={handleDataChange} 
             onArrayChange={handleArrayDataChange}
             onVerifyBookSet={handleVerifyBookSet}
@@ -617,6 +718,350 @@ export default function ProcessMaterialCertificate({ call = {}, onBack }) {
                 }}
               >
                 Acknowledge &amp; Proceed
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Upload E-Signed IC Modal */}
+      {showUploadModal && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: 'rgba(15, 23, 42, 0.75)',
+          backdropFilter: 'blur(6px)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 100000,
+          padding: '16px',
+          animation: 'fadeIn 0.2s ease-out'
+        }}>
+          <div style={{
+            background: '#ffffff',
+            borderRadius: '20px',
+            maxWidth: '560px',
+            width: '100%',
+            boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.35)',
+            border: '1px solid #e2e8f0',
+            overflow: 'hidden',
+            display: 'flex',
+            flexDirection: 'column'
+          }}>
+            {/* Modal Header */}
+            <div style={{
+              background: 'linear-gradient(135deg, #1e293b 0%, #0f172a 100%)',
+              padding: '20px 24px',
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              borderBottom: '1px solid rgba(255, 255, 255, 0.1)'
+            }}>
+              <div>
+                <h3 style={{ margin: 0, fontSize: '18px', fontWeight: '800', color: '#ffffff', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <span>📤</span> Upload E-Signed Process IC
+                </h3>
+                <p style={{ margin: '4px 0 0 0', fontSize: '12px', color: '#94a3b8' }}>
+                  IC No: <strong style={{ color: '#38bdf8' }}>{dataToPass?.certificateNo || call?.icNo || call?.call_no || "Process IC"}</strong>
+                </p>
+              </div>
+              <button
+                onClick={() => {
+                  setShowUploadModal(false);
+                  setSelectedSignedFile(null);
+                  setUploadError(null);
+                }}
+                disabled={isUploadingSigned}
+                style={{
+                  background: 'rgba(255, 255, 255, 0.1)',
+                  border: 'none',
+                  borderRadius: '8px',
+                  color: '#e2e8f0',
+                  fontSize: '18px',
+                  width: '32px',
+                  height: '32px',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  transition: 'all 0.2s'
+                }}
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <div style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
+              
+              {/* Step 1: Download IC for Signing */}
+              <div style={{
+                background: '#f8fafc',
+                border: '1px solid #e2e8f0',
+                borderRadius: '12px',
+                padding: '16px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                gap: '16px'
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                  <div style={{
+                    width: '36px',
+                    height: '36px',
+                    borderRadius: '8px',
+                    background: '#e0f2fe',
+                    color: '#0284c7',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontSize: '16px',
+                    fontWeight: '800',
+                    flexShrink: 0
+                  }}>
+                    1
+                  </div>
+                  <div>
+                    <h4 style={{ margin: 0, fontSize: '13.5px', fontWeight: '700', color: '#0f172a' }}>
+                      Download Process IC
+                    </h4>
+                    <p style={{ margin: '2px 0 0 0', fontSize: '11.5px', color: '#64748b' }}>
+                      Download current IC with updated Book &amp; Set No. to apply your digital signature.
+                    </p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleDownloadForSigning}
+                  disabled={isUploadingSigned}
+                  style={{
+                    padding: '8px 14px',
+                    background: '#ffffff',
+                    border: '1px solid #0284c7',
+                    color: '#0284c7',
+                    borderRadius: '8px',
+                    fontWeight: '700',
+                    fontSize: '12.5px',
+                    cursor: 'pointer',
+                    whiteSpace: 'nowrap',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    boxShadow: '0 1px 2px rgba(0,0,0,0.05)',
+                    transition: 'all 0.2s'
+                  }}
+                >
+                  <span>⬇️</span> Download PDF
+                </button>
+              </div>
+
+              {/* Step 2: Upload Signed IC */}
+              <div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '10px' }}>
+                  <div style={{
+                    width: '36px',
+                    height: '36px',
+                    borderRadius: '8px',
+                    background: '#f0fdf4',
+                    color: '#16a34a',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontSize: '16px',
+                    fontWeight: '800',
+                    flexShrink: 0
+                  }}>
+                    2
+                  </div>
+                  <div>
+                    <h4 style={{ margin: 0, fontSize: '13.5px', fontWeight: '700', color: '#0f172a' }}>
+                      Upload Signed IC Document
+                    </h4>
+                    <p style={{ margin: '2px 0 0 0', fontSize: '11.5px', color: '#64748b' }}>
+                      Select or drop the signed PDF file. Only the signed file will be saved as the final IC.
+                    </p>
+                  </div>
+                </div>
+
+                {/* Dropzone */}
+                <input
+                  type="file"
+                  ref={fileInputRef}
+                  accept=".pdf,application/pdf"
+                  style={{ display: 'none' }}
+                  onChange={(e) => {
+                    if (e.target.files && e.target.files[0]) {
+                      handleSignedFileSelect(e.target.files[0]);
+                    }
+                  }}
+                />
+
+                <div
+                  onClick={() => fileInputRef.current && fileInputRef.current.click()}
+                  onDragOver={(e) => {
+                    e.preventDefault();
+                    setIsDraggingFile(true);
+                  }}
+                  onDragLeave={() => setIsDraggingFile(false)}
+                  onDrop={(e) => {
+                    e.preventDefault();
+                    setIsDraggingFile(false);
+                    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+                      handleSignedFileSelect(e.dataTransfer.files[0]);
+                    }
+                  }}
+                  style={{
+                    border: isDraggingFile ? '2px dashed #2563eb' : '2px dashed #cbd5e1',
+                    background: isDraggingFile ? '#eff6ff' : '#f8fafc',
+                    borderRadius: '12px',
+                    padding: '28px 20px',
+                    textAlign: 'center',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s',
+                    position: 'relative'
+                  }}
+                >
+                  <div style={{ fontSize: '32px', marginBottom: '8px' }}>📄</div>
+                  <p style={{ margin: 0, fontSize: '13.5px', fontWeight: '700', color: '#1e293b' }}>
+                    Click to browse or drag &amp; drop signed PDF here
+                  </p>
+                  <p style={{ margin: '4px 0 0 0', fontSize: '11.5px', color: '#94a3b8' }}>
+                    Supports PDF format only (Max 25MB)
+                  </p>
+                </div>
+
+                {/* File Preview Box if File Selected */}
+                {selectedSignedFile && (
+                  <div style={{
+                    marginTop: '12px',
+                    padding: '12px 16px',
+                    background: '#f0fdf4',
+                    border: '1px solid #86efac',
+                    borderRadius: '10px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between'
+                  }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px', overflow: 'hidden' }}>
+                      <span style={{ fontSize: '20px' }}>✅</span>
+                      <div style={{ overflow: 'hidden' }}>
+                        <p style={{ margin: 0, fontSize: '13px', fontWeight: '700', color: '#15803d', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }}>
+                          {selectedSignedFile.name}
+                        </p>
+                        <p style={{ margin: 0, fontSize: '11px', color: '#166534' }}>
+                          {(selectedSignedFile.size / 1024).toFixed(1)} KB
+                        </p>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setSelectedSignedFile(null);
+                        if (fileInputRef.current) fileInputRef.current.value = '';
+                      }}
+                      disabled={isUploadingSigned}
+                      style={{
+                        background: 'transparent',
+                        border: 'none',
+                        color: '#dc2626',
+                        fontSize: '14px',
+                        fontWeight: '700',
+                        cursor: 'pointer',
+                        padding: '4px 8px'
+                      }}
+                    >
+                      Remove
+                    </button>
+                  </div>
+                )}
+
+                {/* Error Box */}
+                {uploadError && (
+                  <div style={{
+                    marginTop: '10px',
+                    padding: '10px 14px',
+                    background: '#fef2f2',
+                    border: '1px solid #fecaca',
+                    borderRadius: '8px',
+                    fontSize: '12px',
+                    color: '#b91c1c',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px'
+                  }}>
+                    <span>⚠️</span> {uploadError}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Modal Footer */}
+            <div style={{
+              padding: '16px 24px',
+              background: '#f8fafc',
+              borderTop: '1px solid #e2e8f0',
+              display: 'flex',
+              justifyContent: 'flex-end',
+              gap: '12px'
+            }}>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowUploadModal(false);
+                  setSelectedSignedFile(null);
+                  setUploadError(null);
+                }}
+                disabled={isUploadingSigned}
+                style={{
+                  padding: '10px 18px',
+                  background: '#ffffff',
+                  border: '1px solid #cbd5e1',
+                  color: '#475569',
+                  borderRadius: '8px',
+                  fontWeight: '700',
+                  fontSize: '13px',
+                  cursor: 'pointer'
+                }}
+              >
+                Cancel
+              </button>
+
+              <button
+                type="button"
+                onClick={handleFinalizeSignedIC}
+                disabled={!selectedSignedFile || isUploadingSigned}
+                style={{
+                  padding: '10px 22px',
+                  background: !selectedSignedFile || isUploadingSigned ? '#94a3b8' : '#16a34a',
+                  border: 'none',
+                  color: '#ffffff',
+                  borderRadius: '8px',
+                  fontWeight: '800',
+                  fontSize: '13.5px',
+                  cursor: !selectedSignedFile || isUploadingSigned ? 'not-allowed' : 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  boxShadow: !selectedSignedFile || isUploadingSigned ? 'none' : '0 4px 12px rgba(22, 163, 74, 0.35)',
+                  transition: 'all 0.2s'
+                }}
+              >
+                {isUploadingSigned ? (
+                  <>
+                    <CircularProgress size={18} color="inherit" />
+                    <span>Uploading &amp; Finalizing...</span>
+                  </>
+                ) : (
+                  <>
+                    <span>🚀</span>
+                    <span>Upload &amp; Finalize IC</span>
+                  </>
+                )}
               </button>
             </div>
           </div>

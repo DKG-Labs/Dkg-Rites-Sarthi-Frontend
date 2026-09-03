@@ -5,7 +5,7 @@ import CustomDatePicker from "../../../../../components/DKG_CustomDatePicker";
 import FormBody from "../../../../../components/DKG_FormBody";
 import FormDropdownItem from "../../../../../components/DKG_FormDropdownItem";
 import Btn from "../../../../../components/DKG_Btn";
-import { message } from "antd";
+import { message, Form } from "antd";
 import data from "../../../../../utils/db.json";
 import { Navigate, useNavigate } from "react-router-dom";
 import FormContainer from "../../../../../components/DKG_FormContainer";
@@ -38,41 +38,83 @@ const railGradeList = [
     value: "880NC",
   }
 ];
+const organisationList = [
+  {
+    key: "BSP",
+    value: "BSP",
+  },
+  {
+    key: "JSPL",
+    value: "JSPL",
+  },
+];
+
+const getSmsListForOrg = (org) => {
+  if (org === "BSP") {
+    return [
+      { key: "SMS 2", value: "SMS 2" },
+      { key: "SMS 3", value: "SMS 3" },
+    ];
+  }
+  if (org === "JSPL") {
+    return [
+      { key: "SMS 2", value: "SMS 2" },
+    ];
+  }
+  return [];
+};
+
 const SmsDutyStartForm = () => {
   const dispatch = useDispatch();
+  const [form] = Form.useForm();
   const { dutyId } = useSelector((state) => state.smsDuty);
   const [formData, setFormData] = useState({
     startDate: currentDate.format(dateFormat),
     shift: "",
+    organisation: "",
     sms: "",
     railGrade: "",
   });
   const [shiftList, setShiftList] = useState([]);
-  const [smsList, setSmsList] = useState([]);
 
   const navigate = useNavigate();
 
-  const populateShiftSmsList = useCallback(() => {
+  const populateShiftList = useCallback(() => {
     setShiftList([...data.shiftList]);
-    setSmsList([...data.smsList]);
   }, []);
 
   useEffect(() => {
-    populateShiftSmsList();
-  }, [populateShiftSmsList]);
+    populateShiftList();
+  }, [populateShiftList]);
 
   const handleChange = (fieldName, value) => {
-    setFormData((prev) => {
-      return {
-        ...prev,
-        [fieldName]: value,
-      };
+    form.setFieldsValue({ [fieldName]: value });
+    setFormData((prev) => ({
+      ...prev,
+      [fieldName]: value,
+    }));
+  };
+
+  const handleOrgChange = (fieldName, value) => {
+    const autoSms = value === "JSPL" ? "SMS 2" : "";
+    form.setFieldsValue({
+      organisation: value,
+      sms: autoSms || undefined,
     });
+    setFormData((prev) => ({
+      ...prev,
+      organisation: value,
+      sms: autoSms,
+    }));
   };
 
   const handleFormSubmit = async () => {
-    await dispatch(startSmsDuty(formData)).unwrap();
-    navigate("/sms/sms/dutyEnd");
+    try {
+      await dispatch(startSmsDuty(formData)).unwrap();
+      navigate("/sms/sms/dutyEnd");
+    } catch (err) {
+      console.error("Failed to start SMS duty:", err);
+    }
   };
 
   if (dutyId) {
@@ -80,10 +122,12 @@ const SmsDutyStartForm = () => {
     return <Navigate to="/sms/sms/dutyEnd" />;
   }
 
+  const currentSmsList = getSmsListForOrg(formData.organisation);
+
   return (
     <FormContainer>
       <SubHeader title="SMS - Duty Start" link="/" />
-      <FormBody initialValues={formData} onFinish={handleFormSubmit}>
+      <FormBody form={form} initialValues={formData} onFinish={handleFormSubmit}>
         <div className="grid grid-cols-2 gap-2">
           {/* <CustomDatePicker label='Date' name='startDate' value={formData?.date} onChange={handleChange} required/> */}
           <CustomDatePicker
@@ -107,13 +151,27 @@ const SmsDutyStartForm = () => {
           />
         </div>
         <FormDropdownItem
+          label="Organisation"
+          name="organisation"
+          formField="organisation"
+          dropdownArray={organisationList}
+          visibleField="value"
+          valueField="key"
+          onChange={handleOrgChange}
+          placeholder="Select Organisation"
+          required
+        />
+        <FormDropdownItem
+          key={`${formData.organisation}-${formData.sms}`}
           label="SMS"
           name="sms"
           formField="sms"
-          dropdownArray={smsList}
+          dropdownArray={currentSmsList}
           visibleField="value"
           valueField="key"
           onChange={handleChange}
+          placeholder={formData.organisation ? "Select SMS" : "Select Organisation first"}
+          disabled={!formData.organisation}
           required
         />
         <FormDropdownItem

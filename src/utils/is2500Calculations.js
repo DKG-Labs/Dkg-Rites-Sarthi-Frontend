@@ -48,7 +48,9 @@ export const getDimensionWeightAQL = (lotSize, customSampleSize) => {
     if (n <= 125) return { n1: 125, ac1: 5, re1: 9, n2: 125, cummRej: 13, useSingleSampling: false };
     if (n <= 200) return { n1: 200, ac1: 7, re1: 11, n2: 200, cummRej: 19, useSingleSampling: false };
     if (n <= 315) return { n1: 315, ac1: 11, re1: 16, n2: 315, cummRej: 27, useSingleSampling: false };
-    return { n1: 500, ac1: 11, re1: 16, n2: 500, cummRej: 27, useSingleSampling: false };
+    if (n <= 500) return { n1: 500, ac1: 11, re1: 16, n2: 500, cummRej: 27, useSingleSampling: false };
+    if (n <= 800) return { n1: 800, ac1: 11, re1: 16, n2: 800, cummRej: 27, useSingleSampling: false };
+    return { n1: 1250, ac1: 11, re1: 16, n2: 1250, cummRej: 27, useSingleSampling: false };
   }
 
   const size = parseInt(lotSize, 10) || 0;
@@ -83,7 +85,9 @@ export const getHardnessToeLoadAQL = (lotSize, customSampleSize) => {
     if (n <= 125) return { n1: 125, ac1: 3, re1: 6, n2: 125, cummRej: 10, useSingleSampling: false };
     if (n <= 200) return { n1: 200, ac1: 5, re1: 9, n2: 200, cummRej: 13, useSingleSampling: false };
     if (n <= 315) return { n1: 315, ac1: 7, re1: 11, n2: 315, cummRej: 19, useSingleSampling: false };
-    return { n1: 500, ac1: 11, re1: 16, n2: 500, cummRej: 27, useSingleSampling: false };
+    if (n <= 500) return { n1: 500, ac1: 11, re1: 16, n2: 500, cummRej: 27, useSingleSampling: false };
+    if (n <= 800) return { n1: 800, ac1: 11, re1: 16, n2: 800, cummRej: 27, useSingleSampling: false };
+    return { n1: 1250, ac1: 11, re1: 16, n2: 1250, cummRej: 27, useSingleSampling: false };
   }
 
   const size = parseInt(lotSize, 10) || 0;

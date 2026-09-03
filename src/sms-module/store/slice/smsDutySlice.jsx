@@ -75,7 +75,7 @@ const smsDutySlice = createSlice({
 
 export const startSmsDuty = createAsyncThunk(
     "smsDuty/startSmsDuty",
-    async (formData, {getState})=> {
+    async (formData, {getState, rejectWithValue})=> {
         const {token} = getState().auth
         try{
             const {data} = await apiCall("POST", "/sms/startDuty", token, formData)
@@ -83,14 +83,14 @@ export const startSmsDuty = createAsyncThunk(
             return data?.responseData;
         }
         catch(error){
-            
+            return rejectWithValue(error?.response?.data || error?.message);
         }
     }
 )
 
 export const endSmsDuty = createAsyncThunk(
     "smsDuty/endSmsDuty",
-    async (formData, {getState})=> {
+    async (formData, {getState, rejectWithValue})=> {
         const {token} = getState().auth;
         const {dutyId} = getState().smsDuty;
         try{
@@ -98,7 +98,7 @@ export const endSmsDuty = createAsyncThunk(
             message.success("SMS duty ended successfully.");
         }
         catch(error){
-
+            return rejectWithValue(error?.response?.data || error?.message);
         }
     }
 )

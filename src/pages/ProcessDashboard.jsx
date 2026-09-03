@@ -4612,6 +4612,28 @@ const ProcessDashboard = ({ call, onBack, onNavigateToSubModule, productionLines
         return totalAccepted;
       };
 
+      // Helper function to calculate current shift's total rejected for a stage (Across All Unique Lines for current IC/Lot)
+      const getCurrentShiftStageRejectedTotal = (stageField) => {
+        const moduleMap = {
+          'shearing': 'shearingData',
+          'turning': 'turningData',
+          'mpiTesting': 'mpiData',
+          'forging': 'forgingData',
+          'quenching': 'quenchingData',
+          'tempering': 'temperingData'
+        };
+        const moduleName = moduleMap[stageField];
+        let totalRej = 0;
+
+        const numLines = Math.max(localProductionLines.length, 1);
+        for (let i = 0; i < numLines; i++) {
+          const internalKey = `Line-${i + 1}`;
+          totalRej += getModuleTotalRejected(moduleName, lotNo, internalKey);
+        }
+        
+        return totalRej;
+      };
+
       // Helper function to calculate current shift's total manufactured for a stage (Across Other Unique Lines for current IC/Lot)
       const getCurrentShiftStageManufacturedTotal = (stageField, excludeCurrentLine = false) => {
         let totalMfg = 0;
@@ -4671,39 +4693,69 @@ const ProcessDashboard = ({ call, onBack, onNavigateToSubModule, productionLines
           break;
         case 'forging':
           {
-            const histMpi = getHistoricalAccepted('totalMpiAccepted');
-            const histTurning = getHistoricalAccepted('totalTurningAccepted');
-            const histShearing = getHistoricalAccepted('totalShearingAccepted');
+            // Calculate: Total Shearing Manufactured - Shearing Rejected - Turning Rejected - MPI Rejected (in before shifts and current shift)
+            
+            // 1. Before shifts (historical):
+            const histShearingMfg = getHistoricalManufactured('totalShearingManufactured');
+            const histShearingAcc = getHistoricalAccepted('totalShearingAccepted');
+            const histShearingRej = (histShearingMfg > 0 && histShearingAcc > 0) ? Math.max(0, histShearingMfg - histShearingAcc) : 0;
 
-            const prevStageAccepted = (histMpi > 0) ? histMpi :
-                                      (histTurning > 0) ? histTurning :
-                                      (histShearing > 0) ? histShearing : 0;
+            const histTurningMfg = getHistoricalManufactured('totalTurningManufactured');
+            const histTurningAcc = getHistoricalAccepted('totalTurningAccepted');
+            const histTurningRej = (histTurningMfg > 0 && histTurningAcc >= 0) ? Math.max(0, histTurningMfg - histTurningAcc) : 0;
 
-            const currentShiftPrevAccepted = getCurrentShiftStageAcceptedTotal('mpiTesting') ||
-                                             getCurrentShiftStageAcceptedTotal('turning') ||
-                                             getCurrentShiftStageAcceptedTotal('shearing');
+            const histMpiMfg = getHistoricalManufactured('totalMpiManufactured');
+            const histMpiAcc = getHistoricalAccepted('totalMpiAccepted');
+            const histMpiRej = (histMpiMfg > 0 && histMpiAcc >= 0) ? Math.max(0, histMpiMfg - histMpiAcc) : 0;
 
-            const totalPrevAcc = prevStageAccepted + currentShiftPrevAccepted;
-            maxAllowedAllShifts = totalPrevAcc > 0 ? totalPrevAcc : offeredQty;
-            prevStageName = totalPrevAcc > 0 ? 'Previous Stage Accepted (Total)' : 'Offered Quantity';
+            const histNetShearing = (histShearingMfg > 0)
+              ? Math.max(0, histShearingMfg - histShearingRej - histTurningRej - histMpiRej)
+              : (histShearingAcc > 0 ? Math.max(0, histShearingAcc - histTurningRej - histMpiRej) : 0);
+
+            // 2. Current shift (across all lines):
+            const currShearingMfg = getCurrentShiftStageManufacturedTotal('shearing');
+            const currShearingRej = getCurrentShiftStageRejectedTotal('shearing');
+            const currTurningRej = getCurrentShiftStageRejectedTotal('turning');
+            const currMpiRej = getCurrentShiftStageRejectedTotal('mpiTesting');
+
+            const currNetShearing = Math.max(0, currShearingMfg - currShearingRej - currTurningRej - currMpiRej);
+
+            // Total available for forging across all shifts & lines
+            const totalAvailableForForging = histNetShearing + currNetShearing;
+
+            maxAllowedAllShifts = totalAvailableForForging > 0 ? totalAvailableForForging : offeredQty;
+            prevStageName = totalAvailableForForging > 0 ? 'Shearing Net (Shearing Mfg - Shearing Rej - Turning Rej - MPI Rej)' : 'Offered Quantity';
             historicalProducedOthers = getHistoricalManufactured('totalForgingManufactured');
             currentShiftProducedOthers = getCurrentShiftStageManufacturedTotal('forging', true);
           }
           break;
         case 'quenching':
           {
-            const forgingAcc = getHistoricalAccepted('totalForgingAccepted') + getCurrentShiftStageAcceptedTotal('forging');
-            maxAllowedAllShifts = forgingAcc > 0 ? forgingAcc : offeredQty;
-            prevStageName = forgingAcc > 0 ? 'Forging Accepted (Total)' : 'Offered Quantity';
+            const histForgingMfg = getHistoricalManufactured('totalForgingManufactured');
+            const histForgingAcc = getHistoricalAccepted('totalForgingAccepted');
+            const histForgingAccepted = histForgingAcc > 0 ? histForgingAcc : histForgingMfg;
+
+            const currForgingAcc = getCurrentShiftStageAcceptedTotal('forging');
+            const totalForgingAcc = histForgingAccepted + currForgingAcc;
+
+            maxAllowedAllShifts = totalForgingAcc;
+            prevStageName = 'Forging Accepted (Total)';
             historicalProducedOthers = getHistoricalManufactured('totalQuenchingManufactured');
             currentShiftProducedOthers = getCurrentShiftStageManufacturedTotal('quenching', true);
           }
           break;
         case 'tempering':
           {
-            const quenchingAcc = getHistoricalAccepted('totalQuenchingAccepted') + getCurrentShiftStageAcceptedTotal('quenching');
-            maxAllowedAllShifts = quenchingAcc > 0 ? quenchingAcc : offeredQty;
-            prevStageName = quenchingAcc > 0 ? 'Quenching Accepted (Total)' : 'Offered Quantity';
+            // Total Quenching Accepted across previous shifts (historical) and current shift (across all lines)
+            const histQuenchingMfg = getHistoricalManufactured('totalQuenchingManufactured');
+            const histQuenchingAcc = getHistoricalAccepted('totalQuenchingAccepted');
+            const histQuenchingAccepted = histQuenchingAcc > 0 ? histQuenchingAcc : histQuenchingMfg;
+
+            const currQuenchingAcc = getCurrentShiftStageAcceptedTotal('quenching');
+            const totalQuenchingAcc = histQuenchingAccepted + currQuenchingAcc;
+
+            maxAllowedAllShifts = totalQuenchingAcc;
+            prevStageName = 'Quenching Accepted (Total)';
             historicalProducedOthers = getHistoricalManufactured('totalTemperingManufactured');
             currentShiftProducedOthers = getCurrentShiftStageManufacturedTotal('tempering', true);
           }

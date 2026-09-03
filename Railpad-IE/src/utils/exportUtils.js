@@ -10,22 +10,41 @@ import jsPDF from "jspdf";
 export async function exportToPdf(element, filename = "certificate.pdf") {
   if (!element) return;
 
+  if (document.fonts && document.fonts.ready) {
+    try {
+      await document.fonts.ready;
+    } catch (e) {
+      console.warn("Font readiness check failed:", e);
+    }
+  }
+  await new Promise((resolve) => setTimeout(resolve, 300));
+
   const certificatePage = element.querySelector('.certificate-page') || element.querySelector('.cs-a4') || element;
 
   const canvas = await html2canvas(certificatePage, {
     scale: 2,
     useCORS: true,
+    allowTaint: true,
     backgroundColor: '#ffffff',
     logging: false,
-    scrollY: -window.scrollY,
-    scrollX: -window.scrollX,
-    windowWidth: 1200,
+    scrollY: 0,
+    scrollX: 0,
     onclone: (clonedDoc) => {
+      const hostStyles = document.querySelectorAll('style, link[rel="stylesheet"]');
+      hostStyles.forEach((styleTag) => {
+        try {
+          clonedDoc.head.appendChild(styleTag.cloneNode(true));
+        } catch (e) {
+          // Ignore if already present
+        }
+      });
+
       const clonedElement = clonedDoc.querySelector('.certificate-page') || clonedDoc.querySelector('.cs-a4') || clonedDoc.body;
       clonedElement.style.width = '210mm';
       clonedElement.style.maxWidth = '210mm';
       clonedElement.style.margin = '0 auto';
       clonedElement.style.boxSizing = 'border-box';
+      clonedElement.style.backgroundColor = '#ffffff';
     },
     removeContainer: true,
   });
@@ -47,22 +66,41 @@ export async function exportToPdf(element, filename = "certificate.pdf") {
 export async function generatePdfBase64(element, filename = null) {
   if (!element) return null;
 
+  if (document.fonts && document.fonts.ready) {
+    try {
+      await document.fonts.ready;
+    } catch (e) {
+      console.warn("Font readiness check failed:", e);
+    }
+  }
+  await new Promise((resolve) => setTimeout(resolve, 300));
+
   const certificatePage = element.querySelector('.certificate-page') || element.querySelector('.cs-a4') || element;
 
   const canvas = await html2canvas(certificatePage, {
     scale: 2,
     useCORS: true,
+    allowTaint: true,
     backgroundColor: '#ffffff',
     logging: false,
-    scrollY: -window.scrollY,
-    scrollX: -window.scrollX,
-    windowWidth: 1200,
+    scrollY: 0,
+    scrollX: 0,
     onclone: (clonedDoc) => {
+      const hostStyles = document.querySelectorAll('style, link[rel="stylesheet"]');
+      hostStyles.forEach((styleTag) => {
+        try {
+          clonedDoc.head.appendChild(styleTag.cloneNode(true));
+        } catch (e) {
+          // Ignore if already present
+        }
+      });
+
       const clonedElement = clonedDoc.querySelector('.certificate-page') || clonedDoc.querySelector('.cs-a4') || clonedDoc.body;
       clonedElement.style.width = '210mm';
       clonedElement.style.maxWidth = '210mm';
       clonedElement.style.margin = '0 auto';
       clonedElement.style.boxSizing = 'border-box';
+      clonedElement.style.backgroundColor = '#ffffff';
     },
     removeContainer: true,
   });

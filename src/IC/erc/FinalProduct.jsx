@@ -26,15 +26,122 @@ const numberToWords = (num) => {
     let n = ("000000000" + num).substr(-9).match(/^(\d{2})(\d{2})(\d{2})(\d{1})(\d{2})$/);
     if (!n) return "";
     let str = "";
-    str += (Number(n[1]) !== 0) ? (a[Number(n[1])] || b[n[1][0]] + " " + a[n[1][1]]) + "Crore " : "";
-    str += (Number(n[2]) !== 0) ? (a[Number(n[2])] || b[n[2][0]] + " " + a[n[2][1]]) + "Lakh " : "";
-    str += (Number(n[3]) !== 0) ? (a[Number(n[3])] || b[n[3][0]] + " " + a[n[3][1]]) + "Thousand " : "";
-    str += (Number(n[4]) !== 0) ? (a[Number(n[4])] || b[n[4][0]] + " " + a[n[4][1]]) + "Hundred " : "";
-    str += (Number(n[5]) !== 0) ? ((str !== "") ? "and " : "") + (a[Number(n[5])] || b[n[5][0]] + " " + a[n[5][1]]) : "";
+    str += (Number(n[1]) !== 0) ? (a[Number(n[1])] || b[n[1][0]] + (Number(n[1][1]) ? "-" + a[n[1][1]] : " ")) + "Crore " : "";
+    str += (Number(n[2]) !== 0) ? (a[Number(n[2])] || b[n[2][0]] + (Number(n[2][1]) ? "-" + a[n[2][1]] : " ")) + "Lakh " : "";
+    str += (Number(n[3]) !== 0) ? (a[Number(n[3])] || b[n[3][0]] + (Number(n[3][1]) ? "-" + a[n[3][1]] : " ")) + "Thousand " : "";
+    str += (Number(n[4]) !== 0) ? (a[Number(n[4])] || b[n[4][0]] + (Number(n[4][1]) ? "-" + a[n[4][1]] : " ")) + "Hundred " : "";
+    str += (Number(n[5]) !== 0) ? ((str !== "") ? "and " : "") + (a[Number(n[5])] || b[n[5][0]] + (Number(n[5][1]) ? "-" + a[n[5][1]] : " ")) : "";
     return str.trim();
 };
 
+const digitWords = {
+    '0': 'Zero', '1': 'One', '2': 'Two', '3': 'Three', '4': 'Four',
+    '5': 'Five', '6': 'Six', '7': 'Seven', '8': 'Eight', '9': 'Nine'
+};
+
+const decimalNumberToWords = (num) => {
+    const str = typeof num === 'number' ? num.toFixed(3) : String(num);
+    const parts = str.split('.');
+    const intPart = parseInt(parts[0], 10) || 0;
+    const intWords = numberToWords(intPart).trim();
+    
+    if (parts.length > 1 && parts[1]) {
+        let decStr = parts[1].slice(0, 3);
+        const decWords = decStr.split('').map(d => digitWords[d] || d).join(' ');
+        return `${intWords} Point ${decWords}`;
+    }
+    return intWords;
+};
+
+const getErcKFactor = (callOrType) => {
+    // 1. Direct explicit ercType check if object
+    if (callOrType && typeof callOrType === "object" && callOrType.ercType) {
+        const explicitType = String(callOrType.ercType).toLowerCase().trim();
+        if (explicitType.includes("mk-iii") || explicitType.includes("mk iii") || explicitType.includes("3701")) return 0.91;
+        if (explicitType.includes("j-type") || explicitType.includes("j type") || explicitType.includes("erc-j") || explicitType.includes("4158")) return 0.915;
+        if (explicitType.includes("mk-v") || explicitType.includes("mk v") || explicitType.includes("5919")) return 1.088;
+    }
+
+    let searchStr = "";
+    if (typeof callOrType === "string") {
+        searchStr = callOrType;
+    } else if (callOrType && typeof callOrType === "object") {
+        searchStr = [
+            callOrType.ercType,
+            callOrType.productType,
+            callOrType.product_type,
+            callOrType.typeOfErc,
+            callOrType.drgNo,
+            callOrType.drawingNo,
+            callOrType.drg_no,
+            callOrType.description,
+            callOrType.productDescription,
+            callOrType.product_description,
+            callOrType.remarks,
+            callOrType.specNo,
+            callOrType.specificationNo,
+            callOrType.spec_no
+        ].filter(Boolean).join(" ");
+    }
+
+    const lower = searchStr.toLowerCase();
+
+    // MK-III: 0.91
+    if (
+        lower.includes("mk-iii") ||
+        lower.includes("mk iii") ||
+        lower.includes("mark iii") ||
+        lower.includes("mark 3") ||
+        lower.includes("mk 3") ||
+        lower.includes("mkiii") ||
+        lower.includes("3701") ||
+        lower.includes("rt-3701") ||
+        lower.includes("t-3701")
+    ) {
+        return 0.91;
+    }
+
+    // J Type / ERC-J: 0.915
+    if (
+        lower.includes("j-type") ||
+        lower.includes("j type") ||
+        lower.includes("j_type") ||
+        lower.includes("erc-j") ||
+        lower.includes("erc j") ||
+        lower.includes("j-clip") ||
+        lower.includes("j clip") ||
+        lower.includes("4158") ||
+        lower.includes("rt-4158") ||
+        lower.includes("8258") ||
+        lower.includes("t-8258")
+    ) {
+        return 0.915;
+    }
+
+    // MK-V: 1.088
+    if (
+        lower.includes("mk-v") ||
+        lower.includes("mk v") ||
+        lower.includes("mark v") ||
+        lower.includes("mark 5") ||
+        lower.includes("mk 5") ||
+        lower.includes("mkv") ||
+        lower.includes("5919") ||
+        lower.includes("rt-5919") ||
+        lower.includes("t-5919") ||
+        lower.includes("t5919") ||
+        lower.includes("6025")
+    ) {
+        return 1.088;
+    }
+
+    return 1.088;
+};
+
 const generateQuantityRemarks = (c) => {
+    const rawErcType = c.ercType || c.productType || c.description || c.drgNo || "";
+    const kFactor = getErcKFactor(c || rawErcType);
+
     const qtyNowOffered = Number(c.qtyNowOffered || 0);
     const qtyNowRejected = Number(c.qtyNowRejected || 0);
     
@@ -58,56 +165,62 @@ const generateQuantityRemarks = (c) => {
         qtyNowAccepted = Math.max(0, qtyNowOffered - qtyNowRejected - ercUsedCount);
     }
     
-    let text = "";
-    const acceptedWords = numberToWords(qtyNowAccepted).toUpperCase();
-    if (ercUsedCount > 0) {
-        const testingWords = numberToWords(ercUsedCount).toUpperCase();
-        text = `QUANTITY NOW PASSED ${acceptedWords} NOS ONLY. ${ercUsedCount} (${testingWords}) NOS CONSUMED IN DESTRUCTIVE TESTING FROM THE QUANTITY OFFERED.\n`;
-    } else {
-        text = `QUANTITY NOW PASSED ${acceptedWords} NOS ONLY.\n`;
-    }
-    
-    if (c.lotDetails && c.lotDetails.length > 0) {
-        let markings = c.lotDetails.map(l => `${l.lotNo || ''}, HNO - ${l.heatNo || ''}`).join(' & ');
-        text += `\nMARKING - ${markings} `;
-    }
+    const acceptedMt = (Math.round(((qtyNowAccepted * kFactor) / 1000) * 1000 + Number.EPSILON) / 1000);
+    const acceptedMtWords = decimalNumberToWords(acceptedMt);
+    const acceptedNosFormatted = Number(qtyNowAccepted).toLocaleString('en-IN');
+
+    let text = `Quantity now passed ${acceptedMtWords} Mt Only Total Quantity is ${acceptedNosFormatted} Nos, `;
     
     if (qtyNowAccepted > 0) {
         let bagsOf50 = Math.floor(qtyNowAccepted / 50);
         let rem = qtyNowAccepted % 50;
         let packText = [];
-        if (bagsOf50 > 0) packText.push(`${bagsOf50} BAGS X 50 NOS`);
-        if (rem > 0) packText.push(`01 BAG X ${rem.toString().padStart(2, '0')} NOS`);
+        if (bagsOf50 > 0) packText.push(`${bagsOf50} Bags X 50 Nos per bag`);
+        if (rem > 0) packText.push(`01 Bag X ${rem.toString().padStart(2, '0')} Nos`);
         if (packText.length > 0) {
-            text += `PACKING - ${packText.join(', ')} `;
+            text += `Packed in ${packText.join(', ')}. `;
         }
     }
 
-    if (c.rmIcNo || c.processIcNo) {
-        let rmDateStr = c.rmIcDate ? ` DATE- ${c.rmIcDate}` : "";
-        let processDateStr = c.processIcDate ? ` DATE- ${c.processIcDate}` : "";
-        let rmText = c.rmIcNo ? `RM IC NO-${c.rmIcNo}${rmDateStr}` : "";
-        let processText = c.processIcNo ? `PROCESS IC NO-${c.processIcNo}${processDateStr}` : "";
-
-        if (rmText && processText) {
-            text += `RM INSPECTION AND PROCESS INSPECTION ACCEPTED AGAINST VIDE ${rmText} & ${processText}`;
-        } else if (rmText) {
-            text += `RM INSPECTION ACCEPTED AGAINST VIDE ${rmText}`;
-        } else if (processText) {
-            text += `PROCESS INSPECTION ACCEPTED AGAINST VIDE ${processText}`;
+    if (c.lotDetails && c.lotDetails.length > 0) {
+        let markings = c.lotDetails.map(l => `${l.lotNo || ''}, HNO - ${l.heatNo || ''}`).filter(Boolean).join(' & ');
+        if (markings) {
+            text += `Marking: ${markings} `;
         }
-        
-        if (c.ibsCaseNo && c.ibsCaseNo !== '-') {
-            text += ` , (IBS Case No: ${c.ibsCaseNo})\n`;
-        } else {
-            text += `\n`;
-        }
-    } else if (c.ibsCaseNo && c.ibsCaseNo !== '-') {
-        text += `\n(IBS Case No: ${c.ibsCaseNo})\n`;
     }
     
+    if (ercUsedCount > 0) {
+        text += `Note: ${ercUsedCount} Nos. ERC consumed in Destructive Testing are extra offer `;
+    }
+
+    let stageIcText = "";
+    if (c.rmIcNo) {
+        let rmDateStr = c.rmIcDate ? ` Dt: ${c.rmIcDate}` : "";
+        let bookSetStr = (c.bookNo && c.setNo) ? ` Book No.${c.bookNo} Set No. ${c.setNo}` : "";
+        stageIcText += `Note: Raw Material Pre-Inspected by RITES vide Stage I.C. No. ${c.rmIcNo}${rmDateStr}${bookSetStr}`;
+    }
+    
+    if (c.processIcNo) {
+        let processDateStr = c.processIcDate ? ` Dt: ${c.processIcDate}` : "";
+        stageIcText += `${stageIcText ? ", " : ""}Note: Process Inspection carried out by RITES vide Stage I.C. No. ${c.processIcNo}${processDateStr}`;
+    } else {
+        stageIcText += `${stageIcText ? ", " : ""}Note: Process Inspection carried out by RITES as per the Railway Board Letter No. 2024/RS(G)/779/12`;
+    }
+
+    if (stageIcText) {
+        text += `${stageIcText} `;
+    }
+
+    if (c.ibsCaseNo && c.ibsCaseNo !== '-') {
+        text += `(IBS Case No: ${c.ibsCaseNo})\n`;
+    } else {
+        text += `\n`;
+    }
+
     if (qtyNowRejected > 0 && qtyNowAccepted === 0) {
         text += `\nMaterial is Non-conforming as per Lab Report No. [FILL_LAB_REPORT]. In the chemical test, the observed value was [OBSERVED], which exceeds the specified limit.\n`;
+    } else {
+        text += `NOTE: THE SAMPLES REJECTED DURING INSPECTION HAVE SUBSEQUENTLY BEEN USED FOR DESTRUCTIVE TESTING.`;
     }
     
     return text;
@@ -231,7 +344,7 @@ export default function FinalProductCertificate({ call = {}, onBack }) {
       ? (Number(String(c.qtyNowPassed).replace(/\*/g, '')) || 0)
       : (Number(c.qtyNowOffered || 0) > 0 ? Math.max(0, Number(c.qtyNowOffered || 0) - Number(c.qtyNowRejected || 0) - ercTestingCount) : 0);
 
-    const passedVal = calculatedAccepted > Number(c.qtyOnOrder || 0) ? Number(c.qtyOnOrder || 0) : calculatedAccepted;
+    const passedVal = calculatedAccepted;
     const stillDueVal = (c.qtyStillDue !== undefined && c.qtyStillDue !== null && c.qtyStillDue !== "")
       ? c.qtyStillDue
       : Math.max(0, Number(c.qtyOnOrder || 0) - Number(c.qtyPassedPreviously || 0) - passedVal);
@@ -270,6 +383,14 @@ export default function FinalProductCertificate({ call = {}, onBack }) {
       lotDetails: c.lotDetails || [],
       remarks: c.ibsCaseNo && c.ibsCaseNo !== '-' ? `IBS Case No: ${c.ibsCaseNo}\n${c.remarks || ""}`.trim() : (c.remarks || ""),
       maNumberAndDate: c.maNumberAndDate || "",
+      ercType: c.ercType || c.productType || c.product_type || c.typeOfErc || "",
+      drgNo: c.drgNo || c.drawingNo || c.drg_no || "",
+      specNo: c.specNo || c.specificationNo || c.spec_no || "",
+      productDescription: c.productDescription || c.product_description || "",
+      rmIcNo: c.rmIcNo || "",
+      rmIcDate: c.rmIcDate || "",
+      processIcNo: c.processIcNo || "",
+      processIcDate: c.processIcDate || "",
     };
   };
 

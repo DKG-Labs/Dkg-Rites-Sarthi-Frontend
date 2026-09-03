@@ -1,0 +1,332 @@
+/* SleeperFinalIc.css - Pixel-perfect alignment with ERC IC */
+
+.sleeper-ic-page {
+  background-color: #ffffff;
+  color: #000000;
+  font-family: Arial, Helvetica, sans-serif;
+  box-sizing: border-box;
+  width: 100%;
+}
+
+.sleeper-ic-container {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  color: #000000;
+  box-sizing: border-box;
+}
+
+/* Header Section */
+.sleeper-ic-header-unit {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding-top: 24px; /* Margin on top for letter head content */
+  width: 100%;
+}
+
+.sleeper-ic-centered-box {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding-top: 6px;
+}
+
+.sleeper-ic-book-set-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  border: 2px solid #000000;
+  width: 180px;
+  background-color: #ffffff;
+}
+
+.sleeper-ic-book-col {
+  border-right: 2px solid #000000;
+  display: flex;
+  flex-direction: column;
+}
+
+.sleeper-ic-set-col {
+  display: flex;
+  flex-direction: column;
+}
+
+.sleeper-ic-book-set-header {
+  border-bottom: 2px solid #000000;
+  padding: 3px;
+  font-weight: bold;
+  text-align: center;
+  font-size: 9px;
+  line-height: 1.1;
+}
+
+.sleeper-ic-book-set-body {
+  padding: 2px 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 22px;
+}
+
+/* Branding Row */
+.sleeper-ic-branding-row {
+  width: 100%;
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: flex-end;
+  margin-top: 12px;
+  padding: 0 16px;
+  box-sizing: border-box;
+}
+
+.sleeper-ic-branding-title {
+  text-align: center;
+  font-weight: bold;
+  font-size: 13px;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+
+.sleeper-ic-branding-continuation {
+  text-align: right;
+  line-height: 1.15;
+}
+
+.sleeper-ic-spacer-16 {
+  height: 16px;
+  width: 100%;
+}
+
+/* Certificate Box Row (Right aligned 75%) */
+.sleeper-ic-cert-row {
+  display: flex;
+  justify-content: flex-end;
+  width: 100%;
+}
+
+.sleeper-ic-cert-grid {
+  display: grid;
+  grid-template-columns: 1.8fr 1fr 2.7fr;
+  border: 1px solid #000000;
+  font-size: 10px;
+  align-items: stretch;
+  width: 75%;
+  box-sizing: border-box;
+}
+
+.sleeper-ic-cert-no-cell {
+  border-right: 1px solid #000000;
+  padding: 4px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+}
+
+.sleeper-ic-cert-date-cell {
+  border-right: 1px solid #000000;
+  padding: 4px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+}
+
+.sleeper-ic-cert-instt-cell {
+  padding: 4px 12px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  text-align: left;
+  line-height: 1.1;
+  font-size: 9px;
+  font-weight: bold;
+}
+
+/* 2-Column Full Width Rows */
+.sleeper-ic-row-2col-top {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  border: 1px solid #000000;
+  min-height: 35px;
+  box-sizing: border-box;
+}
+
+.sleeper-ic-row-2col {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  border-left: 1px solid #000000;
+  border-right: 1px solid #000000;
+  border-bottom: 1px solid #000000;
+  min-height: 35px;
+  box-sizing: border-box;
+}
+
+.sleeper-ic-col-left {
+  border-right: 1px solid #000000;
+  padding: 6px 8px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  font-size: 10px;
+  box-sizing: border-box;
+}
+
+.sleeper-ic-col-right {
+  padding: 6px 8px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  font-size: 10px;
+  box-sizing: border-box;
+}
+
+/* Store Details 9-Column Table */
+.sleeper-ic-store-section {
+  display: flex;
+  flex-direction: column;
+  border-left: 1px solid #000000;
+  border-right: 1px solid #000000;
+  border-bottom: 1px solid #000000;
+  box-sizing: border-box;
+}
+
+.sleeper-ic-table-9col {
+  display: grid;
+  grid-template-columns: 0.4fr 3.8fr 0.75fr 0.75fr 0.75fr 0.75fr 0.75fr 0.75fr 0.75fr;
+  box-sizing: border-box;
+}
+
+.sleeper-ic-table-header-row {
+  border-bottom: 1px solid #000000;
+  background-color: #f9fafb;
+  font-weight: bold;
+  text-align: center;
+  font-size: 8.5px;
+  line-height: 1.1;
+  align-items: stretch;
+  min-height: 40px;
+  color: #000000;
+}
+
+.sleeper-ic-table-colnum-row {
+  border-bottom: 1px solid #000000;
+  text-align: center;
+  font-size: 9px;
+  font-weight: bold;
+  background-color: #ffffff;
+  align-items: stretch;
+  min-height: 22px;
+  color: #000000;
+}
+
+.sleeper-ic-table-data-row {
+  text-align: center;
+  font-size: 10px;
+  align-items: stretch;
+  border-bottom: 1px solid #000000;
+  min-height: 40px;
+}
+
+.sleeper-ic-border-r {
+  border-right: 1px solid #000000;
+}
+
+.sleeper-ic-words-box {
+  padding: 8px;
+  font-size: 10px;
+  background-color: #ffffff;
+  border-bottom: 1px solid #000000;
+  min-height: 40px;
+  box-sizing: border-box;
+}
+
+/* 5-Column Inspection Details Row */
+.sleeper-ic-inspection-5col {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  border-left: 1px solid #000000;
+  border-right: 1px solid #000000;
+  border-bottom: 1px solid #000000;
+  font-size: 9px;
+  min-height: 40px;
+  box-sizing: border-box;
+}
+
+/* 3-Column Sealing & Inspecting Engineer Row */
+.sleeper-ic-sealing-3col {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  border-left: 1px solid #000000;
+  border-right: 1px solid #000000;
+  border-bottom: 1px solid #000000;
+  font-size: 9px;
+  min-height: 40px;
+  box-sizing: border-box;
+}
+
+/* Reasons for Rejection */
+.sleeper-ic-reasons-row {
+  border-left: 1px solid #000000;
+  border-right: 1px solid #000000;
+  border-bottom: 1px solid #000000;
+  padding: 4px 8px;
+  font-size: 10px;
+  min-height: 30px;
+  box-sizing: border-box;
+}
+
+/* Validity Bilingual Row */
+.sleeper-ic-validity-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  border-left: 1px solid #000000;
+  border-right: 1px solid #000000;
+  border-bottom: 1px solid #000000;
+  font-size: 8.5px;
+  line-height: 1.2;
+  font-weight: bold;
+  font-style: italic;
+  box-sizing: border-box;
+}
+
+/* Form inputs */
+.sleeper-ic-input {
+  width: 100%;
+  padding: 2px 4px;
+  border: 1px solid #60a5fa;
+  background-color: #eff6ff;
+  font-size: 11px;
+  box-sizing: border-box;
+  font-family: inherit;
+}
+
+.sleeper-ic-textarea {
+  width: 100%;
+  padding: 4px;
+  border: 1px solid #60a5fa;
+  background-color: #eff6ff;
+  font-size: 10px;
+  box-sizing: border-box;
+  font-family: inherit;
+  resize: vertical;
+}
+
+@media print {
+  @page {
+    size: A4 portrait;
+    margin: 45mm 10mm 28mm 10mm;
+  }
+  .no-print {
+    display: none !important;
+  }
+  .sleeper-ic-page {
+    padding: 0 !important;
+    background: transparent !important;
+  }
+  .sleeper-ic-header-unit {
+    padding-top: 0 !important;
+  }
+}

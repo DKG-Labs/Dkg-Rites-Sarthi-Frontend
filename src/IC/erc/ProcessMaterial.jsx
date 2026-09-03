@@ -23,7 +23,6 @@ export default function ProcessMaterialCertificate({ call = {}, onBack }) {
   const printAreaRef = useRef();
   const fileInputRef = useRef();
   const [isEditing, setIsEditing] = useState(false);
-  const [isESigning, setIsESigning] = useState(false);
   const [editableData, setEditableData] = useState(null);
   const [notification, setNotification] = useState({ open: false, message: '', severity: 'info' });
   const [bookSetValidation, setBookSetValidation] = useState({ isValid: false, message: null, isValidating: false });
@@ -112,6 +111,18 @@ export default function ProcessMaterialCertificate({ call = {}, onBack }) {
             savedEdit = await getProcessIcEditData(icNumber);
           }
           if (savedEdit) {
+            let restoredLots = initialData.lots;
+            if (savedEdit.lotDetails) {
+              try {
+                const parsedLots = JSON.parse(savedEdit.lotDetails);
+                if (Array.isArray(parsedLots) && parsedLots.length > 0) {
+                  restoredLots = parsedLots;
+                }
+              } catch (e) {
+                console.error("Failed to parse saved lot details", e);
+              }
+            }
+
             initialData = {
               ...initialData,
               qapNo: savedEdit.qapNo || initialData.qapNo,
@@ -128,6 +139,7 @@ export default function ProcessMaterialCertificate({ call = {}, onBack }) {
               purchasingAuthority: savedEdit.purchasingAuthority || initialData.purchasingAuthority,
               description: savedEdit.description || initialData.description,
               placeOfInspection: savedEdit.placeOfInspection || initialData.placeOfInspection,
+              lots: restoredLots,
             };
           }
           
@@ -201,6 +213,7 @@ export default function ProcessMaterialCertificate({ call = {}, onBack }) {
           chpClause: dataToPass.chpClause,
           inspectionDate: dataToPass.inspectionDate,
           manDays: dataToPass.manDays,
+          lotDetails: JSON.stringify(dataToPass.lots || []),
           createdBy: getCurrentUserId()?.toString(),
           updatedBy: getCurrentUserId()?.toString()
       });
@@ -288,6 +301,31 @@ export default function ProcessMaterialCertificate({ call = {}, onBack }) {
     executeVerifyBookSet();
   };
 
+  const handleOpenUploadModal = () => {
+    const bookNo = dataToPass?.bookNo || '';
+    const setNo = dataToPass?.setNo || '';
+
+    if (!bookNo || !setNo) {
+      setNotification({ open: true, message: "Please fill in both Book No. and Set No. before uploading signed IC.", severity: 'warning' });
+      return;
+    }
+
+    if (!/^\d{3}$/.test(setNo)) {
+      setNotification({ open: true, message: "Set No. must be exactly 3 digits.", severity: 'warning' });
+      return;
+    }
+
+    if (bookNo.trim().length < 4) {
+      setBookWarningModal({
+        show: true,
+        onProceed: () => setShowUploadModal(true)
+      });
+      return;
+    }
+
+    setShowUploadModal(true);
+  };
+
   const handleExport = async () => {
     if (!printAreaRef.current) return;
     if (isEditing) {
@@ -296,96 +334,6 @@ export default function ProcessMaterialCertificate({ call = {}, onBack }) {
     }
     const sanitizedFilename = (dataToPass.certificateNo || "ProcessMaterialIC").replace(/[/\\?%*:|"<>]/g, '-');
     await exportToPdf(printAreaRef.current, `${sanitizedFilename}.pdf`);
-  };
-
-  /**
-   * Save IC Handler:
-   * 1. Validates Book No & Set No
-   * 2. Saves edited data to the DB
-   * 3. Opens the Upload E-Signed IC modal (does NOT directly finalize without signature)
-   */
-  const executeSaveIC = async () => {
-    try {
-      setIsESigning(true);
-      
-      if (!/^\d{3}$/.test(dataToPass.setNo)) {
-          setNotification({ open: true, message: "Set No. must be exactly 3 digits.", severity: 'warning' });
-          setIsESigning(false);
-          return;
-      }
-      
-      if (dataToPass.icType === 'new' && !bookSetValidation.isValid) {
-          console.warn("⚠️ Validation failed: Book No or Set No has not been verified.");
-          setNotification({ open: true, message: "Please Verify the Book No. and Set No. before saving.", severity: 'warning' });
-          setIsESigning(false);
-          return;
-      }
-
-      setNotification({ open: true, message: "Saving IC details...", severity: 'info' });
-      
-      if (isEditing) {
-          setIsEditing(false);
-          await new Promise(resolve => setTimeout(resolve, 300));
-      }
-
-      // Save Edited Data to DB
-      await saveProcessIcEditData({
-          icNumber: dataToPass.certificateNo || call.icNo || call.call_no || "ProcessMaterial_IC",
-          certificateId: null,
-          bookNo: dataToPass.bookNo,
-          setNo: dataToPass.setNo,
-          offeredInstallmentNo: dataToPass.offeredInstNo,
-          passedInstallmentNo: dataToPass.passedInstNo,
-          consignee: dataToPass.consigneeRailway,
-          contractRef: dataToPass.contractRef,
-          maNumberAndDate: dataToPass.maNumberAndDate,
-          billPayingOfficer: dataToPass.billPayingOfficer,
-          purchasingAuthority: dataToPass.purchasingAuthority,
-          description: dataToPass.description,
-          manufacturer: dataToPass.manufacturer,
-          qapNo: dataToPass.qapNo,
-          chpClause: dataToPass.chpClause,
-          inspectionDate: dataToPass.inspectionDate,
-          manDays: dataToPass.manDays,
-          createdBy: getCurrentUserId()?.toString(),
-          updatedBy: getCurrentUserId()?.toString()
-      });
-
-      setNotification({ 
-        open: true, 
-        message: "IC details saved. Please upload the e-signed IC document to complete issuance.", 
-        severity: "success" 
-      });
-
-      // Open the Upload Signed IC Modal
-      setShowUploadModal(true);
-
-    } catch (error) {
-        console.error("Saving Error:", error);
-        setNotification({ open: true, message: error.message || "Failed to save IC details.", severity: 'error' });
-    } finally {
-        setIsESigning(false);
-    }
-  };
-
-  const handleSaveIC = () => {
-    const bookNo = dataToPass?.bookNo || '';
-    const setNo = dataToPass?.setNo || '';
-
-    if (!bookNo || !setNo) {
-        setNotification({ open: true, message: "Please fill in the 'Book No.' and 'Set No.' before saving.", severity: 'warning' });
-        return;
-    }
-
-    if (bookNo.trim().length < 4) {
-      setBookWarningModal({
-        show: true,
-        onProceed: executeSaveIC
-      });
-      return;
-    }
-
-    executeSaveIC();
   };
 
   /**
@@ -429,10 +377,19 @@ export default function ProcessMaterialCertificate({ call = {}, onBack }) {
 
   /**
    * Finalize and Upload the E-Signed IC
+   * Sequence:
+   * 1. Save in IC Edit (POST /api/process-ic-edit)
+   * 2. Storage of IC (POST /api/certificate-storage/upload)
+   * 3. Workflow Transition (POST /api/workflow/transition)
    */
   const handleFinalizeSignedIC = async () => {
     if (!selectedSignedFile) {
       setUploadError("Please select a signed PDF file before submitting.");
+      return;
+    }
+
+    if (!dataToPass?.bookNo || !dataToPass?.setNo) {
+      setUploadError("Please ensure both Book No. and Set No. are filled before finalizing.");
       return;
     }
 
@@ -442,6 +399,31 @@ export default function ProcessMaterialCertificate({ call = {}, onBack }) {
     try {
       const icNumber = dataToPass.certificateNo || call.icNo || call.call_no || "ProcessMaterial_IC";
       const fileName = icNumber + ".pdf";
+
+      // 1. First: Save in IC Edit (POST /api/process-ic-edit)
+      setNotification({ open: true, message: "Saving IC details to database...", severity: "info" });
+      await saveProcessIcEditData({
+          icNumber: icNumber,
+          certificateId: null,
+          bookNo: dataToPass.bookNo,
+          setNo: dataToPass.setNo,
+          offeredInstallmentNo: dataToPass.offeredInstNo,
+          passedInstallmentNo: dataToPass.passedInstNo,
+          consignee: dataToPass.consigneeRailway,
+          contractRef: dataToPass.contractRef,
+          maNumberAndDate: dataToPass.maNumberAndDate,
+          billPayingOfficer: dataToPass.billPayingOfficer,
+          purchasingAuthority: dataToPass.purchasingAuthority,
+          description: dataToPass.description,
+          manufacturer: dataToPass.manufacturer,
+          qapNo: dataToPass.qapNo,
+          chpClause: dataToPass.chpClause,
+          inspectionDate: dataToPass.inspectionDate,
+          manDays: dataToPass.manDays,
+          lotDetails: JSON.stringify(dataToPass.lots || []),
+          createdBy: getCurrentUserId()?.toString(),
+          updatedBy: getCurrentUserId()?.toString()
+      });
 
       // Convert file to base64
       const base64Data = await new Promise((resolve, reject) => {
@@ -456,7 +438,8 @@ export default function ProcessMaterialCertificate({ call = {}, onBack }) {
         ? base64Data.split(',')[1] 
         : base64Data;
 
-      setNotification({ open: true, message: "Uploading final e-signed certificate to Azure...", severity: "info" });
+      // 2. Second: Storage of IC (POST /api/certificate-storage/upload)
+      setNotification({ open: true, message: "Uploading final e-signed certificate to Azure Storage...", severity: "info" });
 
       await uploadSignedCertificate({
         icNumber: icNumber,
@@ -467,7 +450,7 @@ export default function ProcessMaterialCertificate({ call = {}, onBack }) {
 
       setNotification({ open: true, message: "E-signed certificate successfully saved!", severity: "success" });
 
-      // Update workflow status to DSC_SIGN_IC / Completed
+      // 3. Third: Workflow Transaction (POST /api/workflow/transition)
       try {
         console.log('🔄 Calling performTransitionAction to update status to DSC_SIGN_IC');
         await performTransitionAction({
@@ -507,6 +490,18 @@ export default function ProcessMaterialCertificate({ call = {}, onBack }) {
         savedEdit = await getProcessIcEditData(icNumber);
       }
       if (savedEdit) {
+        let restoredLots = initialData.lots;
+        if (savedEdit.lotDetails) {
+          try {
+            const parsedLots = JSON.parse(savedEdit.lotDetails);
+            if (Array.isArray(parsedLots) && parsedLots.length > 0) {
+              restoredLots = parsedLots;
+            }
+          } catch (e) {
+            console.error("Failed to parse saved lot details", e);
+          }
+        }
+
         initialData = {
           ...initialData,
           qapNo: savedEdit.qapNo || initialData.qapNo,
@@ -522,6 +517,7 @@ export default function ProcessMaterialCertificate({ call = {}, onBack }) {
           billPayingOfficer: savedEdit.billPayingOfficer || initialData.billPayingOfficer,
           purchasingAuthority: savedEdit.purchasingAuthority || initialData.purchasingAuthority,
           description: savedEdit.description || initialData.description,
+          lots: restoredLots,
         };
       }
     }
@@ -561,7 +557,7 @@ export default function ProcessMaterialCertificate({ call = {}, onBack }) {
             color="primary" 
             size="small" 
             onClick={isEditing ? handleSaveChanges : () => setIsEditing(true)}
-            disabled={isESigning || isUploadingSigned}
+            disabled={isUploadingSigned}
           >
             {isEditing ? "Save Changes" : "Edit Certificate"}
           </Button>
@@ -571,30 +567,19 @@ export default function ProcessMaterialCertificate({ call = {}, onBack }) {
               color="error"
               size="small"
               onClick={handleCancelChanges}
-              disabled={isESigning || isUploadingSigned}
+              disabled={isUploadingSigned}
             >
               Cancel Changes
             </Button>
           )}
-          <Button 
-            variant="contained" 
-            color="success" 
-            size="small" 
-            onClick={handleSaveIC} 
-            disabled={isESigning || isEditing || isUploadingSigned}
-            startIcon={isESigning ? <CircularProgress size={18} color="inherit" /> : null}
-            sx={{ fontWeight: 700, px: 2 }}
-          >
-            {isESigning ? "SAVING..." : "💾 SAVE IC"}
-          </Button>
           <Tooltip title={!hasBookAndSetNo ? "Please enter Book No. and Set No. before uploading signed IC" : ""}>
             <span>
               <Button
                 variant="contained"
                 color="secondary"
                 size="small"
-                onClick={() => setShowUploadModal(true)}
-                disabled={isESigning || isEditing || isUploadingSigned || !hasBookAndSetNo}
+                onClick={handleOpenUploadModal}
+                disabled={isEditing || isUploadingSigned || !hasBookAndSetNo}
                 sx={{ 
                   backgroundColor: '#6366f1', 
                   fontWeight: 700, 
@@ -611,7 +596,7 @@ export default function ProcessMaterialCertificate({ call = {}, onBack }) {
             color="primary" 
             size="small" 
             onClick={handleExport} 
-            disabled={isESigning || isEditing || isUploadingSigned}
+            disabled={isEditing || isUploadingSigned}
           >
             Export PDF
           </Button>
@@ -634,7 +619,7 @@ export default function ProcessMaterialCertificate({ call = {}, onBack }) {
           <ErcProcessIc 
             data={dataToPass} 
             isEditing={isEditing} 
-            isBusy={isESigning} 
+            isBusy={isUploadingSigned} 
             onChange={handleDataChange} 
             onArrayChange={handleArrayDataChange}
             onVerifyBookSet={handleVerifyBookSet}

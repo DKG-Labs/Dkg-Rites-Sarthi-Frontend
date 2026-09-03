@@ -10,6 +10,16 @@ import jsPDF from "jspdf";
 export async function exportToPdf(element, filename = "certificate.pdf") {
   if (!element) return;
 
+  // Wait for all fonts to be ready
+  if (document.fonts && document.fonts.ready) {
+    try {
+      await document.fonts.ready;
+    } catch (e) {
+      console.warn("Font readiness check failed:", e);
+    }
+  }
+  await new Promise((resolve) => setTimeout(resolve, 300));
+
   // Find the actual certificate page inside the wrapper
   const certificatePage = element.querySelector('.certificate-page') || element;
 
@@ -17,18 +27,29 @@ export async function exportToPdf(element, filename = "certificate.pdf") {
   const canvas = await html2canvas(certificatePage, {
     scale: 2,
     useCORS: true,
+    allowTaint: true,
     backgroundColor: '#ffffff',
     logging: false,
-    scrollY: -window.scrollY,
-    scrollX: -window.scrollX,
-    windowWidth: 1200, // Explicit virtual width for stable layout capture
+    scrollY: 0,
+    scrollX: 0,
     onclone: (clonedDoc) => {
+      // Explicitly copy all style and link tags from host document into the cloned document
+      const hostStyles = document.querySelectorAll('style, link[rel="stylesheet"]');
+      hostStyles.forEach((styleTag) => {
+        try {
+          clonedDoc.head.appendChild(styleTag.cloneNode(true));
+        } catch (e) {
+          // Ignore if already present
+        }
+      });
+
       const clonedElement = clonedDoc.querySelector('.certificate-page') || clonedDoc.body;
       clonedElement.style.width = '210mm';
       clonedElement.style.maxWidth = '210mm';
       clonedElement.style.margin = '0 auto';
       clonedElement.style.padding = '45mm 7mm 15mm 7mm';
       clonedElement.style.boxSizing = 'border-box';
+      clonedElement.style.backgroundColor = '#ffffff';
     },
     removeContainer: true,
   });
@@ -54,23 +75,44 @@ export async function exportToPdf(element, filename = "certificate.pdf") {
 export async function generatePdfBase64(element, filename = null) {
   if (!element) return null;
 
+  // Wait for all fonts to be ready
+  if (document.fonts && document.fonts.ready) {
+    try {
+      await document.fonts.ready;
+    } catch (e) {
+      console.warn("Font readiness check failed:", e);
+    }
+  }
+  await new Promise((resolve) => setTimeout(resolve, 300));
+
   const certificatePage = element.querySelector('.certificate-page') || element;
 
   const canvas = await html2canvas(certificatePage, {
     scale: 2,
     useCORS: true,
+    allowTaint: true,
     backgroundColor: '#ffffff',
     logging: false,
-    scrollY: -window.scrollY,
-    scrollX: -window.scrollX,
-    windowWidth: 1200,
+    scrollY: 0,
+    scrollX: 0,
     onclone: (clonedDoc) => {
+      // Explicitly copy all style and link tags from host document into the cloned document
+      const hostStyles = document.querySelectorAll('style, link[rel="stylesheet"]');
+      hostStyles.forEach((styleTag) => {
+        try {
+          clonedDoc.head.appendChild(styleTag.cloneNode(true));
+        } catch (e) {
+          // Ignore if already present
+        }
+      });
+
       const clonedElement = clonedDoc.querySelector('.certificate-page') || clonedDoc.body;
       clonedElement.style.width = '210mm';
       clonedElement.style.maxWidth = '210mm';
       clonedElement.style.margin = '0 auto';
       clonedElement.style.padding = '45mm 7mm 15mm 7mm';
       clonedElement.style.boxSizing = 'border-box';
+      clonedElement.style.backgroundColor = '#ffffff';
     },
     removeContainer: true,
   });

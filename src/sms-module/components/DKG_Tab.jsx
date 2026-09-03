@@ -5,7 +5,7 @@ import React from 'react';
  * DKG_Tab — Module/Duty card tab
  * Matches Sleeper Vendor's ie-tab-card design language.
  */
-const Tab = ({ icon, title, subtitle, onClick, key, isActive = false, className = '' }) => {
+const Tab = ({ icon, title, subtitle, onClick, isActive = false, className = '' }) => {
   return (
     <div className={`ie-tab-card ${className} ${isActive ? 'active' : ''}`} onClick={onClick}>
       {icon && (

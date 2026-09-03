@@ -2,11 +2,12 @@
 import React from 'react'
 import { Form } from "antd";
 
-const FormBody = ({children, onFinish, initialValues, layout, className}) => {
-  const [form] = Form.useForm();
+const FormBody = ({children, onFinish, initialValues, layout, className, form}) => {
+  const [internalForm] = Form.useForm();
+  const activeForm = form || internalForm;
   return (
     <Form
-      form={form}
+      form={activeForm}
       layout={layout ? layout : 'vertical'}
       className={`py-4 w-full mx-auto ${
         layout === 'horizontal' ? 'horizontal-form' : ''

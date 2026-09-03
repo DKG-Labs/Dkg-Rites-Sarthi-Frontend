@@ -86,13 +86,6 @@ const items = [
     permission: "duty",
     items: [
       {
-        key: "2.1",
-        icon: <BankOutlined />,
-        label: "Duty Home",
-        activeTab: 2,
-        path: "/sms/",
-      },
-      {
         key: "2.2",
         icon: <MessageOutlined />,
         label: "SMS",

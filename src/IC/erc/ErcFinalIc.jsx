@@ -42,6 +42,91 @@ const EditableField = ({ value, fieldName, placeholder = "", className = "", typ
 };
 
 
+const getErcKFactor = (callOrType) => {
+  // 1. Direct explicit ercType check if object
+  if (callOrType && typeof callOrType === "object" && callOrType.ercType) {
+    const explicitType = String(callOrType.ercType).toLowerCase().trim();
+    if (explicitType.includes("mk-iii") || explicitType.includes("mk iii") || explicitType.includes("3701")) return 0.91;
+    if (explicitType.includes("j-type") || explicitType.includes("j type") || explicitType.includes("erc-j") || explicitType.includes("4158")) return 0.915;
+    if (explicitType.includes("mk-v") || explicitType.includes("mk v") || explicitType.includes("5919")) return 1.088;
+  }
+
+  let searchStr = "";
+  if (typeof callOrType === "string") {
+    searchStr = callOrType;
+  } else if (callOrType && typeof callOrType === "object") {
+    searchStr = [
+      callOrType.ercType,
+      callOrType.productType,
+      callOrType.product_type,
+      callOrType.typeOfErc,
+      callOrType.drgNo,
+      callOrType.drawingNo,
+      callOrType.drg_no,
+      callOrType.description,
+      callOrType.productDescription,
+      callOrType.product_description,
+      callOrType.remarks,
+      callOrType.specNo,
+      callOrType.specificationNo,
+      callOrType.spec_no
+    ].filter(Boolean).join(" ");
+  }
+
+  const lower = searchStr.toLowerCase();
+
+  // MK-III: 0.91
+  if (
+    lower.includes("mk-iii") ||
+    lower.includes("mk iii") ||
+    lower.includes("mark iii") ||
+    lower.includes("mark 3") ||
+    lower.includes("mk 3") ||
+    lower.includes("mkiii") ||
+    lower.includes("3701") ||
+    lower.includes("rt-3701") ||
+    lower.includes("t-3701")
+  ) {
+    return 0.91;
+  }
+
+  // J Type / ERC-J: 0.915
+  if (
+    lower.includes("j-type") ||
+    lower.includes("j type") ||
+    lower.includes("j_type") ||
+    lower.includes("erc-j") ||
+    lower.includes("erc j") ||
+    lower.includes("j-clip") ||
+    lower.includes("j clip") ||
+    lower.includes("4158") ||
+    lower.includes("rt-4158") ||
+    lower.includes("8258") ||
+    lower.includes("t-8258")
+  ) {
+    return 0.915;
+  }
+
+  // MK-V: 1.088
+  if (
+    lower.includes("mk-v") ||
+    lower.includes("mk v") ||
+    lower.includes("mark v") ||
+    lower.includes("mark 5") ||
+    lower.includes("mk 5") ||
+    lower.includes("mkv") ||
+    lower.includes("5919") ||
+    lower.includes("rt-5919") ||
+    lower.includes("t-5919") ||
+    lower.includes("t5919") ||
+    lower.includes("6025")
+  ) {
+    return 1.088;
+  }
+
+  return 1.088;
+};
+
 const ErcFinalIc = ({ data = {}, isEditing = false, isBusy = false, onFieldChange = () => { }, onVerifyBookSet, bookSetValidation }) => {
 
   const {
@@ -114,6 +199,20 @@ const ErcFinalIc = ({ data = {}, isEditing = false, isBusy = false, onFieldChang
     .replace(/[\uFEFF\u200B]/g, '')
     .replace(/[\r\n]+/g, ' ')
     .trim();
+
+  const rawErcType = data?.ercType || data?.productType || data?.description || data?.drgNo || "";
+  const kFactor = getErcKFactor(data || rawErcType);
+
+  const formatNosToMtValue = (val) => {
+    if (val === undefined || val === null || val === "" || String(val).toUpperCase() === "NIL") return "NIL";
+    const num = parseFloat(String(val).replace(/,/g, ''));
+    if (isNaN(num)) return val;
+    if (num === 0) return "0.000";
+    if (num > 2000) {
+      return (Math.round(((num * kFactor) / 1000) * 1000 + Number.EPSILON) / 1000).toFixed(3);
+    }
+    return num.toFixed(3);
+  };
 
   const isOldIcValid = Boolean(data?.bookNo && String(data?.bookNo).trim().length > 0 && /^\d{3}$/.test(data?.setNo));
   const isFormLocked = isEditing && (
@@ -343,14 +442,29 @@ const ErcFinalIc = ({ data = {}, isEditing = false, isBusy = false, onFieldChang
               { val: qtyPassedPreviously, field: "qtyPassedPreviously" },
               { val: qtyNowOffered, field: "qtyNowOffered" },
               { val: displayQtyNowPassed, field: "qtyNowPassed" },
-              { val: qtyNowRejected, field: "qtyNowRejected" },
+              { val: qtyNowRejected, field: "qtyNowRejected", isRejection: true },
               { val: displayQtyStillDue, field: "qtyStillDue" }
-            ].map((col, idx) => (
-              <div key={idx} className={`${idx === 6 ? "" : "border-r"} border-black p-1 flex flex-col items-center justify-center`}>
-                <span className="mb-1 font-semibold text-[9px]"></span>
-                <EditableField isEditing={isEditing} onFieldChange={onFieldChange} isBusy={isBusy} value={col.val} fieldName={col.field} className="font-bold text-xs whitespace-nowrap text-center" />
-              </div>
-            ))}
+            ].map((col, idx) => {
+              const isZeroOrNil = !col.val || col.val === "0" || col.val === 0 || String(col.val).toUpperCase() === "NIL";
+              const displayVal = col.isRejection && isZeroOrNil ? "NIL" : formatNosToMtValue(col.val);
+              const showUnit = displayVal !== "NIL";
+
+              return (
+                <div key={idx} className={`${idx === 6 ? "" : "border-r"} border-black p-1 flex flex-col items-center justify-center`}>
+                  <EditableField 
+                    isEditing={isEditing} 
+                    onFieldChange={onFieldChange} 
+                    isBusy={isBusy} 
+                    value={isEditing ? col.val : displayVal} 
+                    fieldName={col.field} 
+                    className="font-bold text-xs whitespace-nowrap text-center" 
+                  />
+                  {!isEditing && showUnit && (
+                    <span className="text-[9px] font-bold text-center mt-0.5">MT</span>
+                  )}
+                </div>
+              );
+            })}
           </div>
 
           {/* Quantity in Words Row */}

@@ -102,6 +102,9 @@ const ErcProcessIC = ({ data = {}, isEditing = false, isBusy = false, onChange =
       lower.includes('mark 5') ||
       lower.includes('mk 5') ||
       lower.includes('mkv') ||
+      lower.includes('5919') ||
+      lower.includes('rt-5919') ||
+      lower.includes('t-5919') ||
       lower === '6025'
     ) {
       return 1.088;

@@ -1,4 +1,4 @@
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Navigate } from 'react-router-dom';
 import MultiTabInspectionInitiationPage from '../MultiTabInspectionInitiationPage';
 import RawMaterialCertificate from '../../IC/erc/rawmaterial';
 import ProcessMaterialCertificate from '../../IC/erc/ProcessMaterial';
@@ -62,8 +62,7 @@ export const MultiInitiationWrapper = () => {
 
   // If no calls selected, redirect to landing
   if (!selectedCalls || selectedCalls.length === 0) {
-    navigate(ROUTES.LANDING);
-    return null;
+    return <Navigate to={ROUTES.LANDING} replace />;
   }
 
   return (
@@ -89,8 +88,7 @@ export const RawMaterialCertificateWrapper = () => {
 
   // If no call selected, redirect to landing
   if (!selectedCall) {
-    navigate(ROUTES.LANDING);
-    return null;
+    return <Navigate to={ROUTES.LANDING} replace />;
   }
 
   return (
@@ -115,8 +113,7 @@ export const ProcessMaterialCertificateWrapper = () => {
 
   // If no call selected, redirect to landing
   if (!selectedCall) {
-    navigate(ROUTES.LANDING);
-    return null;
+    return <Navigate to={ROUTES.LANDING} replace />;
   }
 
   return (
@@ -141,8 +138,7 @@ export const FinalProductCertificateWrapper = () => {
 
   // If no call selected, redirect to landing
   if (!selectedCall) {
-    navigate(ROUTES.LANDING);
-    return null;
+    return <Navigate to={ROUTES.LANDING} replace />;
   }
 
   return (

@@ -264,9 +264,8 @@ export default function FinalProductDashboard({ onBack, onNavigateToSubModule })
         if (stored) {
           const allChemData = JSON.parse(stored);
           const chemValues = allChemData.chemValues?.[lot.lotNo];
-          const ladleData = (allChemData.ladleValues || []).find(l => l.lotNo === lot.lotNo || l.heatNo === lot.heatNo);
 
-          if (chemValues && ladleData) {
+          if (chemValues) {
             const elementRanges = {
               c: { min: 0.5, max: 0.6 },
               mn: { min: 0.8, max: 1.0 },
@@ -274,30 +273,14 @@ export default function FinalProductDashboard({ onBack, onNavigateToSubModule })
               s: { min: 0, max: 0.03 },
               p: { min: 0, max: 0.03 },
             };
-            const tolerances = {
-              c: 0.03,
-              mn: 0.04,
-              si: 0.05,
-              s: 0.005,
-              p: 0.005,
-            };
 
             for (const el in elementRanges) {
               const pVal = parseFloat(chemValues[el]);
-              const lVal = parseFloat(ladleData[el === 'c' ? 'percentC' : el === 'si' ? 'percentSi' : el === 'mn' ? 'percentMn' : el === 's' ? 'percentS' : 'percentP']);
               const range = elementRanges[el];
-              const tol = tolerances[el];
 
-              if (!isNaN(pVal) && !isNaN(lVal)) {
-                if (el === 's' || el === 'p') {
-                  if (pVal > (lVal + tol)) totalRejected += 1;
-                } else {
-                  const diff = Math.abs(pVal - lVal);
-                  const expandedMin = range.min - tol;
-                  const expandedMax = range.max + tol;
-                  if (diff > (tol + 0.0001) || pVal < (expandedMin - 0.0001) || pVal > (expandedMax + 0.0001)) {
-                    totalRejected += 1;
-                  }
+              if (!isNaN(pVal)) {
+                if (pVal < (range.min - 0.0001) || pVal > (range.max + 0.0001)) {
+                  totalRejected += 1;
                 }
               }
             }
@@ -712,23 +695,9 @@ export default function FinalProductDashboard({ onBack, onNavigateToSubModule })
     if (!allChemData || !allChemData.chemValues) return 'Pending';
 
     const lotNo = lot.lotNo;
-    const heatNo = lot.heatNo;
     const chemValues = allChemData.chemValues[lotNo];
-    const ladleValues = allChemData.ladleValues || [];
 
     if (!chemValues || Object.keys(chemValues).length === 0) return 'Pending';
-
-    // Find ladle values for this lot
-    const ladleData = ladleValues.find(l => l.lotNo === lotNo || l.heatNo === heatNo);
-    if (!ladleData) return 'Pending';
-
-    const ladleAnalysis = {
-      c: ladleData.percentC || 0,
-      si: ladleData.percentSi || 0,
-      mn: ladleData.percentMn || 0,
-      s: ladleData.percentS || 0,
-      p: ladleData.percentP || 0
-    };
 
     const elementRanges = {
       c: { min: 0.5, max: 0.6 },
@@ -738,44 +707,21 @@ export default function FinalProductDashboard({ onBack, onNavigateToSubModule })
       p: { min: 0, max: 0.03 },
     };
 
-    const tolerances = {
-      c: 0.03,
-      mn: 0.04,
-      si: 0.05,
-      s: 0.005,
-      p: 0.005,
-    };
-
     const elements = ['c', 'si', 'mn', 's', 'p'];
 
     for (const element of elements) {
       const productValue = chemValues[element];
-      const ladleValue = ladleAnalysis[element];
 
       if (productValue === undefined || productValue === "") return 'Pending';
 
       const pVal = parseFloat(productValue);
-      const lVal = parseFloat(ladleValue);
       const range = elementRanges[element];
-      const tolerance = tolerances[element];
 
       if (isNaN(pVal)) return 'Pending';
 
-      // Special rule for Sulphur and Phosphorus: only upper bound check against ladle
-      if (element === "s" || element === "p") {
-        if (pVal > (lVal + tolerance)) return 'NOT OK';
-      } else {
-        // Standard rule for Carbon, Silicon, Manganese (± tolerance)
-        const diff = Math.abs(pVal - lVal);
-        const withinTolerance = diff <= (tolerance + 0.0001);
-
-        // Ensure it's within "Permissible Variation" limits
-        const expandedMin = range.min - tolerance;
-        const expandedMax = range.max + tolerance;
-        const withinExpandedRange = pVal >= (expandedMin - 0.0001) && pVal <= (expandedMax + 0.0001);
-
-        if (!withinTolerance || !withinExpandedRange) return 'NOT OK';
-      }
+      // Rule: Must be within absolute spec limits (same as FinalChemicalAnalysisPage)
+      const withinSpec = pVal >= (range.min - 0.0001) && pVal <= (range.max + 0.0001);
+      if (!withinSpec) return 'NOT OK';
     }
 
     return 'OK';

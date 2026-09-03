@@ -34,6 +34,7 @@ const CallDetailsModal = ({
   const [isLoadingIEs, setIsLoadingIEs] = useState(false);
   const [changeIE, setChangeIE] = useState(false);
   const [sleeperRemapUsers, setSleeperRemapUsers] = useState([]);
+  const [railpadRemapUsers, setRailpadRemapUsers] = useState([]);
 
   const [isLoadingRemappingIEs, setIsLoadingRemappingIEs] = useState(false);
   const [remappingPoiCode, setRemappingPoiCode] = useState(null);
@@ -56,6 +57,15 @@ const CallDetailsModal = ({
         return r === 'main ie' || r.includes('main ie');
       });
     }
+    if (call?.callNumber?.startsWith('RPF') || call?.callNumber?.startsWith('RPP') || call?.callNumber?.startsWith('RP')) {
+      if (railpadRemapUsers && railpadRemapUsers.length > 0) {
+        return railpadRemapUsers;
+      }
+      return (allIEs || []).filter(ie => {
+        const r = (ie.roleName || ie.role || '').trim().toLowerCase();
+        return r === 'rail main ie' || r.includes('rail main ie') || r === 'main ie';
+      });
+    }
     if (!allIEs || allIEs.length === 0) return [];
     if (call?.callNumber?.startsWith('ER') || call?.callNumber?.startsWith('EF')) {
       return allIEs.filter(ie => {
@@ -69,17 +79,11 @@ const CallDetailsModal = ({
         return r === 'process ie' || r.includes('process ie');
       });
     }
-    if (call?.callNumber?.startsWith('RPF') || call?.callNumber?.startsWith('RPP') || call?.callNumber?.startsWith('RP')) {
-      return allIEs.filter(ie => {
-        const r = (ie.roleName || ie.role || '').trim().toLowerCase();
-        return r === 'rail main ie' || r.includes('rail main ie') || r === 'main ie';
-      });
-    }
     return allIEs.filter(ie => {
       const r = (ie.roleName || ie.role || '').trim().toLowerCase();
       return r.includes('ie');
     });
-  }, [call?.callNumber, allIEs, sleeperRemapUsers]);
+  }, [call?.callNumber, allIEs, sleeperRemapUsers, railpadRemapUsers]);
 
   const handleOpenRemapping = async () => {
     setChangeIE(true);
@@ -93,6 +97,18 @@ const CallDetailsModal = ({
           name: u.fullName || u.name,
           employeeCode: u.employeeCode,
           roleName: u.role || 'Main IE'
+        })));
+        return;
+      }
+
+      if (call.callNumber.startsWith('RP')) {
+        const ieRes = await axios.get(`${API_BASE_URL}/api/railpad-workflow/remap-available-users`, { headers: getAuthHeaders() });
+        const rawData = ieRes.data?.responseData || [];
+        setRailpadRemapUsers(rawData.map(u => ({
+          id: u.userId || u.id,
+          name: u.fullName || u.name,
+          employeeCode: u.employeeCode,
+          roleName: u.role || 'Rail Main IE'
         })));
         return;
       }
@@ -136,7 +152,14 @@ const CallDetailsModal = ({
     if (!call?.callNumber) return;
     try {
       setIsLoadingIEs(true);
-      if (call.callNumber.startsWith('ER') || call.callNumber.startsWith('EF') || call.callNumber.startsWith('EP')) {
+      if (
+        call.callNumber.startsWith('ER') || 
+        call.callNumber.startsWith('EF') || 
+        call.callNumber.startsWith('EP') || 
+        call.callNumber.startsWith('RP') ||
+        call.callNumber.startsWith('SF') ||
+        call.callNumber.startsWith('SR')
+      ) {
         const response = await axios.get(`${API_BASE_URL}/api/auth/employee-codes/${call.callNumber}`, {
           headers: getAuthHeaders()
         });
@@ -180,6 +203,16 @@ const CallDetailsModal = ({
         await axios.post(`${API_BASE_URL}/api/sleeper-workflow/remap-submit`, payload, { headers: getAuthHeaders() });
         notify('Sleeper Main IE remapped successfully', 'success');
         fetchMappedIEs();
+      } else if (call.callNumber.startsWith('RP')) {
+        const payload = {
+          callNo: call.callNumber,
+          plantId: call.plantId || call.poiCode || '',
+          oldUserId: Number(call.assignedToUser || 0),
+          newUserId: Number(selectedIEData.id)
+        };
+        await axios.post(`${API_BASE_URL}/api/railpad-workflow/remap-pending`, payload, { headers: getAuthHeaders() });
+        notify('Railpad Main IE mapped successfully', 'success');
+        fetchMappedIEs();
       } else {
         let stageCode = 'ER';
         if (call.callNumber.startsWith('EP')) stageCode = 'EP';
@@ -205,7 +238,8 @@ const CallDetailsModal = ({
       }
     } catch (error) {
       console.error("Error submitting remapping:", error);
-      notify(error.response?.data?.message || "Failed to submit remapping. Check console for details.", 'error');
+      const msg = error.response?.data?.message || error.response?.data?.responseStatus?.message || error.message || "Failed to submit remapping. Check console for details.";
+      notify(msg, 'error');
     }
   };
 

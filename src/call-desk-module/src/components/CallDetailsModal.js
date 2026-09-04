@@ -34,6 +34,7 @@ const CallDetailsModal = ({
   const [isLoadingIEs, setIsLoadingIEs] = useState(false);
   const [changeIE, setChangeIE] = useState(false);
   const [sleeperRemapUsers, setSleeperRemapUsers] = useState([]);
+  const [railpadRemapUsers, setRailpadRemapUsers] = useState([]);
 
   const [isLoadingRemappingIEs, setIsLoadingRemappingIEs] = useState(false);
   const [remappingPoiCode, setRemappingPoiCode] = useState(null);
@@ -46,6 +47,8 @@ const CallDetailsModal = ({
   const [showReturnModal, setShowReturnModal] = useState(false);
   const [validationError, setValidationError] = useState('');
 
+  const [remapAvailableUsers, setRemapAvailableUsers] = useState([]);
+
   const filteredIEs = React.useMemo(() => {
     if (call?.callNumber?.startsWith('SF') || call?.callNumber?.startsWith('SR')) {
       if (sleeperRemapUsers && sleeperRemapUsers.length > 0) {
@@ -56,35 +59,57 @@ const CallDetailsModal = ({
         return r === 'main ie' || r.includes('main ie');
       });
     }
-    if (!allIEs || allIEs.length === 0) return [];
+    if (call?.callNumber?.startsWith('RPF') || call?.callNumber?.startsWith('RPP') || call?.callNumber?.startsWith('RP')) {
+      if (railpadRemapUsers && railpadRemapUsers.length > 0) {
+        return railpadRemapUsers;
+      }
+      return (allIEs || []).filter(ie => {
+        const r = (ie.roleName || ie.role || '').trim().toLowerCase();
+        return r === 'rail main ie' || r.includes('rail main ie') || r === 'main ie';
+      });
+    }
     if (call?.callNumber?.startsWith('ER') || call?.callNumber?.startsWith('EF')) {
-      return allIEs.filter(ie => {
+      if (remapAvailableUsers && remapAvailableUsers.length > 0) {
+        return remapAvailableUsers;
+      }
+      return (allIEs || []).filter(ie => {
         const r = (ie.roleName || ie.role || '').trim().toLowerCase();
         return r === 'ie' || r.includes('ie');
       });
     }
+    if (!allIEs || allIEs.length === 0) return [];
     if (call?.callNumber?.startsWith('EP')) {
       return allIEs.filter(ie => {
         const r = (ie.roleName || ie.role || '').trim().toLowerCase();
         return r === 'process ie' || r.includes('process ie');
       });
     }
-    if (call?.callNumber?.startsWith('RPF') || call?.callNumber?.startsWith('RPP') || call?.callNumber?.startsWith('RP')) {
-      return allIEs.filter(ie => {
-        const r = (ie.roleName || ie.role || '').trim().toLowerCase();
-        return r === 'rail main ie' || r.includes('rail main ie') || r === 'main ie';
-      });
-    }
     return allIEs.filter(ie => {
       const r = (ie.roleName || ie.role || '').trim().toLowerCase();
       return r.includes('ie');
     });
-  }, [call?.callNumber, allIEs, sleeperRemapUsers]);
+  }, [call?.callNumber, allIEs, sleeperRemapUsers, railpadRemapUsers, remapAvailableUsers]);
 
   const handleOpenRemapping = async () => {
     setChangeIE(true);
     setIsLoadingRemappingIEs(true);
     try {
+      if (call.callNumber.startsWith('RPF') || call.callNumber.startsWith('RPP') || call.callNumber.startsWith('RP')) {
+        try {
+          const ieRes = await axios.get(`${API_BASE_URL}/api/rail-workflow/remap-available-users`, { headers: getAuthHeaders() });
+          const rawData = ieRes.data?.responseData || [];
+          setRailpadRemapUsers(rawData.map(u => ({
+            id: u.userId || u.id,
+            name: u.fullName || u.name,
+            employeeCode: u.employeeCode,
+            roleName: u.role || 'Rail Main IE'
+          })));
+        } catch (e) {
+          console.error("Error fetching Rail Main IE users:", e);
+        }
+        return;
+      }
+
       if (call.callNumber.startsWith('SF') || call.callNumber.startsWith('SR')) {
         const ieRes = await axios.get(`${API_BASE_URL}/api/sleeper-workflow/remap-available-users`, { headers: getAuthHeaders() });
         const rawData = ieRes.data?.responseData || [];
@@ -97,6 +122,27 @@ const CallDetailsModal = ({
         return;
       }
 
+      // For ER / EF calls: Fetch all users whose role is IE
+      if (call.callNumber.startsWith('ER') || call.callNumber.startsWith('EF')) {
+        try {
+          const res = await axios.get(`${API_BASE_URL}/api/auth/api/users/by-role`, {
+            params: { roleName: 'IE' },
+            headers: getAuthHeaders()
+          });
+          const list = res.data?.responseData || [];
+          if (list.length > 0) {
+            setRemapAvailableUsers(list.map(u => ({
+              id: u.userId || u.id,
+              name: u.fullName || u.userName,
+              employeeCode: u.employeeCode,
+              roleName: u.roleName || u.role || 'IE'
+            })));
+          }
+        } catch (e) {
+          console.error("Error fetching IE users by role:", e);
+        }
+      }
+
       // 1. Fetch POI Codes and store in localStorage
       const poiRes = await axios.get(`${API_BASE_URL}/api/auth/${call.callNumber}/poi-codes`, { headers: getAuthHeaders() });
       const data = poiRes.data?.responseData || poiRes.data || [];
@@ -107,10 +153,14 @@ const CallDetailsModal = ({
       if (poiArray.length > 0) {
         currentPoiCode = poiArray[0].poiCode || poiArray[0].poicode || poiArray[0];
       }
+      if (!currentPoiCode && call.placeOfInspection) {
+        currentPoiCode = call.placeOfInspection;
+      }
       setRemappingPoiCode(currentPoiCode);
 
       if (!currentPoiCode) {
-        console.warn("No POI Code found in response");
+        console.warn("No POI Code found for this call");
+        notify("Please contact admin to do mapping. No POI Code is available for this call.", "warning");
       } else {
         // 2. Fetch IEs based on call type
         if (call.callNumber.startsWith('ER') || call.callNumber.startsWith('EF')) {
@@ -170,7 +220,17 @@ const CallDetailsModal = ({
     }
 
     try {
-      if (call.callNumber.startsWith('SF') || call.callNumber.startsWith('SR')) {
+      if (call.callNumber.startsWith('RPF') || call.callNumber.startsWith('RPP') || call.callNumber.startsWith('RP')) {
+        const payload = {
+          callNo: call.callNumber,
+          plantId: call.plantId,
+          oldUserId: Number(call.assignedToUser || 0),
+          newUserId: Number(selectedIEData.id)
+        };
+        await axios.post(`${API_BASE_URL}/api/rail-workflow/remap-pending`, payload, { headers: getAuthHeaders() });
+        notify('Rail Main IE remapped successfully', 'success');
+        fetchMappedIEs();
+      } else if (call.callNumber.startsWith('SF') || call.callNumber.startsWith('SR')) {
         const payload = {
           callNo: call.callNumber,
           plantId: call.plantId,
@@ -185,9 +245,15 @@ const CallDetailsModal = ({
         if (call.callNumber.startsWith('EP')) stageCode = 'EP';
         if (call.callNumber.startsWith('EF')) stageCode = 'EF';
 
+        const poiCode = remappingPoiCode || call.placeOfInspection || '';
+        if (!poiCode) {
+          notify('Please contact admin to do mapping. No POI Code is available for this call.', 'warning');
+          return;
+        }
+
         const payload = {
           callNo: call.callNumber,
-          poiCode: remappingPoiCode || call.placeOfInspection || '',
+          poiCode: poiCode,
           previousEmpCode: '',
           newEmpCode: selectedIEData.employeeCode,
           stage: stageCode
@@ -259,6 +325,14 @@ const CallDetailsModal = ({
   }, [isOpen, call, fetchMappedIEs]);
 
   if (!isOpen || !call) return null;
+
+  const isProcessCall = Boolean(
+    (call.callNumber && call.callNumber.startsWith('EP')) ||
+    (call.callNo && call.callNo.startsWith('EP')) ||
+    (call.stage && String(call.stage).toLowerCase().includes('process')) ||
+    (call.productStage && String(call.productStage).toLowerCase().includes('process')) ||
+    (call.product && String(call.product).toLowerCase().includes('process'))
+  );
 
   const displayValue = (value, fallback = '-') => value || fallback;
 
@@ -397,7 +471,7 @@ const CallDetailsModal = ({
                       call.callNumber?.startsWith('RP') 
                         ? 'No Railpad main IE has been mapped' 
                         : (call.callNumber?.startsWith('ER') || call.callNumber?.startsWith('EF'))
-                        ? 'No IE has been mapped'
+                        ? 'Please contact admin to do mapping'
                         : call.callNumber?.startsWith('EP')
                         ? 'No Process IE has been mapped'
                         : (call.callNumber?.startsWith('SF') || call.callNumber?.startsWith('SR'))
@@ -409,15 +483,17 @@ const CallDetailsModal = ({
               </div>
 
               {/* Right Column: Re-assignment Options */}
-              <div className="w-full md:w-auto mt-4 md:mt-0 pb-1">
-                <button
-                  className="w-full md:w-auto bg-indigo-600 text-white hover:bg-indigo-700 font-bold py-2.5 px-6 rounded shadow-md transition-all active:scale-95 flex items-center justify-center whitespace-nowrap h-11"
-                  onClick={handleOpenRemapping}
-                  disabled={isLoadingRemappingIEs}
-                >
-                  <span className="mr-2">🔄</span>{isLoadingRemappingIEs ? " Loading..." : " Remapping"}
-                </button>
-              </div>
+              {!isProcessCall && (
+                <div className="w-full md:w-auto mt-4 md:mt-0 pb-1">
+                  <button
+                    className="w-full md:w-auto bg-indigo-600 text-white hover:bg-indigo-700 font-bold py-2.5 px-6 rounded shadow-md transition-all active:scale-95 flex items-center justify-center whitespace-nowrap h-11"
+                    onClick={handleOpenRemapping}
+                    disabled={isLoadingRemappingIEs}
+                  >
+                    <span className="mr-2">🔄</span>{isLoadingRemappingIEs ? " Loading..." : " Remapping"}
+                  </button>
+                </div>
+              )}
             </div>
 
             {/* Remapping Popup Module */}

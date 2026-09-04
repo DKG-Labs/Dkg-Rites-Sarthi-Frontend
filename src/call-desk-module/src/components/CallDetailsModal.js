@@ -96,7 +96,7 @@ const CallDetailsModal = ({
     try {
       if (call.callNumber.startsWith('RPF') || call.callNumber.startsWith('RPP') || call.callNumber.startsWith('RP')) {
         try {
-          const ieRes = await axios.get(`${API_BASE_URL}/api/rail-workflow/remap-available-users`, { headers: getAuthHeaders() });
+          const ieRes = await axios.get(`${API_BASE_URL}/api/railpad-workflow/remap-available-users`, { headers: getAuthHeaders() });
           const rawData = ieRes.data?.responseData || [];
           setRailpadRemapUsers(rawData.map(u => ({
             id: u.userId || u.id,
@@ -227,7 +227,7 @@ const CallDetailsModal = ({
           oldUserId: Number(call.assignedToUser || 0),
           newUserId: Number(selectedIEData.id)
         };
-        await axios.post(`${API_BASE_URL}/api/rail-workflow/remap-pending`, payload, { headers: getAuthHeaders() });
+        await axios.post(`${API_BASE_URL}/api/railpad-workflow/remap-pending`, payload, { headers: getAuthHeaders() });
         notify('Rail Main IE remapped successfully', 'success');
         fetchMappedIEs();
       } else if (call.callNumber.startsWith('SF') || call.callNumber.startsWith('SR')) {

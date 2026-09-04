@@ -825,27 +825,46 @@ export const generateCallLetterPDF = (call, shouldDownload = true) => {
         });
         return uniqueParts.join(', ');
     };
-    drawRow('Place of Inspection', formatPoi(call.placeOfInspection), { rowH: 9 });
-    drawRow('Offered Installment Number', val(call.submissionCount || '1'), { rowH: 9 });
+    drawRow('Place of Inspection', formatPoi(call.placeOfInspection || call.plantId), { rowH: 9 });
+    drawRow('Offered Installment Number', val(call.offeredInstallmentNo || call.submissionCount || '1'), { rowH: 9 });
 
     checkPageBreak(50);
 
-    drawRow('Raw Material Qty Already Passed for this PO Sr. No.', val(call.rawMaterialQtyPassed), { rowH: 12 });
-    drawRow('Final Accepted Qty of this PO Sr. No.', val(call.finalAcceptedQty), { rowH: 12 });
+    drawRow('Raw Material Qty Already Passed for this PO Sr. No.', val(call.rawMaterialQtyPassed, 'N/A'), { rowH: 12 });
+    drawRow('Final Accepted Qty of this PO Sr. No.', val(call.finalAcceptedQty, '0 Nos.'), { rowH: 12 });
     drawRow('Total PO Quantity', val(call.poQuantity), { rowH: 9 });
     drawRow('Total PO Value', val(call.poValue), { rowH: 9 });
 
-    // Raw Material Details to be offered
+    // Batches / Stores / Raw Material Details to be offered
     checkPageBreak(30);
-    const heatDetails = call.heatDetails && call.heatDetails.length > 0
-        ? call.heatDetails.map(h =>
-            `Heat No.: ${val(h.heatNo)}, TC No. - ${val(h.tcNo)}, Qty Offered: ${val(h.qtyOffered)} MT`
-        ).join('\n') +
-        `\n\nTotal Qty Offered - ${call.subPoQuantity || call.quantity || '-'} MT`
-        : call.tcNumber
-            ? `Heat No.: -, TC No. - ${val(call.tcNumber)}, Qty Offered: ${val(call.subPoQuantity || call.quantity)} MT\n\nTotal Qty Offered - ${val(call.subPoQuantity || call.quantity)} MT`
-            : '-';
-    drawRow('Raw Material Details to be offered', heatDetails);
+    const isSleeper = String(call.callNumber || call.callNo || call.requestId || '').toUpperCase().startsWith('SF')
+        || String(call.productType || call.itemType || call.typeOfCall || '').toUpperCase().includes('SLEEPER');
+
+    if (isSleeper) {
+        let sleeperBatchDetails = '-';
+        if (call.heatDetails && call.heatDetails.length > 0) {
+            sleeperBatchDetails = call.heatDetails.map(h =>
+                `${h.heatNo || 'Batch'}: ${val(h.tcNo)}, Qty: ${val(h.qtyOffered)} Nos.`
+            ).join('\n');
+        } else if (call.batchesSelected && call.batchesSelected.length > 0) {
+            sleeperBatchDetails = call.batchesSelected.map(b =>
+                `Batch ${b.batchNo}: Good: ${b.goodSleepers ? b.goodSleepers.length : 0}${b.badSleepers && b.badSleepers.length > 0 ? ' | Rejected: ' + b.badSleepers.length : ''}, Qty: ${b.goodSleepers ? b.goodSleepers.length : 0} Nos.`
+            ).join('\n');
+        } else if (call.callQty || call.totalOffered) {
+            sleeperBatchDetails = `Total Qty Offered: ${val(call.callQty || call.totalOffered)} Nos.`;
+        }
+        drawRow('Batches / Stores Details to be offered', sleeperBatchDetails);
+    } else {
+        const heatDetails = call.heatDetails && call.heatDetails.length > 0
+            ? call.heatDetails.map(h =>
+                `Heat No.: ${val(h.heatNo)}, TC No. - ${val(h.tcNo)}, Qty Offered: ${val(h.qtyOffered)} MT`
+            ).join('\n') +
+            `\n\nTotal Qty Offered - ${call.subPoQuantity || call.quantity || '-'} MT`
+            : call.tcNumber
+                ? `Heat No.: -, TC No. - ${val(call.tcNumber)}, Qty Offered: ${val(call.subPoQuantity || call.quantity)} MT\n\nTotal Qty Offered - ${val(call.subPoQuantity || call.quantity)} MT`
+                : '-';
+        drawRow('Raw Material Details to be offered', heatDetails);
+    }
 
     // Remarks
     drawRow('Remarks', val(call.remarks || call.remark), { rowH: 9 });

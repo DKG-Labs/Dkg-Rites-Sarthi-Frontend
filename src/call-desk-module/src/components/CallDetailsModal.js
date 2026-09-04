@@ -142,7 +142,6 @@ const CallDetailsModal = ({
           console.error("Error fetching IE users by role:", e);
         }
       }
-      }
 
       // 1. Fetch POI Codes and store in localStorage
       const poiRes = await axios.get(`${API_BASE_URL}/api/auth/${call.callNumber}/poi-codes`, { headers: getAuthHeaders() });

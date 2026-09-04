@@ -151,7 +151,10 @@ const PendingVerificationTab = ({
             </button>
           );
         }
-        return value || '-';
+        if (!value || value === '-' || value === 'null') {
+          return <span style={{ color: '#d97706', fontSize: '11px', fontWeight: 500 }}>Please contact admin to do mapping</span>;
+        }
+        return value;
       }
     },
     {

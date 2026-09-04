@@ -165,11 +165,29 @@ const generateQuantityRemarks = (c) => {
         qtyNowAccepted = Math.max(0, qtyNowOffered - qtyNowRejected - ercUsedCount);
     }
     
+    const isMtUom = (() => {
+        const directUom = String(c?.uom || c?.unit || c?.poUom || c?.itemUom || c?.poQtyUnit || "").trim().toUpperCase();
+        if (directUom === "MT" || directUom.includes("METRIC TON") || directUom.includes("M.T") || directUom === "TONS" || directUom === "TON") return true;
+        if (directUom === "NOS" || directUom === "NOS." || directUom === "NO" || directUom === "NO." || directUom.includes("NUMBER") || directUom.includes("SET")) return false;
+        const descStr = String(c?.description || "");
+        const poMatch = descStr.match(/PO\s+Sr\.?\s*No\.?\s*[^)]*?\b(?:For|Qty|:|-)\s*[\d,.]+\s*([A-Za-z.]+)/i);
+        if (poMatch && poMatch[1]) {
+            const u = poMatch[1].trim().toUpperCase();
+            if (u === "MT" || u.includes("METRIC") || u.includes("M.T") || u.includes("TON")) return true;
+            if (u.includes("NO") || u.includes("NUM") || u.includes("SET")) return false;
+        }
+        if (/\b(?:MT|M\.T\.|METRIC\s+TONS?)\b/i.test(descStr) && !/\b(?:NOS?\.?|NUMBERS?)\b/i.test(descStr)) return true;
+        return false;
+    })();
+
     const acceptedMt = (Math.round(((qtyNowAccepted * kFactor) / 1000) * 1000 + Number.EPSILON) / 1000);
     const acceptedMtWords = decimalNumberToWords(acceptedMt);
     const acceptedNosFormatted = Number(qtyNowAccepted).toLocaleString('en-IN');
+    const acceptedNosWords = numberToWords(qtyNowAccepted);
 
-    let text = `Quantity now passed ${acceptedMtWords} Mt Only Total Quantity is ${acceptedNosFormatted} Nos, `;
+    let text = isMtUom
+        ? `Quantity now passed ${acceptedMtWords} Mt Only Total Quantity is ${acceptedNosFormatted} Nos, `
+        : `Quantity now passed ${acceptedNosWords} (${acceptedNosFormatted}) Nos. Only, `;
     
     if (qtyNowAccepted > 0) {
         let bagsOf50 = Math.floor(qtyNowAccepted / 50);
@@ -362,6 +380,7 @@ export default function FinalProductCertificate({ call = {}, onBack }) {
       consignee: c.consigneeRailway || c.consignee || "",
       purchasingAuthority: c.purchasingAuthority || "",
       description: c.description || "",
+      uom: c.uom || c.unit || c.poUom || c.itemUom || c.poQtyUnit || "",
       qtyOnOrder: c.qtyOnOrder || 0,
       qtyOfferedPreviously: c.qtyOfferedPreviously || 0,
       qtyPassedPreviously: c.qtyPassedPreviously || 0,

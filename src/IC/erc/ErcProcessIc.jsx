@@ -90,11 +90,11 @@ const ErcProcessIC = ({ data = {}, isEditing = false, isBusy = false, onChange =
     return Number.isInteger(n) ? String(n) : String(Number(n.toFixed(3)));
   };
 
-  const getErcKFactor = (typeStr) => {
-    if (!typeStr) return 0.91;
+  const getErcKFactor = (typeStr, isProcessed = false) => {
+    if (!typeStr) return isProcessed ? 1.14 : 0.91;
     const lower = String(typeStr).toLowerCase().trim();
 
-    // MK-V: 1.088
+    // MK-V: 1.14 for Processed Qty, 1.088 for Accepted/Rejected
     if (
       lower.includes('mk-v') ||
       lower.includes('mk v') ||
@@ -107,7 +107,7 @@ const ErcProcessIC = ({ data = {}, isEditing = false, isBusy = false, onChange =
       lower.includes('t-5919') ||
       lower === '6025'
     ) {
-      return 1.088;
+      return isProcessed ? 1.14 : 1.088;
     }
 
     // J Type: 0.915
@@ -134,16 +134,51 @@ const ErcProcessIC = ({ data = {}, isEditing = false, isBusy = false, onChange =
       return 0.91;
     }
 
-    return 0.91;
+    return isProcessed ? 1.14 : 0.91;
   };
 
-  const rawErcType = data?.ercType || data?.productType || data?.description || data?.drgNo || "";
-  const kFactor = getErcKFactor(rawErcType);
+  const isMtUom = (() => {
+    // 1. Check direct UOM properties
+    const directUom = String(data?.uom || data?.unit || data?.poUom || data?.itemUom || data?.poQtyUnit || "").trim().toUpperCase();
+    if (directUom === "MT" || directUom.includes("METRIC TON") || directUom.includes("M.T") || directUom === "TONS" || directUom === "TON") {
+      return true;
+    }
+    if (directUom === "NOS" || directUom === "NOS." || directUom === "NO" || directUom === "NO." || directUom.includes("NUMBER") || directUom.includes("SET")) {
+      return false;
+    }
 
-  const formatNosWithMt = (nos) => {
+    // 2. Check description for PO Sr. No. unit, e.g. "(PO Sr. No. 003 For 27000 Nos)" or "(PO Sr. No. 003 - 50 MT)"
+    const descStr = String(data?.description || "");
+    const poMatch = descStr.match(/PO\s+Sr\.?\s*No\.?\s*[^)]*?\b(?:For|Qty|:|-)\s*[\d,.]+\s*([A-Za-z.]+)/i);
+    if (poMatch && poMatch[1]) {
+      const u = poMatch[1].trim().toUpperCase();
+      if (u === "MT" || u.includes("METRIC") || u.includes("M.T") || u.includes("TON")) {
+        return true;
+      }
+      if (u.includes("NO") || u.includes("NUM") || u.includes("SET")) {
+        return false;
+      }
+    }
+
+    // 3. Check general text in description or reference for MT vs Nos
+    if (/\b(?:MT|M\.T\.|METRIC\s+TONS?)\b/i.test(descStr) && !/\b(?:NOS?\.?|NUMBERS?)\b/i.test(descStr)) {
+      return true;
+    }
+
+    return false;
+  })();
+
+  const rawErcType = data?.ercType || data?.productType || data?.description || data?.drgNo || "";
+  const processedKFactor = getErcKFactor(rawErcType, true);
+  const acceptedKFactor = getErcKFactor(rawErcType, false);
+
+  const formatNosWithMt = (nos, factor) => {
     const n = Number(nos || 0);
     const cleanNos = formatCleanNum(n);
-    const mt = (Math.round(((n * kFactor) / 1000) * 1000 + Number.EPSILON) / 1000).toFixed(3);
+    if (!isMtUom) {
+      return `${cleanNos} Nos.`;
+    }
+    const mt = (Math.round(((n * factor) / 1000) * 1000 + Number.EPSILON) / 1000).toFixed(3);
     return `${cleanNos} Nos. ~ (${mt} MT)`;
   };
 
@@ -151,9 +186,9 @@ const ErcProcessIC = ({ data = {}, isEditing = false, isBusy = false, onChange =
   const numTotalRejected = lots.reduce((s, l) => s + Number(l.rejectedQty || 0), 0);
   const numTotalAccepted = Math.max(0, numTotalProcessed - numTotalRejected);
 
-  const totalProcessed = formatNosWithMt(numTotalProcessed);
-  const totalAccepted = formatNosWithMt(numTotalAccepted);
-  const totalRejected = formatNosWithMt(numTotalRejected);
+  const totalProcessed = formatNosWithMt(numTotalProcessed, processedKFactor);
+  const totalAccepted = formatNosWithMt(numTotalAccepted, acceptedKFactor);
+  const totalRejected = formatNosWithMt(numTotalRejected, acceptedKFactor);
 
   const displayReference = (() => {
     if (!reference) return "";

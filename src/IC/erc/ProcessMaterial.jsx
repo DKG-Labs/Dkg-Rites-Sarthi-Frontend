@@ -69,6 +69,7 @@ export default function ProcessMaterialCertificate({ call = {}, onBack }) {
       purchasingAuthority: c.purchasingAuthority || "",
       description: c.description || c.productDescription || c.productType || "",
       ercType: c.ercType || c.productType || c.product_type || c.typeOfErc || "",
+      uom: c.uom || c.unit || c.poUom || c.itemUom || c.poQtyUnit || "",
       drgNo: (() => {
         const ercType = c.ercType || c.productType || '';
         const drawingMap = { 'mk-iii': 'RT-3701', 'mk-v': 'T-5919', 'erc mk-iii': 'RT-3701', 'erc mk-v': 'T-5919' };

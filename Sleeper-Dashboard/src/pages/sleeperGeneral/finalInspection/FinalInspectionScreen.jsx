@@ -159,7 +159,6 @@ const FinalInspectionScreen = ({ call, onBack }) => {
     useEffect(() => {
         const loadInitialVerificationDetails = async () => {
             if (!call?.requestId) return;
-            if (step !== 'po-verification') return;
             try {
                 setIsLoadingData(true);
                 const [sec1Res, sec2Res, summaryRes] = await Promise.allSettled([
@@ -181,7 +180,7 @@ const FinalInspectionScreen = ({ call, onBack }) => {
                         maNo: sec1.maNo || 'N/A',
                         maDate: sec1.maDate ? sec1.maDate.split('T')[0] : 'N/A',
                         purchasingAuthority: sec1.purchasingAuthority || '',
-                        billPayingOfficer: sec1.billPayingOfficer || ''
+                        billPayingOfficer: (sec1.billPayingOfficer && sec1.billPayingOfficer !== '-') ? sec1.billPayingOfficer : (summary?.billPayingOfficer || summary?.billPayOffDesc || '')
                     });
                     setSectionAStatus('approved');
                     setIsSectionBVisible(true);
@@ -193,7 +192,8 @@ const FinalInspectionScreen = ({ call, onBack }) => {
                         poNo: summary.poNo || call.requestId,
                         poDate: summary.callDate || '',
                         poQty: summary.qtyOfferedNow ? `${summary.qtyOfferedNow} Nos` : '',
-                        vendorName: call.vendorCode || ''
+                        vendorName: call.vendorCode || '',
+                        billPayingOfficer: summary.billPayingOfficer || summary.billPayOffDesc || ''
                     }));
                 }
 
@@ -413,6 +413,28 @@ const FinalInspectionScreen = ({ call, onBack }) => {
             setIsLoadingData(true);
 
             try {
+                // Fetch verified Section 1 and Section 2 metadata unconditionally to guarantee PO & Vendor fields are never N/A
+                const [sec1Res, sec2Res] = await Promise.allSettled([
+                    apiService.getSection1Details(callNo),
+                    apiService.getSection2Details(callNo)
+                ]);
+                const sec1 = sec1Res.status === 'fulfilled' ? sec1Res.value?.responseData : null;
+                const sec2 = sec2Res.status === 'fulfilled' ? sec2Res.value?.responseData : null;
+
+                if (sec1) {
+                    setPoForm(prev => ({
+                        ...prev,
+                        poNo: sec1.rlyPoNo || prev.poNo || callNo,
+                        poDate: sec1.poDate ? sec1.poDate.split('T')[0] : prev.poDate,
+                        poQty: sec1.poQty ? `${sec1.poQty} Nos` : prev.poQty,
+                        vendorName: sec1.vendorName || prev.vendorName,
+                        maNo: sec1.maNo || prev.maNo || 'N/A',
+                        maDate: sec1.maDate ? sec1.maDate.split('T')[0] : (prev.maDate || 'N/A'),
+                        purchasingAuthority: sec1.purchasingAuthority || prev.purchasingAuthority,
+                        billPayingOfficer: (sec1.billPayingOfficer && sec1.billPayingOfficer !== '-') ? sec1.billPayingOfficer : prev.billPayingOfficer
+                    }));
+                }
+
                 // 1. Check Local Draft FIRST (Priority for edits and refreshed sessions)
                 const savedDraft = localStorage.getItem(`inspection_draft_${callNo}`);
                 let loadedFromDraft = false;
@@ -420,9 +442,20 @@ const FinalInspectionScreen = ({ call, onBack }) => {
                     try {
                         const draft = JSON.parse(savedDraft);
                         if (draft && Array.isArray(draft.batches) && draft.batches.length > 0) {
-                            setBatches(draft.batches);
+                            const currentType = draft.summaryData?.sleeperType || call?.sleeperType || '';
+                            setBatches(draft.batches.map(b => sanitizeBatchSleepers(b, currentType)));
                             if (draft.summaryData) {
-                                setSummaryData(draft.summaryData);
+                                setSummaryData({
+                                    ...draft.summaryData,
+                                    poNo: sec1?.rlyPoNo || draft.summaryData.poNo || callNo,
+                                    poDate: sec1?.poDate ? sec1.poDate.split('T')[0] : draft.summaryData.poDate,
+                                    vendorName: sec1?.vendorName || draft.summaryData.vendorName,
+                                    quantityOnOrder: sec1?.poQty ? `${sec1.poQty} Nos` : draft.summaryData.quantityOnOrder,
+                                    maNo: sec1?.maNo || draft.summaryData.maNo || 'N/A',
+                                    maDate: sec1?.maDate ? sec1.maDate.split('T')[0] : (draft.summaryData.maDate || 'N/A'),
+                                    billPayingOfficer: sec1?.billPayingOfficer || draft.summaryData.billPayingOfficer,
+                                    placeOfInspection: sec2?.placeOfInspection || draft.summaryData.placeOfInspection || sec1?.vendorName
+                                });
                             }
                             loadedFromDraft = true;
                             console.log(`[Inspection Data] Restored latest draft for ${callNo} from local cache.`);
@@ -437,7 +470,18 @@ const FinalInspectionScreen = ({ call, onBack }) => {
                     try {
                         const summaryResp = await apiService.getInspectionCallSummary(callNo);
                         if (summaryResp && summaryResp.responseData) {
-                            setSummaryData(prev => ({ ...summaryResp.responseData, ...(prev || {}) }));
+                            setSummaryData(prev => ({
+                                ...(summaryResp.responseData || {}),
+                                ...(prev || {}),
+                                poNo: sec1?.rlyPoNo || prev?.poNo || summaryResp.responseData.poNo || callNo,
+                                poDate: sec1?.poDate ? sec1.poDate.split('T')[0] : (prev?.poDate || summaryResp.responseData.poDate),
+                                vendorName: sec1?.vendorName || prev?.vendorName || summaryResp.responseData.vendorName,
+                                quantityOnOrder: sec1?.poQty ? `${sec1.poQty} Nos` : (prev?.quantityOnOrder || summaryResp.responseData.quantityOnOrder),
+                                maNo: sec1?.maNo || prev?.maNo || 'N/A',
+                                maDate: sec1?.maDate ? sec1.maDate.split('T')[0] : (prev?.maDate || 'N/A'),
+                                billPayingOfficer: sec1?.billPayingOfficer || prev?.billPayingOfficer,
+                                placeOfInspection: sec2?.placeOfInspection || prev?.placeOfInspection || sec1?.vendorName
+                            }));
                         }
                     } catch (e) {}
                     return;
@@ -450,16 +494,18 @@ const FinalInspectionScreen = ({ call, onBack }) => {
                     if (savedHeader && savedHeader.responseData) {
                         setSummaryData({
                             ...savedHeader.responseData,
-                            poNo: savedHeader.responseData.rlyPoNo,
-                            poDate: savedHeader.responseData.poDate,
-                            vendorName: savedHeader.responseData.vendorName,
-                            quantityOnOrder: savedHeader.responseData.poQty,
-                            maNo: savedHeader.responseData.maNo,
-                            maDate: savedHeader.responseData.maDate,
+                            poNo: sec1?.rlyPoNo || savedHeader.responseData.rlyPoNo || callNo,
+                            poDate: sec1?.poDate ? sec1.poDate.split('T')[0] : savedHeader.responseData.poDate,
+                            vendorName: sec1?.vendorName || savedHeader.responseData.vendorName,
+                            quantityOnOrder: sec1?.poQty ? `${sec1.poQty} Nos` : savedHeader.responseData.poQty,
+                            maNo: sec1?.maNo || savedHeader.responseData.maNo || 'N/A',
+                            maDate: sec1?.maDate ? sec1.maDate.split('T')[0] : (savedHeader.responseData.maDate || 'N/A'),
                             totalAccepted: savedHeader.responseData.acceptedQty,
                             totalRejected: savedHeader.responseData.rejectedQty,
                             noOfEtSleepers: savedHeader.responseData.etSleepers,
-                            callDate: savedHeader.responseData.callDate
+                            callDate: savedHeader.responseData.callDate,
+                            billPayingOfficer: sec1?.billPayingOfficer || savedHeader.responseData.billPayingOfficer,
+                            placeOfInspection: sec2?.placeOfInspection || sec1?.vendorName
                         });
                         hasSavedBackendData = true;
                     }
@@ -470,7 +516,8 @@ const FinalInspectionScreen = ({ call, onBack }) => {
                 try {
                     const savedBatches = await apiService.getSavedMainIeBatches(callNo);
                     if (savedBatches && savedBatches.responseData && Array.isArray(savedBatches.responseData) && savedBatches.responseData.length > 0) {
-                        const mappedSaved = savedBatches.responseData.map(b => ({
+                        const currentType = call?.sleeperType || summaryData?.sleeperType || '';
+                        const mappedSaved = savedBatches.responseData.map(b => sanitizeBatchSleepers({
                             batchNo: b.batchNo,
                             dateCasted: b.dateCasted,
                             qtyCasted: b.casted || 0,
@@ -479,22 +526,22 @@ const FinalInspectionScreen = ({ call, onBack }) => {
                             passed: b.passed || 0,
                             rejected: b.rejected || 0,
                             unoffered: b.unoffered || 0,
-                            acceptedSleepers: (b.goodSleepers || []).map(s => typeof s === 'string' ? s : s.sleeperCode),
+                            acceptedSleepers: (b.goodSleepers || []).map(s => typeof s === 'string' ? s : (s?.sleeperCode || '')).filter(s => Boolean(s) && String(s).trim() !== '0'),
                             rejectedSleepers: (b.rejectedSleepers || []).map(s => ({
-                                sleeperCode: typeof s === 'string' ? s : s.sleeperCode,
-                                reason: s.reason || 'Rejected',
-                                type: s.type || 'Main IE Rejection'
-                            })),
+                                sleeperCode: typeof s === 'string' ? s : (s?.sleeperCode || s?.sleeperNo || ''),
+                                reason: (typeof s === 'object' && s?.reason) ? s.reason : 'Rejected',
+                                type: (typeof s === 'object' && s?.type) ? s.type : 'Main IE Rejection'
+                            })).filter(s => Boolean(s.sleeperCode) && String(s.sleeperCode).trim() !== '0'),
                             etSleepers: (b.etSleepers || []).map(s => ({
-                                sleeperCode: typeof s === 'string' ? s : s.sleeperCode,
-                                reason: s.reason || 'Epoxy Treatment'
-                            })),
-                            mfTestedSleepers: (b.mfSleepers || []).map(s => typeof s === 'string' ? s : s.sleeperCode),
+                                sleeperCode: typeof s === 'string' ? s : (s?.sleeperCode || s?.sleeperNo || ''),
+                                reason: (typeof s === 'object' && s?.reason) ? s.reason : 'Epoxy Treatment'
+                            })).filter(s => Boolean(s.sleeperCode) && String(s.sleeperCode).trim() !== '0'),
+                            mfTestedSleepers: (b.mfSleepers || []).map(s => typeof s === 'string' ? s : (s?.sleeperCode || '')).filter(s => Boolean(s) && String(s).trim() !== '0'),
                             sleepers: [
-                                ...(b.goodSleepers || []).map(s => typeof s === 'string' ? s : s.sleeperCode), 
-                                ...(b.rejectedSleepers || []).map(s => typeof s === 'string' ? s : s.sleeperCode)
+                                ...(b.goodSleepers || []).map(s => typeof s === 'string' ? s : (s?.sleeperCode || '')).filter(s => Boolean(s) && String(s).trim() !== '0'), 
+                                ...(b.rejectedSleepers || []).map(s => typeof s === 'string' ? s : (s?.sleeperCode || '')).filter(s => Boolean(s) && String(s).trim() !== '0')
                             ]
-                        }));
+                        }, currentType));
                         setBatches(mappedSaved);
                         hasSavedBackendData = true;
                     }
@@ -507,7 +554,17 @@ const FinalInspectionScreen = ({ call, onBack }) => {
                     try {
                         const summaryResp = await apiService.getInspectionCallSummary(callNo);
                         if (summaryResp && summaryResp.responseData) {
-                            setSummaryData(summaryResp.responseData);
+                            setSummaryData({
+                                ...summaryResp.responseData,
+                                poNo: sec1?.rlyPoNo || summaryResp.responseData.poNo || callNo,
+                                poDate: sec1?.poDate ? sec1.poDate.split('T')[0] : summaryResp.responseData.poDate,
+                                vendorName: sec1?.vendorName || summaryResp.responseData.vendorName,
+                                quantityOnOrder: sec1?.poQty ? `${sec1.poQty} Nos` : summaryResp.responseData.quantityOnOrder,
+                                maNo: sec1?.maNo || 'N/A',
+                                maDate: sec1?.maDate ? sec1.maDate.split('T')[0] : 'N/A',
+                                billPayingOfficer: sec1?.billPayingOfficer,
+                                placeOfInspection: sec2?.placeOfInspection || sec1?.vendorName
+                            });
                         }
                     } catch (err) {
                         console.error("Error fetching initial inspection summary:", err);
@@ -516,7 +573,8 @@ const FinalInspectionScreen = ({ call, onBack }) => {
                     try {
                         const batchResp = await apiService.getBatchWiseDetails(callNo);
                         if (batchResp && batchResp.responseData && Array.isArray(batchResp.responseData)) {
-                            const mappedBatches = batchResp.responseData.map(b => ({
+                            const currentType = call?.sleeperType || summaryData?.sleeperType || '';
+                            const mappedBatches = batchResp.responseData.map(b => sanitizeBatchSleepers({
                                 batchNo: b.batchNo,
                                 dateCasted: b.castingDate,
                                 qtyCasted: b.totalSleepersCasted || 0,
@@ -525,12 +583,19 @@ const FinalInspectionScreen = ({ call, onBack }) => {
                                 passed: b.passed || 0,
                                 rejected: b.rejected || 0,
                                 unoffered: b.unoffered || 0,
-                                sleepers: [...(b.acceptedSleepers || []), ...(b.rejectedSleepers || [])],
-                                acceptedSleepers: b.acceptedSleepers || [],
-                                rejectedSleepers: b.rejectedSleepers || [],
-                                etSleepers: b.etSleepers || [],
+                                sleepers: [...(b.acceptedSleepers || []), ...(b.rejectedSleepers || [])].filter(s => Boolean(s) && String(s).trim() !== '0'),
+                                acceptedSleepers: (b.acceptedSleepers || []).map(s => typeof s === 'string' ? s : (s?.sleeperCode || '')).filter(s => Boolean(s) && String(s).trim() !== '0'),
+                                rejectedSleepers: (b.rejectedSleepers || []).map(s => ({
+                                    sleeperCode: typeof s === 'string' ? s : (s?.sleeperCode || s?.sleeperNo || ''),
+                                    reason: (typeof s === 'object' && s?.reason) ? s.reason : 'Rejected',
+                                    type: (typeof s === 'object' && s?.type) ? s.type : 'Main IE Rejection'
+                                })).filter(s => Boolean(s.sleeperCode) && String(s.sleeperCode).trim() !== '0'),
+                                etSleepers: (b.etSleepers || []).map(s => ({
+                                    sleeperCode: typeof s === 'string' ? s : (s?.sleeperCode || s?.sleeperNo || ''),
+                                    reason: (typeof s === 'object' && s?.reason) ? s.reason : 'Epoxy Treatment'
+                                })).filter(s => Boolean(s.sleeperCode) && String(s.sleeperCode).trim() !== '0'),
                                 mfTestedSleepers: []
-                            }));
+                            }, currentType));
                             setBatches(mappedBatches);
                         }
                     } catch (err) {
@@ -562,22 +627,186 @@ const FinalInspectionScreen = ({ call, onBack }) => {
         }
     }, [batches, summaryData, call?.requestId, call?.shift, icForm?.shift, icForm?.callDate]);
 
-    const getSCode = (s) => (typeof s === 'string' ? s : (s?.sleeperCode || ''));
+    const getSCode = (s) => {
+        if (s === null || s === undefined || s === 0 || s === '0') return '';
+        if (typeof s === 'string') return s.trim();
+        return (s?.sleeperCode || s?.sleeperNo || s?.code || '').toString().trim();
+    };
     const getSReason = (s) => (typeof s === 'string' ? '' : (s?.reason || ''));
+
+    const TURNOUT_SLEEPER_CONFIG = {
+        '1 in 12 PnC: RT-9790': {
+            approach: ['60S', '60-4A', '60-3A', '60-2AS', '60-1AS'],
+            turnout: Array.from({ length: 83 }, (_, i) => (i + 1).toString()),
+            exit: ['1E', '2E', '3E', '4E']
+        },
+        '1 in 12 PnC: RT-4218': {
+            approach: ['60S', '1AS', '2AS', '3A', '4A'],
+            turnout: Array.from({ length: 83 }, (_, i) => (i + 1).toString()),
+            exit: ['1E', '2E', '3E', '4E']
+        },
+        '1 in 8.5 PnC: RT-4865': {
+            approach: ['60S', '1AS', '2AS', '3A', '4A'],
+            turnout: Array.from({ length: 54 }, (_, i) => (i + 1).toString()),
+            exit: ['1E', '2E', '3E', '4E']
+        },
+        '1 in 8.5 PnC: RT-9841': {
+            approach: ['90S', '90-4A', '90-3A', '90-2AS'],
+            turnout: Array.from({ length: 83 }, (_, i) => (i + 1).toString()),
+            exit: ['1E', '2E', '3E', '4E']
+        },
+        '1 in 8.5 DS: RT-6068': {
+            approach: ['60S', '1AS', '2AS', '3A', '4A'],
+            turnout: Array.from({ length: 22 }, (_, i) => (i + 1).toString()),
+            exit: ['1E', '2E', '3E', '4E']
+        },
+        '1 in 16 curved: RT-5691': {
+            approach: ['60S', '1AS', '2AS', '3A', '4A'],
+            turnout: Array.from({ length: 101 }, (_, i) => (i + 1).toString()),
+            exit: ['1E', '2E', '3E', '4E']
+        },
+        '1 in 20 curved: RT-5858': {
+            approach: ['120S', '120-4A', '120-3A'],
+            turnout: Array.from({ length: 83 }, (_, i) => (i + 1).toString()),
+            exit: ['1E', '2E', '3E', '4E']
+        },
+        '1 in 8.5 SCC: RT-6092': {
+            approach: ['130S', '130-4A', '130-3A'],
+            turnout: Array.from({ length: 83 }, (_, i) => (i + 1).toString()),
+            exit: ['1E', '2E', '3E', '4E']
+        },
+        '1 in 12 SCC: RT-8109': {
+            approach: ['140S', '140-4A', '140-3A', '140-2AS'],
+            turnout: Array.from({ length: 83 }, (_, i) => (i + 1).toString()),
+            exit: ['1E', '2E', '3E', '4E']
+        },
+        '1 in 8.5 DCS: RT-6492': {
+            approach: ['150S', '150-4A', '150-3A'],
+            turnout: Array.from({ length: 83 }, (_, i) => (i + 1).toString()),
+            exit: ['1E', '2E', '3E', '4E']
+        },
+        '1 in 8.5 DCS: RT-6493': {
+            approach: ['160S', '160-4A'],
+            turnout: Array.from({ length: 83 }, (_, i) => (i + 1).toString()),
+            exit: ['1E', '2E', '3E', '4E']
+        },
+        '1 in 8.5 DCS: RT-6494': {
+            approach: ['170S', '170-4A', '170-3A'],
+            turnout: Array.from({ length: 83 }, (_, i) => (i + 1).toString()),
+            exit: ['1E', '2E', '3E', '4E']
+        }
+    };
+
+    const getTurnoutSleepers = (sleeperType, maxCount) => {
+        const typeStr = sleeperType || summaryData?.sleeperType || icForm?.ercType || call?.sleeperType || '';
+        const matchedKey = Object.keys(TURNOUT_SLEEPER_CONFIG).find(k => 
+            typeStr && (
+                k.toLowerCase().includes(typeStr.toLowerCase()) || 
+                typeStr.toLowerCase().includes(k.toLowerCase()) || 
+                (typeStr.includes('9790') && k.includes('9790')) || 
+                (typeStr.includes('4218') && k.includes('4218')) || 
+                (typeStr.includes('4865') && k.includes('4865')) || 
+                (typeStr.includes('9841') && k.includes('9841'))
+            )
+        ) || '1 in 12 PnC: RT-9790';
+
+        const cfg = TURNOUT_SLEEPER_CONFIG[matchedKey];
+        const fullList = [...cfg.approach, ...cfg.turnout, ...cfg.exit];
+        return typeof maxCount === 'number' && maxCount > 0 ? fullList.slice(0, maxCount) : fullList;
+    };
+
+    const naturalSortSleepers = (arr = [], sType = '') => {
+        const typeStr = sType || summaryData?.sleeperType || icForm?.ercType || call?.sleeperType || '';
+        const isTurnout = typeStr.includes('PnC') || typeStr.includes('RT-9790') || typeStr.includes('RT-4218') || typeStr.includes('RT-4865') || typeStr.includes('Turnout') || (batches?.[0]?.batchNo || '').toUpperCase().startsWith('TO');
+        
+        if (isTurnout) {
+            const turnoutSeq = getTurnoutSleepers(typeStr);
+            const orderMap = new Map(turnoutSeq.map((c, i) => [c, i]));
+            return [...arr].sort((a, b) => {
+                const codeA = getSCode(a);
+                const codeB = getSCode(b);
+                const idxA = orderMap.has(codeA) ? orderMap.get(codeA) : 9999;
+                const idxB = orderMap.has(codeB) ? orderMap.get(codeB) : 9999;
+                if (idxA !== idxB) return idxA - idxB;
+                return codeA.localeCompare(codeB, undefined, { numeric: true, sensitivity: 'base' });
+            });
+        }
+
+        return [...arr].sort((a, b) => {
+            const codeA = getSCode(a);
+            const codeB = getSCode(b);
+            const numA = parseInt(codeA.replace(/\D/g, ''), 10);
+            const numB = parseInt(codeB.replace(/\D/g, ''), 10);
+            if (!isNaN(numA) && !isNaN(numB) && numA !== numB) {
+                return numA - numB;
+            }
+            return codeA.localeCompare(codeB, undefined, { numeric: true, sensitivity: 'base' });
+        });
+    };
+
+    const sanitizeBatchSleepers = (b, sType) => {
+        const currentType = sType || summaryData?.sleeperType || icForm?.ercType || call?.sleeperType || '';
+        const isTurnout = (currentType && (currentType.includes('PnC') || currentType.includes('RT-9790') || currentType.includes('RT-4218') || currentType.includes('RT-4865') || currentType.includes('Turnout'))) || (b.batchNo && b.batchNo.toUpperCase().startsWith('TO'));
+        
+        let accepted = (b.goodSleepers || b.acceptedSleepers || []).map(s => typeof s === 'string' ? s : (s?.sleeperCode || '')).filter(s => Boolean(s) && String(s).trim() !== '0');
+        let rejected = (b.rejectedSleepers || []).map(s => ({
+            sleeperCode: typeof s === 'string' ? s : (s?.sleeperCode || s?.sleeperNo || ''),
+            reason: (typeof s === 'object' && s?.reason) ? s.reason : 'Rejected',
+            type: (typeof s === 'object' && s?.type) ? s.type : 'Main IE Rejection'
+        })).filter(s => Boolean(s.sleeperCode) && String(s.sleeperCode).trim() !== '0');
+
+        if (isTurnout) {
+            const hasWrongLineNumbers = accepted.some(s => /^\d{5,}$/.test(s)) || rejected.some(s => /^\d{5,}$/.test(s.sleeperCode));
+            if (hasWrongLineNumbers || accepted.length === 0) {
+                const count = b.qtyCasted || b.casted || b.offeredNow || b.totalSleepersCasted || 62;
+                const turnoutList = getTurnoutSleepers(currentType, count);
+                
+                if (rejected.length > 0) {
+                    const validRejected = rejected.map((r, idx) => {
+                        const code = getSCode(r);
+                        if (turnoutList.includes(code)) return r;
+                        const mappedCode = turnoutList[idx] || code;
+                        return { ...r, sleeperCode: mappedCode };
+                    });
+                    const rejectedCodes = new Set(validRejected.map(r => getSCode(r)));
+                    accepted = turnoutList.filter(s => !rejectedCodes.has(s));
+                    rejected = validRejected;
+                } else {
+                    accepted = turnoutList;
+                }
+            }
+        }
+
+        return {
+            ...b,
+            acceptedSleepers: naturalSortSleepers(accepted, currentType),
+            rejectedSleepers: naturalSortSleepers(rejected, currentType),
+            passed: accepted.length,
+            rejected: rejected.length
+        };
+    };
 
     const saveAllInspectionData = async () => {
         const user = getStoredUser();
         const plantId = localStorage.getItem('plantId');
-        const callNo = call.requestId || call.callNo || call.call_no || call.id;
-        const chosenShift = call.shift || icForm.shift || 'Shift A';
-        const inspectionDate = formatDateDMY(summaryData?.callDate || icForm.callDate || new Date());
+        const callNo = call?.requestId || call?.callNo || call?.call_no || call?.id;
+        const chosenShift = call?.shift || icForm?.shift || 'Shift A';
+        const rawInspDate = call?.dateOfInspection || call?.inspectionDate || call?.date || summaryData?.callDate || icForm?.callDate || new Date();
+        const inspectionDate = formatDateDMY(rawInspDate);
         const sleeperType = icForm.ercType || summaryData?.sleeperType || 'PSC Sleeper';
 
         // 1. Save SleeperFinalResult (Dedicated Table & Batch Results Table)
+        const effectiveSrNo = String(summaryData?.srNo || call?.srNo || call?.itemSrNo || call?.poSrNo || icForm?.itemSrNo || (icForm?.rlyPoSr ? icForm.rlyPoSr.split('/').pop().trim() : '') || '001').trim();
+        let purePo = String(call?.poNo || summaryData?.poNo || poForm?.poNo || '').trim();
+        if (purePo.includes('/')) {
+            const segments = purePo.split('/').map(s => s.trim()).filter(Boolean);
+            const foundNumericPo = segments.find(s => s.length >= 8 && /^\d+$/.test(s));
+            if (foundNumericPo) purePo = foundNumericPo;
+        }
         const finalResultPayload = {
             callNumber: callNo,
-            poNo: summaryData?.poNo || poForm.poNo,
-            srNo: String(call.srNo || icForm.itemSrNo || '1'),
+            poNo: purePo,
+            srNo: effectiveSrNo,
             shift: chosenShift,
             dateOfInspection: inspectionDate,
             sleeperType: sleeperType,
@@ -765,12 +994,12 @@ const FinalInspectionScreen = ({ call, onBack }) => {
         setBatches(prev => prev.map(batch => {
             if (batch.batchNo === rejectionEntry.batchNo) {
                 if (batch.rejectedSleepers.some(s => getSCode(s) === rejectionEntry.sleeperNo)) return batch;
-                const newAccepted = batch.acceptedSleepers.filter(s => getSCode(s) !== rejectionEntry.sleeperNo);
-                const newRejected = [...batch.rejectedSleepers, { 
+                const newAccepted = naturalSortSleepers(batch.acceptedSleepers.filter(s => getSCode(s) !== rejectionEntry.sleeperNo));
+                const newRejected = naturalSortSleepers([...batch.rejectedSleepers, { 
                     sleeperCode: rejectionEntry.sleeperNo, 
                     reason: rejectionEntry.reason, 
                     type: 'Main IE Rejection' 
-                }];
+                }]);
                 return {
                     ...batch,
                     acceptedSleepers: newAccepted,
@@ -792,11 +1021,11 @@ const FinalInspectionScreen = ({ call, onBack }) => {
             if (batch.batchNo === etEntry.batchNo) {
                 if (batch.etSleepers.some(s => getSCode(s) === etEntry.sleeperNo)) return batch;
                 
-                const newAccepted = batch.acceptedSleepers.filter(s => getSCode(s) !== etEntry.sleeperNo);
-                const newEt = [...batch.etSleepers, { 
+                const newAccepted = naturalSortSleepers(batch.acceptedSleepers.filter(s => getSCode(s) !== etEntry.sleeperNo));
+                const newEt = naturalSortSleepers([...batch.etSleepers, { 
                     sleeperCode: etEntry.sleeperNo, 
                     reason: etEntry.reason 
-                }];
+                }]);
                 return {
                     ...batch,
                     acceptedSleepers: newAccepted,
@@ -812,8 +1041,8 @@ const FinalInspectionScreen = ({ call, onBack }) => {
     const removeRejection = (batchNo, sleeperNo) => {
         setBatches(prev => prev.map(batch => {
             if (batch.batchNo === batchNo) {
-                const newRejected = batch.rejectedSleepers.filter(s => getSCode(s) !== sleeperNo);
-                const newAccepted = [...batch.acceptedSleepers, sleeperNo];
+                const newRejected = naturalSortSleepers(batch.rejectedSleepers.filter(s => getSCode(s) !== sleeperNo));
+                const newAccepted = naturalSortSleepers([...batch.acceptedSleepers, sleeperNo]);
                 return {
                     ...batch,
                     acceptedSleepers: newAccepted,
@@ -829,8 +1058,8 @@ const FinalInspectionScreen = ({ call, onBack }) => {
     const removeEt = (batchNo, sleeperNo) => {
         setBatches(prev => prev.map(batch => {
             if (batch.batchNo === batchNo) {
-                const newEt = batch.etSleepers.filter(s => getSCode(s) !== sleeperNo);
-                const newAccepted = [...batch.acceptedSleepers, sleeperNo];
+                const newEt = naturalSortSleepers(batch.etSleepers.filter(s => getSCode(s) !== sleeperNo));
+                const newAccepted = naturalSortSleepers([...batch.acceptedSleepers, sleeperNo]);
                 return {
                     ...batch,
                     acceptedSleepers: newAccepted,
@@ -1320,9 +1549,9 @@ const FinalInspectionScreen = ({ call, onBack }) => {
                                                     <td colSpan="8">
                                                         <div className="expanded-details">
                                                             <div className="detail-list">
-                                                                <h6>Rejected Sleepers ({batch.rejectedSleepers.length})</h6>
+                                                                <h6>Rejected Sleepers ({batch.rejectedSleepers.filter(s => getSCode(s) !== '' && getSCode(s) !== '0').length})</h6>
                                                                 <div className="tag-container">
-                                                                    {batch.rejectedSleepers.map(s => {
+                                                                    {batch.rejectedSleepers.filter(s => getSCode(s) !== '' && getSCode(s) !== '0').map(s => {
                                                                         const sCode = getSCode(s);
                                                                         const sReason = getSReason(s);
                                                                         return (
@@ -1333,13 +1562,13 @@ const FinalInspectionScreen = ({ call, onBack }) => {
                                                                             </span>
                                                                         );
                                                                     })}
-                                                                    {batch.rejectedSleepers.length === 0 && <span className="empty">None</span>}
+                                                                    {batch.rejectedSleepers.filter(s => getSCode(s) !== '' && getSCode(s) !== '0').length === 0 && <span className="empty">None</span>}
                                                                 </div>
                                                             </div>
                                                             <div className="detail-list">
-                                                                <h6>Epoxy Treated (ET) ({batch.etSleepers.length})</h6>
+                                                                <h6>Epoxy Treated (ET) ({batch.etSleepers.filter(s => getSCode(s) !== '' && getSCode(s) !== '0').length})</h6>
                                                                 <div className="tag-container">
-                                                                    {batch.etSleepers.map(s => {
+                                                                    {batch.etSleepers.filter(s => getSCode(s) !== '' && getSCode(s) !== '0').map(s => {
                                                                         const sCode = getSCode(s);
                                                                         const sReason = getSReason(s);
                                                                         return (
@@ -1350,19 +1579,19 @@ const FinalInspectionScreen = ({ call, onBack }) => {
                                                                             </span>
                                                                         );
                                                                     })}
-                                                                    {batch.etSleepers.length === 0 && <span className="empty">None</span>}
+                                                                    {batch.etSleepers.filter(s => getSCode(s) !== '' && getSCode(s) !== '0').length === 0 && <span className="empty">None</span>}
                                                                 </div>
                                                             </div>
                                                             <div className="detail-list">
-                                                                <h6>MF Tested ({batch.mfTestedSleepers.length})</h6>
+                                                                <h6>MF Tested ({batch.mfTestedSleepers.filter(s => getSCode(s) !== '' && getSCode(s) !== '0').length})</h6>
                                                                 <div className="tag-container">
-                                                                    {batch.mfTestedSleepers.map(s => {
+                                                                    {batch.mfTestedSleepers.filter(s => getSCode(s) !== '' && getSCode(s) !== '0').map(s => {
                                                                         const sCode = getSCode(s);
                                                                         return (
                                                                             <span key={sCode} className="tag mf">{sCode}</span>
                                                                         );
                                                                     })}
-                                                                    {batch.mfTestedSleepers.length === 0 && <span className="empty">None</span>}
+                                                                    {batch.mfTestedSleepers.filter(s => getSCode(s) !== '' && getSCode(s) !== '0').length === 0 && <span className="empty">None</span>}
                                                                 </div>
                                                             </div>
                                                         </div>
@@ -1427,11 +1656,12 @@ const FinalInspectionScreen = ({ call, onBack }) => {
                                                 <ModernSearchableSelect
                                                     value={rejectionEntry.sleeperNo}
                                                     onChange={(val) => setRejectionEntry({...rejectionEntry, sleeperNo: val})}
-                                                    options={(batches.find(b => b.batchNo === rejectionEntry.batchNo)?.acceptedSleepers || [])
+                                                    options={naturalSortSleepers(batches.find(b => b.batchNo === rejectionEntry.batchNo)?.acceptedSleepers || [])
                                                         .map(s => {
-                                                            const code = typeof s === 'string' ? s : s?.sleeperCode;
+                                                            const code = getSCode(s);
                                                             return { value: code, label: code };
-                                                        })}
+                                                        })
+                                                        .filter(opt => Boolean(opt.value) && opt.value !== '0')}
                                                     placeholder={rejectionEntry.batchNo ? "Search or Select Sleeper" : "Select Batch first"}
                                                     disabled={!rejectionEntry.batchNo}
                                                     theme="red"
@@ -1498,11 +1728,12 @@ const FinalInspectionScreen = ({ call, onBack }) => {
                                                 <ModernSearchableSelect
                                                     value={etEntry.sleeperNo}
                                                     onChange={(val) => setEtEntry({...etEntry, sleeperNo: val})}
-                                                    options={(batches.find(b => b.batchNo === etEntry.batchNo)?.acceptedSleepers || [])
+                                                    options={naturalSortSleepers(batches.find(b => b.batchNo === etEntry.batchNo)?.acceptedSleepers || [])
                                                         .map(s => {
-                                                            const code = typeof s === 'string' ? s : s?.sleeperCode;
+                                                            const code = getSCode(s);
                                                             return { value: code, label: code };
-                                                        })}
+                                                        })
+                                                        .filter(opt => Boolean(opt.value) && opt.value !== '0')}
                                                     placeholder={etEntry.batchNo ? "Search or Select Sleeper" : "Select Batch first"}
                                                     disabled={!etEntry.batchNo}
                                                     theme="blue"

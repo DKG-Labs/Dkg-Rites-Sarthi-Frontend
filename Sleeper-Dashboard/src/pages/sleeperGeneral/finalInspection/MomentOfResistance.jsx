@@ -48,12 +48,12 @@ const MomentOfResistance = () => {
             const vResponse = await apiService.getAllVerifedWaterBatchs(params);
             const vData = vResponse?.responseData || vResponse || [];
             
-            // 2. Fetch Declared MR Records (Pending Testing)
-            const mrResponse = await apiService.getMRTodayRecords(params);
+            // 2. Fetch Declared MR Records (Pending Testing across all dates)
+            const mrResponse = await apiService.getAllMRRecords();
             const mrData = mrResponse?.responseData || mrResponse || [];
 
-            // 3. Fetch Completed MR Tests (Historical)
-            const testResponse = await apiService.getMRTestTodayRecords(params);
+            // 3. Fetch Completed MR Tests (Historical Records across all dates)
+            const testResponse = await apiService.getAllMRTests();
             const testData = testResponse?.responseData || testResponse || [];
 
             const isSamePlant = (itemPlant, targetPlant) => {
@@ -62,6 +62,19 @@ const MomentOfResistance = () => {
             };
 
             const vBatchIdMap = new Map(vData.map(v => [String(v.batchNumber), v.id]));
+
+            // Batches that have completed testing (Pass or Fail)
+            const passedBatchNos = new Set(
+                testData
+                    .filter(t => isSamePlant(t.plantId, params.plantId) && String(t.testResult).toLowerCase() === 'pass')
+                    .map(t => String(t.batchNumber))
+            );
+            const failedBatchNos = new Set(
+                testData
+                    .filter(t => isSamePlant(t.plantId, params.plantId) && String(t.testResult).toLowerCase() === 'fail')
+                    .map(t => String(t.batchNumber))
+            );
+            const completedBatchNos = new Set([...passedBatchNos, ...failedBatchNos]);
 
             // Map Verified Batches
             const mappedVerified = vData
@@ -86,7 +99,7 @@ const MomentOfResistance = () => {
             // Map Declared Records (Pending Results)
             const mappedDeclared = mrData
                 .filter(item => isSamePlant(item.plantId, params.plantId))
-                .filter(item => !item.testResult || item.testResult === 'Pending')
+                .filter(item => (!item.testResult || item.testResult === 'Pending') && !completedBatchNos.has(String(item.batchNumber)))
                 .map(item => {
                     const bList = String(item.benchNumber || '').split(',').map(s => s.trim());
                     const sList = String(item.sleeperNo || '').split(',').map(s => s.trim());
@@ -108,7 +121,7 @@ const MomentOfResistance = () => {
                         declaredSamples: samples,
                         castingDate: item.createdDate?.split('T')[0], 
                         status: 'Testing Pending',
-                        mrTestType: 'Fresh',
+                        mrTestType: item.mrTestType || 'Fresh',
                         isTestRecord: false
                     };
                 });
@@ -138,8 +151,11 @@ const MomentOfResistance = () => {
                 });
             
             // Map Retest Batches (Items with Retest status that need re-declaration of 2 samples)
-            const pendingBatchNos = new Set(mrData.filter(d => !d.testResult || d.testResult === 'Pending').map(d => String(d.batchNumber)));
-            const passedBatchNos = new Set(testData.filter(t => String(t.testResult).toLowerCase() === 'pass').map(t => String(t.batchNumber)));
+            const pendingBatchNos = new Set(
+                mrData
+                    .filter(d => isSamePlant(d.plantId, params.plantId) && (!d.testResult || d.testResult === 'Pending'))
+                    .map(d => String(d.batchNumber))
+            );
 
             const retestBatches = [...testData, ...mrData]
                 .filter(item => isSamePlant(item.plantId, params.plantId))

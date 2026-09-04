@@ -3,6 +3,50 @@ import SleeperFinalIc from "./SleeperFinalIc";
 import { apiService, API_BASE_URL } from "../../../services/api";
 import { getStoredUser } from '../../../services/authService';
 
+const numberToWords = (num) => {
+    num = parseFloat(num) || 0;
+    if (num === 0) return "Zero";
+    const a = ["", "One ", "Two ", "Three ", "Four ", "Five ", "Six ", "Seven ", "Eight ", "Nine ", "Ten ", "Eleven ", "Twelve ", "Thirteen ", "Fourteen ", "Fifteen ", "Sixteen ", "Seventeen ", "Eighteen ", "Nineteen "];
+    const b = ["", "", "Twenty", "Thirty", "Forty", "Fifty", "Sixty", "Seventy", "Eighty", "Ninety"];
+    
+    if ((num = num.toString()).length > 9) return "Overflow";
+    let n = ("000000000" + num).substr(-9).match(/^(\d{2})(\d{2})(\d{2})(\d{1})(\d{2})$/);
+    if (!n) return "";
+    let str = "";
+    str += (Number(n[1]) !== 0) ? (a[Number(n[1])] || b[n[1][0]] + " " + a[n[1][1]]) + "Crore " : "";
+    str += (Number(n[2]) !== 0) ? (a[Number(n[2])] || b[n[2][0]] + " " + a[n[2][1]]) + "Lakh " : "";
+    str += (Number(n[3]) !== 0) ? (a[Number(n[3])] || b[n[3][0]] + " " + a[n[3][1]]) + "Thousand " : "";
+    str += (Number(n[4]) !== 0) ? (a[Number(n[4])] || b[n[4][0]] + " " + a[n[4][1]]) + "Hundred " : "";
+    str += (Number(n[5]) !== 0) ? ((str !== "") ? "and " : "") + (a[Number(n[5])] || b[n[5][0]] + " " + a[n[5][1]]) : "";
+    return str.trim();
+};
+
+const formatDate = (val) => {
+    if (!val) return "";
+    if (typeof val === 'string' && /^\d{2}\.\d{2}\.\d{4}$/.test(val.trim())) return val.trim();
+    try {
+        const d = new Date(val);
+        if (isNaN(d.getTime())) return String(val);
+        const day = String(d.getDate()).padStart(2, '0');
+        const month = String(d.getMonth() + 1).padStart(2, '0');
+        const year = d.getFullYear();
+        return `${day}.${month}.${year}`;
+    } catch {
+        return String(val);
+    }
+};
+
+const extractNumber = (val, fallback = "") => {
+    if (val === null || val === undefined || val === "") return fallback;
+    if (typeof val === 'number') return Math.round(val).toString();
+    const str = String(val).trim();
+    const parts = str.split('-');
+    const numPart = parts.length > 1 ? parts[parts.length - 1].trim() : str;
+    const parsed = parseFloat(numPart.replace(/[^0-9.-]/g, ''));
+    if (isNaN(parsed)) return str.replace(/\D/g, '') || fallback;
+    return Math.round(parsed).toString();
+};
+
 export default function SleeperFinalProductCertificate() {
   const printAreaRef = useRef();
   const [isEditing, setIsEditing] = useState(false);
@@ -14,7 +58,7 @@ export default function SleeperFinalProductCertificate() {
 
   useEffect(() => {
     try {
-        const storedCallStr = localStorage.getItem('selectedICCall');
+        const storedCallStr = localStorage.getItem('selectedICCall') || sessionStorage.getItem('activeInspectionCall');
         if (storedCallStr) {
             setCall(JSON.parse(storedCallStr));
         }
@@ -25,85 +69,145 @@ export default function SleeperFinalProductCertificate() {
 
   const handleCloseNotification = () => setNotification({ ...notification, open: false });
 
-  const [data, setData] = useState({
-      certificateNo: call?.certificateNo || call?.icNo || "",
-      certificateDate: new Date().toLocaleDateString('en-GB'),
-      bookNo: "",
-      setNo: "",
-      offeredInstNo: "",
-      passedInstNo: "",
-      purchasingAuthority: call?.purchasingAuthority || "",
-      poNo: call?.poNo || call?.po_no || "",
-      contractRef: "",
-      billPayingOfficer: "",
-      contractor: call?.vendorName || call?.vendorCode || call?.contractor || "",
-      placeOfInspection: call?.placeOfInspection || "",
-      consignee: call?.consignee || "",
-      itemNo: "",
-      descriptionOfStores: call?.description || "",
-      qtyOnOrder: call?.qtyOnOrder || "",
-      qtyOfferedPreviously: call?.qtyOfferedPreviously || "",
-      qtyPassedPreviously: call?.qtyPassedPreviously || "",
-      qtyNowOffered: call?.qtyNowOffered || call?.qty || "",
-      qtyNowPassed: call?.qtyNowPassed || call?.accepted || "",
-      qtyNowRejected: call?.qtyNowRejected || call?.rejected || "",
-      qtyStillDue: call?.qtyStillDue || "",
-      quantityNowPassedText: "",
-      noOfItemsChecked: "",
-      dateOfCall: "",
-      noOfVisits: "",
-      datesOfInspection: "",
-      trRecDate: "",
-      sealingPattern: "",
-      facsimileText: "",
-      reasonsForRejection: "",
-      inspectingEngineer: ""
-  });
+  const transformCallToIC = (c, ic = null) => {
+    const qtyOnOrder = extractNumber(ic?.quantityOnOrder, c?.qtyOnOrder || c?.poQty || "");
+    const qtyOfferedPreviously = extractNumber(ic?.cumulativeQtyOfferedPreviously, c?.qtyOfferedPreviously || "0");
+    const qtyPassedPreviously = extractNumber(ic?.quantityPreviouslyPassed, c?.qtyPassedPreviously || "0");
+    const qtyNowOffered = extractNumber(ic?.qtyNowOffered, c?.qtyNowOffered || c?.qty || c?.totalOffered || "");
+    const qtyNowPassed = extractNumber(ic?.qtyNowPassed, c?.qtyNowPassed || c?.accepted || c?.totalAccepted || "");
+    const qtyNowRejected = extractNumber(ic?.qtyNowRejected, c?.qtyNowRejected || c?.rejected || c?.totalRejected || "0");
 
-  const extractNumber = (val, fallback = "") => {
-      if (val === null || val === undefined || val === "") return fallback;
-      if (typeof val === 'number') return Math.round(val).toString();
-      const str = String(val).trim();
-      const parts = str.split('-');
-      const numPart = parts.length > 1 ? parts[parts.length - 1].trim() : str;
-      const parsed = parseFloat(numPart.replace(/[^0-9.-]/g, ''));
-      if (isNaN(parsed)) return str.replace(/\D/g, '') || fallback;
-      return Math.round(parsed).toString();
+    const numOrder = parseFloat(qtyOnOrder) || 0;
+    const numPrevPassed = parseFloat(qtyPassedPreviously) || 0;
+    const numNowPassed = parseFloat(qtyNowPassed) || 0;
+    const calculatedStillDue = Math.max(0, numOrder - numPrevPassed - numNowPassed);
+    const qtyStillDue = extractNumber(ic?.qtyStillDue, String(calculatedStillDue));
+
+    // Date of call + Desired date
+    let dateOfCall = ic?.dateOfCall || c?.dateOfCall || "";
+    if (!dateOfCall || !dateOfCall.includes("Desired Date:")) {
+        const cDate = c?.callDate || c?.createdDate || c?.date || new Date().toISOString();
+        const dDate = c?.desiredInspectionDate || c?.desiredDate || cDate;
+        const fmtCDate = formatDate(cDate);
+        const fmtDDate = formatDate(dDate);
+        dateOfCall = `${fmtCDate}, Desired Date: ${fmtDDate}`;
+    }
+
+    // Date of inspection
+    let datesOfInspection = ic?.dateOfInspection || ic?.datesOfInspection || c?.datesOfInspection || c?.dateOfInspection || c?.inspectionDate || "";
+    if (datesOfInspection) {
+        datesOfInspection = formatDate(datesOfInspection);
+    } else {
+        datesOfInspection = formatDate(new Date().toISOString());
+    }
+
+    const numPassed = parseFloat(qtyNowPassed) || 0;
+    const numRejected = parseFloat(qtyNowRejected) || 0;
+    const mfCount = parseFloat(c?.mfCount || c?.mfTestingQty || (Array.isArray(c?.mfSleepers) ? c.mfSleepers.length : 0) || ic?.mfCount || 0) || 0;
+
+    let batchStr = "";
+    if (ic?.quantityNowPassedBatchNos) {
+        batchStr = ic.quantityNowPassedBatchNos;
+    } else if (c?.batchNos) {
+        batchStr = c.batchNos;
+    } else if (Array.isArray(c?.batches) && c.batches.length > 0) {
+        batchStr = c.batches.map(b => (typeof b === 'object' ? (b.batchNo || b.batch_no || '') : b)).filter(Boolean).join(', ');
+    }
+
+    const passedWords = numberToWords(numPassed);
+    let defaultQtyPassedText = `Quantity Now Passed- ${passedWords} numbers only`;
+    if (mfCount > 0) {
+        const mfWords = numberToWords(mfCount).toLowerCase();
+        defaultQtyPassedText += ` including ${mfWords} numbers destroyed during MFT Testing. `;
+    } else {
+        defaultQtyPassedText += `. `;
+    }
+
+    if (numRejected > 0) {
+        const rejWords = numberToWords(numRejected);
+        defaultQtyPassedText += `${rejWords} numbers rejected during inspection as detailed in Annexure–I to IC attached.`;
+    } else {
+        defaultQtyPassedText += `Nil numbers rejected during inspection.`;
+    }
+
+    if (batchStr && String(batchStr).trim().length > 0) {
+        defaultQtyPassedText += ` Casting Batch No ${batchStr.trim()}`;
+    }
+
+    const callNum = c?.requestId || c?.callNo || c?.call_no || (ic?.certificateNo ? ic.certificateNo.split('/')?.[1] : "");
+    let itemSr = ic?.itemNo || c?.itemNo || c?.srNo || "002";
+    try {
+        if (/^\d+$/.test(String(itemSr).trim())) {
+            itemSr = String(itemSr).trim().padStart(3, '0');
+        }
+    } catch (_) {}
+
+    let rawDesc = ic?.descriptionOfStores || c?.descriptionOfStores || c?.description || "MANUFACTURE AND SUPPLY OF PRESTRESSED MONO-BLOCK CONCRETE LINE SLEEPERES (RT-8746) (PRETENSIONED TYPE) FOR BROAD GAUGE(1673 MM)";
+    
+    // Strip any legacy prefix
+    let cleanDesc = rawDesc
+        .replace(/^CALL NO:\s*[^,]+,\s*PO SR NO:\s*\S+\s*-\s*/i, '')
+        .replace(/^[A-Z0-9-]+\/\d+\s*-\s*/i, '');
+
+    let finalDesc = callNum ? `${callNum}/${itemSr} - ${cleanDesc}` : cleanDesc;
+
+    return {
+        certificateNo: ic?.certificateNo || c?.certificateNo || c?.icNo || "",
+        certificateDate: ic?.date || c?.certificateDate || formatDate(new Date().toISOString()),
+        bookNo: ic?.bookNo || c?.bookNo || "",
+        setNo: ic?.setNo || c?.setNo || "",
+        offeredInstNo: ic?.offeredInstallmentNumber ? String(ic.offeredInstallmentNumber) : (c?.offeredInstNo || "1"),
+        passedInstNo: ic?.passedInstallmentNumber ? String(ic.passedInstallmentNumber) : (c?.passedInstNo || "1"),
+        contractor: ic?.contractor || c?.vendorName || c?.vendorCode || c?.contractor || "",
+        placeOfInspection: ic?.placeOfInspection || c?.placeOfInspection || c?.vendorName || "",
+        contractRef: ic?.contractRefAndDate || c?.contractRef || (c?.poNo ? `PO NO. - ${c.poNo}` : ""),
+        maNumberAndDate: ic?.maNumberAndDate || c?.maNumberAndDate || c?.maNo || "",
+        billPayingOfficer: ic?.billPayingOffice || ic?.billPayingOfficer || c?.billPayingOfficer || c?.billPayOffDesc || "",
+        consignee: ic?.consignee || c?.consignee || "",
+        purchasingAuthority: ic?.purchasingAuthority || c?.purchasingAuthority || "",
+        itemNo: itemSr,
+        description: finalDesc,
+        qtyOnOrder,
+        qtyOfferedPreviously,
+        qtyPassedPreviously,
+        qtyNowOffered,
+        qtyNowPassed,
+        qtyNowRejected,
+        qtyStillDue,
+        noOfItemsChecked: ic?.noOfItemsChecked || c?.noOfItemsChecked || qtyNowOffered || c?.totalOffered || "1",
+        dateOfCall,
+        noOfVisits: ic?.noOfVisits ? String(ic.noOfVisits) : (c?.noOfVisits || "1"),
+        datesOfInspection,
+        trRecDate: ic?.trRecDate || c?.trRecDate || "",
+        quantityNowPassedText: ic?.quantityNowPassedText || c?.quantityNowPassedText || defaultQtyPassedText,
+        sealingPattern: ic?.sealingPattern || c?.sealingPattern || "RITES Stencil R↑I 12 marked on the top surface of each PSC sleeper in presence of vendor.",
+        facsimileText: ic?.facsimileText || c?.facsimileText || "",
+        reasonsForRejection: ic?.reasonsForRejection || c?.reasonsForRejection || "Not Applicable",
+        inspectingEngineer: ic?.inspectingEngineer || c?.inspectingEngineer || "",
+        region: ic?.region || c?.region || "RITES LIMITED, CENTRAL REGION, BHILAI"
+    };
   };
 
-  // Update data when call object is loaded
+  const [data, setData] = useState(() => transformCallToIC(call));
+
+  // Fetch IC data from backend
   useEffect(() => {
       const fetchICData = async (requestId) => {
           try {
               const res = await apiService.getSleeperIc(requestId);
-              const icData = res.data || res; // depending on interceptor return
+              const icData = res.data || res.responseData || res;
               if (icData) {
-                  setData(prev => ({
-                      ...prev,
-                      certificateNo: icData.certificateNo || prev.certificateNo,
-                      certificateDate: icData.date || prev.certificateDate,
-                      bookNo: icData.bookNo || prev.bookNo,
-                      setNo: icData.setNo || prev.setNo,
-                      purchasingAuthority: icData.purchasingAuthority || prev.purchasingAuthority,
-                      consignee: icData.consignee || prev.consignee,
-                      qtyNowOffered: extractNumber(icData.qtyNowOffered, prev.qtyNowOffered),
-                      qtyNowRejected: extractNumber(icData.qtyNowRejected, prev.qtyNowRejected),
-                      qtyNowPassed: extractNumber(icData.qtyNowPassed, prev.qtyNowPassed),
-                      qtyStillDue: extractNumber(icData.qtyStillDue, prev.qtyStillDue),
-                      contractor: icData.contractor || prev.contractor,
-                      noOfVisits: icData.noOfVisits ? icData.noOfVisits.toString() : prev.noOfVisits,
-                      dateOfCall: icData.dateOfCall || prev.dateOfCall,
-                      offeredInstNo: icData.offeredInstallmentNumber ? icData.offeredInstallmentNumber.toString() : prev.offeredInstNo,
-                      passedInstNo: icData.passedInstallmentNumber ? icData.passedInstallmentNumber.toString() : prev.passedInstNo,
-                      contractRef: icData.contractRefAndDate || prev.contractRef,
-                      billPayingOfficer: icData.billPayingOffice || prev.billPayingOfficer,
-                      descriptionOfStores: icData.descriptionOfStores || prev.descriptionOfStores,
-                      qtyPassedPreviously: extractNumber(icData.quantityPreviouslyPassed, prev.qtyPassedPreviously),
-                      qtyOfferedPreviously: extractNumber(icData.cumulativeQtyOfferedPreviously, prev.qtyOfferedPreviously),
-                      qtyOnOrder: extractNumber(icData.quantityOnOrder, prev.qtyOnOrder),
-                      itemNo: icData.itemNo || prev.itemNo,
-                      placeOfInspection: icData.placeOfInspection || prev.placeOfInspection
-                  }));
+                  setData(prev => {
+                      const updated = transformCallToIC(call, icData);
+                      return {
+                          ...prev,
+                          ...updated,
+                          certificateNo: updated.certificateNo || prev.certificateNo,
+                          certificateDate: updated.certificateDate || prev.certificateDate,
+                          bookNo: updated.bookNo || prev.bookNo,
+                          setNo: updated.setNo || prev.setNo,
+                      };
+                  });
               }
           } catch (e) {
               console.error('Failed to fetch IC data:', e);
@@ -113,16 +217,10 @@ export default function SleeperFinalProductCertificate() {
       if (call && Object.keys(call).length > 0) {
           setData(prev => ({
               ...prev,
-              certificateNo: call.certificateNo || call.icNo || prev.certificateNo,
-              certificateDate: prev.certificateDate,
-              poNo: call.poNo || call.po_no || call.po || prev.poNo,
-              contractor: call.vendorName || call.vendorCode || call.contractor || prev.contractor,
-              qtyNowOffered: call.qtyNowOffered || call.qty || prev.qtyNowOffered,
-              qtyNowPassed: call.qtyNowPassed || call.accepted || prev.qtyNowPassed,
-              qtyNowRejected: call.qtyNowRejected || call.rejected || prev.qtyNowRejected,
+              ...transformCallToIC(call)
           }));
 
-          const requestId = call.requestId || call.callNo; // SF-25050001
+          const requestId = call.requestId || call.callNo || call.call_no;
           if (requestId) {
               fetchICData(requestId);
           }
@@ -130,7 +228,17 @@ export default function SleeperFinalProductCertificate() {
   }, [call]);
 
   const handleFieldChange = (fieldName, value) => {
-    setData(prev => ({ ...prev, [fieldName]: value }));
+    setData(prev => {
+      const updated = { ...prev, [fieldName]: value };
+      if (['qtyOnOrder', 'qtyPassedPreviously', 'qtyNowPassed', 'qtyOfferedPreviously'].includes(fieldName)) {
+        const order = parseFloat(updated.qtyOnOrder) || 0;
+        const prevPassed = parseFloat(updated.qtyPassedPreviously) || 0;
+        const nowPassed = parseFloat(updated.qtyNowPassed) || 0;
+        updated.qtyStillDue = String(Math.max(0, order - prevPassed - nowPassed));
+      }
+      return updated;
+    });
+
     if (fieldName === 'bookNo' || fieldName === 'setNo') {
       setBookSetValidation({ isValid: null, message: null, isValidating: false });
     }
@@ -219,7 +327,7 @@ export default function SleeperFinalProductCertificate() {
           const payload = {
               workflowTransitionId: call.id || call.workflowTransitionId || call.transitionId,
               moduleId: call.moduleId || 0,
-              requestId: call.requestId || call.callNo,
+              requestId: call.requestId || call.callNo || call.call_no,
               action: 'IC_GENERATION',
               bookNo: data.bookNo,
               setNo: data.setNo,
@@ -250,10 +358,11 @@ export default function SleeperFinalProductCertificate() {
       <style>
         {`
           @media print {
-            @page { size: A4 portrait; margin: 10mm; }
+            @page { size: A4 portrait; margin: 10mm 8mm 15mm 8mm; }
             body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
             .no-print, .main-header, .sidebar { display: none !important; }
-            .certificate-print-wrapper { padding: 0 !important; box-shadow: none !important; }
+            .certificate-print-wrapper { padding: 0 !important; box-shadow: none !important; margin: 0 !important; }
+            .sleeper-ic-page { padding: 0 !important; width: 100% !important; }
             .main-content-wrapper, .main-content { padding: 0 !important; margin: 0 !important; overflow: visible !important; }
           }
         `}
@@ -297,7 +406,7 @@ export default function SleeperFinalProductCertificate() {
         </div>
       </div>
 
-      <div className="certificate-print-wrapper" ref={printAreaRef} style={{ background: 'white', padding: '40px', boxShadow: '0 0 10px rgba(0,0,0,0.1)' }}>
+      <div className="certificate-print-wrapper" ref={printAreaRef} style={{ background: 'white', padding: '24px 32px', boxShadow: '0 0 10px rgba(0,0,0,0.1)' }}>
         <div className="certificate-page">
           <SleeperFinalIc 
             data={data} 

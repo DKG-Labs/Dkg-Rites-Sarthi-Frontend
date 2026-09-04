@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 // const isLocal = typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
-// export const API_BASE_URL = "http://localhost:8080/sarthi-backend/api";
+//export const API_BASE_URL = "http://localhost:8080/sarthi-backend/api";
 export const API_BASE_URL = 'https://sarthibackendservice-bfe2eag3byfkbsa6.canadacentral-01.azurewebsites.net/sarthi-backend/api';
 //export const API_BASE_URL = 'https://api.ritesqasarthi.com/sarthi-backend/api';
 const BASE_URL = API_BASE_URL;
@@ -101,8 +101,10 @@ export const apiService = {
         delete: (id) => api.delete(`/water-cube-sample/delete/${id}`),
         getByUser: (userId) => api.get(`/water-cube-sample/getByUser/${userId}`),
         saveTestResult: (data) => api.post('/water-cube-sample/save-test-result', data),
-        getTestResultsByUser: (userId) => api.get(`/water-cube-sample/test-results/user/${userId}`)
+        getTestResultsByUser: (userId) => api.get(`/water-cube-sample/test-results/user/${userId}`),
+        getAllTests: () => api.get('/water-cube-sample/getAllTests')
     },
+    getAllWaterCubeTests: () => api.get('/water-cube-sample/getAllTests'),
 
     // ================= Water Quality Testing =================
     waterQuality: {

@@ -48,18 +48,27 @@ const MomentOfResistance = () => {
             const vResponse = await apiService.getAllVerifedWaterBatchs(params);
             const vData = vResponse?.responseData || vResponse || [];
             
-            // 2. Fetch Declared MR Records (Pending Testing across all dates)
-            const mrResponse = await apiService.getAllMRRecords();
-            const mrData = mrResponse?.responseData || mrResponse || [];
-
-            // 3. Fetch Completed MR Tests (Historical Records across all dates)
-            const testResponse = await apiService.getAllMRTests();
-            const testData = testResponse?.responseData || testResponse || [];
-
             const isSamePlant = (itemPlant, targetPlant) => {
                 if (!targetPlant || !itemPlant) return true;
                 return String(itemPlant).replace(':', '').trim() === String(targetPlant).replace(':', '').trim();
             };
+
+            // 2. Fetch Completed Water Cube Tests (Real-time completed logs for active plant)
+            const waterTestsResponse = await apiService.getAllWaterCubeTests().catch(() => []);
+            const waterTests = waterTestsResponse?.responseData || waterTestsResponse || [];
+            const completedWaterBatchNos = new Set(
+                (Array.isArray(waterTests) ? waterTests : [])
+                    .filter(t => isSamePlant(t.plantId, params.plantId))
+                    .map(t => String(t.batchNumber || t.batchNo).trim())
+            );
+
+            // 3. Fetch Declared MR Records (Pending Testing across all dates)
+            const mrResponse = await apiService.getAllMRRecords();
+            const mrData = mrResponse?.responseData || mrResponse || [];
+
+            // 4. Fetch Completed MR Tests (Historical Records across all dates)
+            const testResponse = await apiService.getAllMRTests();
+            const testData = testResponse?.responseData || testResponse || [];
 
             const vBatchIdMap = new Map(vData.map(v => [String(v.batchNumber), v.id]));
 
@@ -81,6 +90,8 @@ const MomentOfResistance = () => {
                 .filter(item => isSamePlant(item.plantId, params.plantId))
                 .map(item => {
                     const samplesToTest = item.mrSamplesRequired || (item.condition2 ? 2 : 1);
+                    const bNo = String(item.batchNumber).trim();
+                    const isWaterDone = Boolean(item.waterCubeTestStatus) && completedWaterBatchNos.has(bNo);
                     return {
                         id: item.id,
                         productionDeclarationId: item.id,
@@ -88,7 +99,7 @@ const MomentOfResistance = () => {
                         sleeperCategory: item.sleeperCategory,
                         sleeperType: item.mixDesignReference || 'N/A',
                         castingDate: item.castingDate,
-                        waterCubeStatus: item.waterCubeTestStatus ? 'Completed' : 'Not Completed',
+                        waterCubeStatus: isWaterDone ? 'Completed' : 'Not Completed',
                         mrSamplesNeeded: samplesToTest, 
                         mrTestType: 'Fresh',
                         status: 'Pending Declaration',

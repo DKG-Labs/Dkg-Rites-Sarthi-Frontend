@@ -342,7 +342,7 @@ export const apiService = {
     updateMRRecord: (id, payload) => api.put(`/moment-of-resistance/update/${id}`, payload),
     getMRRecordById: (id) => api.get(`/moment-of-resistance/${id}`),
     getMRTodayRecords: (params) => api.get('/moment-of-resistance/mrTodayRecord', { params }),
-    getAllMRRecords: () => getWithCache('/moment-of-resistance/all'),
+    getAllMRRecords: () => api.get('/moment-of-resistance/all'),
     deleteMRRecord: (id) => api.delete(`/moment-of-resistance/delete/${id}`),
 
     // ================= Moment of Resistance Testing (MR Testing) =================
@@ -350,7 +350,7 @@ export const apiService = {
     updateMRTest: (id, payload) => api.put(`/mr-testing/update/${id}`, payload),
     getMRTestById: (id) => api.get(`/mr-testing/${id}`),
     getMRTestTodayRecords: (params) => api.get('/mr-testing/mrTestTodayRecord', { params }),
-    getAllMRTests: () => getWithCache('/mr-testing/all'),
+    getAllMRTests: () => api.get('/mr-testing/all'),
     deleteMRTest: (id) => api.delete(`/mr-testing/delete/${id}`),
 
     // ================= Modulus of Rupture (MOR) =================

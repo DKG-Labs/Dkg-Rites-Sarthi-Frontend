@@ -99,8 +99,10 @@ export const apiService = {
         delete: (id) => api.delete(`/water-cube-sample/delete/${id}`),
         getByUser: (userId) => api.get(`/water-cube-sample/getByUser/${userId}`),
         saveTestResult: (data) => api.post('/water-cube-sample/save-test-result', data),
-        getTestResultsByUser: (userId) => api.get(`/water-cube-sample/test-results/user/${userId}`)
+        getTestResultsByUser: (userId) => api.get(`/water-cube-sample/test-results/user/${userId}`),
+        getAllTests: () => api.get('/water-cube-sample/getAllTests')
     },
+    getAllWaterCubeTests: () => api.get('/water-cube-sample/getAllTests'),
 
     // ================= Water Quality Testing =================
     waterQuality: {

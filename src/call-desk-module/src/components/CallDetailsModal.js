@@ -334,12 +334,9 @@ const CallDetailsModal = ({
 
   if (!isOpen || !call) return null;
 
-  const isProcessCall = Boolean(
+  const isEpCall = Boolean(
     (call.callNumber && call.callNumber.startsWith('EP')) ||
-    (call.callNo && call.callNo.startsWith('EP')) ||
-    (call.stage && String(call.stage).toLowerCase().includes('process')) ||
-    (call.productStage && String(call.productStage).toLowerCase().includes('process')) ||
-    (call.product && String(call.product).toLowerCase().includes('process'))
+    (call.callNo && call.callNo.startsWith('EP'))
   );
 
   const displayValue = (value, fallback = '-') => value || fallback;
@@ -491,7 +488,7 @@ const CallDetailsModal = ({
               </div>
 
               {/* Right Column: Re-assignment Options */}
-              {!isProcessCall && (
+              {!isEpCall && (
                 <div className="w-full md:w-auto mt-4 md:mt-0 pb-1">
                   <button
                     className="w-full md:w-auto bg-indigo-600 text-white hover:bg-indigo-700 font-bold py-2.5 px-6 rounded shadow-md transition-all active:scale-95 flex items-center justify-center whitespace-nowrap h-11"

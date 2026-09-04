@@ -203,15 +203,49 @@ const ErcFinalIc = ({ data = {}, isEditing = false, isBusy = false, onFieldChang
   const rawErcType = data?.ercType || data?.productType || data?.description || data?.drgNo || "";
   const kFactor = getErcKFactor(data || rawErcType);
 
+  const isMtUom = (() => {
+    // 1. Check direct UOM properties
+    const directUom = String(data?.uom || data?.unit || data?.poUom || data?.itemUom || data?.poQtyUnit || "").trim().toUpperCase();
+    if (directUom === "MT" || directUom.includes("METRIC TON") || directUom.includes("M.T") || directUom === "TONS" || directUom === "TON") {
+      return true;
+    }
+    if (directUom === "NOS" || directUom === "NOS." || directUom === "NO" || directUom === "NO." || directUom.includes("NUMBER") || directUom.includes("SET")) {
+      return false;
+    }
+
+    // 2. Check description for PO Sr. No. unit, e.g. "(PO Sr. No. 003 For 27000 Nos)" or "(PO Sr. No. 003 - 50 MT)"
+    const descStr = String(data?.description || "");
+    const poMatch = descStr.match(/PO\s+Sr\.?\s*No\.?\s*[^)]*?\b(?:For|Qty|:|-)\s*[\d,.]+\s*([A-Za-z.]+)/i);
+    if (poMatch && poMatch[1]) {
+      const u = poMatch[1].trim().toUpperCase();
+      if (u === "MT" || u.includes("METRIC") || u.includes("M.T") || u.includes("TON")) {
+        return true;
+      }
+      if (u.includes("NO") || u.includes("NUM") || u.includes("SET")) {
+        return false;
+      }
+    }
+
+    // 3. Check general text in description or reference for MT vs Nos
+    if (/\b(?:MT|M\.T\.|METRIC\s+TONS?)\b/i.test(descStr) && !/\b(?:NOS?\.?|NUMBERS?)\b/i.test(descStr)) {
+      return true;
+    }
+
+    return false;
+  })();
+
   const formatNosToMtValue = (val) => {
     if (val === undefined || val === null || val === "" || String(val).toUpperCase() === "NIL") return "NIL";
     const num = parseFloat(String(val).replace(/,/g, ''));
     if (isNaN(num)) return val;
-    if (num === 0) return "0.000";
-    if (num > 2000) {
-      return (Math.round(((num * kFactor) / 1000) * 1000 + Number.EPSILON) / 1000).toFixed(3);
+    if (num === 0) return isMtUom ? "0.000" : "0";
+    if (isMtUom) {
+      if (num > 2000) {
+        return (Math.round(((num * kFactor) / 1000) * 1000 + Number.EPSILON) / 1000).toFixed(3);
+      }
+      return num.toFixed(3);
     }
-    return num.toFixed(3);
+    return Number.isInteger(num) ? String(num) : String(Number(num.toFixed(3)));
   };
 
   const isOldIcValid = Boolean(data?.bookNo && String(data?.bookNo).trim().length > 0 && /^\d{3}$/.test(data?.setNo));
@@ -461,7 +495,7 @@ const ErcFinalIc = ({ data = {}, isEditing = false, isBusy = false, onFieldChang
                     className="font-bold text-xs whitespace-nowrap text-center" 
                   />
                   {!isEditing && showUnit && (
-                    <span className="text-[9px] font-bold text-center mt-0.5">MT</span>
+                    <span className="text-[9px] font-bold text-center mt-0.5">{isMtUom ? "MT" : "Nos."}</span>
                   )}
                 </div>
               );

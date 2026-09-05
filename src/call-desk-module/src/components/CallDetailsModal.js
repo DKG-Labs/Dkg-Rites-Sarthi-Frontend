@@ -31,9 +31,11 @@ const CallDetailsModal = ({
   const remarksRef = useRef(null);
   
   const [mappedIEs, setMappedIEs] = useState([]);
+  const [currentMappedIEName, setCurrentMappedIEName] = useState(null);
   const [isLoadingIEs, setIsLoadingIEs] = useState(false);
   const [changeIE, setChangeIE] = useState(false);
   const [sleeperRemapUsers, setSleeperRemapUsers] = useState([]);
+  const [railpadRemapUsers, setRailpadRemapUsers] = useState([]);
 
   const [isLoadingRemappingIEs, setIsLoadingRemappingIEs] = useState(false);
   const [remappingPoiCode, setRemappingPoiCode] = useState(null);
@@ -46,6 +48,8 @@ const CallDetailsModal = ({
   const [showReturnModal, setShowReturnModal] = useState(false);
   const [validationError, setValidationError] = useState('');
 
+  const [remapAvailableUsers, setRemapAvailableUsers] = useState([]);
+
   const filteredIEs = React.useMemo(() => {
     if (call?.callNumber?.startsWith('SF') || call?.callNumber?.startsWith('SR')) {
       if (sleeperRemapUsers && sleeperRemapUsers.length > 0) {
@@ -56,35 +60,57 @@ const CallDetailsModal = ({
         return r === 'main ie' || r.includes('main ie');
       });
     }
-    if (!allIEs || allIEs.length === 0) return [];
+    if (call?.callNumber?.startsWith('RPF') || call?.callNumber?.startsWith('RPP') || call?.callNumber?.startsWith('RP')) {
+      if (railpadRemapUsers && railpadRemapUsers.length > 0) {
+        return railpadRemapUsers;
+      }
+      return (allIEs || []).filter(ie => {
+        const r = (ie.roleName || ie.role || '').trim().toLowerCase();
+        return r === 'rail main ie' || r.includes('rail main ie') || r === 'main ie';
+      });
+    }
     if (call?.callNumber?.startsWith('ER') || call?.callNumber?.startsWith('EF')) {
-      return allIEs.filter(ie => {
+      if (remapAvailableUsers && remapAvailableUsers.length > 0) {
+        return remapAvailableUsers;
+      }
+      return (allIEs || []).filter(ie => {
         const r = (ie.roleName || ie.role || '').trim().toLowerCase();
         return r === 'ie' || r.includes('ie');
       });
     }
+    if (!allIEs || allIEs.length === 0) return [];
     if (call?.callNumber?.startsWith('EP')) {
       return allIEs.filter(ie => {
         const r = (ie.roleName || ie.role || '').trim().toLowerCase();
         return r === 'process ie' || r.includes('process ie');
       });
     }
-    if (call?.callNumber?.startsWith('RPF') || call?.callNumber?.startsWith('RPP') || call?.callNumber?.startsWith('RP')) {
-      return allIEs.filter(ie => {
-        const r = (ie.roleName || ie.role || '').trim().toLowerCase();
-        return r === 'rail main ie' || r.includes('rail main ie') || r === 'main ie';
-      });
-    }
     return allIEs.filter(ie => {
       const r = (ie.roleName || ie.role || '').trim().toLowerCase();
       return r.includes('ie');
     });
-  }, [call?.callNumber, allIEs, sleeperRemapUsers]);
+  }, [call?.callNumber, allIEs, sleeperRemapUsers, railpadRemapUsers, remapAvailableUsers]);
 
   const handleOpenRemapping = async () => {
     setChangeIE(true);
     setIsLoadingRemappingIEs(true);
     try {
+      if (call.callNumber.startsWith('RPF') || call.callNumber.startsWith('RPP') || call.callNumber.startsWith('RP')) {
+        try {
+          const ieRes = await axios.get(`${API_BASE_URL}/api/railpad-workflow/remap-available-users`, { headers: getAuthHeaders() });
+          const rawData = ieRes.data?.responseData || [];
+          setRailpadRemapUsers(rawData.map(u => ({
+            id: u.userId || u.id,
+            name: u.fullName || u.name,
+            employeeCode: u.employeeCode,
+            roleName: u.role || 'Rail Main IE'
+          })));
+        } catch (e) {
+          console.error("Error fetching Rail Main IE users:", e);
+        }
+        return;
+      }
+
       if (call.callNumber.startsWith('SF') || call.callNumber.startsWith('SR')) {
         const ieRes = await axios.get(`${API_BASE_URL}/api/sleeper-workflow/remap-available-users`, { headers: getAuthHeaders() });
         const rawData = ieRes.data?.responseData || [];
@@ -97,6 +123,27 @@ const CallDetailsModal = ({
         return;
       }
 
+      // For ER / EF calls: Fetch all users whose role is IE
+      if (call.callNumber.startsWith('ER') || call.callNumber.startsWith('EF')) {
+        try {
+          const res = await axios.get(`${API_BASE_URL}/api/auth/api/users/by-role`, {
+            params: { roleName: 'IE' },
+            headers: getAuthHeaders()
+          });
+          const list = res.data?.responseData || [];
+          if (list.length > 0) {
+            setRemapAvailableUsers(list.map(u => ({
+              id: u.userId || u.id,
+              name: u.fullName || u.userName,
+              employeeCode: u.employeeCode,
+              roleName: u.roleName || u.role || 'IE'
+            })));
+          }
+        } catch (e) {
+          console.error("Error fetching IE users by role:", e);
+        }
+      }
+
       // 1. Fetch POI Codes and store in localStorage
       const poiRes = await axios.get(`${API_BASE_URL}/api/auth/${call.callNumber}/poi-codes`, { headers: getAuthHeaders() });
       const data = poiRes.data?.responseData || poiRes.data || [];
@@ -107,10 +154,14 @@ const CallDetailsModal = ({
       if (poiArray.length > 0) {
         currentPoiCode = poiArray[0].poiCode || poiArray[0].poicode || poiArray[0];
       }
+      if (!currentPoiCode && call.placeOfInspection) {
+        currentPoiCode = call.placeOfInspection;
+      }
       setRemappingPoiCode(currentPoiCode);
 
       if (!currentPoiCode) {
-        console.warn("No POI Code found in response");
+        console.warn("No POI Code found for this call");
+        notify("Please contact admin to do mapping. No POI Code is available for this call.", "warning");
       } else {
         // 2. Fetch IEs based on call type
         if (call.callNumber.startsWith('ER') || call.callNumber.startsWith('EF')) {
@@ -136,15 +187,54 @@ const CallDetailsModal = ({
     if (!call?.callNumber) return;
     try {
       setIsLoadingIEs(true);
-      if (call.callNumber.startsWith('ER') || call.callNumber.startsWith('EF') || call.callNumber.startsWith('EP')) {
+      if (call.callNumber.startsWith('RPF') || call.callNumber.startsWith('RPP') || call.callNumber.startsWith('RP')) {
+        try {
+          const response = await axios.get(`${API_BASE_URL}/api/railpad-workflow/call-mapped-ie/${call.callNumber}`, {
+            headers: getAuthHeaders()
+          });
+          if (response.data && response.data.responseData) {
+            const ieList = response.data.responseData;
+            if (Array.isArray(ieList) && ieList.length > 0) {
+              setMappedIEs(ieList);
+              setCurrentMappedIEName(ieList[0]);
+            } else if (typeof ieList === 'string' && ieList.trim().length > 0) {
+              setMappedIEs([ieList]);
+              setCurrentMappedIEName(ieList);
+            }
+          }
+        } catch (e) {
+          console.warn("Could not fetch Railpad mapped IE:", e);
+        }
+      } else if (call.callNumber.startsWith('SF') || call.callNumber.startsWith('SR')) {
+        try {
+          const response = await axios.get(`${API_BASE_URL}/api/sleeper-workflow/call-mapped-ie/${call.callNumber}`, {
+            headers: getAuthHeaders()
+          });
+          if (response.data && response.data.responseData) {
+            const ieList = response.data.responseData;
+            if (Array.isArray(ieList) && ieList.length > 0) {
+              setMappedIEs(ieList);
+              setCurrentMappedIEName(ieList[0]);
+            } else if (typeof ieList === 'string' && ieList.trim().length > 0) {
+              setMappedIEs([ieList]);
+              setCurrentMappedIEName(ieList);
+            }
+          }
+        } catch (e) {
+          console.warn("Could not fetch Sleeper mapped IE:", e);
+        }
+      } else if (call.callNumber.startsWith('ER') || call.callNumber.startsWith('EF') || call.callNumber.startsWith('EP')) {
         const response = await axios.get(`${API_BASE_URL}/api/auth/employee-codes/${call.callNumber}`, {
           headers: getAuthHeaders()
         });
         if (response.data && response.data.responseData) {
           const ieList = response.data.responseData;
-          setMappedIEs(ieList);
-          if (ieList.length === 1) {
-            setSelectedIE(ieList[0]);
+          if (Array.isArray(ieList)) {
+            setMappedIEs(ieList);
+            if (ieList.length > 0) {
+              setCurrentMappedIEName(ieList[0]);
+              if (ieList.length === 1) setSelectedIE(ieList[0]);
+            }
           }
         }
       }
@@ -154,6 +244,17 @@ const CallDetailsModal = ({
       setIsLoadingIEs(false);
     }
   }, [call?.callNumber]);
+
+  useEffect(() => {
+    if (isOpen && call?.callNumber) {
+      setChangeIE(false);
+      setSelectedIE('');
+      setRemarks('');
+      setValidationError('');
+      setCurrentMappedIEName(call.assignedToUserName || call.assignedIeName || call.assignedIE || null);
+      fetchMappedIEs();
+    }
+  }, [isOpen, call?.callNumber, call?.assignedToUserName, call?.assignedIeName, call?.assignedIE, fetchMappedIEs]);
 
   const handleSubmitRemapping = async () => {
     if (!selectedIE) {
@@ -169,8 +270,27 @@ const CallDetailsModal = ({
       return; 
     }
 
+    const newIeName = selectedIEData.name || selectedIEData.fullName || '';
+
     try {
-      if (call.callNumber.startsWith('SF') || call.callNumber.startsWith('SR')) {
+      if (call.callNumber.startsWith('RPF') || call.callNumber.startsWith('RPP') || call.callNumber.startsWith('RP')) {
+        const payload = {
+          callNo: call.callNumber,
+          plantId: call.plantId,
+          oldUserId: Number(call.assignedToUser || 0),
+          newUserId: Number(selectedIEData.id)
+        };
+        await axios.post(`${API_BASE_URL}/api/railpad-workflow/remap-pending`, payload, { headers: getAuthHeaders() });
+        notify('Rail Main IE remapped successfully', 'success');
+        setCurrentMappedIEName(newIeName);
+        setMappedIEs([newIeName]);
+        if (call) {
+          call.assignedToUserName = newIeName;
+          call.assignedIE = newIeName;
+          call.assignedIeName = newIeName;
+        }
+        fetchMappedIEs();
+      } else if (call.callNumber.startsWith('SF') || call.callNumber.startsWith('SR')) {
         const payload = {
           callNo: call.callNumber,
           plantId: call.plantId,
@@ -179,15 +299,28 @@ const CallDetailsModal = ({
         };
         await axios.post(`${API_BASE_URL}/api/sleeper-workflow/remap-submit`, payload, { headers: getAuthHeaders() });
         notify('Sleeper Main IE remapped successfully', 'success');
+        setCurrentMappedIEName(newIeName);
+        setMappedIEs([newIeName]);
+        if (call) {
+          call.assignedToUserName = newIeName;
+          call.assignedIE = newIeName;
+          call.assignedIeName = newIeName;
+        }
         fetchMappedIEs();
       } else {
         let stageCode = 'ER';
         if (call.callNumber.startsWith('EP')) stageCode = 'EP';
         if (call.callNumber.startsWith('EF')) stageCode = 'EF';
 
+        const poiCode = remappingPoiCode || call.placeOfInspection || '';
+        if (!poiCode) {
+          notify('Please contact admin to do mapping. No POI Code is available for this call.', 'warning');
+          return;
+        }
+
         const payload = {
           callNo: call.callNumber,
-          poiCode: remappingPoiCode || call.placeOfInspection || '',
+          poiCode: poiCode,
           previousEmpCode: '',
           newEmpCode: selectedIEData.employeeCode,
           stage: stageCode
@@ -195,6 +328,13 @@ const CallDetailsModal = ({
 
         await axios.post(`${API_BASE_URL}/api/call-desk/remap-submit`, payload, { headers: getAuthHeaders() });
         notify('Inspection Engineer reassigned successfully', 'success');
+        setCurrentMappedIEName(newIeName);
+        setMappedIEs([newIeName]);
+        if (call) {
+          call.assignedToUserName = newIeName;
+          call.assignedIE = newIeName;
+          call.assignedIeName = newIeName;
+        }
         fetchMappedIEs();
       }
       
@@ -249,6 +389,7 @@ const CallDetailsModal = ({
       setSelectedIE('');
       setRemarks('');
       setMappedIEs([]);
+      setCurrentMappedIEName(null);
       setChangeIE(false);
       setShowWithdrawModal(false);
       setShowVerifyModal(false);
@@ -260,23 +401,32 @@ const CallDetailsModal = ({
 
   if (!isOpen || !call) return null;
 
+  const isEpCall = Boolean(
+    (call.callNumber && call.callNumber.startsWith('EP')) ||
+    (call.stageOfInspection && call.stageOfInspection.toLowerCase() === 'process' && !call.callNumber?.startsWith('RP')) ||
+    (call.productStage && call.productStage.toLowerCase() === 'process' && !call.callNumber?.startsWith('RP'))
+  );
+
   const displayValue = (value, fallback = '-') => value || fallback;
 
   // Resolve Target IE for confirmation
-  let targetIEDisplay = 'System Assigned';
+  let targetIEDisplay = '-';
   if (selectedIE) {
-    if (typeof selectedIE === 'string' && selectedIE.includes(' - ')) {
-      targetIEDisplay = selectedIE;
-    } else {
-      const match = filteredIEs.find(ie => String(ie.id) === String(selectedIE));
-      if (match) {
-        targetIEDisplay = match.employeeCode ? `${match.employeeCode} - ${match.name}` : match.name;
-      }
-    }
+    const match = filteredIEs.find(ie => String(ie.id) === String(selectedIE));
+    if (match) targetIEDisplay = match.name;
+    else targetIEDisplay = selectedIE;
+  } else if (currentMappedIEName) {
+    targetIEDisplay = currentMappedIEName;
   } else if (mappedIEs.length > 0) {
     targetIEDisplay = mappedIEs[0];
   } else if (call.assignedIeName) {
     targetIEDisplay = call.assignedIeName;
+  } else if (call.assignedIE && call.assignedIE !== '-') {
+    targetIEDisplay = call.assignedIE;
+  } else if (call.ieName) {
+    targetIEDisplay = call.ieName;
+  } else if (call.assignedToUserName) {
+    targetIEDisplay = call.assignedToUserName;
   }
 
   const downloadPoDoc = async () => {
@@ -360,9 +510,9 @@ const CallDetailsModal = ({
                 <label className="block text-xs text-gray-500 uppercase font-bold mb-2">Current System Mapped IE</label>
                 {isLoadingIEs ? (
                   <div className="text-sm font-semibold text-blue-600 pt-1 animate-pulse">Loading assigned IE...</div>
-                ) : mappedIEs.length === 1 ? (
+                ) : (currentMappedIEName || mappedIEs.length === 1) ? (
                   <div className="font-bold text-lg text-gray-800 p-2.5 bg-gray-50 rounded border border-gray-200 w-full h-11 flex items-center">
-                    {mappedIEs[0]}
+                    {currentMappedIEName || mappedIEs[0]}
                   </div>
                 ) : mappedIEs.length > 1 ? (
                   <Autocomplete
@@ -389,15 +539,15 @@ const CallDetailsModal = ({
                   />
                 ) : (
                   <div className={`font-bold text-sm p-2.5 rounded border w-full h-11 flex items-center ${
-                    !(call.assignedIeName || (call.assignedIE && call.assignedIE !== '-') || call.ieName || call.assignedToUserName || (mappedIEs.length > 0))
+                    !(currentMappedIEName || (mappedIEs.length > 0) || call.assignedToUserName || call.assignedIeName || (call.assignedIE && call.assignedIE !== '-') || call.ieName)
                       ? 'bg-amber-50 border-amber-200 text-amber-700' 
                       : 'bg-gray-50 border-gray-200 text-gray-800'
                   }`}>
-                    {call.assignedIeName || (call.assignedIE && call.assignedIE !== '-' ? call.assignedIE : null) || call.ieName || call.assignedToUserName || (mappedIEs.length > 0 ? mappedIEs[0] : null) || (
+                    {currentMappedIEName || (mappedIEs.length > 0 ? mappedIEs[0] : null) || call.assignedToUserName || call.assignedIeName || (call.assignedIE && call.assignedIE !== '-' ? call.assignedIE : null) || call.ieName || (
                       call.callNumber?.startsWith('RP') 
                         ? 'No Railpad main IE has been mapped' 
                         : (call.callNumber?.startsWith('ER') || call.callNumber?.startsWith('EF'))
-                        ? 'No IE has been mapped'
+                        ? 'Please contact admin to do mapping'
                         : call.callNumber?.startsWith('EP')
                         ? 'No Process IE has been mapped'
                         : (call.callNumber?.startsWith('SF') || call.callNumber?.startsWith('SR'))
@@ -409,15 +559,17 @@ const CallDetailsModal = ({
               </div>
 
               {/* Right Column: Re-assignment Options */}
-              <div className="w-full md:w-auto mt-4 md:mt-0 pb-1">
-                <button
-                  className="w-full md:w-auto bg-indigo-600 text-white hover:bg-indigo-700 font-bold py-2.5 px-6 rounded shadow-md transition-all active:scale-95 flex items-center justify-center whitespace-nowrap h-11"
-                  onClick={handleOpenRemapping}
-                  disabled={isLoadingRemappingIEs}
-                >
-                  <span className="mr-2">🔄</span>{isLoadingRemappingIEs ? " Loading..." : " Remapping"}
-                </button>
-              </div>
+              {!isEpCall && (
+                <div className="w-full md:w-auto mt-4 md:mt-0 pb-1">
+                  <button
+                    className="w-full md:w-auto bg-indigo-600 text-white hover:bg-indigo-700 font-bold py-2.5 px-6 rounded shadow-md transition-all active:scale-95 flex items-center justify-center whitespace-nowrap h-11"
+                    onClick={handleOpenRemapping}
+                    disabled={isLoadingRemappingIEs}
+                  >
+                    <span className="mr-2">🔄</span>{isLoadingRemappingIEs ? " Loading..." : " Remapping"}
+                  </button>
+                </div>
+              )}
             </div>
 
             {/* Remapping Popup Module */}
@@ -441,10 +593,10 @@ const CallDetailsModal = ({
                     <Autocomplete
                       id="ie-select"
                       options={filteredIEs}
-                      getOptionLabel={(option) => option.employeeCode ? `${option.name} (${option.employeeCode})` : option.name}
+                      getOptionLabel={(option) => option ? (option.employeeCode ? `${option.name || option.fullName || ''} (${option.employeeCode})` : (option.name || option.fullName || '')) : ''}
                       renderOption={(props, option, { index }) => (
                         <li {...props} key={option.id ? `remap-ie-${option.id}-${index}` : `remap-ie-${index}`}>
-                          {option.employeeCode ? `${option.name} (${option.employeeCode})` : option.name}
+                          {option.employeeCode ? `${option.name || option.fullName || ''} (${option.employeeCode})` : (option.name || option.fullName || '')}
                         </li>
                       )}
                       value={filteredIEs.find(ie => String(ie.id) === String(selectedIE)) || null}

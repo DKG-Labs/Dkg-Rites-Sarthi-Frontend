@@ -215,7 +215,7 @@ const RailpadRemapIEModal = ({ callNo, plantId, currentIeUserId, currentIeName, 
                 onClick={handleSubmit}
                 disabled={submitting || !selectedNewUserId}
               >
-                {submitting ? 'Processing...' : 'Confirm Remapping'}
+                {submitting ? 'Processing...' : 'Confirm Reassign'}
               </button>
             </div>
           </>

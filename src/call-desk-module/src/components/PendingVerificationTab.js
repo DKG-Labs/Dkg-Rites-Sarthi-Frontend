@@ -121,7 +121,8 @@ const PendingVerificationTab = ({
       key: 'assignedIE',
       label: 'Assigned IE',
       render: (value, row) => {
-        if (row.product === 'Process' && value && value !== '-') {
+        const isMultiple = typeof value === 'string' && value.includes(',');
+        if (isMultiple) {
           return (
             <button 
               className="btn btn-sm"
@@ -151,7 +152,10 @@ const PendingVerificationTab = ({
             </button>
           );
         }
-        return value || '-';
+        if (!value || value === '-' || value === 'null') {
+          return <span style={{ color: '#d97706', fontSize: '11px', fontWeight: 500 }}>Please contact admin to do mapping</span>;
+        }
+        return value;
       }
     },
     {

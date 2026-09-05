@@ -162,7 +162,8 @@ const VerifiedOpenCallsTab = ({ callType, calls = [], kpis = {}, onViewHistory }
       key: 'assignedIE',
       label: 'Assigned IE',
       render: (value, row) => {
-        if (row.product === 'Process' && value && value !== '-') {
+        const isMultiple = typeof value === 'string' && value.includes(',');
+        if (isMultiple) {
           return (
             <button 
               className="btn btn-sm"
@@ -208,7 +209,7 @@ const VerifiedOpenCallsTab = ({ callType, calls = [], kpis = {}, onViewHistory }
             📜 View History
           </button>
           
-          {callType === 'ERC' && (
+          {callType === 'ERC' && (row.callNumber?.startsWith('ER') || row.callNumber?.startsWith('EF') || row.stage === 'Raw Material' || row.stage === 'Final') && !row.callNumber?.startsWith('EP') && row.stage !== 'Process' && row.stage !== 'PROCESS' && (
              <button
                 className="btn btn-sm btn-primary"
                 style={{ marginLeft: '8px' }}
@@ -217,7 +218,7 @@ const VerifiedOpenCallsTab = ({ callType, calls = [], kpis = {}, onViewHistory }
                    setIsRemapModalOpen(true);
                 }}
              >
-                🔄 Remapping
+                🔄 Reassign
              </button>
           )}
 

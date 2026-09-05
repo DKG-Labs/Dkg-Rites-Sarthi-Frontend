@@ -166,12 +166,20 @@ export const CertificateStorageManager = ({ onNotify }) => {
     }
   };
 
-  // Replace existing handler (prefills the upload form)
+  // Replace existing handler (prefills the upload form and opens file picker)
   const handleReplaceExisting = () => {
-    if (certificateData?.icNumber) {
-      setIcNumber(certificateData.icNumber);
-      window.scrollTo({ top: 0, behavior: 'smooth' });
-      notify(`Loaded '${certificateData.icNumber}' into the upload form. Select a new file and click Upload to overwrite.`, 'info');
+    const targetIc = (certificateData?.icNumber || searchIc).trim();
+    if (targetIc) {
+      setIcNumber(targetIc);
+      if (certificateData?.uploadedBy) {
+        setUploader(certificateData.uploadedBy);
+      }
+      // Open file browser automatically
+      const fileInput = document.getElementById('cert-file-input');
+      if (fileInput) {
+        fileInput.click();
+      }
+      notify(`Loaded '${targetIc}' into the form. Select the new PDF file to overwrite.`, 'info');
     }
   };
 

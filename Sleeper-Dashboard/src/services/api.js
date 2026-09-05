@@ -290,6 +290,7 @@ export const apiService = {
     getDowelRecordById: (id) => api.get(`/dowel/${id}`),
 
     getProductionDeclarationRecordById: (id) => api.get(`/production-declaration/${id}`),
+    getAllProductionDeclarations: () => api.get('/production-declaration/getAll'),
     getVerifiedProductionDeclarations: () => api.get('/production-declaration/verified-declarations'),
     getAllVerifedWaterBatchs: (params = {}) => api.get('/production-declaration/getAllVerifedWaterBatchs', { params }),
     getAllProductionBatches: (vendorId, castingDate, plantId, productionUnit) =>

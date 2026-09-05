@@ -2,13 +2,14 @@ import React, { useState, useMemo, useEffect, useRef } from 'react';
 import DataTable from './DataTable';
 import StatusBadge from './StatusBadge';
 import AnnexureLoader from './annexures/AnnexureLoader';
-
+import Modal from './Modal';
+import IssuanceCallDetailsModal from './IssuanceCallDetailsModal';
 import Notification from './Notification';
 import { getProductTypeDisplayName, formatDate } from '../utils/helpers';
 import { getDetailedStatus } from '../utils/statusMapper';
 import CallsFilterSection from './common/CallsFilterSection';
 import { generateRawMaterialCertificate, generateProcessMaterialCertificate, generateFinalProductCertificate, generateFinalCertificate } from '../services/certificateService';
-import { fetchCompletedCallsForIC, getCurrentUserId } from '../services/workflowApiService';
+import { fetchCompletedCallsForIC, getCurrentUserId, deleteInspectionCompleteRequest } from '../services/workflowApiService';
 import { performTransitionAction } from '../services/workflowService';
 
 
@@ -22,6 +23,8 @@ const IssuanceOfICTab = ({ calls, setSelectedCall, setCurrentPage, isLoaded }) =
   const [isLoadingCertificate, setIsLoadingCertificate] = useState(false);
   const [completedCalls, setCompletedCalls] = useState([]);
   const [isLoadingCalls, setIsLoadingCalls] = useState(false);
+  const [selectedCallForActions, setSelectedCallForActions] = useState(null);
+  const [revertModal, setRevertModal] = useState({ isOpen: false, call: null, isProcessing: false });
   const [filters, setFilters] = useState({
     productTypes: [],
     vendors: [],
@@ -319,40 +322,65 @@ const IssuanceOfICTab = ({ calls, setSelectedCall, setCurrentPage, isLoaded }) =
 
 
 
+  /**
+   * Open confirmation modal to revert / return call to inspection
+   */
+  const handleOpenRevertModal = (row) => {
+    setRevertModal({
+      isOpen: true,
+      call: row,
+      isProcessing: false
+    });
+  };
+
+  /**
+   * Execute deleteInspectionCompleteRequest and update UI state
+   */
+  const handleConfirmRevert = async () => {
+    const call = revertModal.call;
+    if (!call) return;
+
+    const requestId = call.call_no || call.callNo || call.requestId;
+    const userId = getCurrentUserId();
+
+    if (!requestId) {
+      showNotification('Call Number / Request ID is missing.', 'error');
+      return;
+    }
+
+    if (!userId) {
+      showNotification('User ID not found. Please log in again.', 'error');
+      return;
+    }
+
+    try {
+      setRevertModal(prev => ({ ...prev, isProcessing: true }));
+      await deleteInspectionCompleteRequest(requestId, userId);
+
+      showNotification(`Call ${requestId} returned to inspection successfully!`, 'success');
+
+      // Remove from the local list so the card updates immediately
+      setCompletedCalls(prev => prev.filter(c => (c.call_no || c.callNo) !== requestId));
+
+      setRevertModal({ isOpen: false, call: null, isProcessing: false });
+    } catch (err) {
+      console.error('❌ Failed to revert inspection:', err);
+      showNotification(err.message || 'Failed to return call to inspection.', 'error');
+      setRevertModal(prev => ({ ...prev, isProcessing: false }));
+    }
+  };
+
   const actions = (row) => (
     <div style={{ display: 'flex', gap: 'var(--space-8)' }}>
-      {row.originalStatus === 'GENERATE_IC' ? (
-        <button
-          className="btn btn-sm btn-primary"
-          onClick={(e) => {
-            e.stopPropagation();
-            handleIssueIC(row);
-          }}
-          disabled={isLoadingCertificate}
-        >
-          {isLoadingCertificate ? 'Loading...' : 'View IC'}
-        </button>
-      ) : (
-        <button
-          className="btn btn-sm btn-primary"
-          onClick={(e) => {
-            e.stopPropagation();
-            handleIssueIC(row);
-          }}
-          disabled={isLoadingCertificate}
-        >
-          {isLoadingCertificate ? 'Loading...' : 'Issue IC'}
-        </button>
-      )}
       <button
-        className="btn btn-sm btn-outline"
+        className="btn btn-sm btn-primary"
         onClick={(e) => {
-          e.stopPropagation();
-          handleViewAnnexures(row);
+          if (e && e.stopPropagation) e.stopPropagation();
+          setSelectedCallForActions(row);
         }}
-        title="View Technical Annexures"
+        style={{ whiteSpace: 'nowrap' }}
       >
-        Annexures
+        VIEW ACTIONS
       </button>
     </div>
   );
@@ -419,9 +447,78 @@ const IssuanceOfICTab = ({ calls, setSelectedCall, setCurrentPage, isLoaded }) =
         </>
       )}
 
+      {/* View Actions Details Modal */}
+      <IssuanceCallDetailsModal
+        isOpen={Boolean(selectedCallForActions)}
+        onClose={() => setSelectedCallForActions(null)}
+        call={selectedCallForActions}
+        onIssueIC={(call) => handleIssueIC(call)}
+        onViewAnnexures={(call) => handleViewAnnexures(call)}
+        onBackToInspection={(call) => handleOpenRevertModal(call)}
+        isLoadingCertificate={isLoadingCertificate}
+      />
+
+      {/* Revert to Inspection Confirmation Modal */}
+      <Modal
+        isOpen={revertModal.isOpen}
+        onClose={() => !revertModal.isProcessing && setRevertModal({ isOpen: false, call: null, isProcessing: false })}
+        title="Return Call to Inspection"
+        footer={
+          <>
+            <button
+              className="btn btn-secondary"
+              onClick={() => setRevertModal({ isOpen: false, call: null, isProcessing: false })}
+              disabled={revertModal.isProcessing}
+            >
+              Cancel
+            </button>
+            <button
+              className="btn btn-danger"
+              style={{ backgroundColor: '#dc2626', borderColor: '#dc2626', color: '#fff' }}
+              onClick={handleConfirmRevert}
+              disabled={revertModal.isProcessing}
+            >
+              {revertModal.isProcessing ? 'Returning...' : 'Confirm Return'}
+            </button>
+          </>
+        }
+      >
+        <div style={{ padding: '8px 0' }}>
+          <p style={{ fontSize: '14.5px', color: '#1e293b', marginBottom: '14px' }}>
+            Are you sure you want to return call <strong style={{ color: '#0284c7' }}>{revertModal.call?.call_no}</strong> back to inspection?
+          </p>
+          <div style={{
+            padding: '12px 16px',
+            backgroundColor: '#fff7ed',
+            border: '1px solid #fed7aa',
+            borderRadius: '8px',
+            fontSize: '13px',
+            color: '#9a3412',
+            lineHeight: '1.5'
+          }}>
+            ⚠️ <strong>Notice:</strong> This will delete the <em>Inspection Complete</em> confirmation record, remove the call from the IC Issuance queue, and revert the workflow so that testing and data entry can be modified.
+          </div>
+          <div style={{
+            marginTop: '16px',
+            padding: '12px 14px',
+            background: '#f8fafc',
+            border: '1px solid #e2e8f0',
+            borderRadius: '8px',
+            fontSize: '13px',
+            color: '#475569',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '6px'
+          }}>
+            <div><strong style={{ color: '#0f172a' }}>PO Number:</strong> {revertModal.call?.po_no || 'N/A'}</div>
+            <div><strong style={{ color: '#0f172a' }}>Vendor:</strong> {revertModal.call?.vendor_name || 'N/A'}</div>
+            <div><strong style={{ color: '#0f172a' }}>Stage:</strong> {revertModal.call?.stage || 'N/A'}</div>
+          </div>
+        </div>
+      </Modal>
+
     </div>
   );
 };
-
 
 export default IssuanceOfICTab;

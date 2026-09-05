@@ -125,7 +125,7 @@ const DemouldingForm = ({ onSave, onCancel, isLongLine, existingEntries = [], in
         }
 
         const isAllRejected = visualCheck === 'All Rejected' || dimCheck === 'All Rejected';
-        const visualOptions = ['Surface Defect', 'Honeycomb', 'Dowel Missing / Tilt / Sink', 'Insert Missing / Tilt / Sink', 'Crack'];
+        const visualOptions = ['Surface Defect', 'Honeycomb', 'Dowel Missing / Tilt / Sink', 'Insert Missing / Tilt / Sink', 'Crack', 'Wire Slippage'];
         const dimOptions = ['Outer Gauge', 'Rail Seat', 'Toe Gap', 'Rail Seat Slope', 'Height Gauge', 'Length of Sleeper'];
 
         const parsed = rawDefects
@@ -1109,13 +1109,14 @@ const DemouldingForm = ({ onSave, onCancel, isLongLine, existingEntries = [], in
                                                         <option value="Dowel Missing / Tilt / Sink">Dowel Missing / Tilt / Sink</option>
                                                         <option value="Insert Missing / Tilt / Sink">Insert Missing / Tilt / Sink</option>
                                                         <option value="Crack">Crack</option>
+                                                        <option value="Wire Slippage">Wire Slippage</option>
                                                         <option value="Outer Gauge">Outer Gauge</option>
                                                         <option value="Rail Seat">Rail Seat</option>
                                                         <option value="Toe Gap">Toe Gap</option>
                                                         <option value="Rail Seat Slope">Rail Seat Slope</option>
                                                         <option value="Height Gauge">Height Gauge</option>
                                                         <option value="Length of Sleeper">Length of Sleeper</option>
-                                                        {Boolean(item.visualReason && !['Surface Defect', 'Honeycomb', 'Dowel Missing / Tilt / Sink', 'Insert Missing / Tilt / Sink', 'Crack', 'Outer Gauge', 'Rail Seat', 'Toe Gap', 'Rail Seat Slope', 'Height Gauge', 'Length of Sleeper'].includes(item.visualReason)) && (
+                                                        {Boolean(item.visualReason && !['Surface Defect', 'Honeycomb', 'Dowel Missing / Tilt / Sink', 'Insert Missing / Tilt / Sink', 'Crack', 'Wire Slippage', 'Outer Gauge', 'Rail Seat', 'Toe Gap', 'Rail Seat Slope', 'Height Gauge', 'Length of Sleeper'].includes(item.visualReason)) && (
                                                             <option value={item.visualReason}>{item.visualReason}</option>
                                                         )}
                                                     </select>
@@ -1145,7 +1146,8 @@ const DemouldingForm = ({ onSave, onCancel, isLongLine, existingEntries = [], in
                                                         <option value="Dowel Missing / Tilt / Sink">Dowel Missing / Tilt / Sink</option>
                                                         <option value="Insert Missing / Tilt / Sink">Insert Missing / Tilt / Sink</option>
                                                         <option value="Crack">Crack</option>
-                                                        {Boolean(item.dimReason && !['Outer Gauge', 'Rail Seat', 'Toe Gap', 'Rail Seat Slope', 'Height Gauge', 'Length of Sleeper', 'Surface Defect', 'Honeycomb', 'Dowel Missing / Tilt / Sink', 'Insert Missing / Tilt / Sink', 'Crack'].includes(item.dimReason)) && (
+                                                        <option value="Wire Slippage">Wire Slippage</option>
+                                                        {Boolean(item.dimReason && !['Outer Gauge', 'Rail Seat', 'Toe Gap', 'Rail Seat Slope', 'Height Gauge', 'Length of Sleeper', 'Surface Defect', 'Honeycomb', 'Dowel Missing / Tilt / Sink', 'Insert Missing / Tilt / Sink', 'Crack', 'Wire Slippage'].includes(item.dimReason)) && (
                                                             <option value={item.dimReason}>{item.dimReason}</option>
                                                         )}
                                                     </select>

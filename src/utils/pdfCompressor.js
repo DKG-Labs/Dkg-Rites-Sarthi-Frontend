@@ -15,7 +15,6 @@ if (typeof window !== 'undefined' && !pdfjsLib.GlobalWorkerOptions.workerSrc) {
  */
 export async function compressPdfFile(file, options = {}, onProgress = () => {}) {
   const {
-    maxSizeMB = 2.0,
     quality = 0.75, // JPEG quality (0.0 to 1.0)
     scale = 1.5      // Render scale factor for sharpness
   } = options;

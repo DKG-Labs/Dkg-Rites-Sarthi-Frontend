@@ -122,6 +122,36 @@ const RitesAdminDashboard = () => {
             </svg>
           </div>
         </div>
+
+        {/* Card 4: Certificate Storage Hub (Active) */}
+        <div 
+          className="rites-admin-card active-card"
+          style={{ cursor: 'pointer' }}
+          onClick={() => {
+            localStorage.setItem('adminActiveModule', 'certificates');
+            navigate(ROUTES.ADMIN_DASHBOARD);
+          }}
+        >
+          <div className="card-status-badge active-badge">
+            <span className="badge-dot pulse"></span>
+            Active Now
+          </div>
+          <div className="card-icon-container">
+            <svg viewBox="0 0 24 24" className="card-svg-icon" fill="none" stroke="currentColor" strokeWidth="2.2">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+            </svg>
+          </div>
+          <h2 className="card-title">Certificate Storage</h2>
+          <p className="card-description">
+            Upload, inspect, replace, and manage digital Inspection Certificates (ICs) in Azure Storage.
+          </p>
+          <div className="card-footer">
+            <span className="footer-action-text">Open Storage Hub</span>
+            <svg viewBox="0 0 24 24" className="footer-arrow-icon" fill="none" stroke="currentColor" strokeWidth="2.5">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3" />
+            </svg>
+          </div>
+        </div>
       </div>
 
       {/* Modern custom toast alert when clicking on under construction cards */}

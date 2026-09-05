@@ -7,6 +7,7 @@ import { CalibrationList } from './CalibrationList';
 import { CalibrationForm } from './CalibrationForm';
 import { IEMapping } from './IEMapping';
 import { IEFieldsForm } from './IEFieldsForm';
+import { CertificateStorageManager } from './CertificateStorageManager';
 import { Modal } from './Modal';
 import { API_BASE_URL } from '../../services/apiConfig';
 import { getStoredUser } from '../../services/authService';
@@ -457,6 +458,15 @@ export const AdminDashboard = () => {
                             <span>IE Mapping</span>
                         </button>
                     </li>
+                    <li className="nav-item">
+                        <button
+                            className={`nav-link ${activeModule === 'certificates' ? 'active' : ''}`}
+                            onClick={() => handleModuleSelect('certificates')}
+                        >
+                            <span>🛡️</span>
+                            <span>Certificate Storage</span>
+                        </button>
+                    </li>
                 </ul>
             </aside>
 
@@ -503,6 +513,12 @@ export const AdminDashboard = () => {
                             onCreateNew={handleCreateMapping}
                             refreshTrigger={refreshTrigger}
                             loading={isLoading}
+                        />
+                    )}
+
+                    {activeModule === 'certificates' && (
+                        <CertificateStorageManager
+                            onNotify={(msg, severity) => setSnackbar({ open: true, message: msg, severity: severity || 'info' })}
                         />
                     )}
                 </div>

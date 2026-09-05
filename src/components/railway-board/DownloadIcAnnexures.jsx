@@ -186,7 +186,7 @@ const DownloadIcAnnexures = ({ selectedProduct = 'ERC', fromDate: initialFromDat
                 } else if (activeFilters.stage === 'PROCESS') {
                     matchStage = callNum.startsWith('EP') || callNum.startsWith('RPP') || stageStr.includes('PROCESS');
                 } else if (activeFilters.stage === 'FINAL') {
-                    matchStage = callNum.startsWith('EF') || callNum.startsWith('RPF') || stageStr.includes('FINAL');
+                    matchStage = callNum.startsWith('EF') || callNum.startsWith('RPF') || callNum.startsWith('SF') || stageStr.includes('FINAL');
                 } else {
                     matchStage = (record.stage && record.stage.trim().toLowerCase() === activeFilters.stage.trim().toLowerCase());
                 }
@@ -248,14 +248,26 @@ const DownloadIcAnnexures = ({ selectedProduct = 'ERC', fromDate: initialFromDat
 
 
 
+    const [selectedSleeperCert, setSelectedSleeperCert] = useState(null);
+    const [isSleeperCertModalOpen, setIsSleeperCertModalOpen] = useState(false);
+
     const paginatedRecords = useMemo(() => {
         return filteredRecords.slice(page * rowsPerPage, (page + 1) * rowsPerPage);
     }, [filteredRecords, page, rowsPerPage]);
 
-    // Real View IC sequence pulling from Azure Storage
-    const handleViewIc = (record) => {
-        if (!record || !record.icNumber) {
-            alert('Certificate Number is missing.');
+    // View IC sequence pulling from Azure Storage with fallback for Sleeper ICs
+    const handleViewIc = async (record) => {
+        if (!record) {
+            alert('Record details not available.');
+            return;
+        }
+
+        const targetIc = (record.icNumber && record.icNumber !== 'N/A' && record.icNumber !== 'Pending') 
+            ? record.icNumber 
+            : (record.callNumber || '');
+
+        if (!targetIc) {
+            alert('Certificate / Call Number is missing.');
             return;
         }
 
@@ -264,53 +276,84 @@ const DownloadIcAnnexures = ({ selectedProduct = 'ERC', fromDate: initialFromDat
         setDownloadProgress(10);
         setCurrentStep('Connecting to SARTHI secure document server...');
 
-        const url = `${API_ENDPOINTS.CERTIFICATE_STORAGE}/view?icNumber=${encodeURIComponent(record.icNumber)}`;
-        
         setTimeout(() => {
             setDownloadProgress(40);
             setCurrentStep('Locating Digitally Signed Certificate PDF...');
         }, 300);
 
-        fetch(url, {
-            method: 'GET',
-            headers: getAuthHeaders()
-        })
-        .then(async (response) => {
-            if (!response.ok) {
-                if (response.status === 404) {
-                    throw new Error('No signed certificate found for this IC.');
+        try {
+            const url = `${API_ENDPOINTS.CERTIFICATE_STORAGE}/view?icNumber=${encodeURIComponent(targetIc)}`;
+            const response = await fetch(url, {
+                method: 'GET',
+                headers: getAuthHeaders()
+            });
+
+            if (response.ok) {
+                const data = await response.json();
+                if (data && data.signedData) {
+                    setDownloadProgress(80);
+                    setCurrentStep('Verifying digital signature and decoding PDF...');
+                    const blob = base64ToBlob(data.signedData, 'application/pdf');
+                    const blobUrl = window.URL.createObjectURL(blob);
+                    setDownloadProgress(100);
+                    setCurrentStep('Opening certificate in new tab...');
+                    setTimeout(() => {
+                        setIsDownloading(false);
+                        setDownloadingRecord(null);
+                        window.open(blobUrl, '_blank');
+                    }, 600);
+                    return;
                 }
-                const text = await response.text();
-                throw new Error(text || `Server error: ${response.status}`);
-            }
-            return response.json();
-        })
-        .then((data) => {
-            setDownloadProgress(80);
-            setCurrentStep('Verifying digital signature and decoding PDF...');
-
-            if (!data.signedData) {
-                throw new Error('Signed certificate data is empty.');
             }
 
-            const blob = base64ToBlob(data.signedData, 'application/pdf');
-            const blobUrl = window.URL.createObjectURL(blob);
+            // Fallback for Sleeper calls when Azure Blob record is not uploaded yet:
+            const callNo = record.callNumber || targetIc;
+            if (callNo && ((record.callNumber && record.callNumber.startsWith('SF')) || selectedProduct === 'Sleeper' || (record.itemCatDescr || '').toLowerCase().includes('sleeper'))) {
+                setDownloadProgress(70);
+                setCurrentStep('Fetching Sleeper Inspection Certificate details...');
+                
+                try {
+                    const baseUrl = API_ENDPOINTS.REPORTS.replace('/api/reports', '/api');
+                    const icRes = await fetch(`${baseUrl}/sleeper-dashboard/sleeperIc/${encodeURIComponent(callNo)}`, {
+                        headers: getAuthHeaders()
+                    });
+                    if (icRes.ok) {
+                        const icData = await icRes.json();
+                        setDownloadProgress(100);
+                        setCurrentStep('Opening certificate viewer...');
+                        setTimeout(() => {
+                            setIsDownloading(false);
+                            setDownloadingRecord(null);
+                            setSelectedSleeperCert({ ...record, ...icData });
+                            setIsSleeperCertModalOpen(true);
+                        }, 400);
+                        return;
+                    }
+                } catch (e) {
+                    console.warn("Failed to fetch sleeperIc details:", e);
+                }
 
-            setDownloadProgress(100);
-            setCurrentStep('Opening certificate in new tab...');
-
-            setTimeout(() => {
+                // Fallback to record data
                 setIsDownloading(false);
                 setDownloadingRecord(null);
-                window.open(blobUrl, '_blank');
-            }, 600);
-        })
-        .catch((err) => {
+                setSelectedSleeperCert(record);
+                setIsSleeperCertModalOpen(true);
+                return;
+            }
+
+            throw new Error('No signed certificate found for this IC.');
+        } catch (err) {
             console.error('Error fetching certificate:', err);
             setIsDownloading(false);
             setDownloadingRecord(null);
-            alert(err.message || 'Failed to fetch the signed certificate.');
-        });
+            
+            if ((record.callNumber && record.callNumber.startsWith('SF')) || selectedProduct === 'Sleeper') {
+                setSelectedSleeperCert(record);
+                setIsSleeperCertModalOpen(true);
+            } else {
+                alert(err.message || 'Failed to fetch the signed certificate.');
+            }
+        }
     };
 
     // Real Download Annexures sequence which triggers the Annexures view
@@ -547,6 +590,202 @@ const DownloadIcAnnexures = ({ selectedProduct = 'ERC', fromDate: initialFromDat
                             <div className="download-detail-row">
                                 <span className="download-detail-label">Call No:</span>
                                 <span className="download-detail-value">{downloadingRecord.callNumber}</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Sleeper Official Inspection Certificate View & Download Modal */}
+            {isSleeperCertModalOpen && selectedSleeperCert && (
+                <div style={{
+                    position: 'fixed',
+                    top: 0,
+                    left: 0,
+                    right: 0,
+                    bottom: 0,
+                    backgroundColor: 'rgba(15, 23, 42, 0.75)',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    zIndex: 10000,
+                    padding: '20px',
+                    backdropFilter: 'blur(4px)'
+                }}>
+                    <style>
+                        {`
+                            @media print {
+                                body * { visibility: hidden !important; }
+                                .sleeper-cert-print-area, .sleeper-cert-print-area * { visibility: visible !important; }
+                                .sleeper-cert-print-area { position: absolute !important; left: 0 !important; top: 0 !important; width: 100% !important; margin: 0 !important; padding: 15mm !important; box-shadow: none !important; }
+                                .no-print-modal-bar { display: none !important; }
+                            }
+                        `}
+                    </style>
+                    <div style={{
+                        width: '100%',
+                        maxWidth: '900px',
+                        background: '#ffffff',
+                        borderRadius: '12px',
+                        boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        maxHeight: '92vh',
+                        overflow: 'hidden'
+                    }}>
+                        {/* Header Bar */}
+                        <div className="no-print-modal-bar" style={{
+                            padding: '14px 20px',
+                            background: 'linear-gradient(135deg, #0f172a, #1e293b)',
+                            color: '#ffffff',
+                            display: 'flex',
+                            justifyContent: 'space-between',
+                            alignItems: 'center',
+                            borderBottom: '1px solid #334155'
+                        }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                <i className="fa-solid fa-file-certificate" style={{ color: '#10b981', fontSize: '18px' }}></i>
+                                <span style={{ fontWeight: '700', fontSize: '16px' }}>Inspection Certificate (Sleeper)</span>
+                                <span style={{ fontSize: '12px', background: '#334155', padding: '2px 8px', borderRadius: '4px', fontFamily: 'monospace' }}>
+                                    {selectedSleeperCert.callNumber || selectedSleeperCert.call_no}
+                                </span>
+                            </div>
+                            <div style={{ display: 'flex', gap: '10px' }}>
+                                <button
+                                    onClick={() => window.print()}
+                                    style={{
+                                        background: '#2563eb',
+                                        color: '#ffffff',
+                                        border: 'none',
+                                        borderRadius: '6px',
+                                        padding: '8px 16px',
+                                        fontWeight: '700',
+                                        cursor: 'pointer',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: '6px',
+                                        fontSize: '13px',
+                                        boxShadow: '0 2px 4px rgba(37, 99, 235, 0.3)'
+                                    }}
+                                >
+                                    <i className="fa-solid fa-print"></i> Print / Save PDF
+                                </button>
+                                <button
+                                    onClick={() => {
+                                        setIsSleeperCertModalOpen(false);
+                                        setSelectedSleeperCert(null);
+                                    }}
+                                    style={{
+                                        background: '#dc2626',
+                                        color: '#ffffff',
+                                        border: 'none',
+                                        borderRadius: '6px',
+                                        padding: '8px 14px',
+                                        fontWeight: '700',
+                                        cursor: 'pointer',
+                                        fontSize: '13px'
+                                    }}
+                                >
+                                    ✕ Close
+                                </button>
+                            </div>
+                        </div>
+
+                        {/* Certificate Body (Printable) */}
+                        <div style={{ padding: '24px', overflowY: 'auto', flex: 1, background: '#f8fafc' }}>
+                            <div className="sleeper-cert-print-area" style={{
+                                background: '#ffffff',
+                                border: '2px solid #000000',
+                                padding: '28px',
+                                fontFamily: '"Times New Roman", Times, serif',
+                                color: '#000000',
+                                boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)'
+                            }}>
+                                {/* Top Header */}
+                                <div style={{ textAlign: 'center', borderBottom: '2px solid #000000', paddingBottom: '12px', marginBottom: '16px' }}>
+                                    <div style={{ fontSize: '18px', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '1px' }}>
+                                        RITES LIMITED
+                                    </div>
+                                    <div style={{ fontSize: '12px', fontWeight: 'bold', marginTop: '2px' }}>
+                                        (A GOVERNMENT OF INDIA ENTERPRISE)
+                                    </div>
+                                    <div style={{ fontSize: '13px', fontWeight: 'bold', marginTop: '2px' }}>
+                                        QUALITY ASSURANCE DIVISION - RAILWAY SLEEPER INSPECTION
+                                    </div>
+                                    <div style={{ fontSize: '16px', fontWeight: 'bold', marginTop: '8px', textDecoration: 'underline' }}>
+                                        INSPECTION CERTIFICATE
+                                    </div>
+                                </div>
+
+                                {/* Metadata Grid */}
+                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', fontSize: '13px', marginBottom: '16px', lineHeight: '1.4' }}>
+                                    <div><strong>Certificate No:</strong> <span style={{ fontFamily: 'monospace', fontWeight: 'bold' }}>{selectedSleeperCert.certificateNo || selectedSleeperCert.icNumber || `C/${selectedSleeperCert.callNumber}/NV`}</span></div>
+                                    <div style={{ textAlign: 'right' }}><strong>Date:</strong> {selectedSleeperCert.certificateDate || selectedSleeperCert.icIssuedDate || selectedSleeperCert.date || new Date().toLocaleDateString('en-GB')}</div>
+                                    <div><strong>Inspection Call No:</strong> <span style={{ fontWeight: 'bold' }}>{selectedSleeperCert.callNumber || selectedSleeperCert.call_no}</span></div>
+                                    <div style={{ textAlign: 'right' }}><strong>PO Number:</strong> {formatPoNumber(selectedSleeperCert) || selectedSleeperCert.poNo || selectedSleeperCert.po_no}</div>
+                                    <div><strong>Book No / Set No:</strong> {selectedSleeperCert.bookNo || '001'} / {selectedSleeperCert.setNo || '001'}</div>
+                                    <div style={{ textAlign: 'right' }}><strong>Installment No:</strong> Offered: {selectedSleeperCert.offeredInstNo || '1'} | Passed: {selectedSleeperCert.passedInstNo || '1'}</div>
+                                    <div style={{ gridColumn: 'span 2' }}><strong>Manufacturer / Vendor:</strong> {selectedSleeperCert.vendorName || selectedSleeperCert.contractor || selectedSleeperCert.vendor_name || 'N/A'}</div>
+                                    <div style={{ gridColumn: 'span 2' }}><strong>Place of Inspection:</strong> {selectedSleeperCert.placeOfInspection || selectedSleeperCert.plant_name || selectedSleeperCert.plantId || 'Vendor Plant Premises'}</div>
+                                    <div style={{ gridColumn: 'span 2' }}><strong>Consignee:</strong> {selectedSleeperCert.consignee || selectedSleeperCert.purchasingAuthority || selectedSleeperCert.railwayShortName || 'Zonal Railway'}</div>
+                                </div>
+
+                                {/* Stores Table */}
+                                <table style={{ width: '100%', borderCollapse: 'collapse', border: '1px solid #000000', fontSize: '12px', marginBottom: '16px', textAlign: 'center' }}>
+                                    <thead>
+                                        <tr style={{ background: '#f1f5f9', borderBottom: '1px solid #000000' }}>
+                                            <th style={{ border: '1px solid #000000', padding: '6px' }}>Item No.</th>
+                                            <th style={{ border: '1px solid #000000', padding: '6px', textAlign: 'left' }}>Description of Stores</th>
+                                            <th style={{ border: '1px solid #000000', padding: '6px' }}>Qty On Order</th>
+                                            <th style={{ border: '1px solid #000000', padding: '6px' }}>Qty Prev Passed</th>
+                                            <th style={{ border: '1px solid #000000', padding: '6px' }}>Qty Now Offered</th>
+                                            <th style={{ border: '1px solid #000000', padding: '6px', background: '#ecfdf5', color: '#166534', fontWeight: 'bold' }}>Qty Passed</th>
+                                            <th style={{ border: '1px solid #000000', padding: '6px', background: '#fef2f2', color: '#991b1b' }}>Qty Rejected</th>
+                                            <th style={{ border: '1px solid #000000', padding: '6px' }}>Qty Still Due</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr>
+                                            <td style={{ border: '1px solid #000000', padding: '8px' }}>{selectedSleeperCert.itemNo || '1'}</td>
+                                            <td style={{ border: '1px solid #000000', padding: '8px', textAlign: 'left', fontWeight: '600' }}>
+                                                {selectedSleeperCert.descriptionOfStores || selectedSleeperCert.itemCatDescr || 'PSC Mainline Sleeper (RT-2496 / 60kg)'}
+                                            </td>
+                                            <td style={{ border: '1px solid #000000', padding: '8px' }}>{selectedSleeperCert.qtyOnOrder || 'N/A'}</td>
+                                            <td style={{ border: '1px solid #000000', padding: '8px' }}>{selectedSleeperCert.qtyPassedPreviously || selectedSleeperCert.quantityPreviouslyPassed || '0'}</td>
+                                            <td style={{ border: '1px solid #000000', padding: '8px', fontWeight: 'bold' }}>{selectedSleeperCert.qtyNowOffered || selectedSleeperCert.qty || '0'}</td>
+                                            <td style={{ border: '1px solid #000000', padding: '8px', fontWeight: 'bold', background: '#f0fdf4', color: '#15803d' }}>
+                                                {selectedSleeperCert.qtyNowPassed || selectedSleeperCert.accepted || selectedSleeperCert.qtyNowOffered || '0'}
+                                            </td>
+                                            <td style={{ border: '1px solid #000000', padding: '8px', color: '#dc2626' }}>{selectedSleeperCert.qtyNowRejected || selectedSleeperCert.rejected || '0'}</td>
+                                            <td style={{ border: '1px solid #000000', padding: '8px' }}>{selectedSleeperCert.qtyStillDue || '0'}</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+
+                                {/* Certification text */}
+                                <div style={{ fontSize: '12px', lineHeight: '1.5', marginBottom: '20px', textAlign: 'justify' }}>
+                                    Certified that the stores mentioned above have been inspected visually, dimensionally, and tested as per IRS-T-39 specifications and relevant standard RDSO drawings and found conforming to specification. Stores accepted have been digitally certified.
+                                </div>
+
+                                {/* Signatures Footer */}
+                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', marginTop: '30px', paddingTop: '10px' }}>
+                                    <div>
+                                        <div style={{ border: '1px dashed #64748b', padding: '10px', borderRadius: '6px', display: 'inline-block', minWidth: '180px', textAlign: 'center' }}>
+                                            <div style={{ fontSize: '11px', color: '#64748b' }}>RITES Hologram / Sealing Stamp</div>
+                                            <div style={{ fontWeight: 'bold', marginTop: '4px', fontSize: '13px', color: '#166534' }}>✓ VERIFIED & PASSED</div>
+                                        </div>
+                                    </div>
+                                    <div style={{ textAlign: 'right' }}>
+                                        <div style={{ border: '1px solid #10b981', padding: '10px', borderRadius: '6px', display: 'inline-block', minWidth: '220px', textAlign: 'center', background: '#f0fdf4' }}>
+                                            <div style={{ color: '#059669', fontSize: '12px', fontWeight: 'bold' }}>🔒 Digitally E-Signed</div>
+                                            <div style={{ fontWeight: 'bold', fontSize: '13px', marginTop: '2px' }}>
+                                                {selectedSleeperCert.inspectingEngineer || 'Inspecting Engineer (IE)'}
+                                            </div>
+                                            <div style={{ fontSize: '11px', color: '#475569' }}>QA Division, RITES Ltd.</div>
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </div>

@@ -168,7 +168,7 @@ export const useCallDeskData = (activeTab = 'pending', callType = 'ERC') => {
     // Filter strictly by logged-in user's RIO
     const filteredCalls = allCalls.filter(item => isRioMatching(user?.rio, item.rio));
 
-    return filteredCalls.map(item => {
+    const mappedCalls = filteredCalls.map(item => {
       // Map backend status to internal CALL_STATUS
       let internalStatus = CALL_STATUS.PENDING_VERIFICATION;
       const backendStatus = item.status ? item.status.toString() : '';
@@ -213,6 +213,15 @@ export const useCallDeskData = (activeTab = 'pending', callType = 'ERC') => {
         returnReason: internalStatus === CALL_STATUS.RETURN_TO_VENDOR ? item.remarks : null
       };
     });
+
+    mappedCalls.sort((a, b) => {
+      const timeA = a.submissionDateTime ? new Date(a.submissionDateTime).getTime() : 0;
+      const timeB = b.submissionDateTime ? new Date(b.submissionDateTime).getTime() : 0;
+      if (timeB !== timeA) return timeB - timeA;
+      return (b.id || 0) - (a.id || 0);
+    });
+
+    return mappedCalls;
   }, [callType]);
 
   // API: Fetch Dashboard KPIs
@@ -284,7 +293,7 @@ export const useCallDeskData = (activeTab = 'pending', callType = 'ERC') => {
       return isRioMatching(user?.rio, item.rio);
     });
     
-    return openCalls.map(item => {
+    const mappedVerified = openCalls.map(item => {
       // Map backend status to internal CALL_STATUS
       let internalStatus = item.status;
       const backendStatus = [
@@ -337,6 +346,15 @@ export const useCallDeskData = (activeTab = 'pending', callType = 'ERC') => {
         rio: item.rio
       };
     });
+
+    mappedVerified.sort((a, b) => {
+      const timeA = a.submissionDateTime ? new Date(a.submissionDateTime).getTime() : 0;
+      const timeB = b.submissionDateTime ? new Date(b.submissionDateTime).getTime() : 0;
+      if (timeB !== timeA) return timeB - timeA;
+      return (b.id || 0) - (a.id || 0);
+    });
+
+    return mappedVerified;
   }, [callType]);
 
   // API: Fetch Disposed Calls
@@ -369,7 +387,7 @@ export const useCallDeskData = (activeTab = 'pending', callType = 'ERC') => {
     
     const filteredData = data.filter(item => isRioMatching(user?.rio, item.rio));
 
-    return filteredData.map(item => {
+    const mappedDisposed = filteredData.map(item => {
       let internalStatus = item.status;
       const backendStatus = item.status ? item.status.toString().toUpperCase() : '';
 
@@ -426,6 +444,15 @@ export const useCallDeskData = (activeTab = 'pending', callType = 'ERC') => {
         disposalReason: item.remarks || '-'
       };
     });
+
+    mappedDisposed.sort((a, b) => {
+      const timeA = a.submissionDateTime ? new Date(a.submissionDateTime).getTime() : 0;
+      const timeB = b.submissionDateTime ? new Date(b.submissionDateTime).getTime() : 0;
+      if (timeB !== timeA) return timeB - timeA;
+      return (b.id || 0) - (a.id || 0);
+    });
+
+    return mappedDisposed;
   }, [callType]);
 
   // Fetch data from backend API

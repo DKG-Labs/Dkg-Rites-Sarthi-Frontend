@@ -32,6 +32,37 @@ const checkEligibility = (castingDate) => {
     return true;
 };
 
+// Helper to format date string to dd/MM/yyyy for backend API
+const formatDateForBackend = (dateStr) => {
+    if (!dateStr || dateStr === 'N/A') return '';
+    const str = String(dateStr).trim();
+    if (str.includes('-')) {
+        const parts = str.split('T')[0].split('-');
+        if (parts.length === 3) {
+            const [y, m, d] = parts;
+            return `${d.padStart(2, '0')}/${m.padStart(2, '0')}/${y}`;
+        }
+    }
+    return str;
+};
+
+// Helper to format date string to ISO (yyyy-MM-dd) for MySQL Date columns
+const formatDateToIso = (dateStr) => {
+    if (!dateStr || dateStr === 'N/A') return '';
+    const str = String(dateStr).trim();
+    if (str.includes('/')) {
+        const parts = str.split('/');
+        if (parts.length === 3) {
+            const [d, m, y] = parts;
+            return `${y}-${m.padStart(2, '0')}-${d.padStart(2, '0')}`;
+        }
+    }
+    if (str.includes('-')) {
+        return str.split('T')[0];
+    }
+    return str;
+};
+
 // Mock Data for Batches pending declaration
 // const MOCK_PENDING_DECLARATION = [
 //     { batchNo: 'B-801', date: '2026-01-28', grade: 'M55', sleepers: 160, typesCount: 1 },
@@ -97,135 +128,152 @@ const WaterCubeTesting = () => {
     const [selectedBatch, setSelectedBatch] = useState(null); 
     const [selectedPendingBatches, setSelectedPendingBatches] = useState([]);
 
-    useEffect(() => {
-        fetchDeclarations();
-        fetchActiveDeclarations();
-    }, []);
-
-    const fetchDeclarations = async () => {
+    const fetchAllData = async () => {
         setLoadingDeclarations(true);
-        try {
-            const currentUser = getStoredUser();
-            const currentUserId = currentUser?.userId;
-
-            if (!currentUserId) {
-                setPendingDeclarations([]);
-                return [];
-            }
-
-            // Fetch ALL declarations (both active and completed) to filter them out of the pending list
-            const allSamples = await getWaterCubeSamples().catch(() => []);
-            const declaredBatchIds = allSamples.map(d => String(d.productionDeclarationId));
-
-            // Fast API: only fetches declarations for this user at the DB level
-            const data = await getProductionDeclarations();
-            if (data && data.length > 0) {
-                const mappedData = data
-                    .filter(d => d.plantId === (dutyUnit || localStorage.getItem('dutyUnit')))
-                    .map(d => ({
-                        id: d.id,
-                        batchNo: d.batchNumber || 'N/A',
-                        date: d.castingDate || 'N/A',
-                        grade: d.mixDesignReference || 'N/A',
-                        sleepers: d.totalCastedSleepers || 0,
-                        typesCount: d.totalSleeperTypes || 0,
-                        raw: d
-                    }))
-                    .filter(d => !declaredBatchIds.includes(String(d.id))); // Filter out all declared batches (both active and tested)
-                setPendingDeclarations(mappedData);
-            } else {
-                setPendingDeclarations([]);
-            }
-        } catch (error) {
-            console.error("Error fetching declarations:", error);
-            setPendingDeclarations([]);
-        } finally {
-            setLoadingDeclarations(false);
-        }
-    };
-
-    const fetchActiveDeclarations = async () => {
         setLoadingActive(true);
         try {
-            const currentUser = getStoredUser();
-            const currentUserId = currentUser?.userId;
+            const currentPlant = dutyUnit || localStorage.getItem('dutyUnit');
 
-            if (!currentUserId) {
-                setActiveDeclarations([]);
-                return [];
-            }
-
-            // Fetch both in parallel to filter out completed tests
-            const [data, testResults] = await Promise.all([
-                getWaterCubeSamples(),
-                getWaterCubeTestResultsByUser(currentUserId).catch(() => []) 
+            // 1. Fetch all 3 endpoints concurrently
+            const [prodData, sampleData, testData] = await Promise.all([
+                getProductionDeclarations().catch(() => []),
+                getWaterCubeSamples().catch(() => []),
+                getAllWaterCubeTests().catch(() => [])
             ]);
 
-            const completedTestIds = new Set(
-                 (testResults || [])
-                    .map(tr => tr.waterCubeSampleDeclarationId)
-                    .filter(id => id != null)
-            );
+            // Filter by current plant
+            const plantTests = (testData || []).filter(t => !currentPlant || !t.plantId || t.plantId === currentPlant);
+            const plantSamples = (sampleData || []).filter(s => !currentPlant || !s.plantId || s.plantId === currentPlant);
+            const plantProds = (prodData || []).filter(p => !currentPlant || !p.plantId || p.plantId === currentPlant);
 
-            if (data && data.length > 0) {
-                const mappedData = data
-                    .filter(d => !completedTestIds.has(d.id))
-                    .filter(d => d.plantId === (dutyUnit || localStorage.getItem('dutyUnit')))
-                    .map(d => ({
-                    id: d.id,
-                    productionDeclarationId: d.productionDeclarationId,
-                    batchNo: d.batchNumber,
-                    grade: d.concreteGrade,
-                    castingDate: d.castingDate,
-                    shift: d.shift,
-                    lineNo: d.lineNo,
-                    sample1Raw: d.details?.filter(det => det.sampleNumber === 1).sort((a,b) => a.cubeNumber - b.cubeNumber).map(det => ({ id: det.id, bench: det.benchNumber, seq: det.sequence })) || [],
-                    sample2Raw: d.details?.filter(det => det.sampleNumber === 2).sort((a,b) => a.cubeNumber - b.cubeNumber).map(det => ({ id: det.id, bench: det.benchNumber, seq: det.sequence })) || [],
-                    sample1: d.details?.filter(det => det.sampleNumber === 1).map(det => `${det.benchNumber}${det.sequence}`) || [],
-                    sample2: d.details?.filter(det => det.sampleNumber === 2).map(det => `${det.benchNumber}${det.sequence}`) || [],
-                    status: 'Testing Pending',
-                    raw: d
-                }));
-                
-                // Grouping logic based on exact identical sample 1 & sample 2 arrays
-                const groups = {};
-                mappedData.forEach(item => {
-                    const groupKey = JSON.stringify({ s1: item.sample1, s2: item.sample2 });
-                    if (!groups[groupKey]) {
-                        groups[groupKey] = [];
+            // ==========================================
+            // SECTION 3: LIST OF TESTING DONE
+            // ==========================================
+            const mappedDone = plantTests.map(r => {
+                const actualTestDate = r.testDate || r.details?.[0]?.testingDate || (r.createdDate ? new Date(r.createdDate).toISOString().split('T')[0] : '');
+                return {
+                    ...r,
+                    batchNo: r.batchNumber,
+                    castingDate: r.castingDate,
+                    testDate: actualTestDate,
+                    sample1Results: r.details?.filter(d => d.sampleNumber === 1).map(d => d.strength ?? d.strengthNmm2) || [],
+                    sample2Results: r.details?.filter(d => d.sampleNumber === 2).map(d => d.strength ?? d.strengthNmm2) || [],
+                    avgStrength: r.avgStrength ?? r.avgX,
+                    status: r.finalTestResult,
+                    raw: {
+                        ...r,
+                        testDate: actualTestDate
                     }
-                    groups[groupKey].push(item);
-                });
+                };
+            });
+            setDoneTests(mappedDone);
 
-                const groupedData = Object.values(groups).map(groupItems => {
-                    if (groupItems.length === 1) {
-                        return { ...groupItems[0], groupedBatches: [groupItems[0]] };
-                    }
-                    // Aggregate multiple items
-                    const first = groupItems[0];
-                    return {
-                        ...first,
-                        batchNo: groupItems.map(g => g.batchNo).join(', '),
-                        id: groupItems.map(g => g.id).join(','), // comma-separated IDs
-                        groupedBatches: groupItems
-                    };
-                });
-                
-                setActiveDeclarations(groupedData);
-                return mappedData;
-            } else {
-                setActiveDeclarations([]);
-                return [];
-            }
+            // Collect all identifiers of batches that are already tested
+            const testedSampleDeclIds = new Set(plantTests.map(t => String(t.waterCubeSampleDeclarationId)).filter(id => id && id !== 'null' && id !== 'undefined'));
+            const testedProdDeclIds = new Set(plantTests.map(t => String(t.productionDeclarationId)).filter(id => id && id !== 'null' && id !== 'undefined'));
+            const testedBatchNumbers = new Set(plantTests.map(t => String(t.batchNumber || t.batchNo || '').trim().toLowerCase()).filter(Boolean));
+
+            // ==========================================
+            // SECTION 2: DECLARED SAMPLES (Pending Testing)
+            // ==========================================
+            const activeSamplesRaw = plantSamples.filter(s => {
+                const sampleDeclId = String(s.id);
+                const prodDeclId = String(s.productionDeclarationId);
+                const batchNum = String(s.batchNumber || s.batchNo || '').trim().toLowerCase();
+
+                // Exclude if already tested in Section 3
+                if (testedSampleDeclIds.has(sampleDeclId)) return false;
+                if (prodDeclId && prodDeclId !== 'null' && prodDeclId !== 'undefined' && testedProdDeclIds.has(prodDeclId)) return false;
+                if (batchNum && testedBatchNumbers.has(batchNum)) return false;
+
+                return true;
+            });
+
+            const mappedActive = activeSamplesRaw.map(d => ({
+                id: d.id,
+                productionDeclarationId: d.productionDeclarationId,
+                batchNo: d.batchNumber,
+                grade: d.concreteGrade,
+                castingDate: d.castingDate,
+                shift: d.shift,
+                lineNo: d.lineNo,
+                sample1Raw: d.details?.filter(det => det.sampleNumber === 1).sort((a,b) => a.cubeNumber - b.cubeNumber).map(det => ({ id: det.id, bench: det.benchNumber, seq: det.sequence })) || [],
+                sample2Raw: d.details?.filter(det => det.sampleNumber === 2).sort((a,b) => a.cubeNumber - b.cubeNumber).map(det => ({ id: det.id, bench: det.benchNumber, seq: det.sequence })) || [],
+                sample1: d.details?.filter(det => det.sampleNumber === 1).map(det => `${det.benchNumber}${det.sequence}`) || [],
+                sample2: d.details?.filter(det => det.sampleNumber === 2).map(det => `${det.benchNumber}${det.sequence}`) || [],
+                status: 'Testing Pending',
+                raw: d
+            }));
+
+            // Grouping logic for declared batches
+            const groups = {};
+            mappedActive.forEach(item => {
+                const groupKey = JSON.stringify({ s1: item.sample1, s2: item.sample2 });
+                if (!groups[groupKey]) {
+                    groups[groupKey] = [];
+                }
+                groups[groupKey].push(item);
+            });
+
+            const groupedActive = Object.values(groups).map(groupItems => {
+                if (groupItems.length === 1) {
+                    return { ...groupItems[0], groupedBatches: [groupItems[0]] };
+                }
+                const first = groupItems[0];
+                return {
+                    ...first,
+                    batchNo: groupItems.map(g => g.batchNo).join(', '),
+                    id: groupItems.map(g => g.id).join(','),
+                    groupedBatches: groupItems
+                };
+            });
+            setActiveDeclarations(groupedActive);
+
+            // Collect all identifiers of actively declared batches (pending testing)
+            const activeSampleDeclIds = new Set(activeSamplesRaw.map(s => String(s.id)).filter(id => id && id !== 'null' && id !== 'undefined'));
+            const activeProdDeclIds = new Set(activeSamplesRaw.map(s => String(s.productionDeclarationId)).filter(id => id && id !== 'null' && id !== 'undefined'));
+            const activeBatchNumbers = new Set(activeSamplesRaw.map(s => String(s.batchNumber || s.batchNo || '').trim().toLowerCase()).filter(Boolean));
+
+            // ==========================================
+            // SECTION 1: DECLARE SAMPLES FOR TESTING (Pending Declaration)
+            // ==========================================
+            const pendingProdBatches = plantProds.filter(p => {
+                const prodId = String(p.id);
+                const batchNum = String(p.batchNumber || p.batchNo || '').trim().toLowerCase();
+
+                // Exclude if already in Section 3 (Tested)
+                if (testedProdDeclIds.has(prodId)) return false;
+                if (batchNum && testedBatchNumbers.has(batchNum)) return false;
+
+                // Exclude if already in Section 2 (Declared)
+                if (activeProdDeclIds.has(prodId)) return false;
+                if (batchNum && activeBatchNumbers.has(batchNum)) return false;
+
+                return true;
+            });
+
+            const mappedPending = pendingProdBatches.map(d => ({
+                id: d.id,
+                batchNo: d.batchNumber || 'N/A',
+                date: d.castingDate || 'N/A',
+                grade: d.mixDesignReference || d.concreteGrade || 'N/A',
+                sleepers: d.totalCastedSleepers || 0,
+                typesCount: d.totalSleeperTypes || 0,
+                raw: d
+            }));
+            setPendingDeclarations(mappedPending);
 
         } catch (error) {
-            console.error("Error fetching active water cube samples:", error);
-            setActiveDeclarations([]);
-            return [];
+            console.error("Error fetching water cube data:", error);
         } finally {
+            setLoadingDeclarations(false);
             setLoadingActive(false);
         }
     };
+
+    useEffect(() => {
+        fetchAllData();
+    }, [activeTab, dutyUnit]);
 
     const handleFinalizeSample = async (formData) => {
         try {
@@ -239,14 +287,15 @@ const WaterCubeTesting = () => {
 
             const batchesToProcess = formData.batches;
             const promises = batchesToProcess.map(batch => {
+                const castingDateRaw = batch.date || batch.castingDate || (batch.raw?.castingDate);
                 const payload = {
-                    productionDeclarationId: batch.productionDeclarationId || batch.id,
-                    castingDate: batch.date || batch.castingDate,
+                    productionDeclarationId: batch.productionDeclarationId || batch.raw?.productionDeclarationId || batch.id,
+                    castingDate: formatDateForBackend(castingDateRaw),
                     batchNumber: batch.batchNo || batch.batchNumber,
                     plantId: dutyUnit || localStorage.getItem('dutyUnit'),
                     vendorCode: vendorCode || localStorage.getItem('vendorCode'),
-                    shift: selectedShift || 'General',
-                    lineNo: dutyLocation || 'N/A',
+                    shift: batch.shift || selectedShift || 'General',
+                    lineNo: batch.lineNo || dutyLocation || 'N/A',
                     concreteGrade: batch.grade || batch.concreteGrade,
                     details: [
                         ...formData.sample1Raw.map((c, i) => ({ id: isModifying ? (batch.sample1Raw?.[i]?.id || 0) : 0, sampleNumber: 1, cubeNumber: i + 1, benchNumber: c.bench, sequence: c.seq })),
@@ -256,7 +305,7 @@ const WaterCubeTesting = () => {
                 };
 
                 let declId = null;
-                if (isModifying && batch.id && batch.productionDeclarationId) {
+                if (isModifying && batch.id) {
                     declId = batch.id;
                 }
                 
@@ -272,22 +321,22 @@ const WaterCubeTesting = () => {
             
             setSelectedPendingBatches([]);
             setIsSampleModalOpen(false);
-            fetchActiveDeclarations(); // Refresh the list of active declarations
-            fetchDeclarations(); // Refresh pending declarations as one might have been moved
+            setIsModifying(false);
+            fetchAllData(); // Refresh all sections
         } catch (error) {
             console.error("Error saving sample declaration:", error);
             alert("Failed to save sample declaration.");
             throw error;
         }
     };
+
     const handleDeleteSample = async (sampleId) => {
         if (window.confirm("Are you sure you want to delete this sample declaration? This action cannot be undone.")) {
             try {
                 const ids = String(sampleId).split(',');
                 await Promise.all(ids.map(id => deleteWaterCubeSample(id)));
                 alert("Sample declaration deleted successfully.");
-                fetchActiveDeclarations();
-                fetchDeclarations(); // Refresh pending declarations
+                fetchAllData(); // Refresh all sections
             } catch (err) {
                 console.error("Error deleting sample declaration:", err);
                 alert("Failed to delete sample declaration.");
@@ -301,38 +350,6 @@ const WaterCubeTesting = () => {
     const [isModifyingTest, setIsModifyingTest] = useState(false);
     const [selectedTestRecord, setSelectedTestRecord] = useState(null);
 
-    // Fetch done tests on mount or when active tab changes
-    const fetchDoneTests = async () => {
-        try {
-            const results = await getAllWaterCubeTests();
-            if (results && results.length > 0) {
-                const mapped = results
-                    .filter(r => r.plantId === (dutyUnit || localStorage.getItem('dutyUnit')))
-                    .map(r => ({
-                        ...r,
-                        batchNo: r.batchNumber,
-                        castingDate: r.castingDate,
-                        testDate: r.createdDate ? new Date(r.createdDate).toISOString().split('T')[0] : '',
-                        sample1Results: r.details?.filter(d => d.sampleNumber === 1).map(d => d.strength ?? d.strengthNmm2) || [],
-                        sample2Results: r.details?.filter(d => d.sampleNumber === 2).map(d => d.strength ?? d.strengthNmm2) || [],
-                        avgStrength: r.avgStrength ?? r.avgX,
-                        status: r.finalTestResult,
-                        raw: r
-                    }));
-                setDoneTests(mapped);
-            } else {
-                setDoneTests([]);
-            }
-        } catch (error) {
-            console.error("Failed to fetch done tests:", error);
-            setDoneTests([]);
-        }
-    };
-
-    useEffect(() => {
-        fetchDoneTests();
-    }, [activeTab]);
-
     const handleSaveTestData = async (data) => {
         try {
             const batchesToSave = selectedBatch.groupedBatches || [selectedBatch];
@@ -340,8 +357,9 @@ const WaterCubeTesting = () => {
                 const payload = {
                     waterCubeSampleDeclarationId: batch.id,
                     productionDeclarationId: batch.productionDeclarationId,
-                    castingDate: batch.castingDate,
-                    testDate: data.testDate,
+                    castingDate: formatDateToIso(batch.castingDate || batch.date),
+                    testDate: formatDateToIso(data.testDate),
+                    ageDays: data.ageDays,
                     shift: batch.shift,
                     lineNo: batch.lineNo,
                     concreteGrade: batch.grade || batch.concreteGrade,
@@ -367,7 +385,9 @@ const WaterCubeTesting = () => {
                             cubeId: batch.sample1?.[i] || '',
                             weightKg: r.weight,
                             loadKn: r.load,
-                            strengthNmm2: r.strength
+                            strengthNmm2: r.strength,
+                            testingDate: formatDateToIso(r.date),
+                            testingTime: r.time
                         })),
                         ...data.sample2Results.map((r, i) => ({
                             id: isModifyingTest ? (batch.raw?.details?.find(d => d.sampleNumber === 2 && (d.cubeIndex === i + 1 || d.cubeNumber === i + 1))?.id || 0) : 0,
@@ -376,7 +396,9 @@ const WaterCubeTesting = () => {
                             cubeId: batch.sample2?.[i] || '',
                             weightKg: r.weight,
                             loadKn: r.load,
-                            strengthNmm2: r.strength
+                            strengthNmm2: r.strength,
+                            testingDate: formatDateToIso(r.date),
+                            testingTime: r.time
                         }))
                     ]
                 };
@@ -392,8 +414,7 @@ const WaterCubeTesting = () => {
             
             alert(`Test record${promises.length > 1 ? 's' : ''} saved successfully!`);
             setShowTestForm(false);
-            fetchDoneTests();
-            fetchActiveDeclarations(); // Refresh active list to remove tested batches
+            fetchAllData(); // Refresh all sections
         } catch (error) {
             console.error("Error saving test result:", error);
             alert("Failed to save test result.");
@@ -465,8 +486,6 @@ const WaterCubeTesting = () => {
             key: 'actions',
             label: 'Actions',
             render: (_, row) => {
-                const canModify = (new Date() - new Date(row.raw?.createdDate || row.declarationTime)) < (8 * 60 * 60 * 1000);
-                const isEligible = checkEligibility(row.castingDate);
                 return (
                     <div style={{ display: 'flex', gap: '8px' }}>
                         <button
@@ -668,7 +687,7 @@ const WaterCubeTesting = () => {
                 <SampleDeclarationModal
                     batches={Array.isArray(selectedBatch) ? selectedBatch : (selectedBatch?.groupedBatches || [selectedBatch])}
                     isModifying={isModifying}
-                    onClose={() => setIsSampleModalOpen(false)}
+                    onClose={() => { setIsSampleModalOpen(false); setIsModifying(false); }}
                     onSave={handleFinalizeSample}
                 />
             )}
@@ -697,8 +716,7 @@ const WaterCubeTesting = () => {
                         try {
                             await deleteWaterCubeTest(id);
                             alert("Test record deleted successfully.");
-                            fetchDoneTests();
-                            fetchActiveDeclarations();
+                            fetchAllData();
                             setShowTestModal(false);
                         } catch (err) {
                             alert("Failed to delete test record.");
@@ -876,18 +894,64 @@ const SampleDeclarationModal = ({ batches, isModifying, onClose, onSave }) => {
     const [saving, setSaving] = useState(false);
     
     // For modifying, we assume all grouped batches have the identical sample info, so we take the first.
-    const referenceBatch = batches[0];
+    const referenceBatch = batches?.[0];
     
+    const buildSampleArray = (rawList) => {
+        return [0, 1, 2].map(i => {
+            if (rawList && rawList[i]) {
+                return { 
+                    id: rawList[i].id,
+                    bench: rawList[i].bench || '', 
+                    seq: rawList[i].seq || '' 
+                };
+            }
+            return { bench: '', seq: '' };
+        });
+    };
+
     const [form, setForm] = useState({
-        sample1: isModifying ? referenceBatch.sample1Raw : [{ bench: '', seq: '' }, { bench: '', seq: '' }, { bench: '', seq: '' }],
-        sample2: isModifying ? referenceBatch.sample2Raw : [{ bench: '', seq: '' }, { bench: '', seq: '' }, { bench: '', seq: '' }]
+        sample1: isModifying ? buildSampleArray(referenceBatch?.sample1Raw) : [{ bench: '', seq: '' }, { bench: '', seq: '' }, { bench: '', seq: '' }],
+        sample2: isModifying ? buildSampleArray(referenceBatch?.sample2Raw) : [{ bench: '', seq: '' }, { bench: '', seq: '' }, { bench: '', seq: '' }]
     });
+
+    useEffect(() => {
+        if (isModifying && referenceBatch) {
+            setForm({
+                sample1: buildSampleArray(referenceBatch.sample1Raw),
+                sample2: buildSampleArray(referenceBatch.sample2Raw)
+            });
+        }
+    }, [referenceBatch, isModifying]);
 
     useEffect(() => {
         const fetchAllFullData = async () => {
             setLoading(true);
             try {
-                const promises = batches.map(b => b.id ? getProductionDeclarationById(b.id) : Promise.resolve(b.raw));
+                const promises = batches.map(async b => {
+                    const prodId = b.productionDeclarationId || b.raw?.productionDeclarationId || (!isModifying ? b.id : null);
+                    if (prodId) {
+                        const data = await getProductionDeclarationById(prodId);
+                        if (data && (data.chambers?.length > 0 || data.gangs?.length > 0)) {
+                            return data;
+                        }
+                    }
+                    
+                    // Fallback by batch number if prodId didn't return chambers/gangs
+                    if (b.batchNo) {
+                        const allDecls = await getProductionDeclarations().catch(() => []);
+                        const firstBatchNo = String(b.batchNo).split(',')[0].trim();
+                        const found = allDecls.find(d => 
+                            String(d.batchNumber).trim() === firstBatchNo || 
+                            (prodId && d.id === prodId)
+                        );
+                        if (found) {
+                            if (found.chambers?.length > 0 || found.gangs?.length > 0) return found;
+                            const full = await getProductionDeclarationById(found.id);
+                            if (full) return full;
+                        }
+                    }
+                    return b.raw;
+                });
                 const results = await Promise.all(promises);
                 setFullDeclarations(results.filter(Boolean));
             } catch (err) {
@@ -899,7 +963,7 @@ const SampleDeclarationModal = ({ batches, isModifying, onClose, onSave }) => {
         if (batches?.length > 0) {
             fetchAllFullData();
         }
-    }, [batches]);
+    }, [batches, isModifying]);
 
     // Build a map of Bench Number -> Available Sleeper Suffixes from live API data
     const benchToSleepers = useMemo(() => {
@@ -907,37 +971,40 @@ const SampleDeclarationModal = ({ batches, isModifying, onClose, onSave }) => {
         if (!fullDeclarations || fullDeclarations.length === 0) return map;
 
         fullDeclarations.forEach(rawData => {
+            if (!rawData) return;
             // Handle Stress Bench (Chambers -> BenchGroups -> Sleepers)
             if (rawData.chambers && rawData.chambers.length > 0) {
                 rawData.chambers.forEach(chamber => {
-                chamber.benchGroups?.forEach(group => {
-                    const bNo = String(group.benchNo);
-                    if (!map[bNo]) map[bNo] = [];
-                    
-                    // Support both group.sleepers (strings) and group.sleeperList (objects)
-                    const sList = group.sleeperList || group.sleepers || [];
-                    sList.forEach(item => {
-                        const s = typeof item === 'string' ? item : (item.sleeperNo || item.id);
-                        if (!s) return;
-                        const suffix = s.startsWith(bNo) ? s.substring(bNo.length) : s;
-                        map[bNo].push({ full: s, suffix: suffix });
+                    chamber.benchGroups?.forEach(group => {
+                        const bNo = String(group.benchNo || '');
+                        if (!map[bNo]) map[bNo] = [];
+                        
+                        // Support both group.sleepers (strings) and group.sleeperList (objects)
+                        const sList = group.sleeperList || group.sleepers || [];
+                        sList.forEach(item => {
+                            const s = typeof item === 'string' ? item : (item.sleeperNo || item.id);
+                            if (!s) return;
+                            const str = String(s).trim();
+                            const suffix = str.startsWith(bNo) ? str.substring(bNo.length) : str;
+                            map[bNo].push({ full: str, suffix: suffix });
+                        });
                     });
-                });
                 });
             }
             
             // Handle Long Line (Gangs -> Sleepers)
             if (rawData.gangs && rawData.gangs.length > 0) {
                 rawData.gangs.forEach(gang => {
-                     const bNo = String(gang.gangNo);
-                     if (!map[bNo]) map[bNo] = [];
-                     const sList = gang.sleeperList || gang.sleepers || [];
-                     sList.forEach(item => {
-                         const s = typeof item === 'string' ? item : (item.sleeperNo || item.id);
-                         if (!s) return;
-                         const suffix = s.startsWith(bNo) ? s.substring(bNo.length) : s;
-                         map[bNo].push({ full: s, suffix: suffix });
-                     });
+                    const bNo = String(gang.gangNo || '');
+                    if (!map[bNo]) map[bNo] = [];
+                    const sList = gang.sleeperList || gang.sleepers || [];
+                    sList.forEach(item => {
+                        const s = typeof item === 'string' ? item : (item.sleeperNo || item.id);
+                        if (!s) return;
+                        const str = String(s).trim();
+                        const suffix = str.startsWith(bNo) ? str.substring(bNo.length) : str;
+                        map[bNo].push({ full: str, suffix: suffix });
+                    });
                 });
             }
         });
@@ -951,8 +1018,15 @@ const SampleDeclarationModal = ({ batches, isModifying, onClose, onSave }) => {
         Object.values(benchToSleepers).forEach(sleepers => {
             sleepers.forEach(s => unique.add(s.full));
         });
+        // Also ensure currently declared sleepers in referenceBatch are included in options
+        if (referenceBatch?.sample1) {
+            referenceBatch.sample1.forEach(s => { if (s) unique.add(String(s).trim()); });
+        }
+        if (referenceBatch?.sample2) {
+            referenceBatch.sample2.forEach(s => { if (s) unique.add(String(s).trim()); });
+        }
         return Array.from(unique).sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
-    }, [benchToSleepers]);
+    }, [benchToSleepers, referenceBatch]);
 
     const selectedSleeperIds = useMemo(() => {
         const ids = [];
@@ -992,6 +1066,9 @@ const SampleDeclarationModal = ({ batches, isModifying, onClose, onSave }) => {
             }
         }
         
+        if (!updated[cubeIdx]) {
+            updated[cubeIdx] = { bench: '', seq: '' };
+        }
         updated[cubeIdx].bench = identifiedBench;
         updated[cubeIdx].seq = identifiedSeq;
         setForm({ ...form, [key]: updated });
@@ -1054,7 +1131,7 @@ const SampleDeclarationModal = ({ batches, isModifying, onClose, onSave }) => {
                                     }
                                     
                                     // 2. Validation: Must be from the list
-                                    const invalid = selectedCubes.filter(c => !allSleeperOptions.includes(`${c.bench}${c.seq}`));
+                                    const invalid = selectedCubes.filter(c => allSleeperOptions.length > 0 && !allSleeperOptions.includes(`${c.bench}${c.seq}`));
                                     if (invalid.length > 0) {
                                         alert(`Invalid selection: ${invalid.map(c => `${c.bench}${c.seq}`).join(', ')} do not belong to this batch.`);
                                         return;
@@ -1095,10 +1172,6 @@ const SampleDeclarationModal = ({ batches, isModifying, onClose, onSave }) => {
 
 const TestDetailPopup = ({ batch, onClose, onModify, onSaveTest, onDelete, onDeleteTest }) => {
     const isEligible = checkEligibility(batch.castingDate);
-    // 8 hour restriction logic
-    const createdTime = new Date(batch.raw?.updatedDate || batch.raw?.createdDate || Date.now());
-    const hoursElapsed = (new Date() - createdTime) / (1000 * 60 * 60);
-    const canModifyOrDelete = hoursElapsed < 8;
 
     return (
         <div className="form-modal-overlay" onClick={onClose}>
@@ -1113,7 +1186,14 @@ const TestDetailPopup = ({ batch, onClose, onModify, onSaveTest, onDelete, onDel
                             <div><label style={{ fontSize: '10px', color: '#64748b', fontWeight: '800' }}>BATCH NO</label><div style={{ fontWeight: '800' }}>{batch.batchNo}</div></div>
                             <div><label style={{ fontSize: '10px', color: '#64748b', fontWeight: '800' }}>GRADE</label><div style={{ fontWeight: '800' }}>{batch.grade}</div></div>
                             <div><label style={{ fontSize: '10px', color: '#64748b', fontWeight: '800' }}>CASTING DATE</label><div style={{ fontWeight: '800' }}>{batch.castingDate}</div></div>
-                            <div><label style={{ fontSize: '10px', color: '#64748b', fontWeight: '800' }}>STATUS</label><div style={{ fontWeight: '800', color: isEligible ? '#10b981' : '#c2410c' }}>{isEligible ? 'Testing Pending' : 'Wait Required'}</div></div>
+                            <div>
+                                <label style={{ fontSize: '10px', color: '#64748b', fontWeight: '800' }}>
+                                    {batch.isTested ? 'DATE OF TESTING' : 'STATUS'}
+                                </label>
+                                <div style={{ fontWeight: '800', color: batch.isTested ? '#1e293b' : (isEligible ? '#10b981' : '#c2410c') }}>
+                                    {batch.isTested ? (batch.raw?.testDate || batch.raw?.details?.[0]?.testingDate || 'N/A') : (isEligible ? 'Testing Pending' : 'Wait Required')}
+                                </div>
+                            </div>
                         </div>
 
                         <div style={{ marginBottom: '24px' }}>
@@ -1206,36 +1286,35 @@ const TestDetailPopup = ({ batch, onClose, onModify, onSaveTest, onDelete, onDel
                                 </button>
                             )}
                             
-                             <button
-                                className="btn-save"
-                                style={{ 
-                                    opacity: canModifyOrDelete ? 1 : 0.5, 
-                                    cursor: canModifyOrDelete ? 'pointer' : 'not-allowed',
-                                    background: '#fff',
-                                    border: '1px solid #e2e8f0',
-                                    color: '#475569',
-                                    flex: 1,
-                                    padding: '12px 24px',
-                                    fontSize: '13px',
-                                    fontWeight: '600',
-                                    borderRadius: '25px',
-                                    boxShadow: '0 2px 4px rgba(0,0,0,0.05)',
-                                    minWidth: '100px',
-                                    transition: 'all 0.2s'
-                                }}
-                                disabled={!canModifyOrDelete}
-                                onClick={onModify}
-                            >
-                                Modify {!canModifyOrDelete && ' (Exp.)'}
-                            </button>
+                            {!batch.isTested && (
+                                <button
+                                    className="btn-save"
+                                    style={{ 
+                                        cursor: 'pointer',
+                                        background: '#fff',
+                                        border: '1px solid #e2e8f0',
+                                        color: '#475569',
+                                        flex: 1,
+                                        padding: '12px 24px',
+                                        fontSize: '13px',
+                                        fontWeight: '600',
+                                        borderRadius: '25px',
+                                        boxShadow: '0 2px 4px rgba(0,0,0,0.05)',
+                                        minWidth: '100px',
+                                        transition: 'all 0.2s'
+                                    }}
+                                    onClick={onModify}
+                                >
+                                    Modify
+                                </button>
+                            )}
                             <button
                                 className="btn-delete"
                                 style={{ 
-                                    opacity: canModifyOrDelete ? 1 : 0.5, 
-                                    cursor: canModifyOrDelete ? 'pointer' : 'not-allowed',
+                                    cursor: 'pointer',
                                     background: '#fff',
-                                    border: '1px solid #e2e8f0',
-                                    color: '#475569',
+                                    border: '1px solid #fee2e2',
+                                    color: '#dc2626',
                                     flex: 1,
                                     padding: '12px 24px',
                                     fontSize: '13px',
@@ -1245,7 +1324,6 @@ const TestDetailPopup = ({ batch, onClose, onModify, onSaveTest, onDelete, onDel
                                     minWidth: '100px',
                                     transition: 'all 0.2s'
                                 }}
-                                disabled={!canModifyOrDelete}
                                 onClick={() => {
                                     if (window.confirm("Delete this record? The sample will return to the previous stage.")) {
                                         if (batch.isTested) {
@@ -1256,14 +1334,9 @@ const TestDetailPopup = ({ batch, onClose, onModify, onSaveTest, onDelete, onDel
                                     }
                                 }}
                             >
-                                Delete {!canModifyOrDelete && ' (Exp.)'}
+                                Delete
                             </button>
                         </div>           
-                            {!canModifyOrDelete && (
-                                <p style={{ fontSize: '10px', color: '#94a3b8', margin: '8px 0 0 0', textAlign: 'center' }}>
-                                    Note: Modify and Delete are only available for 8 hours after declaration.
-                                </p>
-                            )}
                     </div>
                 </div>
             </div>

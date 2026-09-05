@@ -254,7 +254,7 @@ const CallDetailsModal = ({
       setCurrentMappedIEName(call.assignedToUserName || call.assignedIeName || call.assignedIE || null);
       fetchMappedIEs();
     }
-  }, [isOpen, call?.callNumber, fetchMappedIEs]);
+  }, [isOpen, call?.callNumber, call?.assignedToUserName, call?.assignedIeName, call?.assignedIE, fetchMappedIEs]);
 
   const handleSubmitRemapping = async () => {
     if (!selectedIE) {

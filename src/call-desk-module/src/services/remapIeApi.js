@@ -121,7 +121,7 @@ export const fetchRailpadRemapAvailableUsers = async () => {
  * @param {Object} payload - { callNo, plantId, oldUserId, newUserId }
  */
 export const submitRailpadRemap = async (payload) => {
-    const response = await fetch(`${API_BASE_URL}/api/railpad-workflow/remap-submit`, {
+    const response = await fetch(`${API_BASE_URL}/api/railpad-workflow/reassign-user`, {
         method: 'POST',
         headers: getHeaders(),
         body: JSON.stringify(payload)

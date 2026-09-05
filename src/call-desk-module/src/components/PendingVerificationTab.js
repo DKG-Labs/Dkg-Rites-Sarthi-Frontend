@@ -121,7 +121,8 @@ const PendingVerificationTab = ({
       key: 'assignedIE',
       label: 'Assigned IE',
       render: (value, row) => {
-        if (row.product === 'Process' && value && value !== '-') {
+        const isMultiple = typeof value === 'string' && value.includes(',');
+        if (isMultiple) {
           return (
             <button 
               className="btn btn-sm"

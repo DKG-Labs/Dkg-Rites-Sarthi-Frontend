@@ -304,7 +304,8 @@ const VisualInspectionForm = ({ batch, onSave, onCancel, shift }) => {
                     ...prev[sectionId].rejectionDetails,
                     [sleeperId]: {
                         ...(prev[sectionId].rejectionDetails[sleeperId] || { reason: '', subReason: '' }),
-                        [field]: value
+                        [field]: value,
+                        ...(field === 'reason' ? { subReason: '' } : {})
                     }
                 }
             }
@@ -368,7 +369,8 @@ const VisualInspectionForm = ({ batch, onSave, onCancel, shift }) => {
             'Honeycomb',
             'Crack',
             'Insert Missing / Tilt / Sink',
-            'Dowel Missing / Tilt / Sink'
+            'Dowel Missing / Tilt / Sink',
+            'Wire Slippage'
         ];
         if (sectionId === 'dimension') return [
             'Outer Gauge'
@@ -385,6 +387,7 @@ const VisualInspectionForm = ({ batch, onSave, onCancel, shift }) => {
                 case 'Crack': return ['Horizontal Crack', 'Vertical Crack'];
                 case 'Insert Missing / Tilt / Sink': return ['Insert Missing', 'Insert Tilt', 'Insert Sink'];
                 case 'Dowel Missing / Tilt / Sink': return ['Dowel Missing', 'Dowel Tilt', 'Dowel Sink', 'Dowel Jam'];
+                case 'Wire Slippage': return [];
                 default: return ['Others'];
             }
         }

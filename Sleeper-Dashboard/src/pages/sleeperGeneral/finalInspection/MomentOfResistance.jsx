@@ -44,44 +44,58 @@ const MomentOfResistance = () => {
         try {
             const params = getCommonParams();
 
-            // 1. Fetch Verified Water Batches (Potential Declarations)
-            const vResponse = await apiService.getAllVerifedWaterBatchs(params);
+            // 1. Fetch all data in parallel
+            const [vResponse, allProdResponse, waterTestsResponse, mrResponse, testResponse] = await Promise.all([
+                apiService.getAllVerifedWaterBatchs(params).catch(() => []),
+                apiService.getAllProductionDeclarations().catch(() => []),
+                apiService.getAllWaterCubeTests().catch(() => []),
+                apiService.getAllMRRecords().catch(() => []),
+                apiService.getAllMRTests().catch(() => [])
+            ]);
+
             const vData = vResponse?.responseData || vResponse || [];
+            const allProdData = allProdResponse?.responseData || allProdResponse || [];
+            const waterTests = waterTestsResponse?.responseData || waterTestsResponse || [];
+            const mrData = mrResponse?.responseData || mrResponse || [];
+            const testData = testResponse?.responseData || testResponse || [];
             
             const isSamePlant = (itemPlant, targetPlant) => {
                 if (!targetPlant || !itemPlant) return true;
                 return String(itemPlant).replace(':', '').trim() === String(targetPlant).replace(':', '').trim();
             };
 
-            // 2. Fetch Completed Water Cube Tests (Real-time completed logs for active plant)
-            const waterTestsResponse = await apiService.getAllWaterCubeTests().catch(() => []);
-            const waterTests = waterTestsResponse?.responseData || waterTestsResponse || [];
             const completedWaterBatchNos = new Set(
                 (Array.isArray(waterTests) ? waterTests : [])
                     .filter(t => isSamePlant(t.plantId, params.plantId))
                     .map(t => String(t.batchNumber || t.batchNo).trim())
             );
 
-            // 3. Fetch Declared MR Records (Pending Testing across all dates)
-            const mrResponse = await apiService.getAllMRRecords();
-            const mrData = mrResponse?.responseData || mrResponse || [];
-
-            // 4. Fetch Completed MR Tests (Historical Records across all dates)
-            const testResponse = await apiService.getAllMRTests();
-            const testData = testResponse?.responseData || testResponse || [];
-
-            const vBatchIdMap = new Map(vData.map(v => [String(v.batchNumber), v.id]));
+            // Build exhaustive production declaration map for all batches
+            const normKey = (s) => String(s || '').replace(/[\s-_]/g, '').trim().toLowerCase();
+            const allBatches = [...(Array.isArray(allProdData) ? allProdData : []), ...(Array.isArray(vData) ? vData : [])];
+            const vBatchMap = new Map();
+            const vBatchIdMap = new Map();
+            allBatches.forEach(v => {
+                if (v && v.batchNumber) {
+                    const exact = String(v.batchNumber).trim();
+                    const norm = normKey(v.batchNumber);
+                    if (!vBatchMap.has(exact)) vBatchMap.set(exact, v);
+                    if (!vBatchMap.has(norm)) vBatchMap.set(norm, v);
+                    if (!vBatchIdMap.has(exact)) vBatchIdMap.set(exact, v.id);
+                    if (!vBatchIdMap.has(norm)) vBatchIdMap.set(norm, v.id);
+                }
+            });
 
             // Batches that have completed testing (Pass or Fail)
             const passedBatchNos = new Set(
                 testData
                     .filter(t => isSamePlant(t.plantId, params.plantId) && String(t.testResult).toLowerCase() === 'pass')
-                    .map(t => String(t.batchNumber))
+                    .map(t => String(t.batchNumber).trim())
             );
             const failedBatchNos = new Set(
                 testData
                     .filter(t => isSamePlant(t.plantId, params.plantId) && String(t.testResult).toLowerCase() === 'fail')
-                    .map(t => String(t.batchNumber))
+                    .map(t => String(t.batchNumber).trim())
             );
             const completedBatchNos = new Set([...passedBatchNos, ...failedBatchNos]);
 
@@ -92,13 +106,15 @@ const MomentOfResistance = () => {
                     const samplesToTest = item.mrSamplesRequired || (item.condition2 ? 2 : 1);
                     const bNo = String(item.batchNumber).trim();
                     const isWaterDone = Boolean(item.waterCubeTestStatus) && completedWaterBatchNos.has(bNo);
+                    const batchMatch = vBatchMap.get(bNo) || vBatchMap.get(normKey(bNo));
+                    const actualSleeperType = item.sleeperType || item.drawingNo || batchMatch?.sleeperType || batchMatch?.drawingNo || item.mixDesignReference || 'N/A';
                     return {
                         id: item.id,
                         productionDeclarationId: item.id,
                         batchNo: item.batchNumber,
                         sleeperCategory: item.sleeperCategory,
-                        sleeperType: item.mixDesignReference || 'N/A',
-                        castingDate: item.castingDate,
+                        sleeperType: actualSleeperType,
+                        castingDate: item.castingDate || batchMatch?.castingDate || item.dateOfCasting || 'N/A',
                         waterCubeStatus: isWaterDone ? 'Completed' : 'Not Completed',
                         mrSamplesNeeded: samplesToTest, 
                         mrTestType: 'Fresh',
@@ -110,7 +126,7 @@ const MomentOfResistance = () => {
             // Map Declared Records (Pending Results)
             const mappedDeclared = mrData
                 .filter(item => isSamePlant(item.plantId, params.plantId))
-                .filter(item => (!item.testResult || item.testResult === 'Pending') && !completedBatchNos.has(String(item.batchNumber)))
+                .filter(item => (!item.testResult || item.testResult === 'Pending') && !completedBatchNos.has(String(item.batchNumber).trim()))
                 .map(item => {
                     const bList = String(item.benchNumber || '').split(',').map(s => s.trim());
                     const sList = String(item.sleeperNo || '').split(',').map(s => s.trim());
@@ -121,16 +137,20 @@ const MomentOfResistance = () => {
                           }))
                         : [{ bench: item.benchNumber || '', no: item.sleeperNo || '' }];
 
-                    const pId = item.productionDeclarationId || vBatchIdMap.get(String(item.batchNumber));
+                    const bNo = String(item.batchNumber).trim();
+                    const batchMatch = vBatchMap.get(bNo) || vBatchMap.get(normKey(bNo));
+                    const pId = item.productionDeclarationId || batchMatch?.id || vBatchIdMap.get(bNo);
+                    const actualCastingDate = batchMatch?.castingDate || item.castingDate || item.dateOfCasting || 'N/A';
+                    const actualSleeperType = item.sleeperType || batchMatch?.sleeperType || batchMatch?.drawingNo || batchMatch?.mixDesignReference || 'N/A';
 
                     return {
                         ...item,
                         productionDeclarationId: pId,
                         batchNo: item.batchNumber,
                         sleeperCategory: item.sleeperCategory,
-                        sleeperType: item.sleeperType,
+                        sleeperType: actualSleeperType,
                         declaredSamples: samples,
-                        castingDate: item.createdDate?.split('T')[0], 
+                        castingDate: actualCastingDate, 
                         status: 'Testing Pending',
                         mrTestType: item.mrTestType || 'Fresh',
                         isTestRecord: false
@@ -141,21 +161,26 @@ const MomentOfResistance = () => {
             const mappedHistorical = testData
                 .filter(item => isSamePlant(item.plantId, params.plantId))
                 .map(item => {
-                    const declaredMatch = mrData.find(d => String(d.batchNumber) === String(item.batchNumber) || d.id === item.monmentOfResistanceId);
+                    const bNo = String(item.batchNumber).trim();
+                    const batchMatch = vBatchMap.get(bNo) || vBatchMap.get(normKey(bNo));
+                    const declaredMatch = mrData.find(d => String(d.batchNumber).trim() === bNo || d.id === item.monmentOfResistanceId);
                     const bench = item.benchNumber || declaredMatch?.benchNumber || 'N/A';
                     const sleeper = item.sleeperNo || declaredMatch?.sleeperNo || 'N/A';
-                    const pId = item.productionDeclarationId || vBatchIdMap.get(String(item.batchNumber));
+                    const pId = item.productionDeclarationId || batchMatch?.id || vBatchIdMap.get(bNo);
+                    const actualCastingDate = batchMatch?.castingDate || declaredMatch?.castingDate || item.castingDate || item.dateOfCasting || 'N/A';
+                    const actualSleeperType = item.sleeperType || declaredMatch?.sleeperType || batchMatch?.sleeperType || batchMatch?.drawingNo || batchMatch?.mixDesignReference || 'N/A';
+
                     return {
                         ...item,
                         productionDeclarationId: pId,
                         batchNo: item.batchNumber,
                         sleeperCategory: item.sleeperCategory,
-                        sleeperType: item.sleeperType,
+                        sleeperType: actualSleeperType,
                         benchNumber: bench,
                         sleeperNo: sleeper,
                         declaredSamples: item.declaredSamples || [{ bench: bench, no: sleeper }],
-                        castingDate: item.castingDate,
-                        dateOfTesting: item.createdDate?.split('T')[0],
+                        castingDate: actualCastingDate,
+                        dateOfTesting: item.createdDate ? item.createdDate.split('T')[0] : (item.dateOfTesting || 'N/A'),
                         status: item.testResult || 'Pass',
                         isTestRecord: true
                     };
@@ -165,22 +190,27 @@ const MomentOfResistance = () => {
             const pendingBatchNos = new Set(
                 mrData
                     .filter(d => isSamePlant(d.plantId, params.plantId) && (!d.testResult || d.testResult === 'Pending'))
-                    .map(d => String(d.batchNumber))
+                    .map(d => String(d.batchNumber).trim())
             );
 
             const retestBatches = [...testData, ...mrData]
                 .filter(item => isSamePlant(item.plantId, params.plantId))
                 .filter(item => String(item.testResult || '').toLowerCase() === 'retest')
-                .filter(item => !pendingBatchNos.has(String(item.batchNumber)) && !passedBatchNos.has(String(item.batchNumber)))
+                .filter(item => !pendingBatchNos.has(String(item.batchNumber).trim()) && !passedBatchNos.has(String(item.batchNumber).trim()))
                 .map(item => {
-                    const pId = item.productionDeclarationId || vBatchIdMap.get(String(item.batchNumber));
+                    const bNo = String(item.batchNumber).trim();
+                    const batchMatch = vBatchMap.get(bNo) || vBatchMap.get(normKey(bNo));
+                    const pId = item.productionDeclarationId || batchMatch?.id || vBatchIdMap.get(bNo);
+                    const actualCastingDate = batchMatch?.castingDate || item.castingDate || item.dateOfCasting || 'N/A';
+                    const actualSleeperType = item.sleeperType || batchMatch?.sleeperType || batchMatch?.drawingNo || batchMatch?.mixDesignReference || 'N/A';
+
                     return {
                         id: pId || item.monmentOfResistanceId || item.id,
                         productionDeclarationId: pId,
                         batchNo: item.batchNumber,
                         sleeperCategory: item.sleeperCategory || 'Plain',
-                        sleeperType: item.sleeperType || 'N/A',
-                        castingDate: item.castingDate || item.createdDate?.split('T')[0],
+                        sleeperType: actualSleeperType,
+                        castingDate: actualCastingDate,
                         waterCubeStatus: 'Completed',
                         mrSamplesNeeded: 2,
                         mrTestType: 'Retest',
@@ -230,6 +260,7 @@ const MomentOfResistance = () => {
                 const payload = {
                     batchNumber: String(batch.batchNumber || batch.batchNo),
                     sleeperType: batch.sleeperType,
+                    castingDate: batch.castingDate,
                     benchNumber: Array.from(new Set(samples.map(s => s.bench).filter(Boolean))).join(', '),
                     sleeperNo: samples.map(s => s.no).filter(Boolean).join(', '),
                     testResult: batch.testResult || 'Pending',
@@ -249,6 +280,7 @@ const MomentOfResistance = () => {
                 const payload = {
                     batchNumber: String(batch.batchNo),
                     sleeperType: batch.sleeperType,
+                    castingDate: batch.castingDate,
                     benchNumber: benchNos,
                     sleeperNo: sleeperNos,
                     testResult: 'Pending',
@@ -349,7 +381,7 @@ const MomentOfResistance = () => {
 
     const columnsDeclaration = [
         { key: 'batchNo', label: 'Batch Number' },
-        { key: 'sleeperType', label: 'Sleeper Type' },
+        { key: 'sleeperType', label: 'Dwg. no.' },
         { key: 'castingDate', label: 'Date of Casting' },
         {
             key: 'waterCubeStatus',
@@ -419,7 +451,7 @@ const MomentOfResistance = () => {
 
     const columnsTesting = [
         { key: 'batchNo', label: 'Batch Number' },
-        { key: 'sleeperType', label: 'Sleeper Type' },
+        { key: 'sleeperType', label: 'Dwg. no.' },
         {
             key: 'declaredSamples',
             label: 'Sleeper Number',
@@ -443,16 +475,7 @@ const MomentOfResistance = () => {
 
     const columnsHistorical = [
         { key: 'batchNo', label: 'Batch Number' },
-        { key: 'sleeperType', label: 'Sleeper Type' },
-        {
-            key: 'benchNumber',
-            label: 'Bench Number',
-            render: (val) => {
-                if (!val) return 'N/A';
-                const parts = String(val).split(',').map(s => s.trim()).filter(Boolean);
-                return Array.from(new Set(parts)).join(', ') || 'N/A';
-            }
-        },
+        { key: 'sleeperType', label: 'Dwg. no.' },
         { key: 'sleeperNo', label: 'Sleeper No.' },
         { key: 'castingDate', label: 'Date of Casting' },
         { key: 'dateOfTesting', label: 'Date of Testing' },
@@ -740,7 +763,7 @@ const DeclareSampleModal = ({ batch, onClose, onSave, isEdit }) => {
                     <div style={{ background: '#f8fafc', padding: '16px', borderRadius: '12px', border: '1px solid #e2e8f0', marginBottom: '20px' }}>
                         <div className="form-grid">
                             <div className="input-group"><label>Batch</label><input readOnly value={batch?.batchNo} className="readOnly" /></div>
-                            <div className="input-group"><label>Sleeper Type</label><input readOnly value={batch?.sleeperType} className="readOnly" /></div>
+                            <div className="input-group"><label>Dwg. no.</label><input readOnly value={batch?.sleeperType} className="readOnly" /></div>
                         </div>
                     </div>
 
@@ -949,7 +972,7 @@ const TestDetailsModal = ({ batch, onClose, onSave }) => {
                     <div style={{ background: '#fff', padding: '16px', borderRadius: '12px', border: '1px solid #e2e8f0', marginBottom: '20px' }}>
                         <div className="form-grid">
                             <div className="input-group"><label>Batch</label><input readOnly value={batch?.batchNo} className="readOnly" /></div>
-                            <div className="input-group"><label>Sleeper Type</label><input readOnly value={batch?.sleeperType} className="readOnly" /></div>
+                            <div className="input-group"><label>Dwg. no.</label><input readOnly value={batch?.sleeperType} className="readOnly" /></div>
                             <div className="input-group"><label>Casting Date</label><input readOnly value={batch?.castingDate} className="readOnly" /></div>
                         </div>
                     </div>
@@ -1065,7 +1088,7 @@ const MRDetailsModal = ({ batch, onClose, onModify, onEnterTest, onDelete }) => 
 
     const details = [
         { label: 'Batch No', value: batch.batchNo },
-        { label: 'Sleeper Type', value: batch.sleeperType },
+        { label: 'Dwg. no.', value: batch.sleeperType },
         { label: 'Casting Date', value: batch.castingDate },
         { label: 'Sleeper Info', value: batch.isTestRecord ? batch.sleeperNo : batch.declaredSamples?.map(s => s.no).join(', ') },
         { label: 'Log Created', value: `${createdTime.toLocaleDateString('en-GB')} ${createdTime.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}` }

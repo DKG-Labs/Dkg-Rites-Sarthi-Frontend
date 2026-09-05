@@ -888,9 +888,14 @@ const reportService = {
     getInspectionCallStatusDetails: async (stage, status, filters) => {
         let url;
         const isRailPad = stage === 'Railpad' || filters?.isRailPad || filters?.product === 'RailPad';
+        const isSleeper = stage === 'Sleeper' || filters?.isSleeper || filters?.product === 'Sleeper';
         if (isRailPad) {
             url = new URL(`${API_ENDPOINTS.REPORTS}/railPadInspectionCallStatusDetails`);
             if (stage && stage !== 'Railpad') url.searchParams.append('stage', stage);
+            url.searchParams.append('status', status);
+        } else if (isSleeper) {
+            url = new URL(`${API_ENDPOINTS.REPORTS}/sleeperInspectionCallStatusDetails`);
+            if (stage && stage !== 'Sleeper') url.searchParams.append('stage', stage);
             url.searchParams.append('status', status);
         } else {
             url = new URL(`${API_ENDPOINTS.REPORTS}/inspectionCallStatusDetails`);
@@ -1076,12 +1081,13 @@ const reportService = {
     },
 
     /**
-     * Get distinct company names from vendor_plant table
-     * Hits: /api/sleeper-dashboard/vendor-plant/companies
+     * Get distinct company names from vendor_plant table, optionally filtered by zone
+     * Hits: /api/sleeper-dashboard/vendor-plant/companies?zone={zone}
      */
-    getSleeperVendorPlantCompanies: async () => {
-        const url = `${API_ENDPOINTS.SLEEPER_DASHBOARD}/vendor-plant/companies`;
-        const response = await fetch(url, { headers: getAuthHeaders() });
+    getSleeperVendorPlantCompanies: async (zone) => {
+        const url = new URL(`${API_ENDPOINTS.SLEEPER_DASHBOARD}/vendor-plant/companies`);
+        if (zone) url.searchParams.append('zone', zone);
+        const response = await fetch(url.toString(), { headers: getAuthHeaders() });
         return handleResponse(response);
     },
 
@@ -1095,6 +1101,63 @@ const reportService = {
         url.searchParams.append('companyName', companyName);
         const response = await fetch(url.toString(), { headers: getAuthHeaders() });
         return handleResponse(response);
+    },
+
+    /**
+     * Get consolidated Sleeper dashboard summary, optionally filtered by vendor and/or zonal railway.
+     * Hits: /api/sleeper-dashboard/summary?vendor={vendor}&zone={zone}
+     * Returns: { rejectedInProcess, rejectedInFinal, rejectionPercentage, pendingCalls, underInspectionCalls }
+     * Gracefully falls back to existing individual endpoints if /summary is unavailable.
+     * @param {string} vendor - optional vendor/company name or vendor code
+     * @param {string} zone - optional zonal railway code
+     */
+    getSleeperDashboardSummaryFiltered: async (vendor, zone) => {
+        try {
+            const url = new URL(`${API_ENDPOINTS.SLEEPER_DASHBOARD}/summary`);
+            if (vendor) url.searchParams.append('vendor', vendor);
+            if (zone) url.searchParams.append('zone', zone);
+            const response = await fetch(url.toString(), { headers: getAuthHeaders() });
+            const res = await handleResponse(response);
+            if (res && res.responseData) return res;
+        } catch (e) {
+            console.warn("New /summary endpoint not available, falling back to individual endpoints", e);
+        }
+
+        // Fallback to individual endpoints
+        try {
+            const [demouldRes, finalRes, rejPctRes, callStatusRes] = await Promise.all([
+                reportService.getDemouldingRejectedCount(),
+                reportService.getFinalRejectedCount(),
+                reportService.getRejectionPercentage(),
+                reportService.getFinalInspectionCallStatusCounts()
+            ]);
+            const d = demouldRes?.responseData ?? demouldRes ?? 0;
+            const f = finalRes?.responseData ?? finalRes ?? 0;
+            const p = rejPctRes?.responseData ?? rejPctRes ?? 0;
+            const cs = (callStatusRes?.responseData && typeof callStatusRes.responseData === 'object')
+                ? callStatusRes.responseData
+                : (callStatusRes || {});
+            return {
+                responseData: {
+                    rejectedInProcess: typeof d === 'number' ? d : Number(d) || 0,
+                    rejectedInFinal: typeof f === 'number' ? f : Number(f) || 0,
+                    rejectionPercentage: Math.round(Number(p || 0) * 100) / 100,
+                    pendingCalls: cs.pending || 0,
+                    underInspectionCalls: cs.underInspection || 0
+                }
+            };
+        } catch (err) {
+            console.error("Error in sleeper summary fallback:", err);
+            return {
+                responseData: {
+                    rejectedInProcess: 0,
+                    rejectedInFinal: 0,
+                    rejectionPercentage: 0,
+                    pendingCalls: 0,
+                    underInspectionCalls: 0
+                }
+            };
+        }
     },
 
     /**

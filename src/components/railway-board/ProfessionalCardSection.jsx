@@ -234,13 +234,36 @@ const ProfessionalCardSection = ({
     const [localInspectionDetails, setLocalInspectionDetails] = useState([]);
     const [localAvgProduction, setLocalAvgProduction] = useState(null);
     const [localSummaryData, setLocalSummaryData] = useState(null);
+    const [localSleeperSummaryData, setLocalSleeperSummaryData] = useState(null);
     const [totalCallsData, setTotalCallsData] = useState(null);
 
     // Initial fetch based on filterMode
     useEffect(() => {
         const fetchInitialOptions = async () => {
             try {
-                if (filterMode === 'vendorwise') {
+                if (isSleeper) {
+                    if (filterMode === 'vendorwise') {
+                        const response = await reportService.getSleeperVendorPlantCompanies();
+                        const data = response.responseData || response.data || response || [];
+                        if (Array.isArray(data)) {
+                            const formattedData = data.map(c => ({
+                                poiCode: c,
+                                companyName: c,
+                                unitName: c,
+                                address: ''
+                            }));
+                            const sortedData = [...formattedData].sort((a, b) => (a.companyName || '').localeCompare(b.companyName || ''));
+                            setVendorPlants(sortedData);
+                        }
+                    } else {
+                        const response = await reportService.getAllZonalRailways();
+                        const data = response.responseData || response.data || response || [];
+                        if (Array.isArray(data)) {
+                            const sortedData = [...data].sort((a, b) => (a || '').localeCompare(b || ''));
+                            setZonalRailways(sortedData);
+                        }
+                    }
+                } else if (filterMode === 'vendorwise') {
                     if (isRailPad) {
                         const response = await reportService.getRailPadVendorPlants();
                         const data = response.responseData || response.data || response;
@@ -289,15 +312,27 @@ const ProfessionalCardSection = ({
         setSelectedZonalRailway('');
 
         fetchInitialOptions();
-    }, [filterMode, selectedProduct, isRailPad]);
+    }, [filterMode, selectedProduct, isRailPad, isSleeper]);
 
-    // Dependent fetch: Zonal Railways based on selected Vendor Plant
+    // Dependent fetch: Zonal Railways based on selected Vendor
     useEffect(() => {
         if (filterMode !== 'vendorwise') return;
         const fetchZonalRailways = async () => {
             setSelectedZonalRailway(''); // Reset dependent dropdown
             if (!selectedVendorPlant) {
                 setZonalRailways([]);
+                return;
+            }
+            if (isSleeper) {
+                try {
+                    const response = await reportService.getAllZonalRailways();
+                    const data = response.responseData || response.data || response || [];
+                    if (Array.isArray(data)) {
+                        setZonalRailways([...data].sort());
+                    }
+                } catch (e) {
+                    console.error("Error fetching zonal railways:", e);
+                }
                 return;
             }
             try {
@@ -314,17 +349,35 @@ const ProfessionalCardSection = ({
             }
         };
         fetchZonalRailways();
-    }, [selectedVendorPlant, filterMode]);
+    }, [selectedVendorPlant, filterMode, isSleeper, vendorPlants]);
 
-    // Dependent fetch: Vendor Plants based on selected Zonal Railway
+    // Dependent fetch: Vendors based on selected Zonal Railway
     useEffect(() => {
         if (filterMode !== 'zonalwise') return;
         const fetchVendorPlants = async () => {
             setSelectedVendorPlant(''); // Reset dependent dropdown
-            if (!selectedZonalRailway) {
-                setVendorPlants([]);
+            if (isSleeper) {
+                if (!selectedZonalRailway) { setVendorPlants([]); return; }
+                try {
+                    const response = await reportService.getSleeperVendorPlantCompanies(selectedZonalRailway);
+                    const data = response.responseData || response.data || response || [];
+                    if (Array.isArray(data)) {
+                        const formattedData = data.map(c => ({
+                            poiCode: c,
+                            companyName: c,
+                            unitName: c,
+                            address: ''
+                        }));
+                        const sortedData = [...formattedData].sort((a, b) => (a.companyName || '').localeCompare(b.companyName || ''));
+                        setVendorPlants(sortedData);
+                    }
+                } catch (error) {
+                    console.error("Error fetching sleeper vendors:", error);
+                }
                 return;
             }
+            if (filterMode !== 'zonalwise') return;
+            if (!selectedZonalRailway) { setVendorPlants([]); return; }
             try {
                 if (isRailPad) {
                     const response = await reportService.getRailPadVendorPlantsByZone(selectedZonalRailway);
@@ -357,7 +410,7 @@ const ProfessionalCardSection = ({
             }
         };
         fetchVendorPlants();
-    }, [selectedZonalRailway, filterMode, selectedProduct, isRailPad]);
+    }, [selectedZonalRailway, filterMode, selectedProduct, isRailPad, isSleeper]);
 
     const [isDashboardLoading, setIsDashboardLoading] = useState(false);
 
@@ -372,6 +425,7 @@ const ProfessionalCardSection = ({
             setLocalProcessOverallRejection(null);
             setLocalAvgProduction(null);
             setLocalSummaryData(null);
+            setLocalSleeperSummaryData(null);
             setTotalCallsData(null);
             try {
                 const isPrimaryFilterApplied = filterMode === 'vendorwise' ? !!selectedVendorPlant : !!selectedZonalRailway;
@@ -385,9 +439,13 @@ const ProfessionalCardSection = ({
                     zone: selectedZonalRailway,
                     startDate: isPrimaryFilterApplied ? filterStartDate : '',
                     endDate: isPrimaryFilterApplied ? filterEndDate : '',
-                    product: isRailPad ? 'RailPad' : 'ERC',
+                    product: isRailPad ? 'RailPad' : isSleeper ? 'Sleeper' : 'ERC',
                     _refresh: refreshTick
                 };
+
+                const sleeperSummaryPromise = isSleeper
+                    ? reportService.getSleeperDashboardSummaryFiltered(selectedVendorPlant, selectedZonalRailway).catch(e => { console.error(e); return null; })
+                    : Promise.resolve(null);
 
                 const [
                     icIssuedRes,
@@ -395,7 +453,8 @@ const ProfessionalCardSection = ({
                     detailsRes,
                     processOverallRes,
                     avgProdRes,
-                    summaryRes
+                    summaryRes,
+                    sleeperSummaryRes
                 ] = await Promise.all([
                     reportService.getIcIssuedCounts(params).catch(e => { console.error(e); return null; }),
                     reportService.getInspectionCallStatus(params).catch(e => { console.error(e); return null; }),
@@ -408,10 +467,16 @@ const ProfessionalCardSection = ({
                         isPrimaryFilterApplied ? filterEndDate : ''
                     ).catch(e => { console.error(e); return null; }),
                     reportService.getDashboardSummary(params).catch(e => { console.error(e); return null; }),
+                    sleeperSummaryPromise,
                     minLoadingPromise
                 ]);
 
                 if (!isActive) return;
+
+                if (sleeperSummaryRes) {
+                    const data = sleeperSummaryRes.responseData || sleeperSummaryRes.data || sleeperSummaryRes;
+                    if (data) setLocalSleeperSummaryData(data);
+                }
 
                 if (icIssuedRes) {
                     const data = icIssuedRes.responseData || icIssuedRes.data || icIssuedRes;
@@ -547,6 +612,7 @@ const ProfessionalCardSection = ({
             const isPrimaryFilterApplied = filterMode === 'vendorwise' ? !!selectedVendorPlant : !!selectedZonalRailway;
             const response = await reportService.getInspectionCallStatusDetails(stage, status, {
                 isRailPad: isRailPad,
+                isSleeper: isSleeper,
                 vendor: selectedVendorPlant,
                 zone: selectedZonalRailway,
                 startDate: isPrimaryFilterApplied ? filterStartDate : '',
@@ -578,6 +644,11 @@ const ProfessionalCardSection = ({
             if (isRailPad) {
                 response = await reportService.getInspectionCallStatusDetails('ALL', type, {
                     isRailPad: true,
+                    ...filters
+                });
+            } else if (isSleeper) {
+                response = await reportService.getInspectionCallStatusDetails('ALL', type, {
+                    isSleeper: true,
                     ...filters
                 });
             } else {
@@ -907,16 +978,13 @@ const ProfessionalCardSection = ({
                 {(() => {
                     switch (activeMainCard) {
                         case 'summary':
-                            if (isSleeper) {
-                                return <SleeperSummary summaryData={localSummaryData || summaryData || {}} onPoIssuedClick={handlePoIssuedClick} refreshTick={refreshTick} />;
-                            }
                             const s = localSummaryData || summaryData || {};
                             const isPrimaryFilterApplied = filterMode === 'vendorwise' ? !!selectedVendorPlant : !!selectedZonalRailway;
 
                             return (
                                 <div className="summary-tab-content">
-                                    {/* Global Filters for ERC and Rail Pad */}
-                                    {(isErc || isRailPad) && (
+                                    {/* Global Filters for ERC, Rail Pad, and Sleeper */}
+                                    {(isErc || isRailPad || isSleeper) && (
                                         <div className="global-filters mb" style={{
                                             display: 'flex', gap: '15px', background: '#f8fafc',
                                             padding: '12px 16px', borderRadius: '12px', border: '1px solid #e2e8f0',
@@ -951,11 +1019,13 @@ const ProfessionalCardSection = ({
                                             </div>
 
                                             <div style={{ flex: '1', minWidth: '220px', order: filterMode === 'vendorwise' ? 1 : 2 }}>
-                                                <label style={{ display: 'block', fontSize: '11px', fontWeight: '700', color: '#64748b', marginBottom: '4px', textTransform: 'uppercase' }}>Vendor Plant</label>
+                                                <label style={{ display: 'block', fontSize: '11px', fontWeight: '700', color: '#64748b', marginBottom: '4px', textTransform: 'uppercase' }}>
+                                                    {isSleeper ? 'Vendor' : 'Vendor Plant'}
+                                                </label>
                                                 <Select
                                                     showSearch
                                                     allowClear
-                                                    placeholder="All Vendor Plants"
+                                                    placeholder={isSleeper ? 'All Vendors' : 'All Vendor Plants'}
                                                     value={selectedVendorPlant || undefined}
                                                     onChange={(val) => {
                                                         setSelectedVendorPlant(val || '');
@@ -966,19 +1036,21 @@ const ProfessionalCardSection = ({
                                                     dropdownStyle={{ maxWidth: '600px' }}
                                                     optionFilterProp="children"
                                                     filterOption={(input, option) =>
-                                                        (option?.title ?? '').toLowerCase().includes(input.toLowerCase())
+                                                        (option?.children ?? option?.title ?? '').toString().toLowerCase().includes(input.toLowerCase())
                                                     }
                                                     disabled={filterMode === 'zonalwise' ? (!selectedZonalRailway || vendorPlants.length === 0) : false}
                                                 >
                                                     {vendorPlants.map((vp, i) => {
-                                                        const label = isRailPad
+                                                        const label = isSleeper
+                                                            ? (vp.companyName || vp.unitName)
+                                                            : isRailPad
                                                             ? (vp.unitName || vp.companyName)
-                                                            : (vp.unitName && vp.unitName !== vp.companyName ? `${vp.companyName} - ${vp.unitName}` : vp.companyName);
+                                                            : (vp.unitName && vp.unitName !== vp.companyName ? `${vp.companyName} - ${vp.unitName}` : (vp.unitName || vp.companyName));
                                                         return (
                                                             <Option
                                                                 key={i}
                                                                 value={vp.poiCode}
-                                                                title={`${vp.companyName} - ${vp.unitName} - ${vp.address}`}
+                                                                title={`${vp.companyName || ''}`}
                                                             >
                                                                 {label}
                                                             </Option>
@@ -987,8 +1059,11 @@ const ProfessionalCardSection = ({
                                                 </Select>
                                             </div>
                                             <div style={{ flex: '1', minWidth: '170px', order: filterMode === 'zonalwise' ? 1 : 2 }}>
-                                                <label style={{ display: 'block', fontSize: '11px', fontWeight: '700', color: '#64748b', marginBottom: '4px', textTransform: 'uppercase' }}>Zonal Railway</label>
+                                                <label style={{ display: 'block', fontSize: '11px', fontWeight: '700', color: '#64748b', marginBottom: '4px', textTransform: 'uppercase' }}>
+                                                    Zonal Railway
+                                                </label>
                                                 <Select
+                                                    showSearch
                                                     allowClear
                                                     placeholder="All Zonal Railways"
                                                     value={selectedZonalRailway || undefined}
@@ -998,6 +1073,10 @@ const ProfessionalCardSection = ({
                                                     }}
                                                     style={{ width: '100%', height: '36px' }}
                                                     popupMatchSelectWidth={false}
+                                                    optionFilterProp="children"
+                                                    filterOption={(input, option) =>
+                                                        (option?.children ?? '').toString().toLowerCase().includes(input.toLowerCase())
+                                                    }
                                                     disabled={filterMode === 'vendorwise' ? (!selectedVendorPlant || zonalRailways.length === 0) : false}
                                                 >
                                                     {zonalRailways.map((zr, i) => (
@@ -1096,6 +1175,27 @@ const ProfessionalCardSection = ({
                                             onInspectionCallClick={handleInspectionCallClick}
                                             onTotalCallsClick={handleTotalCallsClick}
                                             onIcIssuedClick={() => setIsIcIssuedModalOpen(true)}
+                                        />
+                                    ) : isSleeper ? (
+                                        <SleeperSummary
+                                            summaryData={localSummaryData || summaryData || {}}
+                                            inspectionCallStatus={localInspectionCallStatus || []}
+                                            inspectionDetails={localInspectionDetails || []}
+                                            icIssuedData={icIssuedData}
+                                            totalCallsData={totalCallsData}
+                                            onPoIssuedClick={handlePoIssuedClick}
+                                            onInspectionCallClick={handleInspectionCallClick}
+                                            onTotalCallsClick={handleTotalCallsClick}
+                                            onIcIssuedClick={() => setIsIcIssuedModalOpen(true)}
+                                            refreshTick={refreshTick}
+                                            filterApplied={isPrimaryFilterApplied}
+                                            vendor={selectedVendorPlant}
+                                            zone={selectedZonalRailway}
+                                            filterStartDate={filterStartDate}
+                                            filterEndDate={filterEndDate}
+                                            filterMode={filterMode}
+                                            filterData={localSleeperSummaryData}
+                                            isDashboardLoading={isDashboardLoading}
                                         />
                                     ) : (
                                         <>

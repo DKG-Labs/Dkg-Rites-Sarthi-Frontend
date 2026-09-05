@@ -280,3 +280,34 @@ export const generateICNumber = (rio, requestId) => {
   }
 };
 
+/**
+ * Revert / Delete an inspection complete confirmation request
+ * @param {string} requestId - The call number / request ID (e.g. EF..., ER..., EP...)
+ * @param {number|string} deletedBy - The user ID performing the deletion
+ * @returns {Promise<Object>}
+ */
+export const deleteInspectionCompleteRequest = async (requestId, deletedBy) => {
+  try {
+    const url = `${API_BASE_URL}/inspection-complete/${encodeURIComponent(requestId)}?deletedBy=${encodeURIComponent(deletedBy)}`;
+    console.log('🗑️ Sending delete inspection complete request to:', url);
+
+    const response = await fetch(url, {
+      method: 'DELETE',
+      headers: getAuthHeaders()
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('❌ Failed to delete inspection complete request:', errorText);
+      throw new Error(errorText || `Failed to revert inspection (${response.status})`);
+    }
+
+    const text = await response.text();
+    return { success: true, message: text };
+  } catch (error) {
+    console.error('❌ Error in deleteInspectionCompleteRequest:', error);
+    throw error;
+  }
+};
+
+

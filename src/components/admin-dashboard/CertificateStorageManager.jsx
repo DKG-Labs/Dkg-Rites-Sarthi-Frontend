@@ -6,6 +6,7 @@ import {
   deleteSignedCertificate
 } from '../../services/certificateService';
 import { getStoredUser } from '../../services/authService';
+import { compressPdfFile } from '../../utils/pdfCompressor';
 
 export const CertificateStorageManager = ({ onNotify }) => {
   const currentUser = getStoredUser();
@@ -15,8 +16,10 @@ export const CertificateStorageManager = ({ onNotify }) => {
   const [icNumber, setIcNumber] = useState('');
   const [uploader, setUploader] = useState(defaultUploader);
   const [selectedFile, setSelectedFile] = useState(null);
+  const [compressedFileInfo, setCompressedFileInfo] = useState(null);
   const [isDragOver, setIsDragOver] = useState(false);
   const [uploadLoading, setUploadLoading] = useState(false);
+  const [compressProgressText, setCompressProgressText] = useState('');
   const [uploadResult, setUploadResult] = useState(null);
 
   // Search & View State
@@ -53,6 +56,7 @@ export const CertificateStorageManager = ({ onNotify }) => {
       const file = e.dataTransfer.files[0];
       if (file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf')) {
         setSelectedFile(file);
+        setCompressedFileInfo(null);
       } else {
         notify('Please select a valid PDF file.', 'error');
       }
@@ -64,13 +68,14 @@ export const CertificateStorageManager = ({ onNotify }) => {
       const file = e.target.files[0];
       if (file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf')) {
         setSelectedFile(file);
+        setCompressedFileInfo(null);
       } else {
         notify('Please select a valid PDF file.', 'error');
       }
     }
   };
 
-  // Upload Handler
+  // Upload Handler with automatic compression & 2MB limit enforcement
   const handleUpload = async (e) => {
     e.preventDefault();
     const cleanIc = icNumber.trim();
@@ -85,11 +90,44 @@ export const CertificateStorageManager = ({ onNotify }) => {
 
     setUploadLoading(true);
     setUploadResult(null);
+    setCompressProgressText('');
 
     try {
-      const response = await uploadSignedCertificateFile(selectedFile, cleanIc, uploader.trim());
+      let fileToUpload = selectedFile;
+      const MAX_BYTES = 2 * 1024 * 1024; // 2MB limit
+
+      // Compress if file is > 1.2 MB or if user wants compression
+      if (selectedFile.size > 1.2 * 1024 * 1024) {
+        setCompressProgressText('Optimizing & compressing PDF for upload...');
+        fileToUpload = await compressPdfFile(
+          selectedFile,
+          { quality: 0.75, scale: 1.5 },
+          (pct, text) => {
+            setCompressProgressText(`${text} (${pct}%)`);
+          }
+        );
+
+        const originalMB = (selectedFile.size / (1024 * 1024)).toFixed(2);
+        const compressedMB = (fileToUpload.size / (1024 * 1024)).toFixed(2);
+        setCompressedFileInfo({
+          original: originalMB,
+          compressed: compressedMB,
+          ratio: Math.round((1 - fileToUpload.size / selectedFile.size) * 100)
+        });
+      }
+
+      // Check 2MB limit
+      if (fileToUpload.size > MAX_BYTES) {
+        const currentMB = (fileToUpload.size / (1024 * 1024)).toFixed(2);
+        notify(`File size (${currentMB} MB) exceeds maximum allowed limit of 2.0 MB. Please select a smaller document.`, 'error');
+        setUploadLoading(false);
+        return;
+      }
+
+      setCompressProgressText('Uploading to Azure Storage...');
+      const response = await uploadSignedCertificateFile(fileToUpload, cleanIc, uploader.trim());
       setUploadResult(response);
-      notify(`Certificate for '${cleanIc}' uploaded successfully!`, 'success');
+      notify(`Certificate for '${cleanIc}' uploaded successfully (${(fileToUpload.size / (1024 * 1024)).toFixed(2)} MB)!`, 'success');
       
       // Auto populate search with uploaded IC to show result
       setSearchIc(cleanIc);
@@ -98,6 +136,7 @@ export const CertificateStorageManager = ({ onNotify }) => {
       notify(`Upload failed: ${error.message || 'Unknown error'}`, 'error');
     } finally {
       setUploadLoading(false);
+      setCompressProgressText('');
     }
   };
 
@@ -327,7 +366,7 @@ export const CertificateStorageManager = ({ onNotify }) => {
                       {selectedFile.name}
                     </p>
                     <p style={{ margin: '4px 0 0', color: '#64748b', fontSize: '12px' }}>
-                      {(selectedFile.size / (1024 * 1024)).toFixed(2)} MB • Ready for upload
+                      {(selectedFile.size / (1024 * 1024)).toFixed(2)} MB • {selectedFile.size > 2 * 1024 * 1024 ? '⚡ Will be auto-compressed under 2 MB' : 'Ready for upload'}
                     </p>
                     <span style={{ display: 'inline-block', marginTop: '8px', color: '#0f4c81', fontSize: '12px', textDecoration: 'underline' }}>
                       Click to change file
@@ -339,12 +378,47 @@ export const CertificateStorageManager = ({ onNotify }) => {
                       Drag & Drop your PDF Certificate here
                     </p>
                     <p style={{ margin: '4px 0 0', color: '#94a3b8', fontSize: '12px' }}>
-                      or click to browse from device (PDF only)
+                      Max allowed size: <strong>2.0 MB</strong> (Larger PDFs will be automatically compressed)
                     </p>
                   </div>
                 )}
               </div>
             </div>
+
+            {/* Compression Progress & Ratio Details */}
+            {compressProgressText && (
+              <div style={{
+                background: '#eff6ff',
+                border: '1px solid #bfdbfe',
+                borderRadius: '8px',
+                padding: '10px 14px',
+                fontSize: '12.5px',
+                color: '#1e40af',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px'
+              }}>
+                <span className="spinner-border spinner-border-sm" role="status" aria-hidden="true" style={{ width: '14px', height: '14px' }}></span>
+                <span>{compressProgressText}</span>
+              </div>
+            )}
+
+            {compressedFileInfo && (
+              <div style={{
+                background: '#f0fdf4',
+                border: '1px solid #bbf7d0',
+                borderRadius: '8px',
+                padding: '8px 12px',
+                fontSize: '12px',
+                color: '#166534',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between'
+              }}>
+                <span>⚡ PDF Compressed: <strong>{compressedFileInfo.original} MB ➔ {compressedFileInfo.compressed} MB</strong></span>
+                <span style={{ fontWeight: 700, color: '#15803d' }}>-{compressedFileInfo.ratio}%</span>
+              </div>
+            )}
 
             {/* Submit Button */}
             <div style={{ marginTop: 'auto', paddingTop: '12px' }}>
@@ -372,7 +446,7 @@ export const CertificateStorageManager = ({ onNotify }) => {
                 {uploadLoading ? (
                   <>
                     <span className="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
-                    Uploading to Azure Storage...
+                    {compressProgressText || 'Processing & Uploading...'}
                   </>
                 ) : (
                   <>

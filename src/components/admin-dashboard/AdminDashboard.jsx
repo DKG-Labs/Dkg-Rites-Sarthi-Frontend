@@ -476,7 +476,7 @@ export const AdminDashboard = () => {
                             onClick={() => handleModuleSelect('certificates')}
                         >
                             <span>🛡️</span>
-                            <span>Certificate Storage</span>
+                            <span>Inspection Certificates</span>
                         </button>
                     </li>
                 </ul>

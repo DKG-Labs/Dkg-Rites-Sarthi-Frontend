@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { fetchVersionStatus } from '../services/versionService';
 
-const DEFAULT_POLL_INTERVAL_MS = 2 * 60 * 1000; // 2 minutes
+const DEFAULT_POLL_INTERVAL_MS = 60 * 1000; // 1 minute
 
 /**
  * Enterprise React hook for detecting frontend version deployments across tab lifecycle events.
@@ -41,6 +41,8 @@ export const useVersionCheck = ({
       if (status.updateAvailable && status.serverVersion) {
         setLatestVersion(status.serverVersion);
         setUpdateAvailable(true);
+      } else {
+        setUpdateAvailable(false);
       }
     } finally {
       isCheckingRef.current = false;

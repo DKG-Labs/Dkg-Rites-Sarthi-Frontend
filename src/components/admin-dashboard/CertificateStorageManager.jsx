@@ -5,16 +5,12 @@ import {
   checkSignedCertificateExists,
   deleteSignedCertificate
 } from '../../services/certificateService';
-import { getStoredUser } from '../../services/authService';
 import { compressPdfFile } from '../../utils/pdfCompressor';
 
 export const CertificateStorageManager = ({ onNotify }) => {
-  const currentUser = getStoredUser();
-  const defaultUploader = currentUser?.fullName || currentUser?.username || 'Admin';
-
-  // Upload Form State
+  // Upload Form State - Empty default uploader (mandatory field)
   const [icNumber, setIcNumber] = useState('');
-  const [uploader, setUploader] = useState(defaultUploader);
+  const [uploader, setUploader] = useState('');
   const [selectedFile, setSelectedFile] = useState(null);
   const [compressedFileInfo, setCompressedFileInfo] = useState(null);
   const [isDragOver, setIsDragOver] = useState(false);
@@ -79,8 +75,14 @@ export const CertificateStorageManager = ({ onNotify }) => {
   const handleUpload = async (e) => {
     e.preventDefault();
     const cleanIc = icNumber.trim();
+    const cleanUploader = uploader.trim();
+
     if (!cleanIc) {
       notify('Please provide an IC Number or Call Number.', 'warning');
+      return;
+    }
+    if (!cleanUploader) {
+      notify('Please provide Uploaded By / Designation.', 'warning');
       return;
     }
     if (!selectedFile) {
@@ -125,7 +127,7 @@ export const CertificateStorageManager = ({ onNotify }) => {
       }
 
       setCompressProgressText('Uploading to Azure Storage...');
-      const response = await uploadSignedCertificateFile(fileToUpload, cleanIc, uploader.trim());
+      const response = await uploadSignedCertificateFile(fileToUpload, cleanIc, cleanUploader);
       setUploadResult(response);
       notify(`Certificate for '${cleanIc}' uploaded successfully (${(fileToUpload.size / (1024 * 1024)).toFixed(2)} MB)!`, 'success');
       
@@ -224,39 +226,58 @@ export const CertificateStorageManager = ({ onNotify }) => {
 
   return (
     <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '16px' }}>
-      {/* Header Banner */}
+      {/* Modern Light Header Banner */}
       <div style={{
-        background: 'linear-gradient(135deg, #0f4c81 0%, #1e293b 100%)',
-        color: '#ffffff',
-        padding: '24px 28px',
+        background: 'linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 50%, #f8fafc 100%)',
+        border: '1px solid #bae6fd',
         borderRadius: '16px',
+        padding: '24px 28px',
         marginBottom: '28px',
-        boxShadow: '0 8px 24px rgba(15, 76, 129, 0.15)',
+        boxShadow: '0 4px 20px rgba(2, 132, 199, 0.08)',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'space-between',
         flexWrap: 'wrap',
         gap: '16px'
       }}>
-        <div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '6px' }}>
-            <span style={{ fontSize: '24px' }}>🛡️</span>
-            <h2 style={{ margin: 0, fontSize: '22px', fontWeight: 700, letterSpacing: '-0.3px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+          <div style={{
+            width: '48px',
+            height: '48px',
+            borderRadius: '12px',
+            background: 'linear-gradient(135deg, #0284c7 0%, #0369a1 100%)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            fontSize: '24px',
+            boxShadow: '0 4px 12px rgba(2, 132, 199, 0.3)',
+            flexShrink: 0
+          }}>
+            🛡️
+          </div>
+          <div>
+            <h2 style={{ margin: 0, fontSize: '20px', fontWeight: 700, color: '#0f172a', letterSpacing: '-0.3px' }}>
               Certificate Storage & Management
             </h2>
+            <p style={{ margin: '4px 0 0', fontSize: '13.5px', color: '#475569', lineHeight: 1.4 }}>
+              Directly upload, inspect, update, or remove digital Inspection Certificates (ICs) stored in Azure Cloud Storage.
+            </p>
           </div>
-          <p style={{ margin: 0, fontSize: '13.5px', color: '#94a3b8', lineHeight: 1.4 }}>
-            Directly upload, inspect, update, or remove digital Inspection Certificates (ICs) stored in Azure Cloud Storage.
-          </p>
         </div>
         <div style={{
-          background: 'rgba(255, 255, 255, 0.1)',
-          backdropFilter: 'blur(8px)',
-          padding: '8px 16px',
-          borderRadius: '8px',
+          background: '#ffffff',
+          color: '#0369a1',
+          padding: '6px 14px',
+          borderRadius: '20px',
           fontSize: '12.5px',
-          border: '1px solid rgba(255, 255, 255, 0.15)'
+          fontWeight: 700,
+          border: '1px solid #bae6fd',
+          boxShadow: '0 2px 6px rgba(0, 0, 0, 0.04)',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '6px'
         }}>
+          <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#0284c7' }}></span>
           Admin Tool
         </div>
       </div>
@@ -274,14 +295,14 @@ export const CertificateStorageManager = ({ onNotify }) => {
         }}>
           <div style={{
             padding: '18px 24px',
-            borderBottom: '1px solid #e2e8f0',
-            background: '#f8fafc',
+            borderBottom: '1px solid #f1f5f9',
+            background: 'linear-gradient(180deg, #f8fafc 0%, #ffffff 100%)',
             display: 'flex',
             alignItems: 'center',
             gap: '10px'
           }}>
-            <span style={{ fontSize: '20px' }}>📤</span>
-            <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 700, color: '#1e293b' }}>
+            <span style={{ fontSize: '18px' }}>📤</span>
+            <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 700, color: '#0f172a' }}>
               Upload / Overwrite Certificate
             </h3>
           </div>
@@ -305,21 +326,23 @@ export const CertificateStorageManager = ({ onNotify }) => {
                   border: '1.5px solid #cbd5e1',
                   fontSize: '14px',
                   outline: 'none',
-                  boxSizing: 'border-box'
+                  boxSizing: 'border-box',
+                  transition: 'border-color 0.2s, box-shadow 0.2s'
                 }}
               />
             </div>
 
-            {/* Uploader Name */}
+            {/* Uploader Name (Mandatory & Empty by Default) */}
             <div>
               <label style={{ display: 'block', fontWeight: 600, fontSize: '13.5px', color: '#334155', marginBottom: '6px' }}>
-                Uploaded By / Designation
+                Uploaded By / Designation <span style={{ color: '#ef4444' }}>*</span>
               </label>
               <input
                 type="text"
-                placeholder="e.g. Admin / Inspecting Engineer"
+                placeholder="e.g. Inspecting Engineer / Employee Name"
                 value={uploader}
                 onChange={(e) => setUploader(e.target.value)}
+                required
                 style={{
                   width: '100%',
                   padding: '10px 14px',
@@ -327,7 +350,8 @@ export const CertificateStorageManager = ({ onNotify }) => {
                   border: '1.5px solid #cbd5e1',
                   fontSize: '14px',
                   outline: 'none',
-                  boxSizing: 'border-box'
+                  boxSizing: 'border-box',
+                  transition: 'border-color 0.2s, box-shadow 0.2s'
                 }}
               />
             </div>
@@ -342,11 +366,11 @@ export const CertificateStorageManager = ({ onNotify }) => {
                 onDragLeave={handleDragLeave}
                 onDrop={handleDrop}
                 style={{
-                  border: `2px dashed ${isDragOver ? '#0f4c81' : '#cbd5e1'}`,
+                  border: `2px dashed ${isDragOver ? '#0284c7' : '#cbd5e1'}`,
                   borderRadius: '12px',
                   padding: '24px',
                   textAlign: 'center',
-                  background: isDragOver ? '#f0fdfa' : '#f8fafc',
+                  background: isDragOver ? '#f0f9ff' : '#f8fafc',
                   cursor: 'pointer',
                   transition: 'all 0.2s ease'
                 }}
@@ -368,7 +392,7 @@ export const CertificateStorageManager = ({ onNotify }) => {
                     <p style={{ margin: '4px 0 0', color: '#64748b', fontSize: '12px' }}>
                       {(selectedFile.size / (1024 * 1024)).toFixed(2)} MB • {selectedFile.size > 2 * 1024 * 1024 ? '⚡ Will be auto-compressed under 2 MB' : 'Ready for upload'}
                     </p>
-                    <span style={{ display: 'inline-block', marginTop: '8px', color: '#0f4c81', fontSize: '12px', textDecoration: 'underline' }}>
+                    <span style={{ display: 'inline-block', marginTop: '8px', color: '#0284c7', fontSize: '12px', fontWeight: 600, textDecoration: 'underline' }}>
                       Click to change file
                     </span>
                   </div>
@@ -424,22 +448,24 @@ export const CertificateStorageManager = ({ onNotify }) => {
             <div style={{ marginTop: 'auto', paddingTop: '12px' }}>
               <button
                 type="submit"
-                disabled={uploadLoading || !selectedFile || !icNumber.trim()}
+                disabled={uploadLoading || !selectedFile || !icNumber.trim() || !uploader.trim()}
                 style={{
                   width: '100%',
                   padding: '12px 20px',
                   borderRadius: '8px',
-                  background: uploadLoading ? '#94a3b8' : 'linear-gradient(135deg, #0f4c81 0%, #0369a1 100%)',
+                  background: (uploadLoading || !selectedFile || !icNumber.trim() || !uploader.trim())
+                    ? '#cbd5e1'
+                    : 'linear-gradient(135deg, #0284c7 0%, #0369a1 100%)',
                   color: '#ffffff',
                   fontWeight: 600,
                   fontSize: '14.5px',
                   border: 'none',
-                  cursor: uploadLoading ? 'not-allowed' : 'pointer',
+                  cursor: (uploadLoading || !selectedFile || !icNumber.trim() || !uploader.trim()) ? 'not-allowed' : 'pointer',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
                   gap: '8px',
-                  boxShadow: '0 4px 12px rgba(15, 76, 129, 0.2)',
+                  boxShadow: (uploadLoading || !selectedFile || !icNumber.trim() || !uploader.trim()) ? 'none' : '0 4px 12px rgba(2, 132, 199, 0.25)',
                   transition: 'all 0.2s'
                 }}
               >
@@ -478,7 +504,7 @@ export const CertificateStorageManager = ({ onNotify }) => {
                     href={uploadResult.url}
                     target="_blank"
                     rel="noreferrer"
-                    style={{ color: '#0f4c81', fontWeight: 600, textDecoration: 'underline' }}
+                    style={{ color: '#0284c7', fontWeight: 600, textDecoration: 'underline' }}
                   >
                     View Blob ↗
                   </a>
@@ -500,14 +526,14 @@ export const CertificateStorageManager = ({ onNotify }) => {
         }}>
           <div style={{
             padding: '18px 24px',
-            borderBottom: '1px solid #e2e8f0',
-            background: '#f8fafc',
+            borderBottom: '1px solid #f1f5f9',
+            background: 'linear-gradient(180deg, #f8fafc 0%, #ffffff 100%)',
             display: 'flex',
             alignItems: 'center',
             gap: '10px'
           }}>
-            <span style={{ fontSize: '20px' }}>🔍</span>
-            <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 700, color: '#1e293b' }}>
+            <span style={{ fontSize: '18px' }}>🔍</span>
+            <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 700, color: '#0f172a' }}>
               Search & Inspect Existing Certificate
             </h3>
           </div>
@@ -536,12 +562,13 @@ export const CertificateStorageManager = ({ onNotify }) => {
                 style={{
                   padding: '10px 20px',
                   borderRadius: '8px',
-                  background: '#0f4c81',
+                  background: searchLoading || !searchIc.trim() ? '#cbd5e1' : 'linear-gradient(135deg, #0284c7 0%, #0369a1 100%)',
                   color: '#ffffff',
                   fontWeight: 600,
                   fontSize: '14px',
                   border: 'none',
-                  cursor: searchLoading ? 'not-allowed' : 'pointer'
+                  cursor: searchLoading || !searchIc.trim() ? 'not-allowed' : 'pointer',
+                  boxShadow: searchLoading || !searchIc.trim() ? 'none' : '0 2px 6px rgba(2, 132, 199, 0.2)'
                 }}
               >
                 {searchLoading ? 'Searching...' : 'Search'}
@@ -646,14 +673,15 @@ export const CertificateStorageManager = ({ onNotify }) => {
                       style={{
                         padding: '8px 16px',
                         borderRadius: '6px',
-                        background: '#0f4c81',
+                        background: 'linear-gradient(135deg, #0284c7 0%, #0369a1 100%)',
                         color: '#fff',
                         textDecoration: 'none',
                         fontSize: '13px',
                         fontWeight: 600,
                         display: 'inline-flex',
                         alignItems: 'center',
-                        gap: '6px'
+                        gap: '6px',
+                        boxShadow: '0 2px 6px rgba(2, 132, 199, 0.25)'
                       }}
                     >
                       <span>📥</span> Open Full PDF in New Tab

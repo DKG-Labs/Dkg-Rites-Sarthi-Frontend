@@ -5,6 +5,7 @@ import ProtectedRoute from './components/ProtectedRoute';
 import AppLayout from './components/AppLayout';
 import LoginPage from './pages/LoginPage';
 import { getStoredUser, logoutUser } from './services/authService';
+import VersionUpdateBanner from './components/common/VersionUpdateBanner';
 
 // Page Wrappers
 import LandingPageWrapper from './pages/wrappers/LandingPageWrapper';
@@ -193,6 +194,7 @@ const AnnexureRouteWrapper = () => {
 const App = () => {
   return (
     <BrowserRouter>
+      <VersionUpdateBanner />
       <InspectionProvider>
         <Routes>
           {/* Login Route - Public */}

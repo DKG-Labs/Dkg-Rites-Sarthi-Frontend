@@ -122,13 +122,42 @@ try {
 </configuration>`;
     
     const buildPath = path.join(process.cwd(), 'build');
-    if (fs.existsSync(buildPath)) {
-        fs.writeFileSync(path.join(buildPath, 'web.config'), webConfigContent);
-        console.log('web.config successfully injected into /build directory.');
-    } else {
-        console.warn('Warning: build directory not found. Skipping web.config injection.');
+    if (!fs.existsSync(buildPath)) {
+        throw new Error('Build directory /build not found after main React build.');
     }
 
+    fs.writeFileSync(path.join(buildPath, 'web.config'), webConfigContent);
+    console.log('web.config successfully injected into /build directory.');
+
+    // 4. Inject and verify staticwebapp.config.json and version.json
+    console.log('\n--- Verifying Deployment Metadata & Configuration ---');
+    const rootConfigPath = path.join(process.cwd(), 'staticwebapp.config.json');
+    const buildConfigPath = path.join(buildPath, 'staticwebapp.config.json');
+    if (fs.existsSync(rootConfigPath) && !fs.existsSync(buildConfigPath)) {
+        fs.copyFileSync(rootConfigPath, buildConfigPath);
+        console.log('Copied staticwebapp.config.json to /build directory.');
+    }
+
+    const publicVersionPath = path.join(process.cwd(), 'public', 'version.json');
+    const buildVersionPath = path.join(buildPath, 'version.json');
+    if (fs.existsSync(publicVersionPath) && !fs.existsSync(buildVersionPath)) {
+        fs.copyFileSync(publicVersionPath, buildVersionPath);
+        console.log('Copied version.json to /build directory.');
+    }
+
+    // 5. Validate required production artifacts
+    const requiredArtifacts = [
+        'index.html',
+        'version.json',
+        'staticwebapp.config.json'
+    ];
+
+    const missing = requiredArtifacts.filter(file => !fs.existsSync(path.join(buildPath, file)));
+    if (missing.length > 0) {
+        throw new Error(`Build validation failed: missing required artifacts in /build: ${missing.join(', ')}`);
+    }
+
+    console.log('✅ Build artifacts validation passed.');
     console.log('\nDeployment-ready build completed successfully.');
 } catch (error) {
     console.error('\nBuild failed:', error.message);

@@ -266,11 +266,15 @@ export const CertificateStorageManager = ({ onNotify }) => {
                 color: '#15803d',
                 fontSize: '11px',
                 fontWeight: 700,
-                padding: '3px 9px',
+                padding: '3px 10px',
                 borderRadius: '12px',
                 border: '1px solid #bbf7d0',
-                letterSpacing: '0.3px'
+                letterSpacing: '0.3px',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '5px'
               }}>
+                <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#16a34a' }}></span>
                 Official Records
               </span>
             </div>

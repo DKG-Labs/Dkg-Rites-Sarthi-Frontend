@@ -126,7 +126,7 @@ export const CertificateStorageManager = ({ onNotify }) => {
         return;
       }
 
-      setCompressProgressText('Uploading to Azure Storage...');
+      setCompressProgressText('Uploading Certificate...');
       const response = await uploadSignedCertificateFile(fileToUpload, cleanIc, cleanUploader);
       setUploadResult(response);
       notify(`Certificate for '${cleanIc}' uploaded successfully (${(fileToUpload.size / (1024 * 1024)).toFixed(2)} MB)!`, 'success');
@@ -189,7 +189,7 @@ export const CertificateStorageManager = ({ onNotify }) => {
     const cleanIc = (certificateData?.icNumber || searchIc).trim();
     if (!cleanIc) return;
 
-    if (!window.confirm(`Are you sure you want to permanently delete the certificate for "${cleanIc}" from Azure Storage and Database?`)) {
+    if (!window.confirm(`Are you sure you want to delete the certificate for "${cleanIc}"?`)) {
       return;
     }
 
@@ -259,7 +259,7 @@ export const CertificateStorageManager = ({ onNotify }) => {
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
               <h2 style={{ margin: 0, fontSize: '21px', fontWeight: 800, color: '#0f172a', letterSpacing: '-0.4px' }}>
-                Certificate Storage & Management
+                Inspection Certificate (IC) Management
               </h2>
               <span style={{
                 background: '#dcfce7',
@@ -271,11 +271,11 @@ export const CertificateStorageManager = ({ onNotify }) => {
                 border: '1px solid #bbf7d0',
                 letterSpacing: '0.3px'
               }}>
-                Azure Blob Active
+                Official Records
               </span>
             </div>
             <p style={{ margin: '4px 0 0', fontSize: '13.5px', color: '#64748b', lineHeight: 1.4 }}>
-              Upload, verify, update, or remove digital Inspection Certificates (ICs) stored securely in Azure Cloud Storage.
+              Easily upload, search, view, and manage digital Inspection Certificates for all calls.
             </p>
           </div>
         </div>
@@ -335,11 +335,11 @@ export const CertificateStorageManager = ({ onNotify }) => {
                 📤
               </div>
               <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 700, color: '#0f172a' }}>
-                Upload / Overwrite Certificate
+                Upload or Replace Certificate
               </h3>
             </div>
             <span style={{ fontSize: '11px', fontWeight: 600, color: '#64748b', background: '#f1f5f9', padding: '3px 8px', borderRadius: '6px' }}>
-              Direct Cloud Push
+              Upload & Overwrite
             </span>
           </div>
 
@@ -546,11 +546,11 @@ export const CertificateStorageManager = ({ onNotify }) => {
                 {uploadLoading ? (
                   <>
                     <span className="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
-                    {compressProgressText || 'Uploading to Cloud...'}
+                    {compressProgressText || 'Uploading Certificate...'}
                   </>
                 ) : (
                   <>
-                    <span>🚀</span> Upload Certificate to Azure
+                    <span>🚀</span> Upload Inspection Certificate
                   </>
                 )}
               </button>
@@ -579,7 +579,7 @@ export const CertificateStorageManager = ({ onNotify }) => {
                     rel="noreferrer"
                     style={{ color: '#0284c7', fontWeight: 700, textDecoration: 'underline' }}
                   >
-                    View in Cloud ↗
+                    View Document ↗
                   </a>
                 )}
               </div>
@@ -620,11 +620,11 @@ export const CertificateStorageManager = ({ onNotify }) => {
                 🔍
               </div>
               <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 700, color: '#0f172a' }}>
-                Search & Inspect Existing Certificate
+                Search & View Certificate
               </h3>
             </div>
             <span style={{ fontSize: '11px', fontWeight: 600, color: '#64748b', background: '#f1f5f9', padding: '3px 8px', borderRadius: '6px' }}>
-              Cloud Query
+              Quick Search
             </span>
           </div>
 
@@ -701,7 +701,7 @@ export const CertificateStorageManager = ({ onNotify }) => {
                       borderRadius: '6px',
                       textTransform: 'uppercase'
                     }}>
-                      Stored in Azure
+                      Stored Certificate
                     </span>
                     <h4 style={{ margin: '6px 0 2px', fontSize: '16px', color: '#0f172a', fontWeight: 700 }}>
                       {certificateData.icNumber || searchIc}

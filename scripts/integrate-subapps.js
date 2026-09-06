@@ -16,10 +16,30 @@ function copyRecursiveSync(src, dest) {
     }
 }
 
+const { bumpVersion } = require('./bump-version');
+
 try {
+    // 0. Auto-bump and sync deployment version
+    console.log('--- Preparing Deployment Version Metadata ---');
+    const versionData = bumpVersion();
+    process.env.REACT_APP_VERSION = versionData.version;
+    process.env.REACT_APP_BUILD_TIME = versionData.buildTime;
+    process.env.REACT_APP_GIT_COMMIT = versionData.gitCommit;
+    process.env.VITE_APP_VERSION = versionData.version;
+    process.env.VITE_APP_BUILD_TIME = versionData.buildTime;
+    process.env.VITE_APP_GIT_COMMIT = versionData.gitCommit;
+
     // 1. Build main app (using build:main command from package.json)
     console.log('--- Building main React app ---');
-    execSync('npm run build:main', { stdio: 'inherit' });
+    execSync('npm run build:main', {
+        env: {
+            ...process.env,
+            REACT_APP_VERSION: versionData.version,
+            REACT_APP_BUILD_TIME: versionData.buildTime,
+            REACT_APP_GIT_COMMIT: versionData.gitCommit
+        },
+        stdio: 'inherit'
+    });
 
     // 2. Build Sub-apps
     const subApps = [
@@ -122,13 +142,42 @@ try {
 </configuration>`;
     
     const buildPath = path.join(process.cwd(), 'build');
-    if (fs.existsSync(buildPath)) {
-        fs.writeFileSync(path.join(buildPath, 'web.config'), webConfigContent);
-        console.log('web.config successfully injected into /build directory.');
-    } else {
-        console.warn('Warning: build directory not found. Skipping web.config injection.');
+    if (!fs.existsSync(buildPath)) {
+        throw new Error('Build directory /build not found after main React build.');
     }
 
+    fs.writeFileSync(path.join(buildPath, 'web.config'), webConfigContent);
+    console.log('web.config successfully injected into /build directory.');
+
+    // 4. Inject and verify staticwebapp.config.json and version.json
+    console.log('\n--- Verifying Deployment Metadata & Configuration ---');
+    const rootConfigPath = path.join(process.cwd(), 'staticwebapp.config.json');
+    const buildConfigPath = path.join(buildPath, 'staticwebapp.config.json');
+    if (fs.existsSync(rootConfigPath) && !fs.existsSync(buildConfigPath)) {
+        fs.copyFileSync(rootConfigPath, buildConfigPath);
+        console.log('Copied staticwebapp.config.json to /build directory.');
+    }
+
+    const publicVersionPath = path.join(process.cwd(), 'public', 'version.json');
+    const buildVersionPath = path.join(buildPath, 'version.json');
+    
+    // Write the exact version manifest generated for this build
+    fs.writeFileSync(buildVersionPath, JSON.stringify(versionData, null, 2));
+    console.log(`Synced version.json in /build: v${versionData.version} (Commit: ${versionData.gitCommit})`);
+
+    // 5. Validate required production artifacts
+    const requiredArtifacts = [
+        'index.html',
+        'version.json',
+        'staticwebapp.config.json'
+    ];
+
+    const missing = requiredArtifacts.filter(file => !fs.existsSync(path.join(buildPath, file)));
+    if (missing.length > 0) {
+        throw new Error(`Build validation failed: missing required artifacts in /build: ${missing.join(', ')}`);
+    }
+
+    console.log('✅ Build artifacts validation passed.');
     console.log('\nDeployment-ready build completed successfully.');
 } catch (error) {
     console.error('\nBuild failed:', error.message);

@@ -3,6 +3,23 @@ import EnhancedDataTable from '../../../components/common/EnhancedDataTable';
 import { apiService } from '../../../services/api';
 import { useShift } from '../../../context/ShiftContext';
 
+// Helper to format date string to ISO (yyyy-MM-dd) for HTML date inputs and LocalDate parsing
+const formatDateToInput = (dateStr) => {
+    if (!dateStr || dateStr === 'N/A') return '';
+    const str = String(dateStr).trim();
+    if (str.includes('/')) {
+        const parts = str.split('/');
+        if (parts.length === 3) {
+            const [d, m, y] = parts;
+            return `${y}-${m.padStart(2, '0')}-${d.padStart(2, '0')}`;
+        }
+    }
+    if (str.includes('-')) {
+        return str.split('T')[0];
+    }
+    return str;
+};
+
 const MomentOfFailure = () => {
     const { dutyUnit, vendorCode, selectedShift, userId, dutyDate } = useShift();
     const [viewMode, setViewMode] = useState('statistics'); // 'statistics', 'declared', 'tested'
@@ -16,14 +33,16 @@ const MomentOfFailure = () => {
     // API Data
     const [declaredSamples, setDeclaredSamples] = useState([]);
     const [testedSamples, setTestedSamples] = useState([]);
+    const [productionDeclarations, setProductionDeclarations] = useState([]);
 
     const fetchData = async () => {
         try {
             setLoading(true);
             const activePlantId = dutyUnit || localStorage.getItem('dutyUnit');
-            const [samplesRes, testsRes] = await Promise.all([
-                apiService.getAllMFSamples(),
-                apiService.getAllMFTests()
+            const [samplesRes, testsRes, prodRes] = await Promise.all([
+                apiService.getAllMFSamples().catch(() => ({ responseData: [] })),
+                apiService.getAllMFTests().catch(() => ({ responseData: [] })),
+                apiService.getAllProductionDeclarations().catch(() => ({ responseData: [] }))
             ]);
 
             const filteredSamples = (samplesRes.responseData || [])
@@ -31,8 +50,17 @@ const MomentOfFailure = () => {
             const filteredTests = (testsRes.responseData || [])
                 .filter(t => t.plantId === activePlantId || !t.plantId);
 
+            const rawProds = prodRes?.responseData || prodRes?.data?.responseData || prodRes?.data || (Array.isArray(prodRes) ? prodRes : []);
+            const filteredProds = (Array.isArray(rawProds) ? rawProds : []).filter(p => {
+                if (!activePlantId || !p.plantId) return true;
+                const cleanItemPlant = String(p.plantId).replace(':', '').trim();
+                const cleanTargetPlant = String(activePlantId).replace(':', '').trim();
+                return cleanItemPlant === cleanTargetPlant;
+            });
+
             setDeclaredSamples(filteredSamples);
             setTestedSamples(filteredTests);
+            setProductionDeclarations(filteredProds);
         } catch (error) {
             console.error('Failed to fetch MF data:', error);
         } finally {
@@ -193,9 +221,29 @@ const MomentOfFailure = () => {
         { key: 'samplingDate', label: 'Date of Sampling' },
         { key: 'batchNo', label: 'Batch Number' },
         { key: 'castingDate', label: 'Date of Casting' },
-        { key: 'concreteGrade', label: 'Concrete Grade' },
+        { 
+            key: 'concreteGrade', 
+            label: 'Concrete Grade',
+            render: (val, row) => {
+                if (val) return val;
+                const match = (productionDeclarations || []).find(p => 
+                    String(p.batchNumber || p.batchNo || '').trim().toLowerCase() === String(row.batchNo || '').trim().toLowerCase()
+                );
+                return match?.mixDesignReference || match?.concreteGrade || '-';
+            }
+        },
         { key: 'shedLineNumber', label: 'Shed/Line No.' },
-        { key: 'sleeperType', label: 'Drawing No.' },
+        { 
+            key: 'sleeperType', 
+            label: 'Drawing No.',
+            render: (val, row) => {
+                if (val) return val;
+                const match = (productionDeclarations || []).find(p => 
+                    String(p.batchNumber || p.batchNo || '').trim().toLowerCase() === String(row.batchNo || '').trim().toLowerCase()
+                );
+                return match?.drawingNo || match?.sleeperType || '-';
+            }
+        },
         { key: 'sampleIdentification', label: 'Sample Identification' },
         { key: 'sampleType', label: 'Type' },
         {
@@ -228,8 +276,14 @@ const MomentOfFailure = () => {
             return val || '-';
         }},
         { key: 'concreteGrade', label: 'Grade', render: (_, row) => {
-            const val = row.concreteGrade || declaredSamples.find(s => s.id === row.modulusOfFailureId)?.concreteGrade;
-            return val || '-';
+            const sample = declaredSamples.find(s => s.id === row.modulusOfFailureId);
+            const val = row.concreteGrade || sample?.concreteGrade;
+            if (val) return val;
+            const bNo = row.batchNo || sample?.batchNo;
+            const match = (productionDeclarations || []).find(p => 
+                String(p.batchNumber || p.batchNo || '').trim().toLowerCase() === String(bNo || '').trim().toLowerCase()
+            );
+            return match?.mixDesignReference || match?.concreteGrade || '-';
         }},
         { key: 'strength', label: 'Strength' },
         { key: 'finalStrength', label: 'Final Strength' },
@@ -376,6 +430,7 @@ const MomentOfFailure = () => {
             {showViewModal && (
                 <MFDetailsModal
                     sample={selectedSample}
+                    productionDeclarations={productionDeclarations}
                     onClose={() => setShowViewModal(false)}
                     onModify={() => {
                         setShowViewModal(false);
@@ -398,6 +453,7 @@ const MomentOfFailure = () => {
                 <MFSampleDeclarationModal
                     sample={selectedSample}
                     isModifying={isModifying}
+                    productionDeclarations={productionDeclarations}
                     onClose={() => setShowDeclareModal(false)}
                     onSave={saveDeclaration}
                     saving={loading}
@@ -407,6 +463,7 @@ const MomentOfFailure = () => {
             {showTestModal && (
                 <MFTestDetailsModal
                     sample={selectedSample}
+                    productionDeclarations={productionDeclarations}
                     onClose={() => setShowTestModal(false)}
                     onSave={saveTestDetails}
                     saving={loading}
@@ -423,18 +480,186 @@ const StatCard = ({ label, value, unit = '', color = '#1e293b' }) => (
     </div>
 );
 
-const MFSampleDeclarationModal = ({ sample, isModifying, onClose, onSave, saving }) => {
+const BatchSearchableSelect = ({ value, onChange, options = [] }) => {
+    const [isOpen, setIsOpen] = useState(false);
+    const [searchTerm, setSearchTerm] = useState(value || '');
+    const containerRef = React.useRef(null);
+
+    useEffect(() => {
+        setSearchTerm(value || '');
+    }, [value]);
+
+    useEffect(() => {
+        const handleClickOutside = (e) => {
+            if (containerRef.current && !containerRef.current.contains(e.target)) {
+                setIsOpen(false);
+            }
+        };
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, []);
+
+    const filteredOptions = useMemo(() => {
+        if (!searchTerm) return options;
+        const q = searchTerm.toLowerCase().trim();
+        return options.filter(opt => {
+            const bNum = String(opt.batchNumber || opt.batchNo || '').toLowerCase();
+            const drw = String(opt.drawingNo || opt.sleeperType || '').toLowerCase();
+            const gr = String(opt.mixDesignReference || opt.concreteGrade || '').toLowerCase();
+            return bNum.includes(q) || drw.includes(q) || gr.includes(q);
+        });
+    }, [options, searchTerm]);
+
+    const handleSelect = (opt) => {
+        const bNo = opt.batchNumber || opt.batchNo;
+        setSearchTerm(bNo);
+        onChange(bNo, opt);
+        setIsOpen(false);
+    };
+
+    const handleInputChange = (e) => {
+        const val = e.target.value;
+        setSearchTerm(val);
+        const match = options.find(opt => 
+            String(opt.batchNumber || opt.batchNo || '').trim().toLowerCase() === String(val || '').trim().toLowerCase()
+        );
+        onChange(val, match);
+        setIsOpen(true);
+    };
+
+    return (
+        <div ref={containerRef} style={{ position: 'relative', width: '100%' }}>
+            <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+                <input
+                    type="text"
+                    value={searchTerm}
+                    onChange={handleInputChange}
+                    onFocus={() => setIsOpen(true)}
+                    placeholder="Search or enter Batch No..."
+                    style={{
+                        width: '100%',
+                        paddingRight: '36px'
+                    }}
+                    autoComplete="off"
+                />
+                <button
+                    type="button"
+                    onClick={() => setIsOpen(!isOpen)}
+                    style={{
+                        position: 'absolute',
+                        right: '8px',
+                        top: '50%',
+                        transform: 'translateY(-50%)',
+                        background: 'transparent',
+                        border: 'none',
+                        cursor: 'pointer',
+                        color: '#64748b',
+                        padding: '4px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center'
+                    }}
+                >
+                    <svg width="14" height="14" viewBox="0 0 20 20" fill="currentColor">
+                        <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
+                    </svg>
+                </button>
+            </div>
+
+            {isOpen && (
+                <div style={{
+                    position: 'absolute',
+                    top: 'calc(100% + 4px)',
+                    left: 0,
+                    right: 0,
+                    background: '#ffffff',
+                    border: '1px solid #cbd5e1',
+                    borderRadius: '8px',
+                    boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1)',
+                    maxHeight: '220px',
+                    overflowY: 'auto',
+                    zIndex: 1050
+                }}>
+                    {filteredOptions.length > 0 ? (
+                        filteredOptions.map((opt, idx) => {
+                            const bNo = opt.batchNumber || opt.batchNo;
+                            const drw = opt.drawingNo || opt.sleeperType;
+                            const gr = opt.mixDesignReference || opt.concreteGrade;
+                            const isSelected = String(value || '').trim().toLowerCase() === String(bNo || '').trim().toLowerCase();
+
+                            return (
+                                <div
+                                    key={idx}
+                                    onClick={() => handleSelect(opt)}
+                                    style={{
+                                        padding: '10px 14px',
+                                        cursor: 'pointer',
+                                        background: isSelected ? '#f0f9fa' : 'transparent',
+                                        borderBottom: idx < filteredOptions.length - 1 ? '1px solid #f1f5f9' : 'none',
+                                        transition: 'background 0.15s ease'
+                                    }}
+                                    onMouseEnter={e => { if (!isSelected) e.currentTarget.style.background = '#f8fafc'; }}
+                                    onMouseLeave={e => { if (!isSelected) e.currentTarget.style.background = 'transparent'; }}
+                                >
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                        <span style={{ fontWeight: '700', fontSize: '13px', color: '#13343b' }}>{bNo}</span>
+                                        {gr && (
+                                            <span style={{
+                                                fontSize: '10px',
+                                                padding: '2px 8px',
+                                                borderRadius: '12px',
+                                                background: '#e0f2fe',
+                                                color: '#0369a1',
+                                                fontWeight: '700'
+                                            }}>
+                                                {gr}
+                                            </span>
+                                        )}
+                                    </div>
+                                    {drw && (
+                                        <div style={{ fontSize: '11px', color: '#64748b', marginTop: '2px' }}>
+                                            Drawing: <span style={{ color: '#475569', fontWeight: '600' }}>{drw}</span>
+                                        </div>
+                                    )}
+                                </div>
+                            );
+                        })
+                    ) : (
+                        <div style={{ padding: '14px', textAlign: 'center', color: '#94a3b8', fontSize: '12px' }}>
+                            No matching batch found
+                        </div>
+                    )}
+                </div>
+            )}
+        </div>
+    );
+};
+
+const MFSampleDeclarationModal = ({ sample, isModifying, onClose, onSave, saving, productionDeclarations = [] }) => {
+    const [localDeclarations, setLocalDeclarations] = useState(productionDeclarations || []);
+
+    useEffect(() => {
+        if (productionDeclarations && productionDeclarations.length > 0) {
+            setLocalDeclarations(productionDeclarations);
+        } else {
+            apiService.getAllProductionDeclarations().then(res => {
+                const data = res?.responseData || res?.data?.responseData || res?.data || (Array.isArray(res) ? res : []);
+                if (Array.isArray(data)) setLocalDeclarations(data);
+            }).catch(err => console.error("Error fetching production declarations:", err));
+        }
+    }, [productionDeclarations]);
+
     const [formData, setFormData] = useState(sample ? {
-        samplingDate: sample.samplingDate,
-        concreteGrade: sample.concreteGrade,
-        plantType: sample.plantType,
-        shedLineNumber: sample.shedLineNumber,
-        batchNo: sample.batchNo,
-        castingDate: sample.castingDate,
-        benchGangNumber: sample.benchGangNumber,
-        mouldNo: sample.mouldNo,
-        result: sample.result,
-        sampleType: sample.sampleType,
+        samplingDate: formatDateToInput(sample.samplingDate) || new Date().toISOString().split('T')[0],
+        concreteGrade: sample.concreteGrade || '',
+        plantType: sample.plantType || '',
+        shedLineNumber: sample.shedLineNumber || '',
+        batchNo: sample.batchNo || '',
+        castingDate: formatDateToInput(sample.castingDate) || new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+        benchGangNumber: sample.benchGangNumber || '',
+        mouldNo: sample.mouldNo || '',
+        result: sample.result || 'PENDING',
+        sampleType: sample.sampleType || '',
         sleeperType: sample.sleeperType || ''
     } : {
         samplingDate: new Date().toISOString().split('T')[0],
@@ -450,7 +675,54 @@ const MFSampleDeclarationModal = ({ sample, isModifying, onClose, onSave, saving
         sleeperType: 'RT-8746'
     });
 
-    const identification = `${formData.shedLineNumber} + ${formData.benchGangNumber} + ${formData.mouldNo}`;
+    const batchOptions = useMemo(() => {
+        if (!localDeclarations || !Array.isArray(localDeclarations)) return [];
+        const seen = new Set();
+        return localDeclarations.filter(p => {
+            const bNo = String(p.batchNumber || p.batchNo || '').trim();
+            if (!bNo || seen.has(bNo.toLowerCase())) return false;
+            seen.add(bNo.toLowerCase());
+            return true;
+        });
+    }, [localDeclarations]);
+
+    const handleBatchChange = (batchVal, matchedOpt) => {
+        const updated = { ...formData, batchNo: batchVal };
+        const cleanVal = String(batchVal || '').trim().toLowerCase();
+
+        const match = matchedOpt || (localDeclarations || []).find(p => 
+            String(p.batchNumber || p.batchNo || '').trim().toLowerCase() === cleanVal
+        );
+
+        if (match) {
+            // Concrete Grade (mixDesignReference or concreteGrade)
+            const grade = match.mixDesignReference || match.concreteGrade;
+            if (grade) updated.concreteGrade = grade;
+
+            // Drawing No. (Sleeper Type) (drawingNo or sleeperType)
+            const drwg = match.drawingNo || match.sleeperType;
+            if (drwg) updated.sleeperType = drwg;
+
+            // Date of Casting
+            if (match.castingDate) {
+                updated.castingDate = formatDateToInput(match.castingDate);
+            }
+
+            // Plant Type
+            if (match.plantType) {
+                updated.plantType = match.plantType;
+            }
+
+            // Shed/Line Number
+            const unit = match.productionUnit || match.lineNo || match.shedLineNumber;
+            if (unit) {
+                updated.shedLineNumber = unit;
+            }
+        }
+        setFormData(updated);
+    };
+
+    const identification = `${formData.shedLineNumber || ''} + ${formData.benchGangNumber || ''} + ${formData.mouldNo || ''}`;
 
     return (
         <div className="form-modal-overlay" onClick={onClose}>
@@ -466,34 +738,54 @@ const MFSampleDeclarationModal = ({ sample, isModifying, onClose, onSave, saving
                             <input type="date" value={formData.samplingDate} onChange={e => setFormData({ ...formData, samplingDate: e.target.value })} />
                         </div>
                         <div className="input-group">
-                            <label>Concrete Grade</label>
-                            <select value={formData.concreteGrade} onChange={e => setFormData({ ...formData, concreteGrade: e.target.value })}>
-                                <option value="">Select Grade</option>
-                                <option>M55</option>
-                                <option>M60</option>
-                            </select>
+                            <label>Batch No.</label>
+                            <BatchSearchableSelect
+                                value={formData.batchNo}
+                                onChange={handleBatchChange}
+                                options={batchOptions}
+                            />
                         </div>
                         <div className="input-group">
                             <label>Plant – Long Line / Stress Bench</label>
                             <select value={formData.plantType} onChange={e => setFormData({ ...formData, plantType: e.target.value })}>
                                 <option value="">Select Plant</option>
-                                <option>Long Line</option>
-                                <option>Stress Bench</option>
-                                <option>General</option>
+                                <option value="Long Line">Long Line</option>
+                                <option value="Stress Bench">Stress Bench</option>
+                                <option value="General">General</option>
+                                {formData.plantType && !['Long Line', 'Stress Bench', 'General'].includes(formData.plantType) && (
+                                    <option value={formData.plantType}>{formData.plantType}</option>
+                                )}
                             </select>
                         </div>
                         <div className="input-group">
                             <label>Shed/ Line Number</label>
                             <select value={formData.shedLineNumber} onChange={e => setFormData({ ...formData, shedLineNumber: e.target.value })}>
                                 <option value="">Select Shed/Line</option>
-                                <option>Shed 1</option><option>Shed 2</option>
-                                <option>Line 1</option><option>Line 2</option>
-                                <option>N/A</option>
+                                <option value="Shed 1">Shed 1</option>
+                                <option value="Shed 2">Shed 2</option>
+                                <option value="Line 1">Line 1</option>
+                                <option value="Line 2">Line 2</option>
+                                <option value="N/A">N/A</option>
+                                {formData.shedLineNumber && !['Shed 1', 'Shed 2', 'Line 1', 'Line 2', 'N/A'].includes(formData.shedLineNumber) && (
+                                    <option value={formData.shedLineNumber}>{formData.shedLineNumber}</option>
+                                )}
                             </select>
                         </div>
                         <div className="input-group">
-                            <label>Batch No.</label>
-                            <input type="text" value={formData.batchNo} onChange={e => setFormData({ ...formData, batchNo: e.target.value })} placeholder="e.g. B-710" />
+                            <label>Concrete Grade</label>
+                            <input 
+                                type="text" 
+                                readOnly 
+                                value={formData.concreteGrade || ''} 
+                                placeholder="Auto-populated from Batch"
+                                style={{ 
+                                    background: '#f8fafc', 
+                                    color: '#1e293b', 
+                                    cursor: 'not-allowed', 
+                                    fontWeight: '700',
+                                    border: '1px solid #e2e8f0'
+                                }} 
+                            />
                         </div>
                         <div className="input-group">
                             <label>Date of Casting</label>
@@ -520,27 +812,33 @@ const MFSampleDeclarationModal = ({ sample, isModifying, onClose, onSave, saving
                         </div>
                         <div className="input-group">
                             <label>Drawing No. (Sleeper Type)</label>
-                            <select value={formData.sleeperType} onChange={e => setFormData({ ...formData, sleeperType: e.target.value })}>
-                                <option value="">Select Drawing</option>
-                                <option>RT-8746</option>
-                                <option>RT-1234</option>
-                                <option>RT-5678</option>
-                                <option>RT-9012</option>
-                            </select>
+                            <input 
+                                type="text" 
+                                readOnly 
+                                value={formData.sleeperType || ''} 
+                                placeholder="Auto-populated from Batch"
+                                style={{ 
+                                    background: '#f8fafc', 
+                                    color: '#1e293b', 
+                                    cursor: 'not-allowed', 
+                                    fontWeight: '700',
+                                    border: '1px solid #e2e8f0'
+                                }} 
+                            />
                         </div>
                         <div className="input-group">
                             <label>Type of Sample (Retest/ Fresh)</label>
                             <select value={formData.sampleType} onChange={e => setFormData({ ...formData, sampleType: e.target.value })}>
                                 <option value="">Select Type</option>
-                                <option>Fresh</option>
-                                <option>Retest</option>
+                                <option value="Fresh">Fresh</option>
+                                <option value="Retest">Retest</option>
                             </select>
                         </div>
                     </div>
                     <div style={{ display: 'flex', gap: '12px', marginTop: '32px' }}>
                         <button className="btn-verify" disabled={saving} style={{ flex: 1 }} onClick={() => {
-                            if (!formData.concreteGrade || !formData.plantType || !formData.shedLineNumber || !formData.mouldNo || !formData.sampleType || !formData.batchNo || !formData.benchGangNumber) {
-                                alert("Please fill in all mandatory fields (Grade, Plant, Shed/Line, Batch, Bench, Mould, and Type).");
+                            if (!formData.concreteGrade || !formData.plantType || !formData.shedLineNumber || !formData.mouldNo || !formData.sampleType || !formData.batchNo || !formData.benchGangNumber || !formData.sleeperType) {
+                                alert("Please fill in all mandatory fields (Batch No., Plant, Shed/Line, Bench, Mould, Type, Concrete Grade, and Drawing No.).");
                                 return;
                             }
                             onSave({ ...formData, sampleIdentification: identification });
@@ -553,24 +851,20 @@ const MFSampleDeclarationModal = ({ sample, isModifying, onClose, onSave, saving
     );
 };
 
-const MFTestDetailsModal = ({ sample, onClose, onSave, saving }) => {
+const MFTestDetailsModal = ({ sample, onClose, onSave, saving, productionDeclarations = [] }) => {
     const [testData, setTestData] = useState({
-        testingDate: new Date().toISOString().split('T')[0],
-        strength: '',
-        remarks: ''
+        testingDate: sample?.testingDate || new Date().toISOString().split('T')[0],
+        strength: sample?.strength || '',
+        result: sample?.result && sample.result !== 'PENDING' ? sample.result : 'PASS',
+        remarks: sample?.remarks || ''
     });
 
-    const isRetest = sample.sampleType === 'Retest';
-    const strengthVal = parseFloat(testData.strength || 0);
-    
-    // Dynamic Requirement based on Drawing
-    const getMinRequired = (drawing) => {
-        if (drawing === 'RT-8746') return 535;
-        return 500; // Default or as provided later
-    };
-    
-    const minReq = getMinRequired(sample.sleeperType);
-    const result = !isNaN(strengthVal) && testData.strength !== '' && strengthVal >= minReq ? 'Pass' : 'Fail';
+    const matchedProd = (productionDeclarations || []).find(p => 
+        String(p.batchNumber || p.batchNo || '').trim().toLowerCase() === String(sample.batchNo || '').trim().toLowerCase()
+    );
+
+    const resolvedDrawingNo = sample.sleeperType || matchedProd?.drawingNo || matchedProd?.sleeperType || 'RT-8746';
+    const resolvedConcreteGrade = sample.concreteGrade || matchedProd?.mixDesignReference || matchedProd?.concreteGrade || '-';
 
     return (
         <div className="form-modal-overlay" onClick={onClose}>
@@ -585,14 +879,10 @@ const MFTestDetailsModal = ({ sample, onClose, onSave, saving }) => {
                         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '16px' }}>
                             <div><span style={{ fontSize: '10px', color: '#64748b', textTransform: 'uppercase' }}>Batch No</span><div style={{ fontWeight: '700' }}>{sample.batchNo}</div></div>
                             <div><span style={{ fontSize: '10px', color: '#64748b', textTransform: 'uppercase' }}>Casting Date</span><div style={{ fontWeight: '700' }}>{sample.castingDate}</div></div>
-                            <div><span style={{ fontSize: '10px', color: '#64748b', textTransform: 'uppercase' }}>Grade</span><div style={{ fontWeight: '700' }}>{sample.concreteGrade}</div></div>
-                            <div><span style={{ fontSize: '10px', color: '#64748b', textTransform: 'uppercase' }}>Drawing No</span><div style={{ fontWeight: '700', color: '#7c3aed' }}>{sample.sleeperType}</div></div>
+                            <div><span style={{ fontSize: '10px', color: '#64748b', textTransform: 'uppercase' }}>Grade</span><div style={{ fontWeight: '700' }}>{resolvedConcreteGrade}</div></div>
+                            <div><span style={{ fontSize: '10px', color: '#64748b', textTransform: 'uppercase' }}>Drawing No</span><div style={{ fontWeight: '700', color: '#7c3aed' }}>{resolvedDrawingNo}</div></div>
                             <div style={{ gridColumn: 'span 3' }}><span style={{ fontSize: '10px', color: '#64748b', textTransform: 'uppercase' }}>Sample Identification</span><div style={{ fontWeight: '800', color: '#42818c' }}>{sample.sampleIdentification}</div></div>
                         </div>
-                    </div>
-                    
-                    <div style={{ marginBottom: '20px', padding: '12px', background: '#fef3c7', borderRadius: '8px', border: '1px solid #fde68a', fontSize: '12px', fontWeight: '700', color: '#92400e' }}>
-                        Minimum MF Required for {sample.sleeperType}: {minReq} N/mm²
                     </div>
 
                     <div className="form-grid" style={{ gridTemplateColumns: '1fr', gap: '20px' }}>
@@ -607,19 +897,42 @@ const MFTestDetailsModal = ({ sample, onClose, onSave, saving }) => {
                                 <input type="number" step="0.01" value={testData.strength} onChange={e => setTestData({ ...testData, strength: e.target.value })} placeholder="0.00" />
                             </div>
                             <div className="input-group">
-                                <label>Result à Auto fill</label>
-                                <input readOnly value={testData.strength ? result : 'PENDING'} style={{ color: result === 'Pass' ? '#059669' : '#dc2626', fontWeight: '900', background: '#f8fafc', textAlign: 'center' }} />
+                                <label>Result</label>
+                                <select
+                                    value={testData.result}
+                                    onChange={e => setTestData({ ...testData, result: e.target.value })}
+                                    style={{
+                                        fontWeight: '700',
+                                        color: testData.result?.toUpperCase() === 'PASS' ? '#059669' : (testData.result?.toUpperCase() === 'FAIL' ? '#dc2626' : '#1e293b')
+                                    }}
+                                >
+                                    <option value="PASS">PASS</option>
+                                    <option value="FAIL">FAIL</option>
+                                </select>
                             </div>
                         </div>
 
                         <div className="input-group">
-                            <label>Remarks à String</label>
+                            <label>Remarks</label>
                             <textarea value={testData.remarks} onChange={e => setTestData({ ...testData, remarks: e.target.value })} placeholder="Enter observations..." style={{ minHeight: '80px', padding: '12px' }} />
                         </div>
                     </div>
 
                     <div style={{ display: 'flex', gap: '12px', marginTop: '32px' }}>
-                        <button className="btn-verify" disabled={saving} style={{ flex: 1 }} onClick={() => onSave({ ...testData, result })}>{saving ? 'Saving...' : 'Save & Finalize Test'}</button>
+                        <button 
+                            className="btn-verify" 
+                            disabled={saving} 
+                            style={{ flex: 1 }} 
+                            onClick={() => {
+                                if (!testData.result) {
+                                    alert("Please select a Result (PASS/FAIL).");
+                                    return;
+                                }
+                                onSave(testData);
+                            }}
+                        >
+                            {saving ? 'Saving...' : 'Save & Finalize Test'}
+                        </button>
                         <button className="btn-save" style={{ flex: 1, background: '#f1f5f9', color: '#64748b', border: 'none' }} onClick={onClose}>Cancel</button>
                     </div>
                 </div>
@@ -628,8 +941,15 @@ const MFTestDetailsModal = ({ sample, onClose, onSave, saving }) => {
     );
 };
 
-const MFDetailsModal = ({ sample, onClose, onModify, onEnterTest, onDelete }) => {
+const MFDetailsModal = ({ sample, onClose, onModify, onEnterTest, onDelete, productionDeclarations = [] }) => {
     if (!sample) return null;
+
+    const matchedProd = (productionDeclarations || []).find(p => 
+        String(p.batchNumber || p.batchNo || '').trim().toLowerCase() === String(sample.batchNo || '').trim().toLowerCase()
+    );
+
+    const resolvedDrawingNo = sample.sleeperType || matchedProd?.drawingNo || matchedProd?.sleeperType || '-';
+    const resolvedConcreteGrade = sample.concreteGrade || matchedProd?.mixDesignReference || matchedProd?.concreteGrade || '-';
 
     // Logic: 8-hour window from creation (only if createdDate is provided by server)
     const createdTime = sample.createdDate ? new Date(sample.createdDate) : null;
@@ -637,7 +957,7 @@ const MFDetailsModal = ({ sample, onClose, onModify, onEnterTest, onDelete }) =>
 
     const details = sample.isTestRecord ? [
         { label: 'Batch No', value: sample.batchNo || '-' },
-        { label: 'Grade', value: sample.concreteGrade || '-' },
+        { label: 'Grade', value: resolvedConcreteGrade },
         { label: 'Sample ID', value: sample.sampleIdentification },
         { label: 'Testing Date', value: sample.testingDate },
         { label: 'Strength', value: `${sample.strength} N/mm²` },
@@ -645,7 +965,8 @@ const MFDetailsModal = ({ sample, onClose, onModify, onEnterTest, onDelete }) =>
         { label: 'Remarks', value: sample.remarks || 'None' }
     ] : [
         { label: 'Batch No', value: sample.batchNo },
-        { label: 'Sleeper Type', value: sample.sleeperType },
+        { label: 'Drawing No. (Sleeper Type)', value: resolvedDrawingNo },
+        { label: 'Grade', value: resolvedConcreteGrade },
         { label: 'Casting Date', value: sample.castingDate },
         { label: 'Sample ID', value: sample.sampleIdentification }
     ];

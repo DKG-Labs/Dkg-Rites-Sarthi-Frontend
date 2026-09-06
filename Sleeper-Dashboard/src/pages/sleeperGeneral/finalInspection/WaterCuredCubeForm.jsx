@@ -6,13 +6,23 @@ const WaterCuredCubeForm = ({ batch, preFillData, onSave, onCancel }) => {
     const AREA = 22500;
     const FCK = batch.grade === 'M55' ? 55 : (batch.grade === 'M60' ? 60 : 55);
 
+    const [testDate, setTestDate] = useState(() => {
+        if (preFillData?.testDate) return preFillData.testDate;
+        if (preFillData?.details?.[0]?.testingDate) return preFillData.details[0].testingDate;
+        return new Date().toISOString().split('T')[0];
+    });
+    const [testTime, setTestTime] = useState(() => {
+        if (preFillData?.details?.[0]?.testingTime) return preFillData.details[0].testingTime;
+        return new Date().toTimeString().slice(0, 5);
+    });
+
     const initialCubes = [
-        { id: 1, sample: 1, weight: '', load: '', strength: 0, date: new Date().toISOString().split('T')[0], time: new Date().toTimeString().slice(0, 5) },
-        { id: 2, sample: 1, weight: '', load: '', strength: 0, date: new Date().toISOString().split('T')[0], time: new Date().toTimeString().slice(0, 5) },
-        { id: 3, sample: 1, weight: '', load: '', strength: 0, date: new Date().toISOString().split('T')[0], time: new Date().toTimeString().slice(0, 5) },
-        { id: 4, sample: 2, weight: '', load: '', strength: 0, date: new Date().toISOString().split('T')[0], time: new Date().toTimeString().slice(0, 5) },
-        { id: 5, sample: 2, weight: '', load: '', strength: 0, date: new Date().toISOString().split('T')[0], time: new Date().toTimeString().slice(0, 5) },
-        { id: 6, sample: 2, weight: '', load: '', strength: 0, date: new Date().toISOString().split('T')[0], time: new Date().toTimeString().slice(0, 5) },
+        { id: 1, sample: 1, weight: '', load: '', strength: 0 },
+        { id: 2, sample: 1, weight: '', load: '', strength: 0 },
+        { id: 3, sample: 1, weight: '', load: '', strength: 0 },
+        { id: 4, sample: 2, weight: '', load: '', strength: 0 },
+        { id: 5, sample: 2, weight: '', load: '', strength: 0 },
+        { id: 6, sample: 2, weight: '', load: '', strength: 0 },
     ];
 
     const [cubes, setCubes] = useState(() => {
@@ -23,8 +33,6 @@ const WaterCuredCubeForm = ({ batch, preFillData, onSave, onCancel }) => {
                 weight: d.weightKg || '',
                 load: d.loadKn || '',
                 strength: d.strengthNmm2 || 0,
-                date: d.testingDate || new Date().toISOString().split('T')[0],
-                time: d.testingTime || new Date().toTimeString().slice(0, 5)
             }));
         }
         return initialCubes;
@@ -44,12 +52,15 @@ const WaterCuredCubeForm = ({ batch, preFillData, onSave, onCancel }) => {
     });
     const [saving, setSaving] = useState(false);
 
-    const calculateAge = (castingDate) => {
-        const diffTime = Math.abs(new Date() - new Date(castingDate));
+    const calculateAge = (castingDate, currentTestDate) => {
+        if (!castingDate) return 0;
+        const cast = new Date(castingDate);
+        const test = currentTestDate ? new Date(currentTestDate) : new Date();
+        const diffTime = Math.abs(test - cast);
         return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
     };
 
-    const age = calculateAge(batch.castingDate);
+    const age = calculateAge(batch.castingDate, testDate);
 
     useEffect(() => {
         // Calculate Averages based on current cubes state
@@ -139,10 +150,19 @@ const WaterCuredCubeForm = ({ batch, preFillData, onSave, onCancel }) => {
         if (saving) return;
         setSaving(true);
         try {
-            const sample1Results = cubes.filter(c => c.sample === 1);
-            const sample2Results = cubes.filter(c => c.sample === 2);
+            const sample1Results = cubes.filter(c => c.sample === 1).map(c => ({
+                ...c,
+                date: testDate,
+                time: testTime
+            }));
+            const sample2Results = cubes.filter(c => c.sample === 2).map(c => ({
+                ...c,
+                date: testDate,
+                time: testTime
+            }));
             await onSave({
-                testDate: cubes[0]?.date || new Date().toISOString().split('T')[0],
+                testDate: testDate || new Date().toISOString().split('T')[0],
+                ageDays: age,
                 avgStrength: results.x,
                 s1Avg: results.s1Avg,
                 s2Avg: results.s2Avg,
@@ -167,86 +187,92 @@ const WaterCuredCubeForm = ({ batch, preFillData, onSave, onCancel }) => {
         <div className="water-cube-form">
             <div className="form-summary-card">
                 <div className="summary-grid">
-                    <div className="summary-item"><label>Batch No</label><span>{batch.batchNo}</span></div>
-                    <div className="summary-item"><label>Concrete Grade</label><span>{batch.grade}</span></div>
-                    <div className="summary-item"><label>Casting Date</label><span>{batch.castingDate}</span></div>
-                    <div className="summary-item"><label>Age (Days)</label><span>{age}</span></div>
-                    <div className="summary-item"><label>Fck (Target)</label><span>{FCK} N/mm²</span></div>
+                    <div className="summary-item">
+                        <label>Batch No</label>
+                        <span className="summary-val">{batch.batchNo}</span>
+                    </div>
+                    <div className="summary-item">
+                        <label>Concrete Grade</label>
+                        <span className="summary-val grade-badge">{batch.grade}</span>
+                    </div>
+                    <div className="summary-item">
+                        <label>Casting Date</label>
+                        <span className="summary-val">{batch.castingDate}</span>
+                    </div>
+                    <div className="summary-item interactive">
+                        <label>Date of Testing</label>
+                        <input type="date" value={testDate} onChange={(e) => setTestDate(e.target.value)} />
+                    </div>
+                    <div className="summary-item interactive">
+                        <label>Testing Time</label>
+                        <input type="time" value={testTime} onChange={(e) => setTestTime(e.target.value)} />
+                    </div>
+                    <div className="summary-item">
+                        <label>Age (Days)</label>
+                        <span className="summary-val">{age} Days</span>
+                    </div>
+                    <div className="summary-item">
+                        <label>Fck (Target)</label>
+                        <span className="summary-val">{FCK} N/mm²</span>
+                    </div>
                 </div>
             </div>
 
             <div className="cubes-grid">
                 <div className="sample-section">
-                    <h4>Sample 1 (Cubes declared: {batch.sample1?.join(', ')})</h4>
+                    <div className="sample-card-header">
+                        <div className="sample-header-left">
+                            <span className="sample-number-badge">Sample 1</span>
+                            <span className="sample-cubes-list">
+                                Declared: <strong>{batch.sample1?.join(', ') || 'N/A'}</strong>
+                            </span>
+                        </div>
+                    </div>
                     <div className="table-container">
                         <table className="cubes-table">
                             <thead>
                                 <tr>
-                                    <th>Date/Time</th>
-                                    <th>Cube #</th>
-                                    <th>Weight (kg)</th>
-                                    <th>Load (KN)</th>
-                                    <th>Strength (N/mm²)</th>
+                                    <th style={{ width: '22%' }}>Cube #</th>
+                                    <th style={{ width: '26%' }}>Weight (kg)</th>
+                                    <th style={{ width: '26%' }}>Load (kN)</th>
+                                    <th style={{ width: '26%', textAlign: 'right' }}>Strength (N/mm²)</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 {cubes.filter(c => c.sample === 1).map((cube, idx) => (
                                     <tr key={cube.id}>
                                         <td>
-                                            <div className="date-time-inputs">
-                                                <input type="date" value={cube.date} onChange={(e) => handleCubeChange(cube.id, 'date', e.target.value)} />
-                                                <input type="time" value={cube.time} onChange={(e) => handleCubeChange(cube.id, 'time', e.target.value)} />
+                                            <div className="cube-identity-pill">
+                                                <span className="cube-code">{batch.sample1?.[idx] || `1-${idx + 1}`}</span>
+                                                <span className="cube-sub">Index: 1-{idx + 1}</span>
                                             </div>
                                         </td>
+                                        <td><input type="number" step="0.01" placeholder="e.g. 8.25" value={cube.weight} onChange={(e) => handleCubeChange(cube.id, 'weight', e.target.value)} /></td>
+                                        <td><input type="number" step="0.1" placeholder="e.g. 1350" value={cube.load} onChange={(e) => handleCubeChange(cube.id, 'load', e.target.value)} /></td>
                                         <td>
-                                            <div style={{ display: 'flex', flexDirection: 'column' }}>
-                                                <strong style={{ color: '#13343b' }}>{batch.sample1?.[idx] || `1-${idx + 1}`}</strong>
-                                                <span style={{ fontSize: '9px', color: '#64748b' }}>Index: 1-{idx + 1}</span>
-                                            </div>
-                                        </td>
-                                        <td><input type="number" step="0.01" value={cube.weight} onChange={(e) => handleCubeChange(cube.id, 'weight', e.target.value)} /></td>
-                                        <td><input type="number" step="0.1" value={cube.load} onChange={(e) => handleCubeChange(cube.id, 'load', e.target.value)} /></td>
-                                        <td className="strength-cell" style={{
-                                            background: cube.strength >= FCK ? '#f0fdf4' : (cube.strength > 0 ? '#fff1f2' : 'transparent'),
-                                            padding: '4px'
-                                        }}>
-                                            <div
-                                                style={{
-                                                    textAlign: 'right',
-                                                    fontWeight: '800',
-                                                    color: cube.strength >= FCK ? '#166534' : (cube.strength > 0 ? '#991b1b' : '#64748b'),
-                                                    padding: '4px 8px',
-                                                    fontSize: '13px',
-                                                    userSelect: 'none'
-                                                }}
-                                                title="Auto-calculated from Load — not editable"
-                                            >
+                                            <div className={`strength-badge-display ${cube.strength >= FCK ? 'pass' : (cube.strength > 0 ? 'fail' : '')}`}>
                                                 {cube.strength > 0 ? cube.strength.toFixed(2) : '—'}
                                             </div>
                                         </td>
                                     </tr>
                                 ))}
                                 <tr className="avg-row">
-                                    <td colSpan="4">Sample 1 Average Strength</td>
-                                    <td className="strength-cell">{results.s1Avg.toFixed(2)}</td>
+                                    <td colSpan="3">Sample 1 Average Strength</td>
+                                    <td className="avg-value">{results.s1Avg > 0 ? `${results.s1Avg.toFixed(2)} N/mm²` : '0.00'}</td>
                                 </tr>
-                                <tr className="variation-row" style={{ background: results.s1Variation > 15 ? '#fef2f2' : 'transparent' }}>
-                                    <td colSpan="4">Sample 1 Max Variation %</td>
-                                    <td style={{ color: results.s1Variation > 15 ? '#dc2626' : '#166534', fontWeight: '800' }}>
-                                        {results.s1Variation.toFixed(2)}%
-                                        {cubes.filter(c => c.sample === 1 && c.strength > 0).length === 3 && (
-                                            <span style={{
-                                                marginLeft: '8px',
-                                                fontSize: '10px',
-                                                padding: '2px 6px',
-                                                borderRadius: '4px',
-                                                background: results.s1Variation > 15 ? '#fee2e2' : '#dcfce7',
-                                                color: results.s1Variation > 15 ? '#991b1b' : '#15803d',
-                                                fontWeight: '800'
-                                            }}>
-                                                {results.s1Variation > 15 ? 'FAIL (>15%)' : 'PASS (≤15%)'}
+                                <tr className={`variation-row ${results.s1Variation > 15 ? 'excessive' : ''}`}>
+                                    <td colSpan="3">Sample 1 Max Variation %</td>
+                                    <td>
+                                        <div className="variation-value-container">
+                                            <span style={{ fontWeight: '800', color: results.s1Variation > 15 ? '#dc2626' : '#166534' }}>
+                                                {results.s1Variation.toFixed(2)}%
                                             </span>
-                                        )}
+                                            {cubes.filter(c => c.sample === 1 && c.strength > 0).length === 3 && (
+                                                <span className={`var-pill ${results.s1Variation > 15 ? 'fail' : 'pass'}`}>
+                                                    {results.s1Variation > 15 ? 'FAIL (>15%)' : 'PASS (≤15%)'}
+                                                </span>
+                                            )}
+                                        </div>
                                     </td>
                                 </tr>
                             </tbody>
@@ -255,93 +281,85 @@ const WaterCuredCubeForm = ({ batch, preFillData, onSave, onCancel }) => {
                 </div>
 
                 <div className="sample-section">
-                    <h4>Sample 2 (Cubes declared: {batch.sample2?.join(', ')})</h4>
+                    <div className="sample-card-header">
+                        <div className="sample-header-left">
+                            <span className="sample-number-badge sample-2">Sample 2</span>
+                            <span className="sample-cubes-list">
+                                Declared: <strong>{batch.sample2?.join(', ') || 'N/A'}</strong>
+                            </span>
+                        </div>
+                    </div>
                     <div className="table-container">
                         <table className="cubes-table">
                             <thead>
                                 <tr>
-                                    <th>Date/Time</th>
-                                    <th>Cube #</th>
-                                    <th>Weight (kg)</th>
-                                    <th>Load (KN)</th>
-                                    <th>Strength (N/mm²)</th>
+                                    <th style={{ width: '22%' }}>Cube #</th>
+                                    <th style={{ width: '26%' }}>Weight (kg)</th>
+                                    <th style={{ width: '26%' }}>Load (kN)</th>
+                                    <th style={{ width: '26%', textAlign: 'right' }}>Strength (N/mm²)</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 {cubes.filter(c => c.sample === 2).map((cube, idx) => (
                                     <tr key={cube.id}>
                                         <td>
-                                            <div className="date-time-inputs">
-                                                <input type="date" value={cube.date} onChange={(e) => handleCubeChange(cube.id, 'date', e.target.value)} />
-                                                <input type="time" value={cube.time} onChange={(e) => handleCubeChange(cube.id, 'time', e.target.value)} />
+                                            <div className="cube-identity-pill">
+                                                <span className="cube-code">{batch.sample2?.[idx] || `2-${idx + 1}`}</span>
+                                                <span className="cube-sub">Index: 2-{idx + 1}</span>
                                             </div>
                                         </td>
+                                        <td><input type="number" step="0.01" placeholder="e.g. 8.25" value={cube.weight} onChange={(e) => handleCubeChange(cube.id, 'weight', e.target.value)} /></td>
+                                        <td><input type="number" step="0.1" placeholder="e.g. 1350" value={cube.load} onChange={(e) => handleCubeChange(cube.id, 'load', e.target.value)} /></td>
                                         <td>
-                                            <div style={{ display: 'flex', flexDirection: 'column' }}>
-                                                <strong style={{ color: '#13343b' }}>{batch.sample2?.[idx] || `2-${idx + 1}`}</strong>
-                                                <span style={{ fontSize: '9px', color: '#64748b' }}>Index: 2-{idx + 1}</span>
-                                            </div>
-                                        </td>
-                                        <td><input type="number" step="0.01" value={cube.weight} onChange={(e) => handleCubeChange(cube.id, 'weight', e.target.value)} /></td>
-                                        <td><input type="number" step="0.1" value={cube.load} onChange={(e) => handleCubeChange(cube.id, 'load', e.target.value)} /></td>
-                                        <td className="strength-cell" style={{
-                                            background: cube.strength >= FCK ? '#f0fdf4' : (cube.strength > 0 ? '#fff1f2' : 'transparent'),
-                                            padding: '4px'
-                                        }}>
-                                            <div
-                                                style={{
-                                                    textAlign: 'right',
-                                                    fontWeight: '800',
-                                                    color: cube.strength >= FCK ? '#166534' : (cube.strength > 0 ? '#991b1b' : '#64748b'),
-                                                    padding: '4px 8px',
-                                                    fontSize: '13px',
-                                                    userSelect: 'none'
-                                                }}
-                                                title="Auto-calculated from Load — not editable"
-                                            >
+                                            <div className={`strength-badge-display ${cube.strength >= FCK ? 'pass' : (cube.strength > 0 ? 'fail' : '')}`}>
                                                 {cube.strength > 0 ? cube.strength.toFixed(2) : '—'}
                                             </div>
                                         </td>
                                     </tr>
                                 ))}
                                 <tr className="avg-row">
-                                    <td colSpan="4">Sample 2 Average Strength</td>
-                                    <td className="strength-cell">{results.s2Avg.toFixed(2)}</td>
+                                    <td colSpan="3">Sample 2 Average Strength</td>
+                                    <td className="avg-value">{results.s2Avg > 0 ? `${results.s2Avg.toFixed(2)} N/mm²` : '0.00'}</td>
                                 </tr>
-                                <tr className="variation-row" style={{ background: results.s2Variation > 15 ? '#fef2f2' : 'transparent' }}>
-                                    <td colSpan="4">Sample 2 Max Variation %</td>
-                                    <td style={{ color: results.s2Variation > 15 ? '#dc2626' : '#166534', fontWeight: '800' }}>
-                                        {results.s2Variation.toFixed(2)}%
-                                        {cubes.filter(c => c.sample === 2 && c.strength > 0).length === 3 && (
-                                            <span style={{
-                                                marginLeft: '8px',
-                                                fontSize: '10px',
-                                                padding: '2px 6px',
-                                                borderRadius: '4px',
-                                                background: results.s2Variation > 15 ? '#fee2e2' : '#dcfce7',
-                                                color: results.s2Variation > 15 ? '#991b1b' : '#15803d',
-                                                fontWeight: '800'
-                                            }}>
-                                                {results.s2Variation > 15 ? 'FAIL (>15%)' : 'PASS (≤15%)'}
+                                <tr className={`variation-row ${results.s2Variation > 15 ? 'excessive' : ''}`}>
+                                    <td colSpan="3">Sample 2 Max Variation %</td>
+                                    <td>
+                                        <div className="variation-value-container">
+                                            <span style={{ fontWeight: '800', color: results.s2Variation > 15 ? '#dc2626' : '#166534' }}>
+                                                {results.s2Variation.toFixed(2)}%
                                             </span>
-                                        )}
+                                            {cubes.filter(c => c.sample === 2 && c.strength > 0).length === 3 && (
+                                                <span className={`var-pill ${results.s2Variation > 15 ? 'fail' : 'pass'}`}>
+                                                    {results.s2Variation > 15 ? 'FAIL (>15%)' : 'PASS (≤15%)'}
+                                                </span>
+                                            )}
+                                        </div>
                                     </td>
                                 </tr>
                             </tbody>
                         </table>
                     </div>
                 </div>
+            </div>
 
-                <div style={{ marginTop: '24px', padding: '16px', background: '#f8fafc', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
-                    <h4 style={{ fontSize: '13px', color: '#13343b', marginBottom: '12px', fontWeight: '800' }}>Individual Cube Strengths Summary</h4>
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: '12px' }}>
-                        {cubes.map((c, idx) => (
-                            <div key={c.id} style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 12px', background: 'white', borderRadius: '8px', border: '1px solid #e2e8f0', boxShadow: '0 1px 2px rgba(0,0,0,0.05)' }}>
-                                <span style={{ fontSize: '10px', color: '#64748b', fontWeight: '700' }}>#{c.sample === 1 ? (batch.sample1?.[idx] || `1-${idx + 1}`) : (batch.sample2?.[idx - 3] || `2-${idx - 2}`)}</span>
-                                <span style={{ fontSize: '12px', fontWeight: '800', color: c.strength >= FCK ? '#166534' : '#991b1b' }}>{c.strength ? c.strength.toFixed(2) : '0.00'}</span>
+            <div className="cube-strengths-summary-card">
+                <div className="cube-strengths-summary-title">
+                    <span>Individual Cube Strengths Overview</span>
+                </div>
+                <div className="cube-strengths-summary-grid">
+                    {cubes.map((c, idx) => {
+                        const cubeName = c.sample === 1 
+                            ? (batch.sample1?.[idx] || `1-${idx + 1}`) 
+                            : (batch.sample2?.[idx - 3] || `2-${idx - 2}`);
+                        const isTested = c.strength > 0;
+                        const isPass = c.strength >= FCK;
+                        return (
+                            <div key={c.id} className={`cube-strength-pill ${isTested ? (isPass ? 'tested-pass' : 'tested-fail') : ''}`}>
+                                <span className="cube-name">#{cubeName}</span>
+                                <span className="cube-val">{c.strength ? c.strength.toFixed(2) : '—'}</span>
                             </div>
-                        ))}
-                    </div>
+                        );
+                    })}
                 </div>
             </div>
 
@@ -381,23 +399,11 @@ const WaterCuredCubeForm = ({ batch, preFillData, onSave, onCancel }) => {
                 </div>
 
                 {results.hasExcessiveVariation && (
-                    <div style={{
-                        background: '#fef2f2',
-                        border: '1.5px solid #fca5a5',
-                        color: '#991b1b',
-                        padding: '12px 16px',
-                        borderRadius: '10px',
-                        marginBottom: '16px',
-                        fontWeight: '700',
-                        fontSize: '13px',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '10px'
-                    }}>
-                        <span style={{ fontSize: '18px' }}>⚠️</span>
+                    <div className="variation-alert-box">
+                        <span style={{ fontSize: '20px' }}>⚠️</span>
                         <div>
-                            <div><strong>BATCH FAILED: CUBE STRENGTH VARIATION EXCEEDS 15% LIMIT</strong></div>
-                            <div style={{ fontSize: '11px', fontWeight: '500', marginTop: '2px' }}>
+                            <div className="alert-title">BATCH FAILED: CUBE STRENGTH VARIATION EXCEEDS 15% LIMIT</div>
+                            <div className="alert-subtitle">
                                 Sample 1 Max Variation: {results.s1Variation.toFixed(2)}% | Sample 2 Max Variation: {results.s2Variation.toFixed(2)}%. Max allowable variation is 15%.
                             </div>
                         </div>
@@ -417,11 +423,7 @@ const WaterCuredCubeForm = ({ batch, preFillData, onSave, onCancel }) => {
             </div>
 
             <div className="form-actions">
-                <button 
-                    className="btn-save" 
-                    onClick={handleSave} 
-                    disabled={results.testResult === 'Pending' || saving}
-                >
+                <button className="btn-save" onClick={handleSave} disabled={results.testResult === 'Pending' || saving}>
                     {saving ? 'Saving...' : 'Save Test Details'}
                 </button>
                 <button className="btn-cancel" onClick={onCancel} disabled={saving}>Cancel</button>

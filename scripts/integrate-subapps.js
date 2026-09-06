@@ -140,7 +140,25 @@ try {
 
     const publicVersionPath = path.join(process.cwd(), 'public', 'version.json');
     const buildVersionPath = path.join(buildPath, 'version.json');
-    if (fs.existsSync(publicVersionPath) && !fs.existsSync(buildVersionPath)) {
+    
+    // Check for Vercel / GitHub / CI environment variables
+    const gitSha = process.env.VERCEL_GIT_COMMIT_SHA 
+        || process.env.REACT_APP_GIT_COMMIT 
+        || process.env.GITHUB_SHA 
+        || '';
+    const version = process.env.REACT_APP_VERSION 
+        || process.env.VERCEL_GIT_COMMIT_REF
+        || (gitSha ? `${new Date().toISOString().slice(0, 10).replace(/-/g, '.')}-${gitSha.slice(0, 7)}` : null);
+
+    if (version && gitSha) {
+        const dynamicVersionData = {
+            version: version,
+            buildTime: new Date().toISOString(),
+            gitCommit: gitSha.slice(0, 7)
+        };
+        fs.writeFileSync(buildVersionPath, JSON.stringify(dynamicVersionData, null, 2));
+        console.log(`Generated dynamic version.json in /build: ${version} (${gitSha.slice(0, 7)})`);
+    } else if (fs.existsSync(publicVersionPath) && !fs.existsSync(buildVersionPath)) {
         fs.copyFileSync(publicVersionPath, buildVersionPath);
         console.log('Copied version.json to /build directory.');
     }

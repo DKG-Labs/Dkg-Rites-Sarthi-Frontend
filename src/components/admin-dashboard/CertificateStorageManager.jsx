@@ -676,10 +676,23 @@ export const CertificateStorageManager = ({ onNotify }) => {
                   border: 'none',
                   cursor: searchLoading || !searchIc.trim() ? 'not-allowed' : 'pointer',
                   boxShadow: searchLoading || !searchIc.trim() ? 'none' : '0 4px 12px rgba(2, 132, 199, 0.25)',
-                  transition: 'all 0.2s'
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  transition: 'all 0.2s ease'
                 }}
               >
-                {searchLoading ? 'Searching...' : 'Search'}
+                {searchLoading ? (
+                  <>
+                    <span className="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+                    <span>Searching...</span>
+                  </>
+                ) : (
+                  <>
+                    <span>🔍</span>
+                    <span>Search</span>
+                  </>
+                )}
               </button>
             </form>
 

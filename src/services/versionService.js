@@ -1,4 +1,4 @@
-import { APP_VERSION } from '../config/version.js';
+import { getActiveAppVersion } from '../config/version.js';
 
 /**
  * Parses and compares two semantic version strings or date-based deployment IDs.
@@ -63,7 +63,7 @@ export const compareVersions = (local, remote) => {
  * @returns {Promise<{updateAvailable: boolean, serverVersion: string|null, currentVersion: string, buildTime?: string, gitCommit?: string}>}
  */
 export const fetchVersionStatus = async (timeoutMs = 10000) => {
-  const currentVersion = APP_VERSION;
+  const currentVersion = getActiveAppVersion();
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
 

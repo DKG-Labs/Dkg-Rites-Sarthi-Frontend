@@ -25,26 +25,14 @@ jobs:
       - name: Generate Deployment Version Metadata
         id: version_meta
         run: |
-          if [[ "${{ github.ref }}" == refs/tags/* ]]; then
-            VERSION="${GITHUB_REF_NAME#v}"
-          else
-            VERSION="$(date +'%Y.%m.%d')-${GITHUB_SHA::7}"
-          fi
-          BUILD_TIME="$(date -u +'%Y-%m-%dT%H:%M:%SZ')"
-          COMMIT_SHA="${GITHUB_SHA::7}"
+          node scripts/bump-version.js
+          VERSION=$(node -e "console.log(require('./public/version.json').version)")
+          BUILD_TIME=$(node -e "console.log(require('./public/version.json').buildTime)")
+          COMMIT_SHA=$(node -e "console.log(require('./public/version.json').gitCommit)")
 
           echo "APP_VERSION=$VERSION" >> $GITHUB_ENV
           echo "APP_BUILD_TIME=$BUILD_TIME" >> $GITHUB_ENV
           echo "APP_GIT_COMMIT=$COMMIT_SHA" >> $GITHUB_ENV
-
-          mkdir -p public
-          cat <<EOF > public/version.json
-          {
-            "version": "$VERSION",
-            "buildTime": "$BUILD_TIME",
-            "gitCommit": "$COMMIT_SHA"
-          }
-          EOF
 
           echo "✅ Generated version.json with version: $VERSION, buildTime: $BUILD_TIME, commit: $COMMIT_SHA"
 

@@ -1,131 +1,243 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useVersionCheck } from '../../hooks/useVersionCheck';
+import { setAcknowledgedVersion } from '../../config/version';
+import '../annexures/AnnexureLoader.css';
 
 /**
- * Accessible, non-intrusive floating update banner.
- * Notifies the user when a newer version has been deployed.
+ * VersionUpdateModal - Enterprise Centered Update Screen.
+ * Uses the RITES Annexure Loader style with clear, user-friendly messaging.
  */
 const VersionUpdateBanner = () => {
   const { updateAvailable, latestVersion, currentVersion, dismissUpdate } = useVersionCheck();
+  const [isUpdating, setIsUpdating] = useState(false);
 
   if (!updateAvailable) {
     return null;
   }
 
   const handleUpdate = () => {
-    // Normal page reload to fetch new HTML and latest hashed bundles
-    window.location.reload();
+    setIsUpdating(true);
+    
+    // Save acknowledged version to localStorage so it won't prompt again for this version
+    if (latestVersion) {
+      setAcknowledgedVersion(latestVersion);
+    }
+
+    // Clean any cached assets and reload
+    try {
+      if ('caches' in window) {
+        caches.keys().then((names) => {
+          names.forEach((name) => caches.delete(name));
+        }).catch(() => {});
+      }
+    } catch (e) {}
+
+    // Smooth reload transition
+    setTimeout(() => {
+      window.location.reload();
+    }, 600);
   };
 
+  const formattedCurrent = String(currentVersion || '1.0.0').replace(/^v/i, '');
+  const formattedLatest = String(latestVersion || '1.0.1').replace(/^v/i, '');
+
   return (
-    <aside
-      role="status"
-      aria-live="polite"
-      aria-label="Application Update Notice"
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="version-update-title"
       style={{
         position: 'fixed',
-        bottom: '24px',
-        right: '24px',
-        zIndex: 999999,
-        maxWidth: '420px',
-        backgroundColor: '#0f172a',
-        color: '#f8fafc',
-        borderRadius: '12px',
-        boxShadow: '0 10px 30px -5px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(255, 255, 255, 0.1)',
-        padding: '16px 20px',
+        inset: 0,
+        width: '100vw',
+        height: '100vh',
+        backgroundColor: 'rgba(15, 23, 42, 0.55)',
+        backdropFilter: 'blur(12px)',
+        WebkitBackdropFilter: 'blur(12px)',
         display: 'flex',
-        flexDirection: 'column',
-        gap: '12px',
-        fontFamily: 'Inter, system-ui, -apple-system, sans-serif',
-        animation: 'slideInUp 0.3s cubic-bezier(0.16, 1, 0.3, 1)'
+        alignItems: 'center',
+        justifyContent: 'center',
+        zIndex: 999999,
+        padding: '20px',
+        animation: 'fadeIn 0.3s ease-out forwards',
+        boxSizing: 'border-box'
       }}
     >
-      <div style={{ display: 'flex', alignItems: 'flex-start', gap: '12px' }}>
+      <div
+        style={{
+          background: 'rgba(255, 255, 255, 0.96)',
+          borderRadius: '24px',
+          padding: '36px 32px',
+          maxWidth: '460px',
+          width: '100%',
+          textAlign: 'center',
+          boxShadow: '0 25px 60px -12px rgba(0, 0, 0, 0.25), 0 0 0 1px rgba(255, 255, 255, 0.8)',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          gap: '20px',
+          animation: 'slideUp 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards',
+          fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+          boxSizing: 'border-box'
+        }}
+      >
+        {/* RITES Logo with Spinning Progress Ring */}
         <div
-          aria-hidden="true"
           style={{
-            backgroundColor: '#0d9488',
-            color: '#ffffff',
-            width: '32px',
-            height: '32px',
-            borderRadius: '8px',
+            position: 'relative',
+            width: '84px',
+            height: '84px',
             display: 'flex',
             alignItems: 'center',
-            justifyContent: 'center',
-            fontSize: '16px',
-            flexShrink: 0
+            justifyContent: 'center'
           }}
         >
-          🚀
+          <div
+            style={{
+              position: 'absolute',
+              inset: 0,
+              borderRadius: '50%',
+              border: '3.5px solid transparent',
+              borderTop: '3.5px solid #0284c7',
+              borderRight: '3.5px solid #10b981',
+              animation: 'spinRing 1.2s cubic-bezier(0.5, 0, 0.5, 1) infinite'
+            }}
+          />
+          <img
+            src="/login-assets/riteslogo.png"
+            alt="RITES Logo"
+            style={{
+              width: '58px',
+              height: 'auto',
+              zIndex: 2,
+              animation: 'logoPulse 2s ease-in-out infinite'
+            }}
+          />
         </div>
-        <div style={{ flex: 1 }}>
-          <div style={{ fontWeight: 600, fontSize: '14px', color: '#ffffff', marginBottom: '2px' }}>
-            New Sarthi Update Available
+
+        {/* Text Section */}
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px', width: '100%' }}>
+          <h2
+            id="version-update-title"
+            style={{
+              fontSize: '21px',
+              fontWeight: 800,
+              color: '#0f172a',
+              letterSpacing: '-0.3px',
+              margin: 0
+            }}
+          >
+            {isUpdating ? 'Refreshing SARTHI Application...' : 'New Sarthi Version Available'}
+          </h2>
+
+          {/* Version Comparison Pill */}
+          <div
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '8px',
+              background: '#f0fdf4',
+              border: '1px solid #bbf7d0',
+              padding: '5px 14px',
+              borderRadius: '20px',
+              fontSize: '13px',
+              fontWeight: 700,
+              color: '#15803d',
+              margin: '4px 0'
+            }}
+          >
+            <span style={{ color: '#64748b' }}>v{formattedCurrent}</span>
+            <span style={{ color: '#94a3b8' }}>➔</span>
+            <span style={{ color: '#047857', background: '#dcfce7', padding: '2px 8px', borderRadius: '12px' }}>
+              v{formattedLatest}
+            </span>
           </div>
-          <div style={{ fontSize: '13px', color: '#94a3b8', lineHeight: 1.4 }}>
-            Version <strong style={{ color: '#5eead4' }}>{latestVersion || 'latest'}</strong> is ready.
-            {currentVersion && (
-              <span style={{ fontSize: '11px', display: 'block', color: '#64748b', marginTop: '2px' }}>
-                Current: v{currentVersion}
-              </span>
-            )}
-          </div>
+
+          <p
+            style={{
+              fontSize: '13.5px',
+              color: '#475569',
+              lineHeight: 1.5,
+              margin: '4px 0 0',
+              padding: '0 8px'
+            }}
+          >
+            {isUpdating
+              ? 'Loading newest components and syncing latest system updates...'
+              : 'A new version of SARTHI has been deployed. Please update now to ensure uninterrupted inspection sync and latest features.'}
+          </p>
         </div>
-      </div>
 
-      <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: '4px' }}>
-        <button
-          type="button"
-          onClick={dismissUpdate}
-          style={{
-            backgroundColor: 'transparent',
-            color: '#94a3b8',
-            border: '1px solid #334155',
-            padding: '7px 14px',
-            borderRadius: '6px',
-            fontSize: '13px',
-            fontWeight: 500,
-            cursor: 'pointer',
-            transition: 'all 0.15s ease'
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.backgroundColor = '#1e293b';
-            e.currentTarget.style.color = '#f1f5f9';
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.backgroundColor = 'transparent';
-            e.currentTarget.style.color = '#94a3b8';
-          }}
-        >
-          Dismiss
-        </button>
+        {/* Action Buttons */}
+        {!isUpdating ? (
+          <div style={{ display: 'flex', gap: '12px', width: '100%', marginTop: '8px' }}>
+            <button
+              type="button"
+              onClick={dismissUpdate}
+              style={{
+                flex: 1,
+                padding: '12px 16px',
+                borderRadius: '12px',
+                border: '1.5px solid #cbd5e1',
+                background: '#f8fafc',
+                color: '#475569',
+                fontSize: '14px',
+                fontWeight: 600,
+                cursor: 'pointer',
+                transition: 'all 0.2s ease'
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = '#f1f5f9';
+                e.currentTarget.style.borderColor = '#94a3b8';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = '#f8fafc';
+                e.currentTarget.style.borderColor = '#cbd5e1';
+              }}
+            >
+              Remind Later
+            </button>
 
-        <button
-          type="button"
-          onClick={handleUpdate}
-          style={{
-            backgroundColor: '#0d9488',
-            color: '#ffffff',
-            border: 'none',
-            padding: '7px 16px',
-            borderRadius: '6px',
-            fontSize: '13px',
-            fontWeight: 600,
-            cursor: 'pointer',
-            boxShadow: '0 2px 8px rgba(13, 148, 136, 0.4)',
-            transition: 'all 0.15s ease'
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.backgroundColor = '#0f766e';
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.backgroundColor = '#0d9488';
-          }}
-        >
-          Update Now
-        </button>
+            <button
+              type="button"
+              onClick={handleUpdate}
+              style={{
+                flex: 1.4,
+                padding: '12px 18px',
+                borderRadius: '12px',
+                border: 'none',
+                background: 'linear-gradient(135deg, #0284c7 0%, #059669 100%)',
+                color: '#ffffff',
+                fontSize: '14px',
+                fontWeight: 700,
+                cursor: 'pointer',
+                boxShadow: '0 4px 16px rgba(2, 132, 199, 0.35)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '8px',
+                transition: 'all 0.2s ease'
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.transform = 'translateY(-1px)';
+                e.currentTarget.style.boxShadow = '0 6px 20px rgba(2, 132, 199, 0.45)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.transform = 'none';
+                e.currentTarget.style.boxShadow = '0 4px 16px rgba(2, 132, 199, 0.35)';
+              }}
+            >
+              <span>⚡</span> Update & Refresh
+            </button>
+          </div>
+        ) : (
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#0284c7', fontSize: '13.5px', fontWeight: 600, marginTop: '8px' }}>
+            <span className="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+            <span>Reloading Workspace...</span>
+          </div>
+        )}
       </div>
-    </aside>
+    </div>
   );
 };
 

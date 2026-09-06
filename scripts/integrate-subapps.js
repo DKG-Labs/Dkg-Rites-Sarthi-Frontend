@@ -16,10 +16,30 @@ function copyRecursiveSync(src, dest) {
     }
 }
 
+const { bumpVersion } = require('./bump-version');
+
 try {
+    // 0. Auto-bump and sync deployment version
+    console.log('--- Preparing Deployment Version Metadata ---');
+    const versionData = bumpVersion();
+    process.env.REACT_APP_VERSION = versionData.version;
+    process.env.REACT_APP_BUILD_TIME = versionData.buildTime;
+    process.env.REACT_APP_GIT_COMMIT = versionData.gitCommit;
+    process.env.VITE_APP_VERSION = versionData.version;
+    process.env.VITE_APP_BUILD_TIME = versionData.buildTime;
+    process.env.VITE_APP_GIT_COMMIT = versionData.gitCommit;
+
     // 1. Build main app (using build:main command from package.json)
     console.log('--- Building main React app ---');
-    execSync('npm run build:main', { stdio: 'inherit' });
+    execSync('npm run build:main', {
+        env: {
+            ...process.env,
+            REACT_APP_VERSION: versionData.version,
+            REACT_APP_BUILD_TIME: versionData.buildTime,
+            REACT_APP_GIT_COMMIT: versionData.gitCommit
+        },
+        stdio: 'inherit'
+    });
 
     // 2. Build Sub-apps
     const subApps = [
@@ -141,27 +161,9 @@ try {
     const publicVersionPath = path.join(process.cwd(), 'public', 'version.json');
     const buildVersionPath = path.join(buildPath, 'version.json');
     
-    // Check for Vercel / GitHub / CI environment variables
-    const gitSha = process.env.VERCEL_GIT_COMMIT_SHA 
-        || process.env.REACT_APP_GIT_COMMIT 
-        || process.env.GITHUB_SHA 
-        || '';
-    const version = process.env.REACT_APP_VERSION 
-        || process.env.VERCEL_GIT_COMMIT_REF
-        || (gitSha ? `${new Date().toISOString().slice(0, 10).replace(/-/g, '.')}-${gitSha.slice(0, 7)}` : null);
-
-    if (version && gitSha) {
-        const dynamicVersionData = {
-            version: version,
-            buildTime: new Date().toISOString(),
-            gitCommit: gitSha.slice(0, 7)
-        };
-        fs.writeFileSync(buildVersionPath, JSON.stringify(dynamicVersionData, null, 2));
-        console.log(`Generated dynamic version.json in /build: ${version} (${gitSha.slice(0, 7)})`);
-    } else if (fs.existsSync(publicVersionPath) && !fs.existsSync(buildVersionPath)) {
-        fs.copyFileSync(publicVersionPath, buildVersionPath);
-        console.log('Copied version.json to /build directory.');
-    }
+    // Write the exact version manifest generated for this build
+    fs.writeFileSync(buildVersionPath, JSON.stringify(versionData, null, 2));
+    console.log(`Synced version.json in /build: v${versionData.version} (Commit: ${versionData.gitCommit})`);
 
     // 5. Validate required production artifacts
     const requiredArtifacts = [

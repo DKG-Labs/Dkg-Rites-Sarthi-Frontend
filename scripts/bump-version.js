@@ -22,7 +22,7 @@ function bumpVersion() {
     const versionFilePath = path.join(__dirname, '..', 'public', 'version.json');
     const packageJsonPath = path.join(__dirname, '..', 'package.json');
     
-    let currentVersion = '1.0.0';
+    let currentVersion = '1.2.19';
     let buildTime = new Date().toISOString();
     let gitCommit = getGitCommitSha();
 

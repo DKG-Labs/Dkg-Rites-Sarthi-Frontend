@@ -1,30 +1,22 @@
 /**
  * Sarthi Application Version Configuration
- * Manages active build version and acknowledged client version across updates.
+ * Represents the version of the currently running frontend bundle.
  */
 
+export const APP_VERSION = process.env.REACT_APP_VERSION || '1.2.20';
+export const BUILD_TIME = process.env.REACT_APP_BUILD_TIME || null;
+export const GIT_COMMIT = process.env.REACT_APP_GIT_COMMIT || 'dev';
+
 export const getActiveAppVersion = () => {
-  try {
-    const acknowledged = localStorage.getItem('sarthi_acknowledged_version');
-    if (acknowledged && acknowledged !== 'undefined' && acknowledged !== 'null') {
-      return acknowledged;
-    }
-  } catch (e) {
-    // Ignore localStorage access issues in restricted modes
-  }
-  return process.env.REACT_APP_VERSION || '1.0.0';
+  return APP_VERSION;
 };
 
 export const setAcknowledgedVersion = (version) => {
   try {
     if (version) {
-      localStorage.setItem('sarthi_acknowledged_version', String(version).trim());
+      sessionStorage.setItem('sarthi_acknowledged_version', String(version).trim());
     }
   } catch (e) {
-    // Ignore localStorage access issues
+    // Ignore storage issues
   }
 };
-
-export const APP_VERSION = getActiveAppVersion();
-export const BUILD_TIME = process.env.REACT_APP_BUILD_TIME || null;
-export const GIT_COMMIT = process.env.REACT_APP_GIT_COMMIT || 'dev';

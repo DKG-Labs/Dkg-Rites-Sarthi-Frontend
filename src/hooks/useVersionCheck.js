@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { fetchVersionStatus } from '../services/versionService';
 
-const DEFAULT_POLL_INTERVAL_MS = 10 * 60 * 1000; // 10 minutes
+const DEFAULT_POLL_INTERVAL_MS = 2 * 60 * 1000; // 2 minutes
 
 /**
  * Enterprise React hook for detecting frontend version deployments across tab lifecycle events.

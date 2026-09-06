@@ -57,6 +57,28 @@ export const compareVersions = (local, remote) => {
 };
 
 /**
+ * Detects if the application is running in a local development environment.
+ * In local development (localhost, 127.0.0.1, development mode), automatic update modals are suppressed.
+ *
+ * @returns {boolean}
+ */
+export const isLocalDevelopment = () => {
+  if (process.env.NODE_ENV === 'development') return true;
+  if (typeof window !== 'undefined') {
+    const hostname = window.location.hostname;
+    return (
+      hostname === 'localhost' ||
+      hostname === '127.0.0.1' ||
+      hostname === '[::1]' ||
+      hostname.startsWith('192.168.') ||
+      hostname.startsWith('10.') ||
+      hostname.endsWith('.local')
+    );
+  }
+  return false;
+};
+
+/**
  * Fetches the version manifest from the server with strict cache-busting and timeout protection.
  *
  * @param {number} timeoutMs - Request timeout in milliseconds (default: 10000ms)
@@ -64,6 +86,17 @@ export const compareVersions = (local, remote) => {
  */
 export const fetchVersionStatus = async (timeoutMs = 10000) => {
   const currentVersion = getActiveAppVersion();
+
+  // Suppress version checks and update alerts on local development environments
+  if (isLocalDevelopment()) {
+    return {
+      updateAvailable: false,
+      serverVersion: null,
+      currentVersion,
+      isLocal: true
+    };
+  }
+
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
 

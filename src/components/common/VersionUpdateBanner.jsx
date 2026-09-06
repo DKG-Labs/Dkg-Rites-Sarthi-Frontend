@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useVersionCheck } from '../../hooks/useVersionCheck';
 import { setAcknowledgedVersion } from '../../config/version';
+import { isLocalDevelopment } from '../../services/versionService';
 import '../annexures/AnnexureLoader.css';
 
 /**
@@ -11,7 +12,7 @@ const VersionUpdateBanner = () => {
   const { updateAvailable, latestVersion, currentVersion, dismissUpdate } = useVersionCheck();
   const [isUpdating, setIsUpdating] = useState(false);
 
-  if (!updateAvailable) {
+  if (isLocalDevelopment() || !updateAvailable) {
     return null;
   }
 

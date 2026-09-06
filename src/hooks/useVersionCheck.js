@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { fetchVersionStatus } from '../services/versionService';
+import { fetchVersionStatus, isLocalDevelopment } from '../services/versionService';
 
 const DEFAULT_POLL_INTERVAL_MS = 60 * 1000; // 1 minute
 
@@ -7,7 +7,7 @@ const DEFAULT_POLL_INTERVAL_MS = 60 * 1000; // 1 minute
  * Enterprise React hook for detecting frontend version deployments across tab lifecycle events.
  *
  * @param {Object} options
- * @param {number} [options.intervalMs] - Polling interval in ms (default: 10 minutes)
+ * @param {number} [options.intervalMs] - Polling interval in ms (default: 1 minute)
  * @param {boolean} [options.enabled] - Whether auto-polling is enabled (default: true)
  * @returns {{
  *   updateAvailable: boolean,
@@ -22,6 +22,9 @@ export const useVersionCheck = ({
   intervalMs = DEFAULT_POLL_INTERVAL_MS,
   enabled = true
 } = {}) => {
+  const isLocal = isLocalDevelopment();
+  const shouldEnable = enabled && !isLocal;
+
   const [updateAvailable, setUpdateAvailable] = useState(false);
   const [latestVersion, setLatestVersion] = useState(null);
   const [currentVersion, setCurrentVersion] = useState('');
@@ -30,6 +33,8 @@ export const useVersionCheck = ({
   const isCheckingRef = useRef(false);
 
   const checkForUpdate = useCallback(async () => {
+    if (isLocal) return;
+
     // Concurrency lock: only 1 check active at a time
     if (isCheckingRef.current) return;
     isCheckingRef.current = true;
@@ -47,7 +52,7 @@ export const useVersionCheck = ({
     } finally {
       isCheckingRef.current = false;
     }
-  }, []);
+  }, [isLocal]);
 
   const dismissUpdate = useCallback(() => {
     if (latestVersion) {
@@ -56,7 +61,7 @@ export const useVersionCheck = ({
   }, [latestVersion]);
 
   useEffect(() => {
-    if (!enabled) return;
+    if (!shouldEnable) return;
 
     // 1. Initial startup check
     checkForUpdate();
@@ -86,7 +91,7 @@ export const useVersionCheck = ({
       document.removeEventListener('visibilitychange', handleVisibilityChange);
       window.removeEventListener('online', handleOnline);
     };
-  }, [enabled, intervalMs, checkForUpdate]);
+  }, [shouldEnable, intervalMs, checkForUpdate]);
 
   const isDismissed = Boolean(dismissedVersion && latestVersion && dismissedVersion === latestVersion);
 

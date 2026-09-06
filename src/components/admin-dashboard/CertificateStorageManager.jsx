@@ -225,15 +225,15 @@ export const CertificateStorageManager = ({ onNotify }) => {
   };
 
   return (
-    <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '16px' }}>
-      {/* Modern Light Header Banner */}
+    <div style={{ maxWidth: '1240px', margin: '0 auto', padding: '16px' }}>
+      {/* Modern Header Card */}
       <div style={{
-        background: 'linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 50%, #f8fafc 100%)',
-        border: '1px solid #bae6fd',
-        borderRadius: '16px',
+        background: 'linear-gradient(135deg, #f8fafc 0%, #f0fdf4 50%, #eff6ff 100%)',
+        border: '1px solid #e2e8f0',
+        borderRadius: '20px',
         padding: '24px 28px',
-        marginBottom: '28px',
-        boxShadow: '0 4px 20px rgba(2, 132, 199, 0.08)',
+        marginBottom: '24px',
+        boxShadow: '0 4px 24px -2px rgba(15, 23, 42, 0.06)',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'space-between',
@@ -242,53 +242,72 @@ export const CertificateStorageManager = ({ onNotify }) => {
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
           <div style={{
-            width: '48px',
-            height: '48px',
-            borderRadius: '12px',
+            width: '52px',
+            height: '52px',
+            borderRadius: '14px',
             background: 'linear-gradient(135deg, #0284c7 0%, #0369a1 100%)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            fontSize: '24px',
-            boxShadow: '0 4px 12px rgba(2, 132, 199, 0.3)',
+            fontSize: '26px',
+            boxShadow: '0 8px 16px -2px rgba(2, 132, 199, 0.35)',
+            color: '#ffffff',
             flexShrink: 0
           }}>
             🛡️
           </div>
           <div>
-            <h2 style={{ margin: 0, fontSize: '20px', fontWeight: 700, color: '#0f172a', letterSpacing: '-0.3px' }}>
-              Certificate Storage & Management
-            </h2>
-            <p style={{ margin: '4px 0 0', fontSize: '13.5px', color: '#475569', lineHeight: 1.4 }}>
-              Directly upload, inspect, update, or remove digital Inspection Certificates (ICs) stored in Azure Cloud Storage.
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <h2 style={{ margin: 0, fontSize: '21px', fontWeight: 800, color: '#0f172a', letterSpacing: '-0.4px' }}>
+                Certificate Storage & Management
+              </h2>
+              <span style={{
+                background: '#dcfce7',
+                color: '#15803d',
+                fontSize: '11px',
+                fontWeight: 700,
+                padding: '3px 9px',
+                borderRadius: '12px',
+                border: '1px solid #bbf7d0',
+                letterSpacing: '0.3px'
+              }}>
+                Azure Blob Active
+              </span>
+            </div>
+            <p style={{ margin: '4px 0 0', fontSize: '13.5px', color: '#64748b', lineHeight: 1.4 }}>
+              Upload, verify, update, or remove digital Inspection Certificates (ICs) stored securely in Azure Cloud Storage.
             </p>
           </div>
         </div>
-        <div style={{
-          background: '#ffffff',
-          color: '#0369a1',
-          padding: '6px 14px',
-          borderRadius: '20px',
-          fontSize: '12.5px',
-          fontWeight: 700,
-          border: '1px solid #bae6fd',
-          boxShadow: '0 2px 6px rgba(0, 0, 0, 0.04)',
-          display: 'flex',
-          alignItems: 'center',
-          gap: '6px'
-        }}>
-          <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#0284c7' }}></span>
-          Admin Tool
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <div style={{
+            background: '#ffffff',
+            color: '#0369a1',
+            padding: '6px 14px',
+            borderRadius: '20px',
+            fontSize: '12px',
+            fontWeight: 700,
+            border: '1px solid #bae6fd',
+            boxShadow: '0 1px 4px rgba(0, 0, 0, 0.04)',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '6px'
+          }}>
+            <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#0284c7' }}></span>
+            Admin Module
+          </div>
         </div>
       </div>
 
+      {/* Main Two-Column Layout */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(420px, 1fr))', gap: '24px' }}>
         {/* Card 1: Upload / Replace Certificate */}
         <div style={{
           background: '#ffffff',
-          borderRadius: '16px',
+          borderRadius: '20px',
           border: '1px solid #e2e8f0',
-          boxShadow: '0 4px 16px rgba(0, 0, 0, 0.04)',
+          boxShadow: '0 4px 20px -2px rgba(15, 23, 42, 0.05)',
           overflow: 'hidden',
           display: 'flex',
           flexDirection: 'column'
@@ -299,19 +318,36 @@ export const CertificateStorageManager = ({ onNotify }) => {
             background: 'linear-gradient(180deg, #f8fafc 0%, #ffffff 100%)',
             display: 'flex',
             alignItems: 'center',
-            gap: '10px'
+            justifyContent: 'space-between'
           }}>
-            <span style={{ fontSize: '18px' }}>📤</span>
-            <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 700, color: '#0f172a' }}>
-              Upload / Overwrite Certificate
-            </h3>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <div style={{
+                width: '32px',
+                height: '32px',
+                borderRadius: '8px',
+                background: '#eff6ff',
+                color: '#0284c7',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontSize: '16px'
+              }}>
+                📤
+              </div>
+              <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 700, color: '#0f172a' }}>
+                Upload / Overwrite Certificate
+              </h3>
+            </div>
+            <span style={{ fontSize: '11px', fontWeight: 600, color: '#64748b', background: '#f1f5f9', padding: '3px 8px', borderRadius: '6px' }}>
+              Direct Cloud Push
+            </span>
           </div>
 
-          <form onSubmit={handleUpload} style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '20px', flex: 1 }}>
+          <form onSubmit={handleUpload} style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '18px', flex: 1 }}>
             {/* IC Number Input */}
             <div>
-              <label style={{ display: 'block', fontWeight: 600, fontSize: '13.5px', color: '#334155', marginBottom: '6px' }}>
-                Inspection Certificate (IC) or Call Number <span style={{ color: '#ef4444' }}>*</span>
+              <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontWeight: 600, fontSize: '13.5px', color: '#334155', marginBottom: '6px' }}>
+                <span>📄</span> Inspection Certificate (IC) or Call Number <span style={{ color: '#ef4444' }}>*</span>
               </label>
               <input
                 type="text"
@@ -321,58 +357,83 @@ export const CertificateStorageManager = ({ onNotify }) => {
                 required
                 style={{
                   width: '100%',
-                  padding: '10px 14px',
-                  borderRadius: '8px',
+                  padding: '11px 14px',
+                  borderRadius: '10px',
                   border: '1.5px solid #cbd5e1',
+                  background: '#f8fafc',
                   fontSize: '14px',
+                  color: '#0f172a',
                   outline: 'none',
                   boxSizing: 'border-box',
-                  transition: 'border-color 0.2s, box-shadow 0.2s'
+                  transition: 'all 0.2s ease'
+                }}
+                onFocus={(e) => {
+                  e.target.style.borderColor = '#0284c7';
+                  e.target.style.background = '#ffffff';
+                  e.target.style.boxShadow = '0 0 0 3px rgba(2, 132, 199, 0.12)';
+                }}
+                onBlur={(e) => {
+                  e.target.style.borderColor = '#cbd5e1';
+                  e.target.style.background = '#f8fafc';
+                  e.target.style.boxShadow = 'none';
                 }}
               />
             </div>
 
             {/* Uploader Name (Mandatory & Empty by Default) */}
             <div>
-              <label style={{ display: 'block', fontWeight: 600, fontSize: '13.5px', color: '#334155', marginBottom: '6px' }}>
-                Uploaded By / Designation <span style={{ color: '#ef4444' }}>*</span>
+              <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontWeight: 600, fontSize: '13.5px', color: '#334155', marginBottom: '6px' }}>
+                <span>👤</span> Uploaded By / Designation <span style={{ color: '#ef4444' }}>*</span>
               </label>
               <input
                 type="text"
-                placeholder="e.g. Inspecting Engineer / Employee Name"
+                placeholder="Enter your name & designation (e.g. R. K. Sharma / IE)"
                 value={uploader}
                 onChange={(e) => setUploader(e.target.value)}
                 required
                 style={{
                   width: '100%',
-                  padding: '10px 14px',
-                  borderRadius: '8px',
+                  padding: '11px 14px',
+                  borderRadius: '10px',
                   border: '1.5px solid #cbd5e1',
+                  background: '#f8fafc',
                   fontSize: '14px',
+                  color: '#0f172a',
                   outline: 'none',
                   boxSizing: 'border-box',
-                  transition: 'border-color 0.2s, box-shadow 0.2s'
+                  transition: 'all 0.2s ease'
+                }}
+                onFocus={(e) => {
+                  e.target.style.borderColor = '#0284c7';
+                  e.target.style.background = '#ffffff';
+                  e.target.style.boxShadow = '0 0 0 3px rgba(2, 132, 199, 0.12)';
+                }}
+                onBlur={(e) => {
+                  e.target.style.borderColor = '#cbd5e1';
+                  e.target.style.background = '#f8fafc';
+                  e.target.style.boxShadow = 'none';
                 }}
               />
             </div>
 
             {/* File Dropzone */}
             <div>
-              <label style={{ display: 'block', fontWeight: 600, fontSize: '13.5px', color: '#334155', marginBottom: '6px' }}>
-                Certificate PDF File <span style={{ color: '#ef4444' }}>*</span>
+              <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontWeight: 600, fontSize: '13.5px', color: '#334155', marginBottom: '6px' }}>
+                <span>📑</span> Certificate PDF File <span style={{ color: '#ef4444' }}>*</span>
               </label>
               <div
                 onDragOver={handleDragOver}
                 onDragLeave={handleDragLeave}
                 onDrop={handleDrop}
                 style={{
-                  border: `2px dashed ${isDragOver ? '#0284c7' : '#cbd5e1'}`,
-                  borderRadius: '12px',
-                  padding: '24px',
+                  border: `2px dashed ${isDragOver ? '#0284c7' : '#93c5fd'}`,
+                  borderRadius: '14px',
+                  padding: '24px 20px',
                   textAlign: 'center',
-                  background: isDragOver ? '#f0f9ff' : '#f8fafc',
+                  background: isDragOver ? '#e0f2fe' : '#f8fafc',
                   cursor: 'pointer',
-                  transition: 'all 0.2s ease'
+                  transition: 'all 0.2s ease',
+                  position: 'relative'
                 }}
                 onClick={() => document.getElementById('cert-file-input').click()}
               >
@@ -383,26 +444,39 @@ export const CertificateStorageManager = ({ onNotify }) => {
                   onChange={handleFileChange}
                   style={{ display: 'none' }}
                 />
-                <div style={{ fontSize: '36px', marginBottom: '8px' }}>📄</div>
+                <div style={{
+                  width: '44px',
+                  height: '44px',
+                  borderRadius: '12px',
+                  background: '#eff6ff',
+                  color: '#0284c7',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontSize: '22px',
+                  margin: '0 auto 10px'
+                }}>
+                  ☁️
+                </div>
                 {selectedFile ? (
                   <div>
-                    <p style={{ margin: 0, fontWeight: 600, color: '#0f172a', fontSize: '14px' }}>
+                    <p style={{ margin: 0, fontWeight: 700, color: '#0f172a', fontSize: '14px' }}>
                       {selectedFile.name}
                     </p>
                     <p style={{ margin: '4px 0 0', color: '#64748b', fontSize: '12px' }}>
                       {(selectedFile.size / (1024 * 1024)).toFixed(2)} MB • {selectedFile.size > 2 * 1024 * 1024 ? '⚡ Will be auto-compressed under 2 MB' : 'Ready for upload'}
                     </p>
-                    <span style={{ display: 'inline-block', marginTop: '8px', color: '#0284c7', fontSize: '12px', fontWeight: 600, textDecoration: 'underline' }}>
-                      Click to change file
+                    <span style={{ display: 'inline-block', marginTop: '8px', color: '#0284c7', fontSize: '12px', fontWeight: 700, textDecoration: 'underline' }}>
+                      Click to change selected file
                     </span>
                   </div>
                 ) : (
                   <div>
-                    <p style={{ margin: 0, fontWeight: 600, color: '#334155', fontSize: '14px' }}>
+                    <p style={{ margin: 0, fontWeight: 700, color: '#1e293b', fontSize: '14px' }}>
                       Drag & Drop your PDF Certificate here
                     </p>
-                    <p style={{ margin: '4px 0 0', color: '#94a3b8', fontSize: '12px' }}>
-                      Max allowed size: <strong>2.0 MB</strong> (Larger PDFs will be automatically compressed)
+                    <p style={{ margin: '4px 0 0', color: '#64748b', fontSize: '12px' }}>
+                      Supports standard PDF files • Max limit: <strong>2.0 MB</strong>
                     </p>
                   </div>
                 )}
@@ -414,7 +488,7 @@ export const CertificateStorageManager = ({ onNotify }) => {
               <div style={{
                 background: '#eff6ff',
                 border: '1px solid #bfdbfe',
-                borderRadius: '8px',
+                borderRadius: '10px',
                 padding: '10px 14px',
                 fontSize: '12.5px',
                 color: '#1e40af',
@@ -431,33 +505,33 @@ export const CertificateStorageManager = ({ onNotify }) => {
               <div style={{
                 background: '#f0fdf4',
                 border: '1px solid #bbf7d0',
-                borderRadius: '8px',
-                padding: '8px 12px',
+                borderRadius: '10px',
+                padding: '9px 14px',
                 fontSize: '12px',
                 color: '#166534',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'space-between'
               }}>
-                <span>⚡ PDF Compressed: <strong>{compressedFileInfo.original} MB ➔ {compressedFileInfo.compressed} MB</strong></span>
-                <span style={{ fontWeight: 700, color: '#15803d' }}>-{compressedFileInfo.ratio}%</span>
+                <span>⚡ Auto-Compression: <strong>{compressedFileInfo.original} MB ➔ {compressedFileInfo.compressed} MB</strong></span>
+                <span style={{ fontWeight: 800, color: '#15803d', background: '#dcfce7', padding: '2px 6px', borderRadius: '4px' }}>-{compressedFileInfo.ratio}%</span>
               </div>
             )}
 
             {/* Submit Button */}
-            <div style={{ marginTop: 'auto', paddingTop: '12px' }}>
+            <div style={{ marginTop: 'auto', paddingTop: '10px' }}>
               <button
                 type="submit"
                 disabled={uploadLoading || !selectedFile || !icNumber.trim() || !uploader.trim()}
                 style={{
                   width: '100%',
-                  padding: '12px 20px',
-                  borderRadius: '8px',
+                  padding: '13px 20px',
+                  borderRadius: '10px',
                   background: (uploadLoading || !selectedFile || !icNumber.trim() || !uploader.trim())
-                    ? '#cbd5e1'
+                    ? '#e2e8f0'
                     : 'linear-gradient(135deg, #0284c7 0%, #0369a1 100%)',
-                  color: '#ffffff',
-                  fontWeight: 600,
+                  color: (uploadLoading || !selectedFile || !icNumber.trim() || !uploader.trim()) ? '#94a3b8' : '#ffffff',
+                  fontWeight: 700,
                   fontSize: '14.5px',
                   border: 'none',
                   cursor: (uploadLoading || !selectedFile || !icNumber.trim() || !uploader.trim()) ? 'not-allowed' : 'pointer',
@@ -465,14 +539,14 @@ export const CertificateStorageManager = ({ onNotify }) => {
                   alignItems: 'center',
                   justifyContent: 'center',
                   gap: '8px',
-                  boxShadow: (uploadLoading || !selectedFile || !icNumber.trim() || !uploader.trim()) ? 'none' : '0 4px 12px rgba(2, 132, 199, 0.25)',
-                  transition: 'all 0.2s'
+                  boxShadow: (uploadLoading || !selectedFile || !icNumber.trim() || !uploader.trim()) ? 'none' : '0 4px 14px rgba(2, 132, 199, 0.3)',
+                  transition: 'all 0.2s ease'
                 }}
               >
                 {uploadLoading ? (
                   <>
                     <span className="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
-                    {compressProgressText || 'Processing & Uploading...'}
+                    {compressProgressText || 'Uploading to Cloud...'}
                   </>
                 ) : (
                   <>
@@ -487,26 +561,25 @@ export const CertificateStorageManager = ({ onNotify }) => {
               <div style={{
                 background: '#f0fdf4',
                 border: '1px solid #bbf7d0',
-                borderRadius: '8px',
+                borderRadius: '10px',
                 padding: '12px 16px',
                 fontSize: '13px',
                 color: '#166534',
                 display: 'flex',
                 alignItems: 'center',
-                justifyContent: 'space-between',
-                marginTop: '12px'
+                justifyContent: 'space-between'
               }}>
                 <div>
-                  <strong>Upload Successful:</strong> {uploadResult.fileName || uploadResult.message}
+                  <strong>✅ Upload Successful:</strong> {uploadResult.fileName || uploadResult.message}
                 </div>
                 {uploadResult.url && (
                   <a
                     href={uploadResult.url}
                     target="_blank"
                     rel="noreferrer"
-                    style={{ color: '#0284c7', fontWeight: 600, textDecoration: 'underline' }}
+                    style={{ color: '#0284c7', fontWeight: 700, textDecoration: 'underline' }}
                   >
-                    View Blob ↗
+                    View in Cloud ↗
                   </a>
                 )}
               </div>
@@ -517,9 +590,9 @@ export const CertificateStorageManager = ({ onNotify }) => {
         {/* Card 2: Search, Verify & Manage Existing */}
         <div style={{
           background: '#ffffff',
-          borderRadius: '16px',
+          borderRadius: '20px',
           border: '1px solid #e2e8f0',
-          boxShadow: '0 4px 16px rgba(0, 0, 0, 0.04)',
+          boxShadow: '0 4px 20px -2px rgba(15, 23, 42, 0.05)',
           overflow: 'hidden',
           display: 'flex',
           flexDirection: 'column'
@@ -530,15 +603,32 @@ export const CertificateStorageManager = ({ onNotify }) => {
             background: 'linear-gradient(180deg, #f8fafc 0%, #ffffff 100%)',
             display: 'flex',
             alignItems: 'center',
-            gap: '10px'
+            justifyContent: 'space-between'
           }}>
-            <span style={{ fontSize: '18px' }}>🔍</span>
-            <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 700, color: '#0f172a' }}>
-              Search & Inspect Existing Certificate
-            </h3>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <div style={{
+                width: '32px',
+                height: '32px',
+                borderRadius: '8px',
+                background: '#eff6ff',
+                color: '#0284c7',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontSize: '16px'
+              }}>
+                🔍
+              </div>
+              <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 700, color: '#0f172a' }}>
+                Search & Inspect Existing Certificate
+              </h3>
+            </div>
+            <span style={{ fontSize: '11px', fontWeight: 600, color: '#64748b', background: '#f1f5f9', padding: '3px 8px', borderRadius: '6px' }}>
+              Cloud Query
+            </span>
           </div>
 
-          <div style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '20px', flex: 1 }}>
+          <div style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '18px', flex: 1 }}>
             {/* Search Input */}
             <form onSubmit={handleSearch} style={{ display: 'flex', gap: '10px' }}>
               <input
@@ -548,27 +638,41 @@ export const CertificateStorageManager = ({ onNotify }) => {
                 onChange={(e) => setSearchIc(e.target.value)}
                 style={{
                   flex: 1,
-                  padding: '10px 14px',
-                  borderRadius: '8px',
+                  padding: '11px 14px',
+                  borderRadius: '10px',
                   border: '1.5px solid #cbd5e1',
+                  background: '#f8fafc',
                   fontSize: '14px',
+                  color: '#0f172a',
                   outline: 'none',
-                  boxSizing: 'border-box'
+                  boxSizing: 'border-box',
+                  transition: 'all 0.2s ease'
+                }}
+                onFocus={(e) => {
+                  e.target.style.borderColor = '#0284c7';
+                  e.target.style.background = '#ffffff';
+                  e.target.style.boxShadow = '0 0 0 3px rgba(2, 132, 199, 0.12)';
+                }}
+                onBlur={(e) => {
+                  e.target.style.borderColor = '#cbd5e1';
+                  e.target.style.background = '#f8fafc';
+                  e.target.style.boxShadow = 'none';
                 }}
               />
               <button
                 type="submit"
                 disabled={searchLoading || !searchIc.trim()}
                 style={{
-                  padding: '10px 20px',
-                  borderRadius: '8px',
-                  background: searchLoading || !searchIc.trim() ? '#cbd5e1' : 'linear-gradient(135deg, #0284c7 0%, #0369a1 100%)',
-                  color: '#ffffff',
-                  fontWeight: 600,
+                  padding: '11px 22px',
+                  borderRadius: '10px',
+                  background: searchLoading || !searchIc.trim() ? '#e2e8f0' : 'linear-gradient(135deg, #0284c7 0%, #0369a1 100%)',
+                  color: searchLoading || !searchIc.trim() ? '#94a3b8' : '#ffffff',
+                  fontWeight: 700,
                   fontSize: '14px',
                   border: 'none',
                   cursor: searchLoading || !searchIc.trim() ? 'not-allowed' : 'pointer',
-                  boxShadow: searchLoading || !searchIc.trim() ? 'none' : '0 2px 6px rgba(2, 132, 199, 0.2)'
+                  boxShadow: searchLoading || !searchIc.trim() ? 'none' : '0 4px 12px rgba(2, 132, 199, 0.25)',
+                  transition: 'all 0.2s'
                 }}
               >
                 {searchLoading ? 'Searching...' : 'Search'}
@@ -579,8 +683,8 @@ export const CertificateStorageManager = ({ onNotify }) => {
             {certificateData ? (
               <div style={{
                 border: '1.5px solid #e2e8f0',
-                borderRadius: '12px',
-                padding: '16px',
+                borderRadius: '14px',
+                padding: '18px',
                 background: '#f8fafc',
                 display: 'flex',
                 flexDirection: 'column',
@@ -592,17 +696,17 @@ export const CertificateStorageManager = ({ onNotify }) => {
                       background: '#dcfce7',
                       color: '#15803d',
                       fontSize: '11px',
-                      fontWeight: 700,
+                      fontWeight: 800,
                       padding: '3px 8px',
-                      borderRadius: '12px',
+                      borderRadius: '6px',
                       textTransform: 'uppercase'
                     }}>
                       Stored in Azure
                     </span>
-                    <h4 style={{ margin: '6px 0 2px', fontSize: '16px', color: '#0f172a' }}>
+                    <h4 style={{ margin: '6px 0 2px', fontSize: '16px', color: '#0f172a', fontWeight: 700 }}>
                       {certificateData.icNumber || searchIc}
                     </h4>
-                    <p style={{ margin: 0, fontSize: '12px', color: '#64748b' }}>
+                    <p style={{ margin: 0, fontSize: '12.5px', color: '#64748b' }}>
                       File: <strong>{certificateData.fileName || 'certificate.pdf'}</strong>
                     </p>
                   </div>
@@ -613,16 +717,16 @@ export const CertificateStorageManager = ({ onNotify }) => {
                       onClick={handleReplaceExisting}
                       style={{
                         padding: '6px 12px',
-                        borderRadius: '6px',
+                        borderRadius: '8px',
                         background: '#e0f2fe',
                         color: '#0369a1',
                         border: '1px solid #bae6fd',
                         fontSize: '12px',
-                        fontWeight: 600,
+                        fontWeight: 700,
                         cursor: 'pointer'
                       }}
                     >
-                      ✏️ Edit / Replace
+                      ✏️ Overwrite
                     </button>
                     <button
                       type="button"
@@ -630,12 +734,12 @@ export const CertificateStorageManager = ({ onNotify }) => {
                       disabled={isDeleting}
                       style={{
                         padding: '6px 12px',
-                        borderRadius: '6px',
+                        borderRadius: '8px',
                         background: '#fee2e2',
                         color: '#b91c1c',
                         border: '1px solid #fecaca',
                         fontSize: '12px',
-                        fontWeight: 600,
+                        fontWeight: 700,
                         cursor: isDeleting ? 'not-allowed' : 'pointer'
                       }}
                     >
@@ -648,7 +752,7 @@ export const CertificateStorageManager = ({ onNotify }) => {
                 {pdfPreviewUrl && (
                   <div style={{
                     border: '1px solid #cbd5e1',
-                    borderRadius: '8px',
+                    borderRadius: '10px',
                     height: '280px',
                     overflow: 'hidden',
                     background: '#e2e8f0'
@@ -671,17 +775,17 @@ export const CertificateStorageManager = ({ onNotify }) => {
                       rel="noreferrer"
                       download={`${(certificateData.icNumber || searchIc).replace(/[/\\?%*:|"<>]/g, '_')}.pdf`}
                       style={{
-                        padding: '8px 16px',
-                        borderRadius: '6px',
+                        padding: '9px 18px',
+                        borderRadius: '8px',
                         background: 'linear-gradient(135deg, #0284c7 0%, #0369a1 100%)',
                         color: '#fff',
                         textDecoration: 'none',
                         fontSize: '13px',
-                        fontWeight: 600,
+                        fontWeight: 700,
                         display: 'inline-flex',
                         alignItems: 'center',
                         gap: '6px',
-                        boxShadow: '0 2px 6px rgba(2, 132, 199, 0.25)'
+                        boxShadow: '0 2px 8px rgba(2, 132, 199, 0.25)'
                       }}
                     >
                       <span>📥</span> Open Full PDF in New Tab
@@ -695,11 +799,12 @@ export const CertificateStorageManager = ({ onNotify }) => {
                 padding: '40px 20px',
                 color: '#94a3b8',
                 border: '1.5px dashed #cbd5e1',
-                borderRadius: '12px',
-                margin: 'auto 0'
+                borderRadius: '14px',
+                margin: 'auto 0',
+                background: '#f8fafc'
               }}>
-                <span style={{ fontSize: '32px', display: 'block', marginBottom: '8px' }}>🔍</span>
-                <p style={{ margin: 0, fontSize: '13.5px', color: '#64748b' }}>
+                <span style={{ fontSize: '36px', display: 'block', marginBottom: '8px' }}>🔍</span>
+                <p style={{ margin: 0, fontSize: '13.5px', color: '#64748b', fontWeight: 600 }}>
                   Search for an IC number above to preview, download, or replace its certificate.
                 </p>
               </div>

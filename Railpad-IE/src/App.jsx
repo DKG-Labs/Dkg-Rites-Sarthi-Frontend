@@ -29,6 +29,7 @@ import InspectionInitiationPage from './pages/InspectionInitiationPage';
 import PlantDeclarationDashboard from './components/PlantDeclaration/PlantDeclarationDashboard';
 import RailpadFinalProductCertificate from './components/FinalInspection/RailpadFinalProductCertificate';
 import RailpadProcessInspectionDashboard from './components/ProcessInspection/RailpadProcessInspectionDashboard';
+import VersionUpdateBanner from './components/common/VersionUpdateBanner';
 
 const SUB_CARDS = [
   { id: 'raw-material', title: 'Raw Material Weighment', description: 'Monitor and log raw material proportions' },
@@ -942,6 +943,7 @@ const App = () => {
       user={loggedInUser}
       isShiftActive={isShiftActive}
     >
+      <VersionUpdateBanner />
       {activeItem === 'PortalHome' ? (
         <PortalHome
           user={loggedInUser}

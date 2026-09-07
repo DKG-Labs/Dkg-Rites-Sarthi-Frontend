@@ -16,6 +16,7 @@ import LoginPage from './pages/LoginPage/LoginPage';
 import UserProfilePage from './pages/UserProfile/UserProfilePage';
 import { ROUTES } from './routes';
 import { isAuthenticated, getStoredUser } from './services/authService';
+import VersionUpdateBanner from './components/common/VersionUpdateBanner';
 
 const isSleeperRole = (role) => {
   if (!role) return false;
@@ -135,6 +136,7 @@ const App = () => {
         element={
           <ProtectedRoute>
             <ToastProvider>
+              <VersionUpdateBanner />
               <ShiftProvider>
                 <MainLayout activeItem={mainView} onItemClick={setMainView}>
                   {showTabs && (

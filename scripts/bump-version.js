@@ -35,20 +35,35 @@ function bumpVersion() {
     
     let buildTime = new Date().toISOString();
     let gitCommit = getGitCommitSha();
-    let newVersion = '1.2.22';
-
-    const commitCount = getCommitCount();
-    // Offset 776: commit 798 -> 1.2.22, commit 799 -> 1.2.23, etc.
-    if (commitCount && commitCount > 776) {
-        const patch = commitCount - 776;
-        newVersion = `1.2.${patch}`;
+    let currentVersion = '1.2.22';
+    if (fs.existsSync(packageJsonPath)) {
+        try {
+            const pkg = JSON.parse(fs.readFileSync(packageJsonPath, 'utf8'));
+            if (pkg.version) currentVersion = pkg.version;
+        } catch (e) {}
     } else if (fs.existsSync(versionFilePath)) {
         try {
             const data = JSON.parse(fs.readFileSync(versionFilePath, 'utf8'));
-            if (data.version && /^\d+(\.\d+)+$/.test(data.version.replace(/^v/i, ''))) {
-                newVersion = data.version.replace(/^v/i, '');
-            }
+            if (data.version) currentVersion = data.version;
         } catch (e) {}
+    }
+
+    const commitCount = getCommitCount();
+    // Offset 776: commit 798 -> 1.2.22, commit 801 -> 1.2.25, etc.
+    if (commitCount && commitCount > 776) {
+        const patch = commitCount - 776;
+        newVersion = `1.2.${patch}`;
+    } else {
+        // Fallback for shallow clone in CI/CD environments (e.g. Vercel)
+        const parts = currentVersion.split('.');
+        if (parts.length >= 3) {
+            const major = parts[0];
+            const minor = parts[1];
+            const patch = parseInt(parts[2], 10) || 0;
+            newVersion = `${major}.${minor}.${patch + 1}`;
+        } else {
+            newVersion = currentVersion;
+        }
     }
 
     const newVersionData = {

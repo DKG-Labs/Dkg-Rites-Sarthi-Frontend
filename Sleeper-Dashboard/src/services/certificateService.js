@@ -112,83 +112,83 @@ export const viewSignedCertificate = async (icNumber) => {
 };
 
 /**
- * Save or update Final IC Edit Data
+ * Save or update Sleeper Final IC Edit Data
  * @param {Object} payload 
  */
 export const saveFinalIcEditData = async (payload) => {
   try {
-    const url = `${API_BASE_URL.replace('/api', '')}/api/final-ic-edit`;
+    const url = `${API_BASE_URL.replace('/api', '')}/api/sleeper-final-ic-edit`;
     const response = await fetch(url, {
       method: 'POST',
       headers: getAuthHeaders(),
       body: JSON.stringify(payload)
     });
-    if (!response.ok) throw new Error('Failed to save Final IC edit data');
+    if (!response.ok) throw new Error('Failed to save Sleeper Final IC edit data');
     return await response.json();
   } catch (error) {
-    console.error('Error saving Final IC edit data:', error);
+    console.error('Error saving Sleeper Final IC edit data:', error);
     throw error;
   }
 };
 
 /**
- * Get Final IC Edit Data
+ * Get Sleeper Final IC Edit Data
  * @param {string} icNumber 
  */
 export const getFinalIcEditData = async (icNumber) => {
   try {
     const encodedIcNumber = encodeURIComponent(icNumber);
-    const url = `${API_BASE_URL.replace('/api', '')}/api/final-ic-edit?icNumber=${encodedIcNumber}`;
+    const url = `${API_BASE_URL.replace('/api', '')}/api/sleeper-final-ic-edit?icNumber=${encodedIcNumber}`;
     const response = await fetch(url, {
       method: 'GET',
       headers: getAuthHeaders()
     });
     if (response.status === 204) return null;
-    if (!response.ok) throw new Error('Failed to fetch Final IC edit data');
+    if (!response.ok) throw new Error('Failed to fetch Sleeper Final IC edit data');
     return await response.json();
   } catch (error) {
-    console.error('Error fetching Final IC edit data:', error);
+    console.error('Error fetching Sleeper Final IC edit data:', error);
     return null;
   }
 };
 
 /**
- * Save or update Final IC Save Changes Data (Draft)
+ * Save or update Sleeper Final IC Save Changes Data (Draft)
  * @param {Object} payload 
  */
 export const saveFinalIcSaveChanges = async (payload) => {
   try {
-    const url = `${API_BASE_URL.replace('/api', '')}/api/final-ic-save-changes`;
+    const url = `${API_BASE_URL.replace('/api', '')}/api/sleeper-final-ic-save-changes`;
     const response = await fetch(url, {
       method: 'POST',
       headers: getAuthHeaders(),
       body: JSON.stringify(payload)
     });
-    if (!response.ok) throw new Error('Failed to save draft Final IC changes');
+    if (!response.ok) throw new Error('Failed to save draft Sleeper Final IC changes');
     return await response.json();
   } catch (error) {
-    console.error('Error saving draft Final IC changes:', error);
+    console.error('Error saving draft Sleeper Final IC changes:', error);
     throw error;
   }
 };
 
 /**
- * Get Final IC Save Changes Data (Draft)
+ * Get Sleeper Final IC Save Changes Data (Draft)
  * @param {string} icNumber 
  */
 export const getFinalIcSaveChanges = async (icNumber) => {
   try {
     const encodedIcNumber = encodeURIComponent(icNumber);
-    const url = `${API_BASE_URL.replace('/api', '')}/api/final-ic-save-changes?icNumber=${encodedIcNumber}`;
+    const url = `${API_BASE_URL.replace('/api', '')}/api/sleeper-final-ic-save-changes?icNumber=${encodedIcNumber}`;
     const response = await fetch(url, {
       method: 'GET',
       headers: getAuthHeaders()
     });
     if (response.status === 204) return null;
-    if (!response.ok) throw new Error('Failed to fetch draft Final IC changes');
+    if (!response.ok) throw new Error('Failed to fetch draft Sleeper Final IC changes');
     return await response.json();
   } catch (error) {
-    console.error('Error fetching draft Final IC changes:', error);
+    console.error('Error fetching draft Sleeper Final IC changes:', error);
     return null;
   }
 };

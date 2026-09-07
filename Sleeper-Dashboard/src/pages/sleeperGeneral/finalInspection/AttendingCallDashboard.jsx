@@ -6,15 +6,34 @@ import './AttendingCallDashboard.css';
 import { apiService } from '../../../services/api';
 import { getStoredUser } from '../../../services/authService';
 
-const AttendingCallDashboard = () => {
-    const [activeTab, setActiveTab] = useState(() => {
+const AttendingCallDashboard = ({ mode }) => {
+    const [internalActiveTab, setInternalActiveTab] = useState(() => {
         return sessionStorage.getItem('attendingCallActiveTab') || 'pending';
     });
 
+    const activeTab = mode || internalActiveTab;
+
     const handleTabChange = (tab) => {
-        setActiveTab(tab);
+        setInternalActiveTab(tab);
         sessionStorage.setItem('attendingCallActiveTab', tab);
     };
+
+    useEffect(() => {
+        if (mode) {
+            setInternalActiveTab(mode);
+            sessionStorage.setItem('attendingCallActiveTab', mode);
+        }
+    }, [mode]);
+
+    useEffect(() => {
+        const handleTabEvent = (e) => {
+            if (e.detail && e.detail.tab) {
+                setInternalActiveTab(e.detail.tab);
+            }
+        };
+        window.addEventListener('attendingTabChange', handleTabEvent);
+        return () => window.removeEventListener('attendingTabChange', handleTabEvent);
+    }, []);
     const [selectedCall, setSelectedCall] = useState(() => {
         const saved = sessionStorage.getItem('activeInspectionCall');
         try {
@@ -425,30 +444,24 @@ const AttendingCallDashboard = () => {
 
     return (
         <div className="attending-call-container">
-            <header className="dashboard-header">
-                <h2>Attending the Call Raised</h2>
-                <div className="dashboard-tabs">
-                    <button 
-                        className={`tab-btn ${activeTab === 'pending' ? 'active' : ''}`}
-                        onClick={() => handleTabChange('pending')}
+            <header className="ie-modern-header" style={{ marginBottom: '24px' }}>
+                <div className="header-top-line" style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+                    <button
+                        className="home-btn-glass"
+                        onClick={() => window.dispatchEvent(new CustomEvent('navigate', { detail: { target: 'Main Dashboard' } }))}
+                        title="Back to Dashboard"
                     >
-                        List of Calls Pending
-                        <span className="badge">{pendingCalls.length}</span>
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+                            <polyline points="9 22 9 12 15 12 15 22" />
+                        </svg>
                     </button>
-                    <button 
-                        className={`tab-btn ${activeTab === 'issuance' ? 'active' : ''}`}
-                        onClick={() => handleTabChange('issuance')}
-                    >
-                        Issuance of IC
-                        <span className="badge">{issuanceCalls.length}</span>
-                    </button>
-                    <button 
-                        className={`tab-btn ${activeTab === 'completed' ? 'active' : ''}`}
-                        onClick={() => handleTabChange('completed')}
-                    >
-                        Completed Calls
-                        <span className="badge">{completedCalls.length}</span>
-                    </button>
+                    <div className="header-titles">
+                        <h1 style={{ fontSize: '22px', fontWeight: '800', color: '#1e293b', margin: 0 }}>
+                            {activeTab === 'issuance' ? 'Issuance of IC' :
+                             activeTab === 'completed' ? 'Completed Calls' : 'List of Calls Pending'}
+                        </h1>
+                    </div>
                 </div>
             </header>
 
@@ -469,10 +482,16 @@ const AttendingCallDashboard = () => {
                                 <thead>
                                     <tr>
                                         <th className="checkbox-col"><input type="checkbox" /></th>
-                                        <th>CALL NO</th>
+                                        <th>CALL NO.</th>
+                                        <th>PO & PO SR. NO.</th>
+                                        <th>IBS CASE NUMBER</th>
                                         <th>VENDOR NAME</th>
+                                        <th>SLEEPER TYPE</th>
                                         <th>PLANT ID</th>
-                                        <th>CREATED DATE</th>
+                                        <th>CALL DATE</th>
+                                        <th>DESIRED INSPECTION DATE</th>
+                                        <th>OFFERED QUANTITY</th>
+                                        <th>SCHEDULE DATE</th>
                                         <th>STATUS</th>
                                         <th>ACTIONS</th>
                                     </tr>
@@ -480,17 +499,21 @@ const AttendingCallDashboard = () => {
                                 <tbody>
                                     {isLoading ? (
                                         <tr>
-                                            <td colSpan="7" style={{ textAlign: 'center', padding: '20px' }}>Loading pending calls...</td>
+                                            <td colSpan="13" style={{ textAlign: 'center', padding: '20px' }}>Loading pending calls...</td>
                                         </tr>
                                     ) : pendingCalls.filter(c => {
                                         const q = (searchTerm || '').toLowerCase();
                                         return (c.requestId?.toLowerCase() || '').includes(q) ||
                                                (c.vendorName?.toLowerCase() || '').includes(q) ||
                                                (c.vendorCode?.toLowerCase() || '').includes(q) ||
-                                               (c.plantId?.toLowerCase() || '').includes(q);
+                                               (c.plantId?.toLowerCase() || '').includes(q) ||
+                                               (c.poNo?.toLowerCase() || '').includes(q) ||
+                                               (c.caseNo?.toLowerCase() || '').includes(q) ||
+                                               (c.sleeperType?.toLowerCase() || '').includes(q) ||
+                                               (c.rlyPoSrNo?.toLowerCase() || '').includes(q);
                                     }).length === 0 ? (
                                         <tr>
-                                            <td colSpan="7" style={{ textAlign: 'center', padding: '20px' }}>No pending calls found.</td>
+                                            <td colSpan="13" style={{ textAlign: 'center', padding: '20px' }}>No pending calls found.</td>
                                         </tr>
                                     ) : (
                                         pendingCalls.filter(c => {
@@ -498,7 +521,11 @@ const AttendingCallDashboard = () => {
                                             return (c.requestId?.toLowerCase() || '').includes(q) ||
                                                    (c.vendorName?.toLowerCase() || '').includes(q) ||
                                                    (c.vendorCode?.toLowerCase() || '').includes(q) ||
-                                                   (c.plantId?.toLowerCase() || '').includes(q);
+                                                   (c.plantId?.toLowerCase() || '').includes(q) ||
+                                                   (c.poNo?.toLowerCase() || '').includes(q) ||
+                                                   (c.caseNo?.toLowerCase() || '').includes(q) ||
+                                                   (c.sleeperType?.toLowerCase() || '').includes(q) ||
+                                                   (c.rlyPoSrNo?.toLowerCase() || '').includes(q);
                                         }).map(call => (
                                             <tr key={call.id} className={call.checked ? 'row-selected' : ''}>
                                                 <td className="checkbox-col">
@@ -508,15 +535,34 @@ const AttendingCallDashboard = () => {
                                                         onChange={() => toggleCheck(call.id)} 
                                                     />
                                                 </td>
-                                                <td style={{ fontWeight: '700', color: '#0f172a' }}>{call.requestId}</td>
-                                                <td>{call.vendorName || call.vendorCode || '-'}</td>
-                                                <td>{call.plantId || '-'}</td>
-                                                <td>{call.createdDate ? new Date(call.createdDate).toLocaleDateString('en-GB') : '-'}</td>
+                                                <td style={{ fontWeight: '700', color: '#0f172a', whiteSpace: 'nowrap' }}>{call.requestId || call.callNo || '-'}</td>
+                                                <td style={{ whiteSpace: 'nowrap', fontWeight: '600', color: '#1e293b' }}>{call.rlyPoSrNo || (call.poNo ? `${call.poNo}${call.poSr ? ' / ' + call.poSr : ''}` : '-')}</td>
+                                                <td style={{ whiteSpace: 'nowrap', fontWeight: '600', color: '#475569' }}>{call.caseNo || call.ibsCaseNo || '-'}</td>
+                                                <td title={call.vendorName || call.vendorCode || ''} style={{ maxWidth: '200px' }}>
+                                                    <div style={{ fontWeight: '600', color: '#0f172a', lineHeight: '1.25' }}>
+                                                        {(call.vendorName || call.vendorCode || '-').split('~')[0]}
+                                                    </div>
+                                                    {(call.vendorName || '').includes('~') && (
+                                                        <div style={{ fontSize: '9.5px', color: '#64748b', marginTop: '2px', lineHeight: '1.2' }}>
+                                                            {(call.vendorName || '').split('~').slice(1).filter(Boolean).join(', ')}
+                                                        </div>
+                                                    )}
+                                                </td>
+                                                <td style={{ fontWeight: '600', color: '#0369a1', whiteSpace: 'nowrap' }}>{call.sleeperType || call.productType || '-'}</td>
+                                                <td style={{ whiteSpace: 'nowrap', color: '#334155' }}>{(call.plantId || '-').replace(/^:+/, '')}</td>
+                                                <td style={{ whiteSpace: 'nowrap' }}>{call.callDate ? new Date(call.callDate).toLocaleDateString('en-GB') : (call.createdDate ? new Date(call.createdDate).toLocaleDateString('en-GB') : '-')}</td>
+                                                <td style={{ color: '#ea580c', fontWeight: '600', whiteSpace: 'nowrap' }}>{call.desiredInspectionDate ? new Date(call.desiredInspectionDate).toLocaleDateString('en-GB') : '-'}</td>
+                                                <td style={{ fontWeight: '600', whiteSpace: 'nowrap' }}>
+                                                    {call.offeredQty ?? call.totalOffered ?? '-'} {call.offeredQty || call.totalOffered ? (call.uom || 'Nos.') : ''}
+                                                </td>
+                                                <td style={{ color: '#2563eb', fontWeight: '600', whiteSpace: 'nowrap' }}>
+                                                    {call.scheduleDate ? new Date(call.scheduleDate).toLocaleDateString('en-GB') : (call.scheduledDate ? new Date(call.scheduledDate).toLocaleDateString('en-GB') : '-')}
+                                                </td>
                                                 <td>
                                                     <span 
                                                         className={`status-action-pill ${(call.jobStatus || call.status || '').toLowerCase().replace(/[\s_]+/g, '-')}`}
                                                         onClick={() => handleOpenViewActions(call)}
-                                                        style={{ cursor: 'pointer' }}
+                                                        style={{ cursor: 'pointer', whiteSpace: 'nowrap' }}
                                                     >
                                                         {call.jobStatus || call.status}
                                                     </span>
@@ -529,7 +575,7 @@ const AttendingCallDashboard = () => {
                                                                 handleOpenViewActions(call);
                                                             }}
                                                             style={{
-                                                                padding: '6px 14px',
+                                                                padding: '6px 12px',
                                                                 borderRadius: '6px',
                                                                 border: 'none',
                                                                 background: '#2563eb',

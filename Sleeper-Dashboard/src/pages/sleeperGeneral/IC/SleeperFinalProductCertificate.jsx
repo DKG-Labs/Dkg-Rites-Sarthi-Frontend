@@ -363,7 +363,7 @@ export default function SleeperFinalProductCertificate() {
 
           setTimeout(() => {
             sessionStorage.setItem('attendingCallActiveTab', 'completed');
-            const navEvent = new CustomEvent('navigate', { detail: { target: 'AttendingCallDashboard' } });
+            const navEvent = new CustomEvent('navigate', { detail: { target: 'Completed Calls' } });
             window.dispatchEvent(navEvent);
           }, 1500);
         } catch (err) {
@@ -498,7 +498,7 @@ export default function SleeperFinalProductCertificate() {
 
   const handleBack = () => {
     sessionStorage.setItem('attendingCallActiveTab', 'issuance');
-    const event = new CustomEvent('navigate', { detail: { target: 'AttendingCallDashboard' } });
+    const event = new CustomEvent('navigate', { detail: { target: 'Issuance of IC' } });
     window.dispatchEvent(event);
   };
 

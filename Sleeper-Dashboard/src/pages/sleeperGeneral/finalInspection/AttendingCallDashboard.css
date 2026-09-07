@@ -179,29 +179,42 @@
     box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
 }
 
+.calls-table-wrapper-modern {
+    width: 100%;
+    overflow-x: auto;
+    background: #ffffff;
+}
+
 .calls-table-modern {
     width: 100%;
     border-collapse: collapse;
     font-size: 11px;
+    table-layout: auto;
 }
 
 .calls-table-modern th {
     background: #f8fafc;
-    padding: 14px 20px;
+    padding: 12px 8px;
     text-align: left;
     font-weight: 800;
     color: #475569;
     text-transform: uppercase;
-    letter-spacing: 0.05em;
+    letter-spacing: 0.03em;
+    font-size: 10px;
+    line-height: 1.25;
     border-bottom: 1.5px solid #e2e8f0;
+    vertical-align: middle;
+    white-space: nowrap;
 }
 
 .calls-table-modern td {
-    padding: 16px 20px;
+    padding: 10px 8px;
     border-bottom: 1px solid #f1f5f9;
-    color: #475569;
+    color: #334155;
     font-weight: 500;
+    font-size: 11px;
     vertical-align: middle;
+    line-height: 1.35;
 }
 
 .row-selected {
@@ -209,8 +222,9 @@
 }
 
 .checkbox-col {
-    width: 40px;
+    width: 28px !important;
     text-align: center;
+    padding: 8px 4px !important;
 }
 
 .checkbox-col input[type="checkbox"] {
@@ -218,24 +232,25 @@
     height: 14px;
     accent-color: #3b82f6;
     cursor: pointer;
-    margin: 0;
+    margin: 0 auto;
     padding: 0;
     display: block;
-    margin: 0 auto;
     border-radius: 3px;
     -webkit-appearance: checkbox;
 }
 
 /* Status Pills */
 .status-action-pill {
-    padding: 6px 16px;
+    padding: 4px 8px;
     border-radius: 999px;
     font-weight: 700;
-    font-size: 11px;
+    font-size: 9.5px;
     border: none;
     cursor: pointer;
     transition: transform 0.1s;
     display: inline-block;
+    text-align: center;
+    white-space: nowrap;
 }
 
 .status-action-pill:active {

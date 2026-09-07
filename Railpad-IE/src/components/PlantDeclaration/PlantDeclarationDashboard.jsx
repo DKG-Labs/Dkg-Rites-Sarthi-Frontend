@@ -126,7 +126,7 @@ const PlantDeclarationDashboard = ({ dutyPlantId }) => {
 
       const filterByDutyPlant = (list) => {
         if (mappedPlants && mappedPlants.length > 0) {
-          return (list || []).filter(tx => !tx.plantId || mappedPlants.some(p => isPlantIdMatching(tx.plantId, p)));
+          return (list || []).filter(tx => tx.plantId && mappedPlants.some(p => isPlantIdMatching(tx.plantId, p)));
         }
         if (dutyPlantId) {
           return (list || []).filter(tx => tx.plantId && isPlantIdMatching(tx.plantId, dutyPlantId));
@@ -148,8 +148,13 @@ const PlantDeclarationDashboard = ({ dutyPlantId }) => {
 
       // Fetch only the data required for the active tab
       if (statusTab === 'PENDING') {
-        const pendingData = await fetchPendingWorkflowTransitions('Rail Main IE', queryPlantId, 1);
-        setPendingList(mapList(filterByDutyPlant(pendingData)));
+        const [mainPendingData, processPendingData] = await Promise.all([
+          fetchPendingWorkflowTransitions('Rail Main IE', queryPlantId, 1).catch(() => []),
+          fetchPendingWorkflowTransitions('Rail Process IE', queryPlantId, 1).catch(() => [])
+        ]);
+        const combined = [...(mainPendingData || []), ...(processPendingData || [])];
+        const uniquePending = Array.from(new Map(combined.map(item => [item.workflowTransitionId, item])).values());
+        setPendingList(mapList(filterByDutyPlant(uniquePending)));
       } else {
         const completedData = await fetchCompletedCalls(queryPlantId, 1);
         setCompletedList(mapList(filterByDutyPlant(completedData)));

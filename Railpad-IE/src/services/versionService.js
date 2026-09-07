@@ -1,8 +1,6 @@
-/**
- * Version Management Service for Railpad-IE
- */
+import { APP_VERSION as CONFIG_APP_VERSION } from '../config/version.js';
 
-export const APP_VERSION = import.meta.env.VITE_APP_VERSION || '1.2.26';
+export const APP_VERSION = CONFIG_APP_VERSION || import.meta.env.VITE_APP_VERSION || '1.2.28';
 
 export const compareVersions = (local, remote) => {
   if (!local || !remote) return 0;
@@ -73,22 +71,40 @@ export const fetchVersionStatus = async (timeoutMs = 10000) => {
 
   try {
     const cacheBuster = `_t=${Date.now()}&_r=${Math.random().toString(36).substring(2, 8)}`;
-    // Check root version.json or relative version.json
     const url = `/version.json?${cacheBuster}`;
 
-    const response = await fetch(url, {
-      method: 'GET',
-      headers: {
-        'Cache-Control': 'no-cache, no-store, must-revalidate',
-        'Pragma': 'no-cache',
-        'Expires': '0',
-      },
-      signal: controller.signal,
-    });
+    let response = null;
+    try {
+      response = await fetch(url, {
+        method: 'GET',
+        headers: {
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
+          'Pragma': 'no-cache',
+          'Expires': '0',
+        },
+        signal: controller.signal,
+      });
+    } catch (_) {}
+
+    if (!response || !response.ok) {
+      const baseUrl = import.meta.env?.BASE_URL || './';
+      const fallbackUrl = `${baseUrl.endsWith('/') ? baseUrl : baseUrl + '/'}version.json?${cacheBuster}`;
+      try {
+        response = await fetch(fallbackUrl, {
+          method: 'GET',
+          headers: {
+            'Cache-Control': 'no-cache, no-store, must-revalidate',
+            'Pragma': 'no-cache',
+            'Expires': '0',
+          },
+          signal: controller.signal,
+        });
+      } catch (_) {}
+    }
 
     clearTimeout(timeoutId);
 
-    if (!response.ok) {
+    if (!response || !response.ok) {
       return { updateAvailable: false, serverVersion: null, currentVersion };
     }
 

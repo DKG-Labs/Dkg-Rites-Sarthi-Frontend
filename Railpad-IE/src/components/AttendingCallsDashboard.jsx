@@ -1450,9 +1450,7 @@ const AttendingCallsDashboard = ({
           setShowDetailsModal(false);
         }}
         onResume={() => {
-          if (onResume) {
-            onResume(selectedCallForView);
-          }
+          handleResumeClick(selectedCallForView);
           setShowDetailsModal(false);
         }}
         onEnterShiftDetails={() => {

@@ -360,12 +360,12 @@ const RailpadProcessInspectionDashboard = ({ user, call, currentShift, onBack, o
     // actionType can be 'DRAFT', 'PAUSE', or 'FINISH'
     const isFinish = actionType === 'FINISH';
 
-    if (Object.keys(selectedBatches).length === 0) {
-      showNotification('Please select at least one batch to inspect.', 'warning');
-      return;
-    }
+    if (isFinish) {
+      if (Object.keys(selectedBatches).length === 0) {
+        showNotification('Please select at least one batch to inspect.', 'warning');
+        return;
+      }
 
-    if (actionType === 'PAUSE' || actionType === 'FINISH') {
       if (!lotRangeFrom || !lotRangeTo) {
         showNotification('Lot Range (From and To) is mandatory to proceed.', 'error');
         return;
@@ -374,14 +374,7 @@ const RailpadProcessInspectionDashboard = ({ user, call, currentShift, onBack, o
         showNotification('Remarks are mandatory to proceed.', 'error');
         return;
       }
-    }
 
-    if (isFinish && totals.totalRejected > 0) {
-      // Rejections are now fetched from production verification, so we no longer require a manual reason input
-      // However, we can still verify that the selected batches actually have rejections if needed.
-    }
-
-    if (isFinish) {
       // Validation for NCRGRSP required quantity
       const currentRailPadType = summary?.ercType || call?.railPadType || '';
       const isNcrgrsp = /NCR\s*GRSP/i.test(currentRailPadType);

@@ -5,7 +5,8 @@ const allowedFields = [
   "bookNo", "setNo", "offeredInstNo", "passedInstNo", "maNumberAndDate",
   "consignee", "purchasingAuthority", "description", 
   "qtyOfferedPreviously", "qtyPassedPreviously", "qtyStillDue", "trRecDate",
-  "quantityNowPassedText", "noOfVisits", "datesOfInspection"
+  "quantityNowPassedText", "noOfVisits", "datesOfInspection", "sealingPattern",
+  "facsimileText", "reasonsForRejection", "inspectingEngineer"
 ];
 
 // Editable field component moved outside to prevent re-mounting

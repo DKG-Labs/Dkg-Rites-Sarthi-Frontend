@@ -16,6 +16,7 @@ import LoginPage from './pages/LoginPage/LoginPage';
 import UserProfilePage from './pages/UserProfile/UserProfilePage';
 import { ROUTES } from './routes';
 import { isAuthenticated, getStoredUser } from './services/authService';
+import VersionUpdateBanner from './components/common/VersionUpdateBanner';
 
 const isSleeperRole = (role) => {
   if (!role) return false;
@@ -50,7 +51,11 @@ const ProtectedRoute = ({ children }) => {
  */
 const App = () => {
   const [mainView, setMainView] = useState(() => {
-    return localStorage.getItem('activeMainView') || 'Main Dashboard';
+    const saved = localStorage.getItem('activeMainView');
+    if (saved === 'Attending the Call Raised' || saved === 'AttendingCallDashboard') {
+      return 'List of Calls Pending';
+    }
+    return saved || 'Main Dashboard';
   });
 
   // Persist mainView changes
@@ -79,8 +84,21 @@ const App = () => {
           case 'MonthlyReport':
             setMainView('Monthly Performance Report');
             break;
+          case 'List of Calls Pending':
+          case 'ListOfCallsPending':
+            setMainView('List of Calls Pending');
+            break;
+          case 'Issuance of IC':
+          case 'IssuanceOfIC':
+            setMainView('Issuance of IC');
+            break;
+          case 'Completed Calls':
+          case 'CompletedCalls':
+            setMainView('Completed Calls');
+            break;
           case 'AttendingCallDashboard':
-            setMainView('Attending the Call Raised');
+          case 'Attending the Call Raised':
+            setMainView('List of Calls Pending');
             break;
           case 'Sleeper Final IC':
             setMainView('Sleeper Final IC');
@@ -109,8 +127,14 @@ const App = () => {
         return <div className="fade-in"><LastShiftReport /></div>;
       case 'Monthly Performance Report':
         return <div className="fade-in"><MonthlyReport /></div>;
+      case 'List of Calls Pending':
+        return <div className="fade-in"><AttendingCallDashboard mode="pending" /></div>;
+      case 'Issuance of IC':
+        return <div className="fade-in"><AttendingCallDashboard mode="issuance" /></div>;
+      case 'Completed Calls':
+        return <div className="fade-in"><AttendingCallDashboard mode="completed" /></div>;
       case 'Attending the Call Raised':
-        return <div className="fade-in"><AttendingCallDashboard /></div>;
+        return <div className="fade-in"><AttendingCallDashboard mode="pending" /></div>;
       case 'Sleeper Final IC':
         return <div className="fade-in"><SleeperFinalProductCertificate /></div>;
       case 'User Profile':
@@ -135,6 +159,7 @@ const App = () => {
         element={
           <ProtectedRoute>
             <ToastProvider>
+              <VersionUpdateBanner />
               <ShiftProvider>
                 <MainLayout activeItem={mainView} onItemClick={setMainView}>
                   {showTabs && (

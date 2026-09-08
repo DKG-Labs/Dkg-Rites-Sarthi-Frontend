@@ -3,7 +3,7 @@ import { useVersionCheck } from '../../hooks/useVersionCheck';
 import { isLocalDevelopment } from '../../services/versionService';
 
 /**
- * VersionUpdateBanner - Ultra-modern enterprise update modal with SARTHI branding.
+ * VersionUpdateBanner for Railpad-IE - Ultra-modern enterprise update modal with SARTHI branding.
  */
 const VersionUpdateBanner = () => {
   const { updateAvailable, latestVersion, currentVersion } = useVersionCheck();
@@ -115,11 +115,11 @@ const VersionUpdateBanner = () => {
             }}
           />
           <img
-            src="/logo-sarthi.png"
+            src="/railpad/logo-sarthi.png"
             alt="SARTHI"
             onError={(e) => {
               e.target.onerror = null;
-              e.target.src = './logo-sarthi.png';
+              e.target.src = '/logo-sarthi.png';
             }}
             style={{
               width: '54px',
@@ -158,7 +158,7 @@ const VersionUpdateBanner = () => {
             New Version Available
           </h2>
           <p style={{ margin: 0, fontSize: '13.5px', color: '#64748b', lineHeight: '1.55', fontWeight: 500 }}>
-            A newer version of SARTHI has been deployed. Please reload to apply the latest features and fixes.
+            A newer version of SARTHI Railpad has been deployed. Please reload to apply the latest features and fixes.
           </p>
         </div>
 

@@ -8,7 +8,8 @@ const SCADA_MANUFACTURERS = [
 
 const SCADA_UNITS = [
     { label: 'Wadiyaram Unit', value: 'WDM' },
-    { label: 'Thirumangalam', value: 'TMQ' }
+    { label: 'Thirumangalam', value: 'TMQ' },
+    { label: 'Pahtri', value: 'PAT' }
 ];
 
 const SCADA_LINES = [

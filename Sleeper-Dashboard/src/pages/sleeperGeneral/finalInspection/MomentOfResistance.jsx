@@ -99,6 +99,59 @@ const MomentOfResistance = () => {
             );
             const completedBatchNos = new Set([...passedBatchNos, ...failedBatchNos]);
 
+            const isGrade = (val) => /^M\s*[-]?\s*\d+/i.test(String(val || '').trim());
+
+            const extractDrawingNo = (item, batchMatch) => {
+                const candidates = [
+                    item?.drawingNo,
+                    batchMatch?.drawingNo,
+                    item?.sleeperType,
+                    batchMatch?.sleeperType,
+                ];
+
+                for (const cand of candidates) {
+                    if (cand && typeof cand === 'string' && cand.trim() && cand !== 'N/A' && !isGrade(cand)) {
+                        return cand.trim();
+                    }
+                }
+
+                const checkNested = (target) => {
+                    if (!target) return null;
+                    if (Array.isArray(target.chambers)) {
+                        for (const ch of target.chambers) {
+                            if (Array.isArray(ch.benchGroups)) {
+                                for (const bg of ch.benchGroups) {
+                                    if (bg.sleeperType && !isGrade(bg.sleeperType)) {
+                                        return bg.sleeperType.trim();
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    if (Array.isArray(target.gangs)) {
+                        for (const g of target.gangs) {
+                            if (g.sleeperType && !isGrade(g.sleeperType)) {
+                                return g.sleeperType.trim();
+                            }
+                        }
+                    }
+                    return null;
+                };
+
+                const nestedFromItem = checkNested(item);
+                if (nestedFromItem) return nestedFromItem;
+
+                const nestedFromMatch = checkNested(batchMatch);
+                if (nestedFromMatch) return nestedFromMatch;
+
+                if (item?.originalData) {
+                    const nestedFromOrig = checkNested(item.originalData);
+                    if (nestedFromOrig) return nestedFromOrig;
+                }
+
+                return 'RT-2496';
+            };
+
             // Map Verified Batches
             const mappedVerified = vData
                 .filter(item => isSamePlant(item.plantId, params.plantId))
@@ -107,7 +160,7 @@ const MomentOfResistance = () => {
                     const bNo = String(item.batchNumber).trim();
                     const isWaterDone = Boolean(item.waterCubeTestStatus) && completedWaterBatchNos.has(bNo);
                     const batchMatch = vBatchMap.get(bNo) || vBatchMap.get(normKey(bNo));
-                    const actualSleeperType = item.sleeperType || item.drawingNo || batchMatch?.sleeperType || batchMatch?.drawingNo || item.mixDesignReference || 'N/A';
+                    const actualSleeperType = extractDrawingNo(item, batchMatch);
                     return {
                         id: item.id,
                         productionDeclarationId: item.id,
@@ -141,7 +194,7 @@ const MomentOfResistance = () => {
                     const batchMatch = vBatchMap.get(bNo) || vBatchMap.get(normKey(bNo));
                     const pId = item.productionDeclarationId || batchMatch?.id || vBatchIdMap.get(bNo);
                     const actualCastingDate = batchMatch?.castingDate || item.castingDate || item.dateOfCasting || 'N/A';
-                    const actualSleeperType = item.sleeperType || batchMatch?.sleeperType || batchMatch?.drawingNo || batchMatch?.mixDesignReference || 'N/A';
+                    const actualSleeperType = extractDrawingNo(item, batchMatch);
 
                     return {
                         ...item,
@@ -168,7 +221,7 @@ const MomentOfResistance = () => {
                     const sleeper = item.sleeperNo || declaredMatch?.sleeperNo || 'N/A';
                     const pId = item.productionDeclarationId || batchMatch?.id || vBatchIdMap.get(bNo);
                     const actualCastingDate = batchMatch?.castingDate || declaredMatch?.castingDate || item.castingDate || item.dateOfCasting || 'N/A';
-                    const actualSleeperType = item.sleeperType || declaredMatch?.sleeperType || batchMatch?.sleeperType || batchMatch?.drawingNo || batchMatch?.mixDesignReference || 'N/A';
+                    const actualSleeperType = extractDrawingNo(item, batchMatch || declaredMatch);
 
                     return {
                         ...item,
@@ -202,7 +255,7 @@ const MomentOfResistance = () => {
                     const batchMatch = vBatchMap.get(bNo) || vBatchMap.get(normKey(bNo));
                     const pId = item.productionDeclarationId || batchMatch?.id || vBatchIdMap.get(bNo);
                     const actualCastingDate = batchMatch?.castingDate || item.castingDate || item.dateOfCasting || 'N/A';
-                    const actualSleeperType = item.sleeperType || batchMatch?.sleeperType || batchMatch?.drawingNo || batchMatch?.mixDesignReference || 'N/A';
+                    const actualSleeperType = extractDrawingNo(item, batchMatch);
 
                     return {
                         id: pId || item.monmentOfResistanceId || item.id,

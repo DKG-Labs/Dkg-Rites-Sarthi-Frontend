@@ -3,6 +3,8 @@ import EnhancedDataTable from '../../../components/common/EnhancedDataTable';
 import { apiService } from '../../../services/api';
 import { useShift } from '../../../context/ShiftContext';
 
+import { getStoredUser } from '../../../services/authService';
+
 // Mock data to simulate API responses for ET module
 const mockBatches = [
     { batchNo: 'B-101', shedLine: 'Shed 1', castingDate: '2026-04-20', totalCasted: 100, etCount: 1, etPercent: 1.0 },
@@ -14,7 +16,7 @@ const mockLogs = [
 ];
 
 const EpoxyTreatedSleepers = ({ onBack, initialShowForm = false }) => {
-    const { vendorId, dutyUnit } = useShift();
+    const { vendorId, vendorCode, dutyUnit, dutyLocation } = useShift();
     const [activeTab, setActiveTab] = useState('summary'); // 'summary' or 'logs'
     const [showForm, setShowForm] = useState(initialShowForm);
     const [selectedLog, setSelectedLog] = useState(null);
@@ -24,18 +26,49 @@ const EpoxyTreatedSleepers = ({ onBack, initialShowForm = false }) => {
     const [batches, setBatches] = useState([]);
     const [isLoading, setIsLoading] = useState(false);
 
+    const loggedUser = getStoredUser();
+    const currentUserId = localStorage.getItem('userId') || loggedUser?.userId || '';
+    const currentPlant = dutyUnit || localStorage.getItem('dutyUnit') || localStorage.getItem('plantId') || '';
+    const currentVendor = vendorCode || vendorId || localStorage.getItem('vendorCode') || localStorage.getItem('vendorId') || '';
+
+    const isSamePlant = (itemPlant, targetPlant) => {
+        if (!targetPlant || !itemPlant) return true;
+        const cleanItem = String(itemPlant).replace(/^:+/, '').trim().toLowerCase();
+        const cleanTarget = String(targetPlant).replace(/^:+/, '').trim().toLowerCase();
+        return cleanItem === cleanTarget || cleanItem.includes(cleanTarget) || cleanTarget.includes(cleanItem);
+    };
+
     const fetchData = async () => {
         setIsLoading(true);
         try {
+            const params = {};
+            if (currentPlant) params.plantId = currentPlant;
+            if (currentVendor) params.vendorCode = currentVendor;
+            if (currentUserId) params.createdBy = currentUserId;
+
             if (activeTab === 'summary') {
-                const res = await apiService.getETBatchSummary();
-                setBatches(res?.responseData || []);
+                const res = await apiService.getETBatchSummary(params);
+                let list = res?.responseData || [];
+                if (currentPlant) {
+                    list = list.filter(b => isSamePlant(b.plantId || b.location, currentPlant));
+                }
+                if (currentUserId) {
+                    list = list.filter(b => !b.createdBy || String(b.createdBy) === String(currentUserId));
+                }
+                setBatches(list);
             } else {
-                const res = await apiService.getAllETLogs();
-                setLogs(res?.responseData || []);
+                const res = await apiService.getAllETLogs(params);
+                let list = res?.responseData || [];
+                if (currentPlant) {
+                    list = list.filter(l => isSamePlant(l.plantId || l.location, currentPlant));
+                }
+                if (currentUserId) {
+                    list = list.filter(l => !l.createdBy || String(l.createdBy) === String(currentUserId));
+                }
+                setLogs(list);
             }
         } catch (e) {
-            console.error(e);
+            console.error('Failed to fetch ET records:', e);
         } finally {
             setIsLoading(false);
         }
@@ -43,7 +76,7 @@ const EpoxyTreatedSleepers = ({ onBack, initialShowForm = false }) => {
 
     useEffect(() => {
         fetchData();
-    }, [activeTab]);
+    }, [activeTab, currentPlant, currentVendor, currentUserId]);
 
     const summaryColumns = [
         { key: 'batchNumber', label: 'Batch Number' },

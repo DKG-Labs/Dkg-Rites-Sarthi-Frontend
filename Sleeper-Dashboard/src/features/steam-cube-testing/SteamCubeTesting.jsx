@@ -5,6 +5,29 @@ import { useShift } from '../../context/ShiftContext';
 import './SteamCubeTesting.css';
 import { formatDateForBackend } from '../../utils/helpers';
 
+const getTodayLocalDate = () => {
+    const d = new Date();
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+};
+
+const normalizeDateToYMD = (dateStr) => {
+    if (!dateStr) return '';
+    const str = String(dateStr).trim();
+    if (/^\d{4}-\d{2}-\d{2}$/.test(str)) return str;
+    if (/^\d{2}\/\d{2}\/\d{4}$/.test(str)) {
+        const [d, m, y] = str.split('/');
+        return `${y}-${m.padStart(2, '0')}-${d.padStart(2, '0')}`;
+    }
+    if (/^\d{2}-\d{2}-\d{4}$/.test(str)) {
+        const [d, m, y] = str.split('-');
+        return `${y}-${m.padStart(2, '0')}-${d.padStart(2, '0')}`;
+    }
+    return str;
+};
+
 const SteamCubeTesting = ({ onBack, testedRecords: propTestedRecords, setTestedRecords: propSetTestedRecords, activeContainer }) => {
     const { dutyUnit, vendorCode, selectedShift, userId, dutyDate } = useShift();
     const [viewMode, setViewMode] = useState('statistics'); // 'statistics', 'declared', 'tested'
@@ -913,6 +936,7 @@ const SearchableSelect = ({ value, onChange, options, placeholder = '-- Select -
 const SampleDeclarationModal = ({ sample, isModifying, onClose, onSave, onDelete, activeContainer }) => {
     const [moistureReports, setMoistureReports] = useState([]);
     const [availableLocations, setAvailableLocations] = useState([]);
+    const [productionDeclarations, setProductionDeclarations] = useState([]);
     const { vendorId, dutyUnit, userId } = useShift();
     const effectiveVendorId = vendorId || userId || localStorage.getItem('vendorId') || localStorage.getItem('userId');
     const effectivePlantId = dutyUnit || localStorage.getItem('dutyUnit');
@@ -920,17 +944,25 @@ const SampleDeclarationModal = ({ sample, isModifying, onClose, onSave, onDelete
     const [formData, setFormData] = useState({
         lineNo: sample?.lineNo || (activeContainer?.type !== 'Shed' ? activeContainer?.name : null) || (sample?.location && !sample?.shedNo ? sample.location : ''),
         shedNo: sample?.shedNo || (activeContainer?.type === 'Shed' ? activeContainer?.name : null) || (sample?.location && sample?.shedNo ? sample.location : ''),
-        castingDate: sample?.castingDate || sample?.date || sample?.entryDate || new Date().toISOString().split('T')[0],
-        declarationDate: sample?.declarationDate || sample?.dateOfDeclaration || sample?.castingDate || new Date().toISOString().split('T')[0],
+        castingDate: sample?.castingDate || sample?.date || sample?.entryDate || getTodayLocalDate(),
+        declarationDate: sample?.declarationDate || sample?.dateOfDeclaration || sample?.castingDate || getTodayLocalDate(),
         lbcTime: sample?.lbcTime || (new Date().toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false })),
         batchNo: sample?.batchNo || '',
-        concreteGrade: sample?.concreteGrade || sample?.grade || 'M60',
+        concreteGrade: sample?.concreteGrade || sample?.grade || 'M-60',
         chamberNo: sample?.chamberNo || '',
         cubes: sample?.cubes || sample?.cubeResults || [],
         otherBenches: sample?.otherBenches || []
     });
 
     const [currentCube, setCurrentCube] = useState({ benchNo: '', sleeperSequence: '', cubeCode: '' });
+
+    // Fetch full production declarations for batch details autofetch (LBC time, Concrete grade)
+    useEffect(() => {
+        apiService.getAllProductionDeclarations().then(res => {
+            const data = res?.responseData || res?.data?.responseData || res?.data || (Array.isArray(res) ? res : []);
+            if (Array.isArray(data)) setProductionDeclarations(data);
+        }).catch(err => console.error("Error fetching production declarations in steam cube:", err));
+    }, []);
 
     // Fetch dynamic locations for the current plant
     useEffect(() => {
@@ -966,16 +998,18 @@ const SampleDeclarationModal = ({ sample, isModifying, onClose, onSave, onDelete
     useEffect(() => {
         const fetchBatches = async () => {
             const location = formData.lineNo || formData.shedNo;
-            if (formData.castingDate && location) {
+            if (formData.castingDate) {
                 try {
-                    const formattedDate = formData.castingDate.split('-').reverse().join('/');
+                    const formattedDate = formData.castingDate.includes('-') 
+                        ? formData.castingDate.split('-').reverse().join('/') 
+                        : formData.castingDate;
                     const res = await apiService.getAllProductionBatches(
                         effectiveVendorId,
                         formattedDate,
                         effectivePlantId,
-                        location
+                        location || ''
                     );
-                    if (res?.responseData) {
+                    if (res?.responseData && Array.isArray(res.responseData)) {
                         setProductionBatches(res.responseData);
                     } else {
                         setProductionBatches([]);
@@ -984,10 +1018,57 @@ const SampleDeclarationModal = ({ sample, isModifying, onClose, onSave, onDelete
                     console.error("Failed to fetch production batches:", err);
                     setProductionBatches([]);
                 }
+            } else {
+                setProductionBatches([]);
             }
         };
         fetchBatches();
     }, [formData.castingDate, formData.lineNo, formData.shedNo, effectiveVendorId, effectivePlantId]);
+
+    // Available batches strictly filtered by Date of Casting and location
+    const availableBatchOptions = useMemo(() => {
+        const options = [];
+        const seen = new Set();
+        const targetDate = normalizeDateToYMD(formData.castingDate);
+        const selectedLoc = String(formData.lineNo || formData.shedNo || '').trim().toLowerCase();
+
+        // 1. From API productionBatches (queried by date & location)
+        (productionBatches || []).forEach(b => {
+            const isObj = typeof b === 'object' && b !== null;
+            const bNo = String(isObj ? (b.batchNo || b.batchNumber || b.id) : b).trim();
+            if (bNo && !seen.has(bNo.toLowerCase())) {
+                seen.add(bNo.toLowerCase());
+                options.push({
+                    batchNo: bNo,
+                    chamberNo: isObj ? b.chamberNo : null,
+                    raw: b
+                });
+            }
+        });
+
+        // 2. From productionDeclarations, strictly filtered by casting date
+        (productionDeclarations || []).forEach(p => {
+            const pDate = normalizeDateToYMD(p.castingDate || p.dateOfCasting);
+            if (targetDate && pDate && pDate !== targetDate) return;
+
+            if (selectedLoc) {
+                const pLoc = String(p.productionUnit || p.lineNo || p.shedNo || p.location || '').trim().toLowerCase();
+                if (pLoc && !pLoc.includes(selectedLoc) && !selectedLoc.includes(pLoc)) return;
+            }
+
+            const bNo = String(p.batchNumber || p.batchNo || '').trim();
+            if (bNo && !seen.has(bNo.toLowerCase())) {
+                seen.add(bNo.toLowerCase());
+                options.push({
+                    batchNo: bNo,
+                    chamberNo: p.chamberNo || (p.chambers?.[0]?.chamberNo) || null,
+                    raw: p
+                });
+            }
+        });
+
+        return options;
+    }, [productionBatches, productionDeclarations, formData.castingDate, formData.lineNo, formData.shedNo]);
 
     // Fetch declared sleepers when batch or bench changes
     const [availableSleepers, setAvailableSleepers] = useState([]);
@@ -1021,13 +1102,77 @@ const SampleDeclarationModal = ({ sample, isModifying, onClose, onSave, onDelete
 
     const handleLocationChange = (e) => {
         const val = e.target.value;
-        // In the new API structure, locations are simple strings (Shed No or Line No)
-        // We set lineNo by default, or shedNo if the value suggests it's a shed
         if (String(val).toLowerCase().includes('shed')) {
-            setFormData({ ...formData, shedNo: val, lineNo: null });
+            setFormData({ ...formData, shedNo: val, lineNo: null, batchNo: '' });
         } else {
-            setFormData({ ...formData, lineNo: val, shedNo: null });
+            setFormData({ ...formData, lineNo: val, shedNo: null, batchNo: '' });
         }
+    };
+
+    const handleCastingDateChange = (e) => {
+        const newDate = e.target.value;
+        setFormData({
+            ...formData,
+            castingDate: newDate,
+            batchNo: '',
+            chamberNo: ''
+        });
+    };
+
+    const handleBatchSelect = (val) => {
+        const cleanVal = String(val || '').trim();
+        if (!cleanVal) {
+            setFormData({ ...formData, batchNo: '' });
+            return;
+        }
+
+        // Look up in availableBatchOptions or productionDeclarations
+        const matchedOption = availableBatchOptions.find(opt => 
+            opt.batchNo.toLowerCase() === cleanVal.toLowerCase()
+        );
+        const matchedDecl = (productionDeclarations || []).find(p =>
+            String(p.batchNumber || p.batchNo || '').trim().toLowerCase() === cleanVal.toLowerCase()
+        );
+
+        const sourceObj = (matchedOption && typeof matchedOption.raw === 'object' && matchedOption.raw !== null) 
+            ? matchedOption.raw 
+            : matchedDecl;
+
+        let updatedConcreteGrade = formData.concreteGrade || 'M-60';
+        let updatedLbcTime = formData.lbcTime;
+        let updatedChamberNo = formData.chamberNo;
+
+        if (sourceObj) {
+            // Concrete Grade autofetch
+            const grade = sourceObj.mixDesignReference || sourceObj.concreteGrade || sourceObj.grade;
+            if (grade) {
+                if (String(grade).toUpperCase().includes('55')) updatedConcreteGrade = 'M-55';
+                else if (String(grade).toUpperCase().includes('60')) updatedConcreteGrade = 'M-60';
+                else updatedConcreteGrade = grade;
+            }
+
+            // LBC Time autofetch
+            const time = sourceObj.lbcTime || sourceObj.lastBatchTime || sourceObj.timeOfCasting;
+            if (time) {
+                const timeStr = String(time).trim();
+                updatedLbcTime = timeStr.length >= 5 ? timeStr.substring(0, 5) : timeStr;
+            }
+
+            // Chamber No autofetch
+            if (sourceObj.chamberNo) {
+                updatedChamberNo = sourceObj.chamberNo;
+            } else if (sourceObj.chambers && sourceObj.chambers.length > 0) {
+                updatedChamberNo = sourceObj.chambers[0].chamberNo || updatedChamberNo;
+            }
+        }
+
+        setFormData({
+            ...formData,
+            batchNo: cleanVal,
+            concreteGrade: updatedConcreteGrade,
+            lbcTime: updatedLbcTime,
+            chamberNo: updatedChamberNo
+        });
     };
 
     const addCube = () => {
@@ -1069,8 +1214,6 @@ const SampleDeclarationModal = ({ sample, isModifying, onClose, onSave, onDelete
         onSave(formData);
     };
 
-    // Removal of selectedContainerId as it was tied to the old containers list which is no longer used.
-
     return (
         <div className="form-modal-overlay" onClick={onClose}>
             <div className="form-modal-container" onClick={e => e.stopPropagation()} style={{ maxWidth: '900px', maxHeight: '90vh', overflowY: 'auto' }}>
@@ -1109,7 +1252,7 @@ const SampleDeclarationModal = ({ sample, isModifying, onClose, onSave, onDelete
                             <input 
                                 type="date" 
                                 value={formData.castingDate} 
-                                onChange={e => setFormData({ ...formData, castingDate: e.target.value })} 
+                                onChange={handleCastingDateChange} 
                                 style={{ width: '100%', padding: '0 12px', height: '42px', borderRadius: '8px', border: '1.5px solid #e2e8f0', fontSize: '14px', color: '#1e293b', outline: 'none' }}
                             />
                         </div>
@@ -1126,40 +1269,16 @@ const SampleDeclarationModal = ({ sample, isModifying, onClose, onSave, onDelete
                             <label style={{ fontSize: '12px', fontWeight: '700', color: '#475569', marginBottom: '4px' }}>Batch No.</label>
                             <select 
                                 value={formData.batchNo} 
-                                onChange={e => {
-                                    const val = e.target.value;
-                                    // Find if it's an object or just use as string
-                                    const selectedBatch = productionBatches.find(b => 
-                                        typeof b === 'object' ? String(b.id) === String(val) || String(b.batchNo) === String(val) : String(b) === String(val)
-                                    );
-                                    
-                                    if (selectedBatch && typeof selectedBatch === 'object') {
-                                        setFormData({
-                                            ...formData,
-                                            batchNo: selectedBatch.batchNo,
-                                            concreteGrade: selectedBatch.concreteGrade || formData.concreteGrade,
-                                            chamberNo: selectedBatch.chamberNo || formData.chamberNo || ""
-                                        });
-                                    } else {
-                                        setFormData({ ...formData, batchNo: val });
-                                    }
-                                }}
+                                onChange={e => handleBatchSelect(e.target.value)}
                                 style={{ width: '100%', padding: '0 12px', height: '42px', borderRadius: '8px', border: '1.5px solid #e2e8f0', fontSize: '14px', color: '#1e293b', outline: 'none', background: '#fff' }}
                             >
-                                <option value="">-- Select Batch --</option>
-                                {productionBatches.map((batch, idx) => {
-                                    const isObj = typeof batch === 'object' && batch !== null;
-                                    const bNo = isObj ? batch.batchNo : batch;
-                                    const bId = isObj ? (batch.id || batch.batchNo) : batch;
-                                    return (
-                                        <option key={idx} value={bId}>
-                                            {bNo} {isObj && batch.chamberNo ? `(Chamber: ${batch.chamberNo})` : ''}
-                                        </option>
-                                    );
-                                })}
-                                {formData.batchNo && !productionBatches.some(b => 
-                                    (typeof b === 'object' ? String(b.batchNo) : String(b)) === String(formData.batchNo)
-                                ) && (
+                                <option value="">{availableBatchOptions.length === 0 ? '-- No Batches for this Date --' : '-- Select Batch --'}</option>
+                                {availableBatchOptions.map((opt, idx) => (
+                                    <option key={idx} value={opt.batchNo}>
+                                        {opt.batchNo} {opt.chamberNo ? `(Chamber: ${opt.chamberNo})` : ''}
+                                    </option>
+                                ))}
+                                {formData.batchNo && !availableBatchOptions.some(opt => opt.batchNo.toLowerCase() === formData.batchNo.toLowerCase()) && (
                                     <option value={formData.batchNo}>{formData.batchNo}</option>
                                 )}
                             </select>
@@ -1168,23 +1287,46 @@ const SampleDeclarationModal = ({ sample, isModifying, onClose, onSave, onDelete
                         <div className="input-group">
                             <label style={{ fontSize: '12px', fontWeight: '700', color: '#475569', marginBottom: '4px' }}>LBC Time</label>
                             <input 
-                                type="time" 
-                                value={formData.lbcTime} 
-                                onChange={e => setFormData({ ...formData, lbcTime: e.target.value })} 
-                                style={{ width: '100%', padding: '0 12px', height: '42px', borderRadius: '8px', border: '1.5px solid #e2e8f0', fontSize: '14px', color: '#1e293b', outline: 'none' }}
+                                type="text" 
+                                readOnly
+                                value={formData.lbcTime || '-'} 
+                                placeholder="Auto-fetched via Batch"
+                                style={{ 
+                                    width: '100%', 
+                                    padding: '0 12px', 
+                                    height: '42px', 
+                                    borderRadius: '8px', 
+                                    border: '1.5px solid #e2e8f0', 
+                                    fontSize: '14px', 
+                                    color: '#64748b', 
+                                    background: '#f8fafc', 
+                                    fontWeight: '600',
+                                    outline: 'none',
+                                    cursor: 'not-allowed'
+                                }}
                             />
                         </div>
                         <div className="input-group">
                             <label style={{ fontSize: '12px', fontWeight: '700', color: '#475569', marginBottom: '4px' }}>Concrete Grade</label>
-                            <select 
-                                value={formData.concreteGrade} 
-                                onChange={e => setFormData({ ...formData, concreteGrade: e.target.value })}
-                                style={{ width: '100%', padding: '0 12px', height: '42px', borderRadius: '8px', border: '1.5px solid #e2e8f0', fontSize: '14px', color: '#1e293b', outline: 'none' }}
-                            >
-                                <option value="">-- Select --</option>
-                                <option>M-55</option>
-                                <option>M-60</option>
-                            </select>
+                            <input 
+                                type="text" 
+                                readOnly
+                                value={formData.concreteGrade || '-'} 
+                                placeholder="Auto-fetched via Batch"
+                                style={{ 
+                                    width: '100%', 
+                                    padding: '0 12px', 
+                                    height: '42px', 
+                                    borderRadius: '8px', 
+                                    border: '1.5px solid #e2e8f0', 
+                                    fontSize: '14px', 
+                                    color: '#64748b', 
+                                    background: '#f8fafc', 
+                                    fontWeight: '600',
+                                    outline: 'none',
+                                    cursor: 'not-allowed'
+                                }}
+                            />
                         </div>
                         {formData.shedNo && (
                             <div className="input-group">
@@ -1286,14 +1428,14 @@ const SampleDeclarationModal = ({ sample, isModifying, onClose, onSave, onDelete
 const TestDetailsModal = ({ sample, onClose, onSave, onDelete, isModifying, activeContainer }) => {
     const isShed = activeContainer?.type === 'Shed';
     const [testData, setTestData] = useState({
-        testDate: sample.testDate || new Date().toISOString().split('T')[0],
+        testDate: sample.testDate || getTodayLocalDate(),
         testTime: sample.testTime || new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false }),
         cubeResults: sample.cubeResults?.length ? sample.cubeResults.map(cr => ({
             ...cr,
             weight: cr.weight || cr.weightKgs || '',
             load: cr.load || cr.loadKn || '',
             ageHrs: cr.ageHrs || cr.ageHours || '0.0',
-            testDate: cr.testDate || new Date().toISOString().split('T')[0],
+            testDate: cr.testDate || getTodayLocalDate(),
             testTime: cr.testTime || new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })
         })) : (sample.cubes || []).map(cube => ({
             cubeNo: cube.benchNo,
@@ -1301,7 +1443,7 @@ const TestDetailsModal = ({ sample, onClose, onSave, onDelete, isModifying, acti
             load: '',
             strength: '',
             ageHrs: '0.0',
-            testDate: new Date().toISOString().split('T')[0],
+            testDate: getTodayLocalDate(),
             testTime: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })
         }))
     });
@@ -1317,7 +1459,7 @@ const TestDetailsModal = ({ sample, onClose, onSave, onDelete, isModifying, acti
                     load: '',
                     strength: '',
                     ageHrs: '0.0',
-                    testDate: new Date().toISOString().split('T')[0],
+                    testDate: getTodayLocalDate(),
                     testTime: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })
                 }
             ]
@@ -1331,21 +1473,26 @@ const TestDetailsModal = ({ sample, onClose, onSave, onDelete, isModifying, acti
         }));
     };
 
-    const calculateAge = (castDate, castTime, testDate, testTime) => {
-        if (!castDate || !castTime || !testDate || !testTime) return '0.0';
-        const cast = new Date(`${castDate}T${castTime}`);
-        const test = new Date(`${testDate}T${testTime}`);
-        const diffMs = test - cast;
+    const calculateAge = (declDate, declTime, testDate, testTime) => {
+        if (!declDate || !testDate) return '0.0';
+        const timePart = declTime || '00:00';
+        const testTimePart = testTime || '00:00';
+        const start = new Date(`${declDate}T${timePart.length === 5 ? timePart : timePart.substring(0, 5)}`);
+        const end = new Date(`${testDate}T${testTimePart.length === 5 ? testTimePart : testTimePart.substring(0, 5)}`);
+        const diffMs = end - start;
+        if (isNaN(diffMs) || diffMs < 0) return '0.0';
         return (diffMs / (1000 * 60 * 60)).toFixed(1);
     };
 
-    // Initialize ageHrs for all cubes on mount (or if sample changes)
+    // Initialize ageHrs for all cubes on mount (calculated from Date of Declaration)
     useEffect(() => {
+        const effectiveDeclDate = sample.declarationDate || sample.dateOfDeclaration || sample.castingDate;
+        const effectiveDeclTime = sample.lbcTime || '00:00';
         setTestData(prev => ({
             ...prev,
             cubeResults: prev.cubeResults.map(cube => ({
                 ...cube,
-                ageHrs: calculateAge(sample.castingDate, sample.lbcTime, cube.testDate, cube.testTime)
+                ageHrs: calculateAge(effectiveDeclDate, effectiveDeclTime, cube.testDate || getTodayLocalDate(), cube.testTime)
             }))
         }));
     }, []); // Run once on mount
@@ -1359,13 +1506,15 @@ const TestDetailsModal = ({ sample, onClose, onSave, onDelete, isModifying, acti
             newCubeResults[index].strength = (parseFloat(value) / 22.5).toFixed(2);
         }
 
-        // Recalculate age if date or time changes
+        // Recalculate age if test time changes (based on Date of Declaration)
         if (field === 'testDate' || field === 'testTime') {
             const currentCube = newCubeResults[index];
+            const effectiveDeclDate = sample.declarationDate || sample.dateOfDeclaration || sample.castingDate;
+            const effectiveDeclTime = sample.lbcTime || '00:00';
             newCubeResults[index].ageHrs = calculateAge(
-                sample.castingDate,
-                sample.lbcTime,
-                currentCube.testDate,
+                effectiveDeclDate,
+                effectiveDeclTime,
+                currentCube.testDate || getTodayLocalDate(),
                 currentCube.testTime
             );
         }
@@ -1399,12 +1548,13 @@ const TestDetailsModal = ({ sample, onClose, onSave, onDelete, isModifying, acti
                     {/* Pre-filled Information */}
                     <div style={{ marginBottom: '20px' }}>
                         <label className="mini-label" style={{ color: '#42818c', fontSize: '11px' }}>PRE-FILLED INFORMATION</label>
-                        <div style={{ background: '#f8fafc', padding: '16px', borderRadius: '12px', border: '1px solid #e2e8f0', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '12px' }}>
-                            <div><div style={{ fontSize: '10px', color: '#64748b' }}>Location</div><div style={{ fontWeight: '700', fontSize: '13px', color: '#13343b' }}>{sample.shedNo || sample.lineNo}</div></div>
-                            <div><div style={{ fontSize: '10px', color: '#64748b' }}>Date of Casting</div><div style={{ fontWeight: '700', fontSize: '13px' }}>{sample.castingDate ? sample.castingDate.split('-').reverse().join('/') : ''}</div></div>
-                            <div><div style={{ fontSize: '10px', color: '#64748b' }}>Batch No.</div><div style={{ fontWeight: '700', fontSize: '13px' }}>{sample.batchNo}</div></div>
-                            <div><div style={{ fontSize: '10px', color: '#64748b' }}>LBC Time</div><div style={{ fontWeight: '700', fontSize: '13px' }}>{sample.lbcTime}</div></div>
-                            <div><div style={{ fontSize: '10px', color: '#64748b' }}>Concrete Grade</div><div style={{ fontWeight: '700', fontSize: '13px' }}>{sample.concreteGrade}</div></div>
+                        <div style={{ background: '#f8fafc', padding: '16px', borderRadius: '12px', border: '1px solid #e2e8f0', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '12px' }}>
+                            <div><div style={{ fontSize: '10px', color: '#64748b' }}>Location</div><div style={{ fontWeight: '700', fontSize: '13px', color: '#13343b' }}>{sample.shedNo || sample.lineNo || sample.location || '-'}</div></div>
+                            <div><div style={{ fontSize: '10px', color: '#64748b' }}>Date of Casting</div><div style={{ fontWeight: '700', fontSize: '13px' }}>{sample.castingDate ? sample.castingDate.split('-').reverse().join('/') : '-'}</div></div>
+                            <div><div style={{ fontSize: '10px', color: '#64748b' }}>Date of Declaration</div><div style={{ fontWeight: '700', fontSize: '13px', color: '#0d9488' }}>{sample.declarationDate ? sample.declarationDate.split('-').reverse().join('/') : (sample.castingDate ? sample.castingDate.split('-').reverse().join('/') : '-')}</div></div>
+                            <div><div style={{ fontSize: '10px', color: '#64748b' }}>Batch No.</div><div style={{ fontWeight: '700', fontSize: '13px' }}>{sample.batchNo || '-'}</div></div>
+                            <div><div style={{ fontSize: '10px', color: '#64748b' }}>LBC Time</div><div style={{ fontWeight: '700', fontSize: '13px' }}>{sample.lbcTime || '-'}</div></div>
+                            <div><div style={{ fontSize: '10px', color: '#64748b' }}>Concrete Grade</div><div style={{ fontWeight: '700', fontSize: '13px' }}>{sample.concreteGrade || sample.grade || '-'}</div></div>
                         </div>
                     </div>
 
@@ -1439,9 +1589,9 @@ const TestDetailsModal = ({ sample, onClose, onSave, onDelete, isModifying, acti
                                             <td style={{ padding: '6px 8px' }}>
                                                 <input
                                                     type="date"
-                                                    value={cube.testDate}
-                                                    onChange={e => updateCubeData(idx, 'testDate', e.target.value)}
-                                                    style={{ width: '100%', padding: '8px 6px', border: '1.5px solid #cbd5e1', borderRadius: '6px', fontSize: '12px', color: '#13343b', fontWeight: '500', outline: 'none' }}
+                                                    readOnly
+                                                    value={cube.testDate || testData.testDate || getTodayLocalDate()}
+                                                    style={{ width: '100%', padding: '8px 6px', border: '1px solid #cbd5e1', borderRadius: '6px', fontSize: '12px', color: '#64748b', background: '#f8fafc', fontWeight: '600', outline: 'none', cursor: 'not-allowed' }}
                                                 />
                                             </td>
                                             <td style={{ padding: '6px 8px' }}>
@@ -1536,6 +1686,7 @@ const TestDetailsModal = ({ sample, onClose, onSave, onDelete, isModifying, acti
                                 avgStrength,
                                 result,
                                 castingDate: sample.castingDate || sample.date || sample.entryDate,
+                                declarationDate: sample.declarationDate || sample.dateOfDeclaration || sample.castingDate,
                                 lbcTime: sample.lbcTime,
                                 lineNo: sample.lineNo || (sample.location && !sample.shedNo ? sample.location : null),
                                 shedNo: sample.shedNo || (sample.location && sample.shedNo ? sample.location : null),

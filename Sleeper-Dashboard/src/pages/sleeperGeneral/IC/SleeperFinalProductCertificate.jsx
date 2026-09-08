@@ -58,10 +58,11 @@ const extractNumber = (val, fallback = "") => {
 const resolveSleeperCaseNo = (rawCaseNo, rio) => {
     if (!rawCaseNo || !String(rawCaseNo).trim()) return null;
     const parts = String(rawCaseNo).split(',').map(s => s.trim()).filter(Boolean);
-    if (rio && String(rio).trim()) {
-        const firstLetter = String(rio).trim().charAt(0).toUpperCase();
+    const cleanRio = (rio || (typeof localStorage !== 'undefined' ? (localStorage.getItem('plantRio') || localStorage.getItem('rio')) : '')) || '';
+    if (cleanRio && String(cleanRio).trim()) {
+        const firstLetter = String(cleanRio).trim().charAt(0).toUpperCase();
         const matched = parts.find(p => p.toUpperCase().startsWith(firstLetter));
-        return matched || null;
+        if (matched) return matched;
     }
     return parts[0] || null;
 };
@@ -156,7 +157,7 @@ export default function SleeperFinalProductCertificate() {
     }
 
     const rawCaseNo = ic?.caseNo || c?.caseNo || c?.ibsCaseNo || c?.poCaseNo || "";
-    const effectiveRio = ic?.rio || c?.rio || localStorage.getItem('plantRio') || "";
+    const effectiveRio = ic?.rio || c?.rio || c?.plantRio || localStorage.getItem('plantRio') || "";
     const resolvedCaseNo = resolveSleeperCaseNo(rawCaseNo, effectiveRio);
     if (resolvedCaseNo && String(resolvedCaseNo).trim().length > 0) {
         defaultQtyPassedText += ` (CASE NO. ${String(resolvedCaseNo).trim()})`;

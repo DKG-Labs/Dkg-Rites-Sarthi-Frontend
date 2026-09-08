@@ -32,6 +32,13 @@ const base64ToBlob = (base64, type = 'application/pdf') => {
     return new Blob([arr], { type });
 };
 
+const formatCallSubmissionDate = (dt) => {
+    if (!dt || dt === '-' || dt === 'N/A') return '-';
+    const str = String(dt).trim();
+    const datePart = str.split(' ')[0].split('T')[0];
+    return datePart || str;
+};
+
 const DownloadIcAnnexures = ({ selectedProduct = 'ERC', fromDate: initialFromDate = '', toDate: initialToDate = '', hideFilters = false, vendorPlantCode = '', zonalRailway = '' }) => {
     // 1. Backend Data State
     const [records, setRecords] = useState([]);
@@ -45,6 +52,8 @@ const DownloadIcAnnexures = ({ selectedProduct = 'ERC', fromDate: initialFromDat
     const [fromDate, setFromDate] = useState(initialFromDate || '2025-01-01');
     const [toDate, setToDate] = useState(initialToDate || new Date().toISOString().split('T')[0]);
     const [globalSearch, setGlobalSearch] = useState('');
+    const [searchQuery, setSearchQuery] = useState('');
+    const [searchType, setSearchType] = useState('global'); // 'global' | 'callNo' | 'po' | 'vendor'
 
     // Active filters used for matching logic
     const [activeFilters, setActiveFilters] = useState({
@@ -53,6 +62,19 @@ const DownloadIcAnnexures = ({ selectedProduct = 'ERC', fromDate: initialFromDat
         toDate: initialToDate || new Date().toISOString().split('T')[0],
         search: ''
     });
+
+    const getSearchPlaceholder = () => {
+        switch (searchType) {
+            case 'callNo':
+                return 'Search by Call Number (e.g. RPP-080426008, EF-, SF-)...';
+            case 'po':
+                return 'Search by PO Number or Serial No...';
+            case 'vendor':
+                return 'Search by Vendor Name...';
+            default:
+                return 'Search Call No, PO No, Vendor Name, IC No...';
+        }
+    };
 
     // 2. Pagination state
     const [page, setPage] = useState(0);
@@ -145,11 +167,14 @@ const DownloadIcAnnexures = ({ selectedProduct = 'ERC', fromDate: initialFromDat
     // Reset filters
     const handleResetFilters = () => {
         setStageFilter('all');
-        const defaultFrom = '2025-01-01';
-        const defaultTo = new Date().toISOString().split('T')[0];
+        const defaultFrom = initialFromDate || '2025-01-01';
+        const defaultTo = initialToDate || new Date().toISOString().split('T')[0];
         setFromDate(defaultFrom);
         setToDate(defaultTo);
         setGlobalSearch('');
+        setSearchQuery('');
+        setSearchType('global');
+        setPage(0);
         setActiveFilters({
             stage: 'all',
             fromDate: defaultFrom,
@@ -178,41 +203,61 @@ const DownloadIcAnnexures = ({ selectedProduct = 'ERC', fromDate: initialFromDat
         let result = recordsSource.filter(record => {
             // Stage match based on Call Number Prefix
             let matchStage = true;
-            if (activeFilters.stage && activeFilters.stage !== 'all') {
+            const currentStage = activeFilters.stage || stageFilter;
+            if (currentStage && currentStage !== 'all') {
                 const callNum = (record.callNumber || '').toUpperCase().trim();
                 const stageStr = (record.stage || '').toUpperCase().trim();
-                if (activeFilters.stage === 'RAW MATERIAL') {
+                if (currentStage === 'RAW MATERIAL') {
                     matchStage = callNum.startsWith('ER') || callNum.startsWith('RPRM') || stageStr.includes('RAW') || stageStr === 'RM';
-                } else if (activeFilters.stage === 'PROCESS') {
+                } else if (currentStage === 'PROCESS') {
                     matchStage = callNum.startsWith('EP') || callNum.startsWith('RPP') || stageStr.includes('PROCESS');
-                } else if (activeFilters.stage === 'FINAL') {
+                } else if (currentStage === 'FINAL') {
                     matchStage = callNum.startsWith('EF') || callNum.startsWith('RPF') || callNum.startsWith('SF') || stageStr.includes('FINAL');
                 } else {
-                    matchStage = (record.stage && record.stage.trim().toLowerCase() === activeFilters.stage.trim().toLowerCase());
+                    matchStage = (record.stage && record.stage.trim().toLowerCase() === currentStage.trim().toLowerCase());
                 }
             }
             
             // Date range match
-            const recordDate = new Date(record.icIssuedDate);
-            const start = new Date(activeFilters.fromDate);
-            const end = new Date(activeFilters.toDate);
-            
-            // Normalize times for date comparison
-            recordDate.setHours(0, 0, 0, 0);
-            start.setHours(0, 0, 0, 0);
-            end.setHours(23, 59, 59, 999);
-            
-            const matchDate = recordDate >= start && recordDate <= end;
+            let matchDate = true;
+            if (activeFilters.fromDate && activeFilters.toDate) {
+                const recordDate = new Date(record.icIssuedDate);
+                const start = new Date(activeFilters.fromDate);
+                const end = new Date(activeFilters.toDate);
+                
+                // Normalize times for date comparison
+                recordDate.setHours(0, 0, 0, 0);
+                start.setHours(0, 0, 0, 0);
+                end.setHours(23, 59, 59, 999);
+                
+                matchDate = !isNaN(recordDate.getTime()) ? (recordDate >= start && recordDate <= end) : true;
+            }
 
-            // Global search (searchable on PO Number, IC Number, Vendor Name, and Call Number)
-            const query = activeFilters.search.toLowerCase().trim();
+            // Search filtering (supports Call No specifically, PO, Vendor, or Global)
+            const query = (searchQuery || activeFilters.search || '').toLowerCase().trim();
             const combinedPo = formatPoNumber(record).toLowerCase();
-            const matchSearch = !query || 
-                (record.vendorName || '').toLowerCase().includes(query) ||
-                (record.callNumber || '').toLowerCase().includes(query) ||
-                (record.icNumber || '').toLowerCase().includes(query) ||
-                combinedPo.includes(query) ||
-                (record.poNumberOnly || '').toLowerCase().includes(query);
+
+            let matchSearch = true;
+            if (query) {
+                if (searchType === 'callNo') {
+                    matchSearch = (record.callNumber || '').toLowerCase().includes(query);
+                } else if (searchType === 'po') {
+                    matchSearch = combinedPo.includes(query) || (record.poNumberOnly || '').toLowerCase().includes(query);
+                } else if (searchType === 'vendor') {
+                    matchSearch = (record.vendorName || '').toLowerCase().includes(query);
+                } else {
+                    // Global search (searchable across Call No, Vendor, PO, IC Number, Stage, Date, Qty)
+                    matchSearch = 
+                        (record.callNumber || '').toLowerCase().includes(query) ||
+                        (record.vendorName || '').toLowerCase().includes(query) ||
+                        (record.icNumber || '').toLowerCase().includes(query) ||
+                        combinedPo.includes(query) ||
+                        (record.poNumberOnly || '').toLowerCase().includes(query) ||
+                        (record.stage || '').toLowerCase().includes(query) ||
+                        (record.callSubmissionDateTime || '').toLowerCase().includes(query) ||
+                        (record.callQty || '').toString().toLowerCase().includes(query);
+                }
+            }
 
             return matchStage && matchDate && matchSearch;
         });
@@ -244,7 +289,7 @@ const DownloadIcAnnexures = ({ selectedProduct = 'ERC', fromDate: initialFromDat
         }
 
         return result;
-    }, [activeFilters, sortConfig, records]);
+    }, [activeFilters, stageFilter, sortConfig, records, searchQuery, searchType]);
 
 
 
@@ -460,6 +505,87 @@ const DownloadIcAnnexures = ({ selectedProduct = 'ERC', fromDate: initialFromDat
                 </>
             )}
 
+            {/* Table Search & Quick Filter Toolbar */}
+            <div className="ic-table-toolbar">
+                <div className="ic-toolbar-search-group">
+                    <select 
+                        className="ic-search-type-select"
+                        value={searchType}
+                        onChange={(e) => {
+                            setSearchType(e.target.value);
+                            setPage(0);
+                        }}
+                        title="Select search field"
+                    >
+                        <option value="global">Global Search</option>
+                        <option value="callNo">Call No</option>
+                        <option value="po">PO Number</option>
+                        <option value="vendor">Vendor Name</option>
+                    </select>
+
+                    <div className="ic-search-input-wrapper">
+                        <i className="fa-solid fa-magnifying-glass ic-search-icon"></i>
+                        <input 
+                            type="text" 
+                            className="ic-toolbar-search-input"
+                            placeholder={getSearchPlaceholder()}
+                            value={searchQuery}
+                            onChange={(e) => {
+                                setSearchQuery(e.target.value);
+                                setPage(0);
+                            }}
+                        />
+                        {searchQuery && (
+                            <button 
+                                type="button"
+                                className="ic-search-clear-btn" 
+                                onClick={() => {
+                                    setSearchQuery('');
+                                    setPage(0);
+                                }}
+                                title="Clear search"
+                            >
+                                <i className="fa-solid fa-xmark"></i>
+                            </button>
+                        )}
+                    </div>
+                </div>
+
+                <div className="ic-toolbar-filters">
+                    <div className="ic-toolbar-stage-wrapper">
+                        <select
+                            className="ic-toolbar-stage-select"
+                            value={stageFilter}
+                            onChange={(e) => {
+                                setStageFilter(e.target.value);
+                                setActiveFilters(prev => ({ ...prev, stage: e.target.value }));
+                                setPage(0);
+                            }}
+                            title="Filter by Stage"
+                        >
+                            <option value="all">All Stages</option>
+                            {selectedProduct !== 'Sleeper' && <option value="RAW MATERIAL">Raw Material (RM)</option>}
+                            <option value="PROCESS">Process</option>
+                            <option value="FINAL">Final Inspection</option>
+                        </select>
+                    </div>
+
+                    <span className="ic-toolbar-count-badge">
+                        Showing <strong>{filteredRecords.length}</strong> of <strong>{records.length}</strong>
+                    </span>
+
+                    <button
+                        type="button"
+                        className="ic-toolbar-refresh-btn"
+                        onClick={() => fetchRecords(true)}
+                        title="Refresh records"
+                        disabled={loading}
+                    >
+                        <i className={`fa-solid fa-arrows-rotate ${loading ? 'fa-spin' : ''}`}></i>
+                    </button>
+                </div>
+            </div>
+
             {/* IC Listing Table */}
             <div className="table-responsive prof-card mb">
                 <table className="prof-table main-table">
@@ -481,6 +607,12 @@ const DownloadIcAnnexures = ({ selectedProduct = 'ERC', fromDate: initialFromDat
                             <th onClick={() => handleSort('stage')} style={{ cursor: 'pointer', textAlign: 'center' }}>
                                 Stage of Inspection {renderSortIcon('stage')}
                             </th>
+                            <th onClick={() => handleSort('callSubmissionDateTime')} style={{ cursor: 'pointer', whiteSpace: 'nowrap' }}>
+                                Call Submission Date {renderSortIcon('callSubmissionDateTime')}
+                            </th>
+                            <th onClick={() => handleSort('callQty')} style={{ cursor: 'pointer', whiteSpace: 'nowrap' }}>
+                                Call QTY {renderSortIcon('callQty')}
+                            </th>
                             <th onClick={() => handleSort('icIssuedDate')} style={{ cursor: 'pointer' }}>
                                 IC Issued Date {renderSortIcon('icIssuedDate')}
                             </th>
@@ -490,7 +622,7 @@ const DownloadIcAnnexures = ({ selectedProduct = 'ERC', fromDate: initialFromDat
                     <tbody>
                         {loading ? (
                             <tr>
-                                <td colSpan="8" className="text-center p-8 text-slate-500">
+                                <td colSpan="10" className="text-center p-8 text-slate-500">
                                     <i className="fa-solid fa-spinner fa-spin" style={{ marginRight: '8px', color: '#3b82f6' }}></i>
                                     Loading Inspection Certificates...
                                 </td>
@@ -515,6 +647,12 @@ const DownloadIcAnnexures = ({ selectedProduct = 'ERC', fromDate: initialFromDat
                                                 {record.stage}
                                             </span>
                                         </td>
+                                        <td style={{ fontSize: '13px', whiteSpace: 'nowrap' }}>
+                                            {formatCallSubmissionDate(record.callSubmissionDateTime)}
+                                        </td>
+                                        <td style={{ fontWeight: '600', color: '#1e293b', whiteSpace: 'nowrap' }}>
+                                            {record.callQty || '-'}
+                                        </td>
                                         <td>{record.icIssuedDate ? new Date(record.icIssuedDate).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' }) : '-'}</td>
                                         <td>
                                             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '15px' }}>
@@ -537,7 +675,7 @@ const DownloadIcAnnexures = ({ selectedProduct = 'ERC', fromDate: initialFromDat
                             })
                         ) : (
                             <tr>
-                                <td colSpan="8" className="text-center p-8 text-slate-400">
+                                <td colSpan="10" className="text-center p-8 text-slate-400">
                                     No records found matching the filters.
                                 </td>
                             </tr>

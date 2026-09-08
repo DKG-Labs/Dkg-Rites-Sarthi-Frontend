@@ -204,8 +204,8 @@ const SleeperFinalIc = ({
       lineHeight: '1.25'
     }}>
 
-      {/* Top spacing to match RITES letterhead margin exactly (42mm for pre-printed letterhead gap) */}
-      <div style={{ height: '42mm' }} className="sleeper-ic-letterhead-spacer"></div>
+      {/* Top spacing to match RITES letterhead margin exactly (adjusted to 58mm so Book No & Set No does not overlap pre-printed header) */}
+      <div style={{ height: '58mm' }} className="sleeper-ic-letterhead-spacer"></div>
 
       {/* Book & Set Number Centered Container */}
       <div style={{ display: 'flex', justifyContent: 'center', width: '100%', marginBottom: '12px' }}>
@@ -688,7 +688,7 @@ const SleeperFinalIc = ({
 
       </fieldset>
       {/* Footer spacing for pre-printed stationery footer margin */}
-      <div style={{ minHeight: '15mm' }} className="sleeper-ic-footer-spacer"></div>
+      <div style={{ minHeight: '4mm' }} className="sleeper-ic-footer-spacer"></div>
     </div>
   );
 };

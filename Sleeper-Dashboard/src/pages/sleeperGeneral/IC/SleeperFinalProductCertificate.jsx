@@ -650,7 +650,7 @@ export default function SleeperFinalProductCertificate() {
       <style>
         {`
           @media print {
-            @page { size: A4 portrait; margin: 10mm 8mm 15mm 8mm; }
+            @page { size: A4 portrait; margin: 10mm 8mm 8mm 8mm; }
             body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
             .no-print, .main-header, .sidebar { display: none !important; }
             .certificate-print-wrapper { padding: 0 !important; box-shadow: none !important; margin: 0 !important; }

@@ -48,7 +48,7 @@ export async function exportToPdf(element, filename = "certificate.pdf") {
       clonedElement.style.width = '210mm';
       clonedElement.style.maxWidth = '210mm';
       clonedElement.style.margin = '0 auto';
-      clonedElement.style.padding = '0mm 7mm 15mm 7mm';
+      clonedElement.style.padding = '0mm 7mm 8mm 7mm';
       clonedElement.style.boxSizing = 'border-box';
       clonedElement.style.backgroundColor = '#ffffff';
     },
@@ -106,7 +106,7 @@ export async function generatePdfBase64(element, filename = null) {
       clonedElement.style.width = '210mm';
       clonedElement.style.maxWidth = '210mm';
       clonedElement.style.margin = '0 auto';
-      clonedElement.style.padding = '0mm 7mm 15mm 7mm';
+      clonedElement.style.padding = '0mm 7mm 8mm 7mm';
       clonedElement.style.boxSizing = 'border-box';
       clonedElement.style.backgroundColor = '#ffffff';
     },

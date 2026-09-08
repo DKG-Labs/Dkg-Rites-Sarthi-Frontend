@@ -1,22 +1,79 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { ExportButton } from './SharedComponents';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
 import './PoIssuedModal.css'; // Reuses modal styles for consistency
 
 const formatPoSrNo = (value) => {
-    if (!value) return '-';
-    const parts = value.split('/');
-    // If format is Zone/PO/PO/Serial (4 parts with duplicate middle), collapse to Zone/PO/Serial
-    if (parts.length === 4 && parts[1] === parts[2]) {
-        return `${parts[0]}/${parts[1]}/${parts[3]}`;
+    if (!value || value === '-') return '-';
+    const parts = value.split('/').map(p => p.trim()).filter(Boolean);
+    
+    // Remove 'N/A' or 'null' prefix if more specific parts exist
+    const filtered = parts.filter((p, idx) => !(idx === 0 && (p === 'N/A' || p === 'null') && parts.length > 1));
+    
+    // Deduplicate identical parts while preserving order
+    const seen = new Set();
+    const result = [];
+    for (const p of filtered) {
+        if (!seen.has(p)) {
+            seen.add(p);
+            result.push(p);
+        }
     }
-    return value;
+    
+    return result.length > 0 ? result.join('/') : '-';
+};
+
+const formatCallSubmissionDate = (dt) => {
+    if (!dt || dt === '-' || dt === 'N/A') return '-';
+    const str = String(dt).trim();
+    const datePart = str.split(' ')[0].split('T')[0];
+    return datePart || str;
+};
+
+const formatCallQty = (qty, stage, callNumber, railPadType) => {
+    if (qty == null || qty === '' || qty === '-' || qty === 0 || qty === '0') return '-';
+    const str = String(qty).trim();
+    if (str.endsWith('MT') || str.endsWith('Nos') || str.endsWith('Nos.') || str.endsWith('Set')) return str;
+
+    const upperCall = (callNumber || '').toUpperCase();
+    if (upperCall.startsWith('RPP')) {
+        return `${str} Nos`;
+    }
+    if (upperCall.startsWith('RPF')) {
+        const isNcr = railPadType && railPadType.toUpperCase().includes('NCRGRSP');
+        return `${str} ${isNcr ? 'Set' : 'Nos'}`;
+    }
+
+    const isRm = (stage && stage.toLowerCase().includes('rm')) ||
+                 (callNumber && (callNumber.startsWith('ER') || callNumber.includes('ER-') || callNumber.includes('ER/')));
+    return `${str} ${isRm ? 'MT' : 'Nos'}`;
 };
 
 const InspectionCallStatusModal = ({ isOpen, onClose, data, title, isLoading }) => {
     const [searchTerm, setSearchTerm] = useState('');
     const [selectedStage, setSelectedStage] = useState('all');
+
+    // Reset filters whenever modal is opened or title changes
+    useEffect(() => {
+        if (isOpen) {
+            setSearchTerm('');
+            setSelectedStage('all');
+        }
+    }, [isOpen, title]);
+
+    // Available stages dynamically derived from actual data
+    const availableStages = useMemo(() => {
+        if (!data || data.length === 0) return [];
+        return Array.from(new Set(data.map(item => item.stageOfInspection).filter(Boolean)));
+    }, [data]);
+
+    // If current selectedStage does not exist in availableStages, auto-reset to 'all'
+    useEffect(() => {
+        if (selectedStage !== 'all' && availableStages.length > 0 && !availableStages.includes(selectedStage)) {
+            setSelectedStage('all');
+        }
+    }, [availableStages, selectedStage]);
 
     // Filtered data
     const filteredData = useMemo(() => {
@@ -39,8 +96,9 @@ const InspectionCallStatusModal = ({ isOpen, onClose, data, title, isLoading }) 
         { label: 'Sl No.', key: 'slNo' },
         { label: 'Inspection Call Number', key: 'inspectionCallNumber' },
         { label: 'Vendor', key: 'vendor' },
-        { label: 'Call Submission Date & Time', key: 'callSubmissionDateTime' },
+        { label: 'Call Submission Date', key: 'callSubmissionDate' },
         { label: 'Stage of Inspection', key: 'stageOfInspection' },
+        { label: 'Call QTY', key: 'callQty' },
         { label: 'PO Sr.No.', key: 'poSrNo' },
         { label: 'DP Date', key: 'dpDate' },
         { label: 'Status', key: 'status' }
@@ -49,6 +107,8 @@ const InspectionCallStatusModal = ({ isOpen, onClose, data, title, isLoading }) 
     const exportData = filteredData.map((item, index) => ({
         ...item,
         slNo: index + 1,
+        callSubmissionDate: formatCallSubmissionDate(item.callSubmissionDateTime),
+        callQty: formatCallQty(item.callQty, item.stageOfInspection, item.inspectionCallNumber, item.railPadType),
         poSrNo: formatPoSrNo(item.poSrNo)
     }));
 
@@ -67,8 +127,9 @@ const InspectionCallStatusModal = ({ isOpen, onClose, data, title, isLoading }) 
             item.slNo,
             item.inspectionCallNumber,
             item.vendor,
-            item.callSubmissionDateTime || '-',
+            item.callSubmissionDate || '-',
             item.stageOfInspection,
+            item.callQty,
             item.poSrNo,
             item.dpDate || '-',
             (item.mainStatus && item.subStatus) ? `${item.mainStatus} - ${item.subStatus}` : (item.mainStatus || item.subStatus || '-')
@@ -117,20 +178,32 @@ const InspectionCallStatusModal = ({ isOpen, onClose, data, title, isLoading }) 
                             onChange={(e) => setSearchTerm(e.target.value)}
                             disabled={isLoading}
                         />
+                        {searchTerm && (
+                            <button
+                                type="button"
+                                className="search-clear-btn"
+                                onClick={() => setSearchTerm('')}
+                                title="Clear search"
+                            >
+                                <i className="fa-solid fa-xmark"></i>
+                            </button>
+                        )}
                     </div>
-                    <div className="filter-group">
-                        <select
-                            value={selectedStage}
-                            onChange={(e) => setSelectedStage(e.target.value)}
-                            className="modal-select"
-                            disabled={isLoading}
-                        >
-                            <option value="all">All Stages</option>
-                            <option value="RM Stage">RM Stage</option>
-                            <option value="Process Stage">Process Stage</option>
-                            <option value="Final Stage">Final Stage</option>
-                        </select>
-                    </div>
+                    {availableStages.length > 1 && (
+                        <div className="filter-group">
+                            <select
+                                value={selectedStage}
+                                onChange={(e) => setSelectedStage(e.target.value)}
+                                className="modal-select"
+                                disabled={isLoading}
+                            >
+                                <option value="all">All Stages</option>
+                                {availableStages.map((stage) => (
+                                    <option key={stage} value={stage}>{stage}</option>
+                                ))}
+                            </select>
+                        </div>
+                    )}
                 </div>
 
                 <div className="modal-table-container">
@@ -140,8 +213,9 @@ const InspectionCallStatusModal = ({ isOpen, onClose, data, title, isLoading }) 
                                 <th>Sl No.</th>
                                 <th>Inspection Call Number</th>
                                 <th>Vendor</th>
-                                <th>Call Submission Date &amp; Time</th>
+                                <th>Call Submission Date</th>
                                 <th>Stage of Inspection</th>
+                                <th>Call QTY</th>
                                 <th>PO Sr.No.</th>
                                 <th>DP Date</th>
                                 <th>Status</th>
@@ -157,6 +231,7 @@ const InspectionCallStatusModal = ({ isOpen, onClose, data, title, isLoading }) 
                                         <td><div className="skeleton-cell" style={{ width: '150px' }}></div></td>
                                         <td><div className="skeleton-cell" style={{ width: '100px' }}></div></td>
                                         <td><div className="skeleton-cell" style={{ width: '80px', borderRadius: '12px' }}></div></td>
+                                        <td><div className="skeleton-cell" style={{ width: '70px' }}></div></td>
                                         <td><div className="skeleton-cell" style={{ width: '100px' }}></div></td>
                                         <td><div className="skeleton-cell" style={{ width: '80px' }}></div></td>
                                         <td><div className="skeleton-cell" style={{ width: '180px' }}></div></td>
@@ -168,7 +243,7 @@ const InspectionCallStatusModal = ({ isOpen, onClose, data, title, isLoading }) 
                                         <td>{index + 1}</td>
                                         <td style={{ fontWeight: '700', color: '#1e293b' }}>{item.inspectionCallNumber}</td>
                                         <td>{item.vendor}</td>
-                                        <td>{item.callSubmissionDateTime || '-'}</td>
+                                        <td>{formatCallSubmissionDate(item.callSubmissionDateTime)}</td>
                                         <td>
                                             <span className="prof-badge" style={{
                                                 background: item.stageOfInspection === 'RM Stage' ? '#eff6ff' : item.stageOfInspection === 'Process Stage' ? '#fff7ed' : '#fef2f2',
@@ -180,6 +255,9 @@ const InspectionCallStatusModal = ({ isOpen, onClose, data, title, isLoading }) 
                                             }}>
                                                 {item.stageOfInspection}
                                             </span>
+                                        </td>
+                                        <td style={{ fontWeight: '600', color: '#1e293b' }}>
+                                            {formatCallQty(item.callQty, item.stageOfInspection, item.inspectionCallNumber, item.railPadType)}
                                         </td>
                                         <td style={{ fontSize: '12px', fontFamily: 'monospace' }}>{formatPoSrNo(item.poSrNo)}</td>
                                         <td>{item.dpDate || '-'}</td>
@@ -208,7 +286,7 @@ const InspectionCallStatusModal = ({ isOpen, onClose, data, title, isLoading }) 
                                 ))
                             ) : (
                                 <tr>
-                                    <td colSpan="8" className="text-center">No active calls found</td>
+                                    <td colSpan="9" className="text-center">No active calls found</td>
                                 </tr>
                             )}
                         </tbody>

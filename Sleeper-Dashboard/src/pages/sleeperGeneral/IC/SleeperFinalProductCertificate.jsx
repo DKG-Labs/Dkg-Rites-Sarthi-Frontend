@@ -55,6 +55,18 @@ const extractNumber = (val, fallback = "") => {
     return Math.round(parsed).toString();
 };
 
+const resolveSleeperCaseNo = (rawCaseNo, rio) => {
+    if (!rawCaseNo || !String(rawCaseNo).trim()) return null;
+    const parts = String(rawCaseNo).split(',').map(s => s.trim()).filter(Boolean);
+    const cleanRio = (rio || (typeof localStorage !== 'undefined' ? (localStorage.getItem('plantRio') || localStorage.getItem('rio')) : '')) || '';
+    if (cleanRio && String(cleanRio).trim()) {
+        const firstLetter = String(cleanRio).trim().charAt(0).toUpperCase();
+        const matched = parts.find(p => p.toUpperCase().startsWith(firstLetter));
+        if (matched) return matched;
+    }
+    return parts[0] || null;
+};
+
 export default function SleeperFinalProductCertificate() {
   const printAreaRef = useRef();
   const [isEditing, setIsEditing] = useState(false);
@@ -81,9 +93,11 @@ export default function SleeperFinalProductCertificate() {
     const qtyOnOrder = extractNumber(ic?.quantityOnOrder, c?.qtyOnOrder || c?.poQty || "");
     const qtyOfferedPreviously = extractNumber(ic?.cumulativeQtyOfferedPreviously, c?.qtyOfferedPreviously || "0");
     const qtyPassedPreviously = extractNumber(ic?.quantityPreviouslyPassed, c?.qtyPassedPreviously || "0");
-    const qtyNowOffered = extractNumber(ic?.qtyNowOffered, c?.qtyNowOffered || c?.qty || c?.totalOffered || "");
     const qtyNowPassed = extractNumber(ic?.qtyNowPassed, c?.qtyNowPassed || c?.accepted || c?.totalAccepted || "");
     const qtyNowRejected = extractNumber(ic?.qtyNowRejected, c?.qtyNowRejected || c?.rejected || c?.totalRejected || "0");
+    const sumOffered = (parseFloat(qtyNowPassed || 0) + parseFloat(qtyNowRejected || 0));
+    const fallbackOffered = sumOffered > 0 ? String(sumOffered) : (c?.qtyNowOffered || c?.qtyOfferedNow || c?.totalOfferedQuantity || c?.total_offered_quantity || c?.totalOffered || c?.qty || "");
+    const qtyNowOffered = extractNumber(ic?.qtyNowOffered, c?.qtyNowOffered || fallbackOffered);
 
     const numOrder = parseFloat(qtyOnOrder) || 0;
     const numPrevPassed = parseFloat(qtyPassedPreviously) || 0;
@@ -142,8 +156,25 @@ export default function SleeperFinalProductCertificate() {
         defaultQtyPassedText += ` Casting Batch No ${batchStr.trim()}`;
     }
 
-    const callNum = c?.requestId || c?.callNo || c?.call_no || (ic?.certificateNo ? ic.certificateNo.split('/')?.[1] : "");
-    let itemSr = ic?.itemNo || c?.itemNo || c?.srNo || "002";
+    const rawCaseNo = ic?.caseNo || c?.caseNo || c?.ibsCaseNo || c?.poCaseNo || "";
+    const effectiveRio = ic?.rio || c?.rio || c?.plantRio || localStorage.getItem('plantRio') || "";
+    const resolvedCaseNo = resolveSleeperCaseNo(rawCaseNo, effectiveRio);
+    if (resolvedCaseNo && String(resolvedCaseNo).trim().length > 0) {
+        defaultQtyPassedText += ` (CASE NO. ${String(resolvedCaseNo).trim()})`;
+    }
+
+    let defaultRejectionReason = "Not Applicable";
+    if (numRejected > 0) {
+        const rejWords = numberToWords(numRejected);
+        if (mfCount > 0) {
+            const mfWords = numberToWords(mfCount).toLowerCase();
+            defaultRejectionReason = `${rejWords} numbers rejected during inspection and ${mfWords} number destroyed during MFT as detailed in Annexure-I to IC attached.`;
+        } else {
+            defaultRejectionReason = `${rejWords} numbers rejected during inspection as detailed in Annexure-I to IC attached.`;
+        }
+    }
+
+    let itemSr = ic?.itemNo || c?.itemNo || c?.srNo || "001";
     try {
         if (/^\d+$/.test(String(itemSr).trim())) {
             itemSr = String(itemSr).trim().padStart(3, '0');
@@ -152,12 +183,14 @@ export default function SleeperFinalProductCertificate() {
 
     let rawDesc = ic?.descriptionOfStores || c?.descriptionOfStores || c?.description || "MANUFACTURE AND SUPPLY OF PRESTRESSED MONO-BLOCK CONCRETE LINE SLEEPERES (RT-8746) (PRETENSIONED TYPE) FOR BROAD GAUGE(1673 MM)";
     
-    // Strip any legacy prefix
+    // Strip any legacy prefix including call numbers or old prefixes
     let cleanDesc = rawDesc
         .replace(/^CALL NO:\s*[^,]+,\s*PO SR NO:\s*\S+\s*-\s*/i, '')
-        .replace(/^[A-Z0-9-]+\/\d+\s*-\s*/i, '');
+        .replace(/^[A-Z0-9-]+\/\d+\s*-\s*/i, '')
+        .replace(/^PO SR NO:?\s*\d+\s*-\s*/i, '')
+        .replace(/^PO SR NO\s+\d+\s*-\s*/i, '');
 
-    let finalDesc = callNum ? `${callNum}/${itemSr} - ${cleanDesc}` : cleanDesc;
+    let finalDesc = `PO SR NO ${itemSr} - ${cleanDesc}`;
 
     return {
         certificateNo: ic?.certificateNo || c?.certificateNo || c?.icNo || "",
@@ -182,7 +215,7 @@ export default function SleeperFinalProductCertificate() {
         qtyNowPassed,
         qtyNowRejected,
         qtyStillDue,
-        noOfItemsChecked: ic?.noOfItemsChecked || c?.noOfItemsChecked || qtyNowOffered || c?.totalOffered || "1",
+        noOfItemsChecked: ic?.noOfItemsChecked || c?.noOfItemsChecked || "1",
         dateOfCall,
         noOfVisits: ic?.noOfVisits ? String(ic.noOfVisits) : (c?.noOfVisits || "1"),
         datesOfInspection,
@@ -190,7 +223,7 @@ export default function SleeperFinalProductCertificate() {
         quantityNowPassedText: ic?.quantityNowPassedText || c?.quantityNowPassedText || defaultQtyPassedText,
         sealingPattern: ic?.sealingPattern || c?.sealingPattern || "RITES Stencil R↑I 12 marked on the top surface of each PSC sleeper in presence of vendor.",
         facsimileText: ic?.facsimileText || c?.facsimileText || "",
-        reasonsForRejection: ic?.reasonsForRejection || c?.reasonsForRejection || "Not Applicable",
+        reasonsForRejection: ic?.reasonsForRejection || c?.reasonsForRejection || defaultRejectionReason,
         inspectingEngineer: ic?.inspectingEngineer || c?.inspectingEngineer || "",
         region: ic?.region || c?.region || "RITES LIMITED, CENTRAL REGION, BHILAI"
     };
@@ -217,6 +250,16 @@ export default function SleeperFinalProductCertificate() {
                   setData(prev => {
                       const updated = transformCallToIC(call, icData);
                       if (savedEdit) {
+                        let cleanSavedDesc = savedEdit.description;
+                        if (cleanSavedDesc && (cleanSavedDesc.includes('/') || /^[A-Z0-9-]+\/\d+/i.test(cleanSavedDesc))) {
+                          cleanSavedDesc = cleanSavedDesc
+                            .replace(/^CALL NO:\s*[^,]+,\s*PO SR NO:\s*\S+\s*-\s*/i, '')
+                            .replace(/^[A-Z0-9-]+\/\d+\s*-\s*/i, '')
+                            .replace(/^PO SR NO:?\s*\d+\s*-\s*/i, '')
+                            .replace(/^PO SR NO\s+\d+\s*-\s*/i, '');
+                          cleanSavedDesc = `PO SR NO ${updated.itemNo || "001"} - ${cleanSavedDesc}`;
+                        }
+
                         return {
                           ...prev,
                           ...updated,
@@ -230,12 +273,12 @@ export default function SleeperFinalProductCertificate() {
                           qtyStillDue: savedEdit.qtyStillDue || updated.qtyStillDue || prev.qtyStillDue,
                           maNumberAndDate: savedEdit.maNumberAndDate || updated.maNumberAndDate || prev.maNumberAndDate,
                           purchasingAuthority: savedEdit.purchasingAuthority || updated.purchasingAuthority || prev.purchasingAuthority,
-                          description: savedEdit.description || updated.description || prev.description,
+                          description: cleanSavedDesc || updated.description || prev.description,
                           trRecDate: savedEdit.trRecDate || updated.trRecDate || prev.trRecDate,
                           noOfVisits: savedEdit.noOfVisits || updated.noOfVisits || prev.noOfVisits,
                           datesOfInspection: savedEdit.datesOfInspection || updated.datesOfInspection || prev.datesOfInspection,
                           sealingPattern: savedEdit.sealingPattern || updated.sealingPattern || prev.sealingPattern,
-                          reasonsForRejection: savedEdit.reasonsForRejection || updated.reasonsForRejection || prev.reasonsForRejection,
+                          reasonsForRejection: (savedEdit.reasonsForRejection && savedEdit.reasonsForRejection !== 'Not Applicable') ? savedEdit.reasonsForRejection : (updated.reasonsForRejection || prev.reasonsForRejection),
                         };
                       }
                       return {

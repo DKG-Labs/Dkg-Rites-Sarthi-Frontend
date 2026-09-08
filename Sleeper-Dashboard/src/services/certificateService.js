@@ -112,7 +112,8 @@ export const viewSignedCertificate = async (icNumber) => {
 };
 
 /**
- * Save or update Sleeper Final IC Edit Data
+/**
+ * Save or update Sleeper Final IC Edit Data (sleeper_final_ic_edit table)
  * @param {Object} payload 
  */
 export const saveFinalIcEditData = async (payload) => {
@@ -132,7 +133,7 @@ export const saveFinalIcEditData = async (payload) => {
 };
 
 /**
- * Get Sleeper Final IC Edit Data
+ * Get Sleeper Final IC Edit Data (sleeper_final_ic_edit table)
  * @param {string} icNumber 
  */
 export const getFinalIcEditData = async (icNumber) => {
@@ -153,7 +154,7 @@ export const getFinalIcEditData = async (icNumber) => {
 };
 
 /**
- * Save or update Sleeper Final IC Save Changes Data (Draft)
+ * Save or update Sleeper Final IC Save Changes Data Draft (sleeper_final_ic_save_changes table)
  * @param {Object} payload 
  */
 export const saveFinalIcSaveChanges = async (payload) => {
@@ -173,7 +174,7 @@ export const saveFinalIcSaveChanges = async (payload) => {
 };
 
 /**
- * Get Sleeper Final IC Save Changes Data (Draft)
+ * Get Sleeper Final IC Save Changes Data Draft (sleeper_final_ic_save_changes table)
  * @param {string} icNumber 
  */
 export const getFinalIcSaveChanges = async (icNumber) => {
@@ -192,4 +193,10 @@ export const getFinalIcSaveChanges = async (icNumber) => {
     return null;
   }
 };
+
+// Aliases for explicit sleeper naming
+export const saveSleeperFinalIcEditData = saveFinalIcEditData;
+export const getSleeperFinalIcEditData = getFinalIcEditData;
+export const saveSleeperFinalIcSaveChanges = saveFinalIcSaveChanges;
+export const getSleeperFinalIcSaveChanges = getFinalIcSaveChanges;
 

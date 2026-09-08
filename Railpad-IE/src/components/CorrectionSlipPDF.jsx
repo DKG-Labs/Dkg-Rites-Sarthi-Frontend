@@ -151,9 +151,12 @@ const styles = `
   }
   .cs-table td {
     border: 1px solid #000;
-    padding: 5px 7px;
+    padding: 5px 8px;
     text-align: center;
-    vertical-align: middle;
+    vertical-align: top;
+    white-space: pre-wrap;
+    word-break: break-word;
+    line-height: 1.35;
   }
   .cs-table td.left { text-align: left; }
 
@@ -251,6 +254,14 @@ const styles = `
 const toWords = (n) => {
   const w = ['','ONE','TWO','THREE','FOUR','FIVE','SIX','SEVEN','EIGHT','NINE','TEN'];
   return (n >= 1 && n <= 10) ? w[n] : String(n);
+};
+
+export const formatCorrectionText = (text) => {
+  if (!text) return '';
+  let s = String(text);
+  // Auto break lines between heat numbers / quantities if separated by spaces instead of newlines
+  s = s.replace(/(\bMT|\bNos\.?|\bNill?\b)\s+(?=\d{3,}\s*-|\bTotal\s*Qty\b|\bTotal\b|\bApprox\b)/gi, '$1\n');
+  return s;
 };
 
 const today = () => {
@@ -576,16 +587,16 @@ const CorrectionSlipPDF = ({ icData = {}, corrections = [], callNo = '', icField
               <thead>
                 <tr>
                   <th style={{ width:'18%', fontWeight: 'bold' }}>COLUMN</th>
-                  <th style={{ width:'22%', fontWeight: 'bold' }}>READ AS</th>
-                  <th style={{ fontWeight: 'bold' }}>INSTEAD OF</th>
+                  <th style={{ width:'41%', fontWeight: 'bold' }}>READ AS</th>
+                  <th style={{ width:'41%', fontWeight: 'bold' }}>INSTEAD OF</th>
                 </tr>
               </thead>
               <tbody>
                 {corrections.map((c, idx) => (
                   <tr key={idx}>
-                    <td className="left">{getColLabel(c.columnName)}</td>
-                    <td>{c.readAs}</td>
-                    <td className="left">{c.insteadOf}</td>
+                    <td className="left" style={{ verticalAlign: 'top' }}>{getColLabel(c.columnName)}</td>
+                    <td className="left" style={{ verticalAlign: 'top', whiteSpace: 'pre-wrap' }}>{formatCorrectionText(c.readAs)}</td>
+                    <td className="left" style={{ verticalAlign: 'top', whiteSpace: 'pre-wrap' }}>{formatCorrectionText(c.insteadOf)}</td>
                   </tr>
                 ))}
               </tbody>

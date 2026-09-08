@@ -11,7 +11,7 @@ import { fetchCorrectionSlip } from '../services/correctionSlipService';
 import { getStoredUser } from '../services/authService';
 
 import Notification from './Notification';
-import CorrectionSlipPDF from './CorrectionSlipPDF';
+import CorrectionSlipPDF, { formatCorrectionText } from './CorrectionSlipPDF';
 
 /* ─── helpers ─── */
 const getProductType = (row) => {
@@ -303,9 +303,10 @@ const S = {
   td: { padding: '8px 12px', border: '1px solid #e5e7eb', verticalAlign: 'middle', color: '#4b5563' },
   tdVal: { padding: '8px 12px', border: '1px solid #e5e7eb', fontWeight: '500', color: '#1f2937' },
   inputBase: {
-    width: '100%', padding: '5px 9px', border: '1px solid #d1d5db',
+    width: '100%', padding: '6px 9px', border: '1px solid #d1d5db',
     borderRadius: '6px', fontSize: '12.5px', outline: 'none', boxSizing: 'border-box',
-    height: '32px', color: '#1f2937',
+    minHeight: '34px', color: '#1f2937', fontFamily: 'inherit', lineHeight: '1.4',
+    resize: 'vertical',
     transition: 'border-color 0.15s',
   },
   select: {
@@ -483,8 +484,8 @@ const CorrectionSlipModal = ({ row, onClose }) => {
         setCorrections(saved.map(s => ({
           id: Date.now() + Math.random(),
           columnName: s.columnName || s.column_name || '',
-          readAs: s.readAs || s.read_as || '',
-          insteadOf: s.insteadOf || s.instead_of || '',
+          readAs: formatCorrectionText(s.readAs || s.read_as || ''),
+          insteadOf: formatCorrectionText(s.insteadOf || s.instead_of || ''),
         })));
       }
     };
@@ -512,7 +513,12 @@ const CorrectionSlipModal = ({ row, onClose }) => {
       // auto-fill insteadOf when column selected
       if (field === 'columnName') {
         const found = icFields.find(f => f.key === value);
-        updated.insteadOf = found ? found.value : '';
+        const val = found ? found.value : '';
+        const formattedVal = formatCorrectionText(val);
+        updated.insteadOf = formattedVal;
+        if (!updated.readAs || updated.readAs.trim() === '') {
+          updated.readAs = formattedVal;
+        }
       }
       return updated;
     }));
@@ -609,7 +615,7 @@ const CorrectionSlipModal = ({ row, onClose }) => {
                   {icFields.map(({ key, label, value }) => (
                     <tr key={key}>
                       <td style={S.td}>{label}</td>
-                      <td style={S.tdVal}>{value}</td>
+                      <td style={{ ...S.tdVal, whiteSpace: 'pre-wrap', lineHeight: '1.4' }}>{value}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -623,16 +629,16 @@ const CorrectionSlipModal = ({ row, onClose }) => {
             <table style={{ ...S.table, marginBottom: '12px' }}>
               <thead>
                 <tr>
-                  <th style={{ ...S.th, width: '32%' }}>Column Name</th>
-                  <th style={{ ...S.th, width: '30%' }}>Read As</th>
-                  <th style={{ ...S.th, width: '30%' }}>Instead Of</th>
-                  <th style={{ ...S.th, width: '8%' }}>✕</th>
+                  <th style={{ ...S.th, width: '30%' }}>Column Name</th>
+                  <th style={{ ...S.th, width: '32%' }}>Read As</th>
+                  <th style={{ ...S.th, width: '32%' }}>Instead Of</th>
+                  <th style={{ ...S.th, width: '6%' }}>✕</th>
                 </tr>
               </thead>
               <tbody>
                 {corrections.map((corr) => (
                   <tr key={corr.id}>
-                    <td style={{ ...S.td, padding: '6px 8px' }}>
+                    <td style={{ ...S.td, padding: '6px 8px', verticalAlign: 'top' }}>
                       <FieldDropdown
                         options={icFields}
                         hiddenKeys={HIDDEN_DROPDOWN_KEYS}
@@ -641,10 +647,10 @@ const CorrectionSlipModal = ({ row, onClose }) => {
                         disabled={loading || !!icError}
                       />
                     </td>
-                    <td style={{ ...S.td, padding: '6px 8px' }}>
-                      <input
+                    <td style={{ ...S.td, padding: '6px 8px', verticalAlign: 'top' }}>
+                      <textarea
+                        rows={corr.readAs && corr.readAs.includes('\n') ? Math.min(Math.max(corr.readAs.split('\n').length, 2), 8) : 2}
                         style={S.inputBase}
-                        type="text"
                         placeholder="Enter corrected value"
                         value={corr.readAs}
                         onChange={(e) => updateRow(corr.id, 'readAs', e.target.value)}
@@ -652,17 +658,17 @@ const CorrectionSlipModal = ({ row, onClose }) => {
                         onBlur={e => { e.target.style.borderColor = '#d1d5db'; }}
                       />
                     </td>
-                    <td style={{ ...S.td, padding: '6px 8px' }}>
-                      <input
-                        style={{ ...S.inputBase, background: '#f1f5f9', color: '#6b7280', cursor: 'not-allowed', fontStyle: 'italic', border: '1px solid #e5e7eb' }}
-                        type="text"
+                    <td style={{ ...S.td, padding: '6px 8px', verticalAlign: 'top' }}>
+                      <textarea
+                        rows={corr.insteadOf && corr.insteadOf.includes('\n') ? Math.min(Math.max(corr.insteadOf.split('\n').length, 2), 8) : 2}
+                        style={{ ...S.inputBase, background: '#f1f5f9', color: '#4b5563', cursor: 'not-allowed', fontStyle: 'italic', border: '1px solid #e5e7eb' }}
                         readOnly
                         value={corr.insteadOf}
                         title="Auto-filled from IC data"
                         placeholder="Auto-filled"
                       />
                     </td>
-                    <td style={{ ...S.td, padding: '6px 8px', textAlign: 'center' }}>
+                    <td style={{ ...S.td, padding: '6px 8px', textAlign: 'center', verticalAlign: 'top' }}>
                       <button style={S.btnDanger} onClick={() => removeRow(corr.id)} title="Remove row">✕</button>
                     </td>
                   </tr>

@@ -649,7 +649,7 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
     const lot = lots.find(l => l.id === lotId) || { railpadType: '' };
     const type = lot.railpadType || '';
     if (type.includes('CGRSP')) return { a: 1.27, b: 1.17, variation: 0.03 };
-    if (type.includes('NCRGRSP')) return { a: 1.27, variation: 0.03 };
+    if (type.includes('NCRGRSP')) return { a: 1.27, b: 1.27, variation: 0.03 };
     return { a: 1.27, variation: 0.03 }; // Default for GRSP
   };
 
@@ -657,6 +657,7 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
     const lot = lots.find(l => l.id === lotId) || { railpadType: '' };
     const type = lot.railpadType || '';
     if (type.includes('CGRSP')) return { a: 27, b: 20, variation: 5 };
+    if (type.includes('NCRGRSP')) return { a: 27, b: 27, variation: 5 };
     return { a: 27, variation: 5 };
   };
 
@@ -5242,30 +5243,30 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
           const sgA = airA / (airA - waterA);
           let out = sgA > specs.a;
 
-          if (isCGRSP) {
+          if (isCGRSP || isNCRGRSP) {
             if (!rB || rB.air === '' || rB.water === '') return { filled: false, out: false };
             const airB = parseFloat(rB.air);
             const waterB = parseFloat(rB.water);
             if (isNaN(airB) || isNaN(waterB) || airB === waterB) return { filled: false, out: false };
             const sgB = airB / (airB - waterB);
             if (isNCRGRSP) {
-              out = out || sgB > specs.b || Math.abs(sgA - sgB) > specs.variation;
+              out = out || sgB > (specs.b || specs.a) || Math.abs(sgA - sgB) > specs.variation;
             } else {
-              out = out || sgB > specs.b;
+              out = out || sgB > (specs.b || specs.a);
             }
           }
           return { filled: true, out };
         };
 
         for (let i = 0; i < 3; i++) {
-          const r = checkSample(elecData.sg.compoundA[i], isCGRSP ? elecData.sg.compoundB[i] : null);
+          const r = checkSample(elecData.sg.compoundA[i], (isCGRSP || isNCRGRSP) ? elecData.sg.compoundB[i] : null);
           if (r.filled) {
             primaryFilled++;
             if (r.out) primaryOutCount++;
           }
         }
         for (let i = 3; i < 9; i++) {
-          const r = checkSample(elecData.sg.compoundA[i], isCGRSP ? elecData.sg.compoundB[i] : null);
+          const r = checkSample(elecData.sg.compoundA[i], (isCGRSP || isNCRGRSP) ? elecData.sg.compoundB[i] : null);
           if (r.filled) {
             doubleFilled++;
             if (r.out) doubleOutCount++;
@@ -5285,7 +5286,7 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
           const ashA = ((aA - cA) / (sA - cA)) * 100;
           let out = ashA > specs.a;
 
-          if (isCGRSP) {
+          if (isCGRSP || isNCRGRSP) {
             if (!rB || rB.crucible === '' || rB.sample === '' || rB.ash === '') return { filled: false, out: false };
             const cB = parseFloat(rB.crucible);
             const sB = parseFloat(rB.sample);
@@ -5293,23 +5294,23 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
             if (isNaN(cB) || isNaN(sB) || isNaN(aB) || sB === cB) return { filled: false, out: false };
             const ashB = ((aB - cB) / (sB - cB)) * 100;
             if (isNCRGRSP) {
-              out = out || ashB > specs.b || Math.abs(ashA - ashB) > specs.variation;
+              out = out || ashB > (specs.b || specs.a) || Math.abs(ashA - ashB) > specs.variation;
             } else {
-              out = out || ashB > specs.b;
+              out = out || ashB > (specs.b || specs.a);
             }
           }
           return { filled: true, out };
         };
 
         for (let i = 0; i < 3; i++) {
-          const r = checkSample(elecData.ash.compoundA[i], isCGRSP ? elecData.ash.compoundB[i] : null);
+          const r = checkSample(elecData.ash.compoundA[i], (isCGRSP || isNCRGRSP) ? elecData.ash.compoundB[i] : null);
           if (r.filled) {
             primaryFilled++;
             if (r.out) primaryOutCount++;
           }
         }
         for (let i = 3; i < 9; i++) {
-          const r = checkSample(elecData.ash.compoundA[i], isCGRSP ? elecData.ash.compoundB[i] : null);
+          const r = checkSample(elecData.ash.compoundA[i], (isCGRSP || isNCRGRSP) ? elecData.ash.compoundB[i] : null);
           if (r.filled) {
             doubleFilled++;
             if (r.out) doubleOutCount++;
@@ -7486,17 +7487,17 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
                         <thead>
                           <tr>
                             <th rowSpan="2" style={{ padding: '10px', border: '1px solid #e2e8f0', background: '#f8fafc', fontSize: '11px', color: '#64748b' }}>Sample</th>
-                            <th colSpan="3" style={{ padding: '10px', border: '1px solid #e2e8f0', background: '#f1f5f9', fontSize: '12px', color: '#475569', fontWeight: '800' }}>Compound A</th>
-                            {isCGRSP && <th colSpan="3" style={{ padding: '10px', border: '1px solid #e2e8f0', background: '#f1f5f9', fontSize: '12px', color: '#475569', fontWeight: '800' }}>Compound B</th>}
+                            <th colSpan="3" style={{ padding: '10px', border: '1px solid #e2e8f0', background: '#f1f5f9', fontSize: '12px', color: '#475569', fontWeight: '800' }}>{isNCRGRSP ? 'Product' : 'Compound A'}</th>
+                            {(isCGRSP || isNCRGRSP) && <th colSpan="3" style={{ padding: '10px', border: '1px solid #e2e8f0', background: '#f1f5f9', fontSize: '12px', color: '#475569', fontWeight: '800' }}>{isNCRGRSP ? 'Test Slab' : 'Compound B'}</th>}
                             {isNCRGRSP && <th rowSpan="2" style={{ padding: '10px', border: '1px solid #e2e8f0', background: '#f8fafc', fontSize: '11px', color: '#64748b' }}>Variation</th>}
                           </tr>
                           <tr>
                             <th style={{ padding: '8px', border: '1px solid #e2e8f0', fontSize: '10px', color: '#64748b' }}>Wt. Air (g)</th>
                             <th style={{ padding: '8px', border: '1px solid #e2e8f0', fontSize: '10px', color: '#64748b' }}>Wt. Water (g)</th>
                             <th style={{ padding: '8px', border: '1px solid #e2e8f0', fontSize: '10px', color: '#64748b', background: '#f8fafc' }}>S.G.</th>
-                            {isCGRSP && <th style={{ padding: '8px', border: '1px solid #e2e8f0', fontSize: '10px', color: '#64748b' }}>Wt. Air (g)</th>}
-                            {isCGRSP && <th style={{ padding: '8px', border: '1px solid #e2e8f0', fontSize: '10px', color: '#64748b' }}>Wt. Water (g)</th>}
-                            {isCGRSP && <th style={{ padding: '8px', border: '1px solid #e2e8f0', fontSize: '10px', color: '#64748b', background: '#f8fafc' }}>S.G.</th>}
+                            {(isCGRSP || isNCRGRSP) && <th style={{ padding: '8px', border: '1px solid #e2e8f0', fontSize: '10px', color: '#64748b' }}>Wt. Air (g)</th>}
+                            {(isCGRSP || isNCRGRSP) && <th style={{ padding: '8px', border: '1px solid #e2e8f0', fontSize: '10px', color: '#64748b' }}>Wt. Water (g)</th>}
+                            {(isCGRSP || isNCRGRSP) && <th style={{ padding: '8px', border: '1px solid #e2e8f0', fontSize: '10px', color: '#64748b', background: '#f8fafc' }}>S.G.</th>}
                           </tr>
                         </thead>
                         <tbody>
@@ -7518,7 +7519,7 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
                                 </td>
                                 <td style={{ padding: '10px', border: '1px solid #e2e8f0', textAlign: 'center', fontWeight: '900', color: sgA !== '-' && parseFloat(sgA) > currentSGSpecs.a ? '#ef4444' : '#21808d', background: '#f8fafc' }}>{sgA}</td>
 
-                                {isCGRSP && (
+                                {(isCGRSP || isNCRGRSP) && (
                                   <>
                                     <td style={{ padding: '4px', border: '1px solid #e2e8f0' }}>
                                       <input type="number" value={rB.air} onChange={(e) => setElecData(prev => ({ ...prev, sg: { ...prev.sg, compoundB: prev.sg.compoundB.map((r, i) => i === idx ? { ...r, air: e.target.value } : r) } }))} style={{ width: '100%', padding: '8px', border: 'none', textAlign: 'center', fontWeight: '800', fontSize: '13px' }} />
@@ -7526,7 +7527,7 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
                                     <td style={{ padding: '4px', border: '1px solid #e2e8f0' }}>
                                       <input type="number" value={rB.water} onChange={(e) => setElecData(prev => ({ ...prev, sg: { ...prev.sg, compoundB: prev.sg.compoundB.map((r, i) => i === idx ? { ...r, water: e.target.value } : r) } }))} style={{ width: '100%', padding: '8px', border: 'none', textAlign: 'center', fontWeight: '800', fontSize: '13px' }} />
                                     </td>
-                                    <td style={{ padding: '10px', border: '1px solid #e2e8f0', textAlign: 'center', fontWeight: '900', color: sgB !== '-' && parseFloat(sgB) > currentSGSpecs.b ? '#ef4444' : '#21808d', background: '#f8fafc' }}>{sgB}</td>
+                                    <td style={{ padding: '10px', border: '1px solid #e2e8f0', textAlign: 'center', fontWeight: '900', color: sgB !== '-' && parseFloat(sgB) > (currentSGSpecs.b || currentSGSpecs.a) ? '#ef4444' : '#21808d', background: '#f8fafc' }}>{sgB}</td>
                                     {isNCRGRSP && (
                                       <td style={{ padding: '10px', border: '1px solid #e2e8f0', textAlign: 'center', fontWeight: '900', color: variation !== '-' && Math.abs(parseFloat(variation)) > currentSGSpecs.variation ? '#ef4444' : '#64748b', background: '#f8fafc' }}>{variation}</td>
                                     )}
@@ -7558,8 +7559,8 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
                         <thead>
                           <tr>
                             <th rowSpan="2" style={{ padding: '10px', border: '1px solid #e2e8f0', background: '#f8fafc', fontSize: '11px', color: '#64748b' }}>Sample</th>
-                            <th colSpan="4" style={{ padding: '10px', border: '1px solid #e2e8f0', background: '#f1f5f9', fontSize: '12px', color: '#475569', fontWeight: '800' }}>Product A</th>
-                            {isCGRSP && <th colSpan="4" style={{ padding: '10px', border: '1px solid #e2e8f0', background: '#f1f5f9', fontSize: '12px', color: '#475569', fontWeight: '800' }}>Product B</th>}
+                            <th colSpan="4" style={{ padding: '10px', border: '1px solid #e2e8f0', background: '#f1f5f9', fontSize: '12px', color: '#475569', fontWeight: '800' }}>{isNCRGRSP ? 'Product' : 'Product A'}</th>
+                            {(isCGRSP || isNCRGRSP) && <th colSpan="4" style={{ padding: '10px', border: '1px solid #e2e8f0', background: '#f1f5f9', fontSize: '12px', color: '#475569', fontWeight: '800' }}>{isNCRGRSP ? 'Test Slab' : 'Product B'}</th>}
                             {isNCRGRSP && <th rowSpan="2" style={{ padding: '10px', border: '1px solid #e2e8f0', background: '#f8fafc', fontSize: '11px', color: '#64748b' }}>Variation</th>}
                           </tr>
                           <tr>
@@ -7567,7 +7568,7 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
                             <th style={{ padding: '8px', border: '1px solid #e2e8f0', fontSize: '10px', color: '#64748b' }}>Sample+Cr</th>
                             <th style={{ padding: '8px', border: '1px solid #e2e8f0', fontSize: '10px', color: '#64748b' }}>Ash+Cr</th>
                             <th style={{ padding: '8px', border: '1px solid #e2e8f0', fontSize: '10px', color: '#64748b', background: '#f8fafc' }}>% Ash</th>
-                            {isCGRSP && (
+                            {(isCGRSP || isNCRGRSP) && (
                               <>
                                 <th style={{ padding: '8px', border: '1px solid #e2e8f0', fontSize: '10px', color: '#64748b' }}>Crucible</th>
                                 <th style={{ padding: '8px', border: '1px solid #e2e8f0', fontSize: '10px', color: '#64748b' }}>Sample+Cr</th>
@@ -7599,7 +7600,7 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
                                 </td>
                                 <td style={{ padding: '10px', border: '1px solid #e2e8f0', textAlign: 'center', fontWeight: '900', color: ashA !== '-' && parseFloat(ashA) > currentAshSpecs.a ? '#ef4444' : '#21808d', background: '#f8fafc' }}>{ashA}%</td>
 
-                                {isCGRSP && (
+                                {(isCGRSP || isNCRGRSP) && (
                                   <>
                                     <td style={{ padding: '4px', border: '1px solid #e2e8f0' }}>
                                       <input type="number" value={rB.crucible} onChange={(e) => setElecData(prev => ({ ...prev, ash: { ...prev.ash, compoundB: prev.ash.compoundB.map((r, i) => i === idx ? { ...r, crucible: e.target.value } : r) } }))} style={{ width: '100%', padding: '8px', border: 'none', textAlign: 'center', fontWeight: '800', fontSize: '13px' }} />
@@ -7610,7 +7611,7 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
                                     <td style={{ padding: '4px', border: '1px solid #e2e8f0' }}>
                                       <input type="number" value={rB.ash} onChange={(e) => setElecData(prev => ({ ...prev, ash: { ...prev.ash, compoundB: prev.ash.compoundB.map((r, i) => i === idx ? { ...r, ash: e.target.value } : r) } }))} style={{ width: '100%', padding: '8px', border: 'none', textAlign: 'center', fontWeight: '800', fontSize: '13px' }} />
                                     </td>
-                                    <td style={{ padding: '10px', border: '1px solid #e2e8f0', textAlign: 'center', fontWeight: '900', color: ashB !== '-' && parseFloat(ashB) > currentAshSpecs.b ? '#ef4444' : '#21808d', background: '#f8fafc' }}>{ashB}%</td>
+                                    <td style={{ padding: '10px', border: '1px solid #e2e8f0', textAlign: 'center', fontWeight: '900', color: ashB !== '-' && parseFloat(ashB) > (currentAshSpecs.b || currentAshSpecs.a) ? '#ef4444' : '#21808d', background: '#f8fafc' }}>{ashB}%</td>
                                     {isNCRGRSP && (
                                       <td style={{ padding: '10px', border: '1px solid #e2e8f0', textAlign: 'center', fontWeight: '900', color: variation !== '-' && Math.abs(parseFloat(variation)) > currentAshSpecs.variation ? '#ef4444' : '#64748b', background: '#f8fafc' }}>{variation}</td>
                                     )}
@@ -8710,17 +8711,17 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
                                 <thead>
                                   <tr>
                                     <th rowSpan="2" style={{ padding: '10px', border: '1px solid #e2e8f0', background: '#f8fafc', fontSize: '11px', color: '#64748b' }}>Sample</th>
-                                    <th colSpan="3" style={{ padding: '10px', border: '1px solid #e2e8f0', background: '#f1f5f9', fontSize: '12px', color: '#475569', fontWeight: '800' }}>Compound A</th>
-                                    {isCGRSP && <th colSpan="3" style={{ padding: '10px', border: '1px solid #e2e8f0', background: '#f1f5f9', fontSize: '12px', color: '#475569', fontWeight: '800' }}>Compound B</th>}
+                                    <th colSpan="3" style={{ padding: '10px', border: '1px solid #e2e8f0', background: '#f1f5f9', fontSize: '12px', color: '#475569', fontWeight: '800' }}>{isNCRGRSP ? 'Product' : 'Compound A'}</th>
+                                    {(isCGRSP || isNCRGRSP) && <th colSpan="3" style={{ padding: '10px', border: '1px solid #e2e8f0', background: '#f1f5f9', fontSize: '12px', color: '#475569', fontWeight: '800' }}>{isNCRGRSP ? 'Test Slab' : 'Compound B'}</th>}
                                     {isNCRGRSP && <th rowSpan="2" style={{ padding: '10px', border: '1px solid #e2e8f0', background: '#f8fafc', fontSize: '11px', color: '#64748b' }}>Variation</th>}
                                   </tr>
                                   <tr>
                                     <th style={{ padding: '8px', border: '1px solid #e2e8f0', fontSize: '10px', color: '#64748b' }}>Wt. Air (g)</th>
                                     <th style={{ padding: '8px', border: '1px solid #e2e8f0', fontSize: '10px', color: '#64748b' }}>Wt. Water (g)</th>
                                     <th style={{ padding: '8px', border: '1px solid #e2e8f0', fontSize: '10px', color: '#64748b', background: '#f8fafc' }}>S.G.</th>
-                                    {isCGRSP && <th style={{ padding: '8px', border: '1px solid #e2e8f0', fontSize: '10px', color: '#64748b' }}>Wt. Air (g)</th>}
-                                    {isCGRSP && <th style={{ padding: '8px', border: '1px solid #e2e8f0', fontSize: '10px', color: '#64748b' }}>Wt. Water (g)</th>}
-                                    {isCGRSP && <th style={{ padding: '8px', border: '1px solid #e2e8f0', fontSize: '10px', color: '#64748b', background: '#f8fafc' }}>S.G.</th>}
+                                    {(isCGRSP || isNCRGRSP) && <th style={{ padding: '8px', border: '1px solid #e2e8f0', fontSize: '10px', color: '#64748b' }}>Wt. Air (g)</th>}
+                                    {(isCGRSP || isNCRGRSP) && <th style={{ padding: '8px', border: '1px solid #e2e8f0', fontSize: '10px', color: '#64748b' }}>Wt. Water (g)</th>}
+                                    {(isCGRSP || isNCRGRSP) && <th style={{ padding: '8px', border: '1px solid #e2e8f0', fontSize: '10px', color: '#64748b', background: '#f8fafc' }}>S.G.</th>}
                                   </tr>
                                 </thead>
                                 <tbody>
@@ -8743,7 +8744,7 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
                                         </td>
                                         <td style={{ padding: '10px', border: '1px solid #e2e8f0', textAlign: 'center', fontWeight: '900', color: sgA !== '-' && parseFloat(sgA) > specs.a ? '#ef4444' : '#21808d', background: '#f8fafc' }}>{sgA}</td>
 
-                                        {isCGRSP && (
+                                        {(isCGRSP || isNCRGRSP) && (
                                           <>
                                             <td style={{ padding: '4px', border: '1px solid #e2e8f0' }}>
                                               <input type="number" value={rB.air || ''} onChange={(e) => setElecData(prev => ({ ...prev, sg: { ...prev.sg, compoundB: prev.sg.compoundB.map((r, i) => i === realIdx ? { ...r, air: e.target.value } : r) } }))} style={{ width: '100%', padding: '8px', border: 'none', textAlign: 'center', fontWeight: '800', fontSize: '13px' }} />
@@ -8751,7 +8752,7 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
                                             <td style={{ padding: '4px', border: '1px solid #e2e8f0' }}>
                                               <input type="number" value={rB.water || ''} onChange={(e) => setElecData(prev => ({ ...prev, sg: { ...prev.sg, compoundB: prev.sg.compoundB.map((r, i) => i === realIdx ? { ...r, water: e.target.value } : r) } }))} style={{ width: '100%', padding: '8px', border: 'none', textAlign: 'center', fontWeight: '800', fontSize: '13px' }} />
                                             </td>
-                                            <td style={{ padding: '10px', border: '1px solid #e2e8f0', textAlign: 'center', fontWeight: '900', color: sgB !== '-' && parseFloat(sgB) > specs.b ? '#ef4444' : '#21808d', background: '#f8fafc' }}>{sgB}</td>
+                                            <td style={{ padding: '10px', border: '1px solid #e2e8f0', textAlign: 'center', fontWeight: '900', color: sgB !== '-' && parseFloat(sgB) > (specs.b || specs.a) ? '#ef4444' : '#21808d', background: '#f8fafc' }}>{sgB}</td>
                                             {isNCRGRSP && (
                                               <td style={{ padding: '10px', border: '1px solid #e2e8f0', textAlign: 'center', fontWeight: '900', color: variation !== '-' && Math.abs(parseFloat(variation)) > specs.variation ? '#ef4444' : '#64748b', background: '#f8fafc' }}>{variation}</td>
                                             )}
@@ -8790,8 +8791,8 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
                                 <thead>
                                   <tr>
                                     <th rowSpan="2" style={{ padding: '10px', border: '1px solid #e2e8f0', background: '#f8fafc', fontSize: '11px', color: '#64748b' }}>Sample</th>
-                                    <th colSpan="4" style={{ padding: '10px', border: '1px solid #e2e8f0', background: '#f1f5f9', fontSize: '12px', color: '#475569', fontWeight: '800' }}>Product A</th>
-                                    {isCGRSP && <th colSpan="4" style={{ padding: '10px', border: '1px solid #e2e8f0', background: '#f1f5f9', fontSize: '12px', color: '#475569', fontWeight: '800' }}>Product B</th>}
+                                    <th colSpan="4" style={{ padding: '10px', border: '1px solid #e2e8f0', background: '#f1f5f9', fontSize: '12px', color: '#475569', fontWeight: '800' }}>{isNCRGRSP ? 'Product' : 'Product A'}</th>
+                                    {(isCGRSP || isNCRGRSP) && <th colSpan="4" style={{ padding: '10px', border: '1px solid #e2e8f0', background: '#f1f5f9', fontSize: '12px', color: '#475569', fontWeight: '800' }}>{isNCRGRSP ? 'Test Slab' : 'Product B'}</th>}
                                     {isNCRGRSP && <th rowSpan="2" style={{ padding: '10px', border: '1px solid #e2e8f0', background: '#f8fafc', fontSize: '11px', color: '#64748b' }}>Variation</th>}
                                   </tr>
                                   <tr>
@@ -8799,7 +8800,7 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
                                     <th style={{ padding: '8px', border: '1px solid #e2e8f0', fontSize: '10px', color: '#64748b' }}>Sample+Cr</th>
                                     <th style={{ padding: '8px', border: '1px solid #e2e8f0', fontSize: '10px', color: '#64748b' }}>Ash+Cr</th>
                                     <th style={{ padding: '8px', border: '1px solid #e2e8f0', fontSize: '10px', color: '#64748b', background: '#f8fafc' }}>% Ash</th>
-                                    {isCGRSP && (
+                                    {(isCGRSP || isNCRGRSP) && (
                                       <>
                                         <th style={{ padding: '8px', border: '1px solid #e2e8f0', fontSize: '10px', color: '#64748b' }}>Crucible</th>
                                         <th style={{ padding: '8px', border: '1px solid #e2e8f0', fontSize: '10px', color: '#64748b' }}>Sample+Cr</th>
@@ -8832,7 +8833,7 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
                                         </td>
                                         <td style={{ padding: '10px', border: '1px solid #e2e8f0', textAlign: 'center', fontWeight: '900', color: ashA !== '-' && parseFloat(ashA) > specs.a ? '#ef4444' : '#21808d', background: '#f8fafc' }}>{ashA}%</td>
 
-                                        {isCGRSP && (
+                                        {(isCGRSP || isNCRGRSP) && (
                                           <>
                                             <td style={{ padding: '4px', border: '1px solid #e2e8f0' }}>
                                               <input type="number" value={rB.crucible || ''} onChange={(e) => setElecData(prev => ({ ...prev, ash: { ...prev.ash, compoundB: prev.ash.compoundB.map((r, i) => i === realIdx ? { ...r, crucible: e.target.value } : r) } }))} style={{ width: '100%', padding: '8px', border: 'none', textAlign: 'center', fontWeight: '800', fontSize: '13px' }} />
@@ -8843,7 +8844,7 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
                                             <td style={{ padding: '4px', border: '1px solid #e2e8f0' }}>
                                               <input type="number" value={rB.ash || ''} onChange={(e) => setElecData(prev => ({ ...prev, ash: { ...prev.ash, compoundB: prev.ash.compoundB.map((r, i) => i === realIdx ? { ...r, ash: e.target.value } : r) } }))} style={{ width: '100%', padding: '8px', border: 'none', textAlign: 'center', fontWeight: '800', fontSize: '13px' }} />
                                             </td>
-                                            <td style={{ padding: '10px', border: '1px solid #e2e8f0', textAlign: 'center', fontWeight: '900', color: ashB !== '-' && parseFloat(ashB) > specs.b ? '#ef4444' : '#21808d', background: '#f8fafc' }}>{ashB}%</td>
+                                            <td style={{ padding: '10px', border: '1px solid #e2e8f0', textAlign: 'center', fontWeight: '900', color: ashB !== '-' && parseFloat(ashB) > (specs.b || specs.a) ? '#ef4444' : '#21808d', background: '#f8fafc' }}>{ashB}%</td>
                                             {isNCRGRSP && (
                                               <td style={{ padding: '10px', border: '1px solid #e2e8f0', textAlign: 'center', fontWeight: '900', color: variation !== '-' && Math.abs(parseFloat(variation)) > specs.variation ? '#ef4444' : '#64748b', background: '#f8fafc' }}>{variation}</td>
                                             )}

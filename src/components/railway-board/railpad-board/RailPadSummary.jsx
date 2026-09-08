@@ -38,12 +38,19 @@ const RailPadSummary = ({
         ? summaryData.rejectedInProcess
         : (processDetails.rejectedNos !== undefined ? processDetails.rejectedNos : (processDetails.rejected || 0));
 
-    const finalAcceptedNos = finalDetails.acceptedNos !== undefined ? finalDetails.acceptedNos : (finalDetails.accepted || 0);
-    const finalAcceptedSet = finalDetails.acceptedSet || 0;
-    const finalRejectedNos = summaryData.rejectedInFinal !== undefined && summaryData.rejectedInFinal !== null
-        ? summaryData.rejectedInFinal
+    const finalAcceptedNos = summaryData.totalAcceptedNos !== undefined && summaryData.totalAcceptedNos !== null
+        ? summaryData.totalAcceptedNos
+        : (finalDetails.acceptedNos !== undefined ? finalDetails.acceptedNos : (finalDetails.accepted || 0));
+    const finalAcceptedSet = summaryData.totalAcceptedSet !== undefined && summaryData.totalAcceptedSet !== null
+        ? summaryData.totalAcceptedSet
+        : (finalDetails.acceptedSet || 0);
+
+    const finalRejectedNos = summaryData.totalRejectedNos !== undefined && summaryData.totalRejectedNos !== null
+        ? summaryData.totalRejectedNos
         : (finalDetails.rejectedNos !== undefined ? finalDetails.rejectedNos : (finalDetails.rejected || 0));
-    const finalRejectedSet = finalDetails.rejectedSet || 0;
+    const finalRejectedSet = summaryData.totalRejectedSet !== undefined && summaryData.totalRejectedSet !== null
+        ? summaryData.totalRejectedSet
+        : (finalDetails.rejectedSet || 0);
 
     // Row 4 calculations (Production & Rejection)
     const avgProductionPerDay = summaryData.railPadAvgProductionPerDay ?? 0;

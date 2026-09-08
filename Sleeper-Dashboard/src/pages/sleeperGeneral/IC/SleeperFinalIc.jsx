@@ -204,7 +204,7 @@ const SleeperFinalIc = ({
       lineHeight: '1.25'
     }}>
 
-      {/* Top spacing to match RITES letterhead margin exactly (42mm for clean letterhead separation) */}
+      {/* Top spacing to match RITES letterhead margin exactly (42mm for pre-printed letterhead gap) */}
       <div style={{ height: '42mm' }} className="sleeper-ic-letterhead-spacer"></div>
 
       {/* Book & Set Number Centered Container */}
@@ -213,21 +213,23 @@ const SleeperFinalIc = ({
           
           {/* Old / New IC Toggle */}
           {isEditing && (
-            <div className="no-print" style={{ display: 'flex', gap: '16px', marginBottom: '6px', fontSize: '11px', fontWeight: 'bold' }}>
-              <label style={{ display: 'flex', alignItems: 'center', gap: '4px', cursor: 'pointer' }}>
+            <div className="no-print" style={{ display: 'flex', gap: '12px', marginBottom: '4px', fontSize: '10px', fontWeight: '600' }}>
+              <label style={{ display: 'flex', alignItems: 'center', gap: '3px', cursor: 'pointer' }}>
                 <input 
                   type="radio" 
                   name="icTypeSleeper" 
                   value="old" 
+                  style={{ width: '12px', height: '12px', cursor: 'pointer', margin: 0 }}
                   checked={data?.icType !== 'new'} 
                   onChange={() => onFieldChange("icType", "old")} 
                 /> Old IC
               </label>
-              <label style={{ display: 'flex', alignItems: 'center', gap: '4px', cursor: 'pointer' }}>
+              <label style={{ display: 'flex', alignItems: 'center', gap: '3px', cursor: 'pointer' }}>
                 <input 
                   type="radio" 
                   name="icTypeSleeper" 
                   value="new" 
+                  style={{ width: '12px', height: '12px', cursor: 'pointer', margin: 0 }}
                   checked={data?.icType === 'new'} 
                   onChange={() => onFieldChange("icType", "new")} 
                 /> New IC
@@ -410,26 +412,26 @@ const SleeperFinalIc = ({
         {/* Consolidated Data Table */}
         <table style={tableStyle}>
           <colgroup>
-            <col style={{ width: '6%' }} />
-            <col style={{ width: '28%' }} />
-            <col style={{ width: '9%' }} />
-            <col style={{ width: '9%' }} />
-            <col style={{ width: '8%' }} />
-            <col style={{ width: '8%' }} />
-            <col style={{ width: '8%' }} />
-            <col style={{ width: '8%' }} />
-            <col style={{ width: '9%' }} />
+            <col style={{ width: '4.5%' }} />
+            <col style={{ width: '35.5%' }} />
+            <col style={{ width: '8.5%' }} />
+            <col style={{ width: '9.5%' }} />
+            <col style={{ width: '8.5%' }} />
+            <col style={{ width: '7%' }} />
+            <col style={{ width: '7%' }} />
+            <col style={{ width: '7%' }} />
+            <col style={{ width: '12.5%' }} />
           </colgroup>
           <tbody>
             {/* Contractor & Place of Inspection */}
             <tr>
-              <td colSpan="4" style={{ ...tdStyle, verticalAlign: 'top', padding: '6px 8px' }}>
+              <td colSpan="3" style={{ ...tdStyle, verticalAlign: 'top', padding: '6px 8px' }}>
                 <div style={{ fontWeight: '600', fontSize: '9px' }}>ठेकेदार / Contractor</div>
                 <div style={{ marginTop: '2px', fontWeight: 'bold', wordBreak: 'break-words', textTransform: 'uppercase', lineHeight: '1.25', fontSize: '10px' }}>
                   <EditableField value={contractor} fieldName="contractor" type="textarea" style={{ fontSize: '10px', fontWeight: 'bold' }} {...fieldProps} />
                 </div>
               </td>
-              <td colSpan="5" style={{ ...tdStyle, verticalAlign: 'top', padding: '6px 8px' }}>
+              <td colSpan="6" style={{ ...tdStyle, verticalAlign: 'top', padding: '6px 8px' }}>
                 <div style={{ fontWeight: '600', fontSize: '9px' }}>निरीक्षण का स्थान / Place of Inspection</div>
                 <div style={{ marginTop: '2px', fontWeight: 'bold', wordBreak: 'break-words', textTransform: 'uppercase', lineHeight: '1.25', fontSize: '10px' }}>
                   <EditableField value={placeOfInspection} fieldName="placeOfInspection" type="textarea" style={{ fontSize: '10px', fontWeight: 'bold' }} {...fieldProps} />
@@ -439,7 +441,7 @@ const SleeperFinalIc = ({
 
             {/* Contract Ref & Bill Paying Officer */}
             <tr>
-              <td colSpan="4" style={{ ...tdStyle, verticalAlign: 'top', padding: '6px 8px' }}>
+              <td colSpan="3" style={{ ...tdStyle, verticalAlign: 'top', padding: '6px 8px' }}>
                 <div style={{ fontWeight: '600', fontSize: '9px' }}>संविदा संदर्भ एवं Contract Reference</div>
                 <div style={{ fontSize: '10px', fontWeight: 'bold', display: 'flex', flexDirection: 'column', gap: '1px', marginTop: '2px' }}>
                   <EditableField
@@ -463,7 +465,7 @@ const SleeperFinalIc = ({
                   )}
                 </div>
               </td>
-              <td colSpan="5" style={{ ...tdStyle, verticalAlign: 'top', padding: '6px 8px' }}>
+              <td colSpan="6" style={{ ...tdStyle, verticalAlign: 'top', padding: '6px 8px' }}>
                 <div style={{ fontWeight: '600', fontSize: '9px' }}>बिल अदायगी अधिकारी Bill Paying Officer</div>
                 <div style={{ marginTop: '2px', fontWeight: 'bold', wordBreak: 'break-words', textTransform: 'uppercase', lineHeight: '1.25', fontSize: '10px' }}>
                   <EditableField value={billPayingOfficer} fieldName="billPayingOfficer" type="textarea" style={{ fontSize: '10px', fontWeight: 'bold' }} {...fieldProps} />
@@ -473,13 +475,13 @@ const SleeperFinalIc = ({
 
             {/* Consignee & Purchasing Authority */}
             <tr>
-              <td colSpan="4" style={{ ...tdStyle, verticalAlign: 'top', padding: '6px 8px' }}>
+              <td colSpan="3" style={{ ...tdStyle, verticalAlign: 'top', padding: '6px 8px' }}>
                 <div style={{ fontWeight: '600', fontSize: '9px' }}>प्रेषिती / Consignee</div>
                 <div style={{ marginTop: '2px', fontWeight: 'bold', wordBreak: 'break-words', textTransform: 'uppercase', lineHeight: '1.25', fontSize: '10px' }}>
                   <EditableField value={consignee} fieldName="consignee" type="textarea" style={{ fontSize: '10px', fontWeight: 'bold' }} {...fieldProps} />
                 </div>
               </td>
-              <td colSpan="5" style={{ ...tdStyle, verticalAlign: 'top', padding: '6px 8px' }}>
+              <td colSpan="6" style={{ ...tdStyle, verticalAlign: 'top', padding: '6px 8px' }}>
                 <div style={{ fontWeight: '600', fontSize: '9px' }}>क्रय प्राधिकारी / Purchasing Authority</div>
                 <div style={{ marginTop: '2px', fontWeight: 'bold', wordBreak: 'break-words', textTransform: 'uppercase', lineHeight: '1.25', fontSize: '10px' }}>
                   <EditableField value={purchasingAuthority} fieldName="purchasingAuthority" type="textarea" style={{ fontSize: '10px', fontWeight: 'bold' }} {...fieldProps} />
@@ -509,98 +511,106 @@ const SleeperFinalIc = ({
 
             {/* STORES DATA ROW */}
             <tr>
-              <td rowSpan={2} style={{ ...tdCenterStyle, paddingTop: '10px', verticalAlign: 'top', borderBottom: '1px solid black', fontWeight: 'bold', fontSize: '10px' }}>
+              <td rowSpan={4} style={{ ...tdCenterStyle, paddingTop: '8px', verticalAlign: 'top', borderBottom: '1px solid black', fontWeight: 'bold', fontSize: '10px' }}>
                 <EditableField value={itemNo} fieldName="itemNo" style={{ textAlign: 'center', fontWeight: 'bold', fontSize: '10px' }} {...fieldProps} />
               </td>
-              <td rowSpan={2} style={{ ...tdStyle, padding: '6px 8px', fontSize: '8.5px', lineHeight: '1.2', verticalAlign: 'top', borderBottom: '1px solid black', fontWeight: 'bold', textTransform: 'uppercase' }}>
+              <td rowSpan={4} style={{ ...tdStyle, padding: '6px 8px', fontSize: '8.5px', lineHeight: '1.25', verticalAlign: 'top', borderBottom: '1px solid black', fontWeight: 'bold', textTransform: 'uppercase' }}>
                 <EditableField value={description} fieldName="description" type="textarea" style={{ fontSize: '8.5px', fontWeight: 'bold' }} {...fieldProps} />
               </td>
-              <td style={{ ...tdCenterStyle, paddingTop: '10px', borderBottom: 'none', fontWeight: 'bold', fontSize: '12px' }}>
+              <td style={{ ...tdCenterStyle, paddingTop: '8px', borderBottom: 'none', fontWeight: 'bold', fontSize: '11px' }}>
                 {qtyOnOrder}
               </td>
-              <td style={{ ...tdCenterStyle, paddingTop: '10px', borderBottom: 'none', fontWeight: 'bold', fontSize: '12px' }}>
-                <EditableField value={qtyOfferedPreviously} fieldName="qtyOfferedPreviously" style={{ textAlign: 'center', fontSize: '12px', fontWeight: 'bold' }} {...fieldProps} />
+              <td style={{ ...tdCenterStyle, paddingTop: '8px', borderBottom: 'none', fontWeight: 'bold', fontSize: '11px' }}>
+                <EditableField value={qtyOfferedPreviously} fieldName="qtyOfferedPreviously" style={{ textAlign: 'center', fontSize: '11px', fontWeight: 'bold' }} {...fieldProps} />
               </td>
-              <td style={{ ...tdCenterStyle, paddingTop: '10px', borderBottom: 'none', fontWeight: 'bold', fontSize: '12px' }}>
-                <EditableField value={qtyPassedPreviously} fieldName="qtyPassedPreviously" style={{ textAlign: 'center', fontSize: '12px', fontWeight: 'bold' }} {...fieldProps} />
+              <td style={{ ...tdCenterStyle, paddingTop: '8px', borderBottom: 'none', fontWeight: 'bold', fontSize: '11px' }}>
+                <EditableField value={qtyPassedPreviously} fieldName="qtyPassedPreviously" style={{ textAlign: 'center', fontSize: '11px', fontWeight: 'bold' }} {...fieldProps} />
               </td>
-              <td style={{ ...tdCenterStyle, paddingTop: '10px', borderBottom: 'none', fontWeight: 'bold', fontSize: '12px' }}>
+              <td style={{ ...tdCenterStyle, paddingTop: '8px', borderBottom: 'none', fontWeight: 'bold', fontSize: '11px' }}>
                 {qtyNowOffered}
               </td>
-              <td style={{ ...tdCenterStyle, paddingTop: '10px', borderBottom: 'none', fontWeight: 'bold', fontSize: '12px' }}>
+              <td style={{ ...tdCenterStyle, paddingTop: '8px', borderBottom: 'none', fontWeight: 'bold', fontSize: '11px' }}>
                 {qtyNowPassed}
               </td>
-              <td style={{ ...tdCenterStyle, paddingTop: '10px', borderBottom: 'none', fontWeight: 'bold', fontSize: '12px' }}>
+              <td style={{ ...tdCenterStyle, paddingTop: '8px', borderBottom: 'none', fontWeight: 'bold', fontSize: '11px' }}>
                 {qtyNowRejected}
               </td>
-              <td style={{ ...tdCenterStyle, paddingTop: '10px', borderBottom: 'none', fontWeight: 'bold', fontSize: '12px' }}>
-                <EditableField value={qtyStillDue} fieldName="qtyStillDue" style={{ textAlign: 'center', fontSize: '12px', fontWeight: 'bold' }} {...fieldProps} />
+              <td style={{ ...tdCenterStyle, paddingTop: '8px', borderBottom: 'none', fontWeight: 'bold', fontSize: '11px' }}>
+                <EditableField value={qtyStillDue} fieldName="qtyStillDue" style={{ textAlign: 'center', fontSize: '11px', fontWeight: 'bold' }} {...fieldProps} />
               </td>
             </tr>
 
             {/* UNITS ROW (NOS. / SET) */}
             <tr>
               {[3, 4, 5, 6, 7, 8, 9].map((colIdx) => (
-                <td key={colIdx} style={{ ...tdCenterStyle, borderTop: 'none', borderBottom: '1px solid black', padding: '2px 0 6px 0', fontSize: '8.5px', color: '#1e293b' }}>
+                <td key={colIdx} style={{ ...tdCenterStyle, borderTop: 'none', borderBottom: 'none', padding: '2px 0 4px 0', fontSize: '8px', color: '#1e293b' }}>
                   {unitText}
                 </td>
               ))}
             </tr>
 
-            {/* QUANTITY NOW PASSED BANNER / TEXT BOX */}
+            {/* QUANTITY NOW PASSED BANNER / TEXT BOX (INSIDE COLS 3-9) */}
             <tr>
-              <td colSpan={9} style={{
+              <td colSpan={7} style={{
                 ...tdStyle,
-                padding: '6px 10px',
+                padding: '6px 6px 4px 6px',
                 borderTop: 'none',
-                borderBottom: '1px solid black',
+                borderBottom: 'none',
                 background: 'white'
               }}>
                 <div style={{
                   border: '1px solid black',
-                  padding: '6px 10px',
+                  padding: '5px 8px',
                   textAlign: 'left',
-                  fontSize: '10px',
+                  fontSize: '9.5px',
                   fontWeight: 'bold',
                   fontStyle: 'italic',
-                  lineHeight: '1.35',
-                  minHeight: '26px'
+                  lineHeight: '1.3',
+                  minHeight: '36px'
                 }}>
-                  <EditableField value={quantityNowPassedText} fieldName="quantityNowPassedText" type="textarea" style={{ fontSize: '10px', fontWeight: 'bold', fontStyle: 'italic' }} {...fieldProps} />
+                  <EditableField value={quantityNowPassedText} fieldName="quantityNowPassedText" type="textarea" style={{ fontSize: '9.5px', fontWeight: 'bold', fontStyle: 'italic' }} {...fieldProps} />
                 </div>
               </td>
+            </tr>
+
+            {/* EXTENDED EMPTY GRID SLOTS ROW TO MATCH ORIGINAL HEIGHT AND VERTICAL GRID */}
+            <tr style={{ height: '75px' }}>
+              {[3, 4, 5, 6, 7, 8, 9].map((colIdx) => (
+                <td key={colIdx} style={{ ...tdCenterStyle, borderTop: 'none', borderBottom: '1px solid black', padding: 0 }}>
+                </td>
+              ))}
             </tr>
 
             {/* INSPECTION DETAILS ROW */}
             <tr>
               <td colSpan="9" style={{ padding: 0, border: '1px solid black' }}>
                 <div style={{ display: 'flex', width: '100%' }}>
-                  <div style={{ width: '20%', padding: '4px', borderRight: '1px solid black', fontSize: '9px' }}>
-                    <div style={{ fontWeight: 'bold', lineHeight: '1.2' }}>जाँचे गये की संख्या<br />No. of checked</div>
+                  <div style={{ width: '20%', padding: '4px 6px', borderRight: '1px solid black', fontSize: '9px' }}>
+                    <div style={{ fontWeight: 'bold', lineHeight: '1.2' }}>जांच की गयी मदों की सं.<br />No. of items checked</div>
                     <div style={{ marginTop: '4px', fontWeight: 'bold', fontSize: '10px', textAlign: 'center' }}>
-                      <EditableField value={noOfItemsChecked && noOfItemsChecked !== "1" ? noOfItemsChecked : (qtyNowOffered || noOfItemsChecked || "1")} fieldName="noOfItemsChecked" style={{ fontSize: '10px', fontWeight: 'bold', textAlign: 'center' }} {...fieldProps} />
+                      <EditableField value={noOfItemsChecked || "1"} fieldName="noOfItemsChecked" style={{ fontSize: '10px', fontWeight: 'bold', textAlign: 'center' }} {...fieldProps} />
                     </div>
                   </div>
-                  <div style={{ width: '22%', padding: '4px', borderRight: '1px solid black', fontSize: '9px' }}>
-                    <div style={{ fontWeight: 'bold', lineHeight: '1.2' }}>बुलावे की तिथि<br />Date of call</div>
+                  <div style={{ width: '22%', padding: '4px 6px', borderRight: '1px solid black', fontSize: '9px' }}>
+                    <div style={{ fontWeight: 'bold', lineHeight: '1.2' }}>बुलावे की तारीख<br />Date of call</div>
                     <div style={{ marginTop: '4px', fontWeight: 'bold', fontSize: '10px' }}>
                       <EditableField value={dateOfCall} fieldName="dateOfCall" style={{ fontSize: '10px', fontWeight: 'bold' }} {...fieldProps} />
                     </div>
                   </div>
-                  <div style={{ width: '12%', padding: '4px', borderRight: '1px solid black', fontSize: '9px' }}>
-                    <div style={{ fontWeight: 'bold', lineHeight: '1.2' }}>दौरों की संख्या<br />No. of visits</div>
+                  <div style={{ width: '13%', padding: '4px 6px', borderRight: '1px solid black', fontSize: '9px' }}>
+                    <div style={{ fontWeight: 'bold', lineHeight: '1.2' }}>दौरों की संख्या<br />No. of Visits</div>
                     <div style={{ marginTop: '4px', fontWeight: 'bold', fontSize: '10px', textAlign: 'center' }}>
                       <EditableField value={noOfVisits} fieldName="noOfVisits" style={{ fontSize: '10px', fontWeight: 'bold', textAlign: 'center' }} {...fieldProps} />
                     </div>
                   </div>
-                  <div style={{ width: '32%', padding: '4px', borderRight: '1px solid black', fontSize: '9px', overflow: 'hidden' }}>
-                    <div style={{ fontWeight: 'bold', lineHeight: '1.2' }}>निरीक्षण की तिथि<br />Date(s) of inspection</div>
+                  <div style={{ width: '33%', padding: '4px 6px', borderRight: '1px solid black', fontSize: '9px', overflow: 'hidden' }}>
+                    <div style={{ fontWeight: 'bold', lineHeight: '1.2' }}>निरीक्षण की तारीखें<br />Date(s) of Inspection</div>
                     <div style={{ marginTop: '4px', fontWeight: 'bold', fontSize: '10px', lineHeight: '1.2', wordBreak: 'break-word' }}>
                       <EditableField value={datesOfInspection} fieldName="datesOfInspection" type="textarea" style={{ fontSize: '10px', fontWeight: 'bold' }} {...fieldProps} />
                     </div>
                   </div>
-                  <div style={{ width: '14%', padding: '4px', fontSize: '9px' }}>
-                    <div style={{ fontWeight: 'bold', lineHeight: '1.2' }}>TR Rec. Dt.</div>
+                  <div style={{ width: '12%', padding: '4px 6px', fontSize: '9px' }}>
+                    <div style={{ fontWeight: 'bold', lineHeight: '1.2' }}>TR Rec. dt.</div>
                     <div style={{ marginTop: '4px', fontWeight: 'bold', fontSize: '10px', fontStyle: 'italic' }}>
                       <EditableField value={trRecDate} fieldName="trRecDate" placeholder="TR Date" style={{ width: '60px', fontSize: '10px' }} {...fieldProps} />
                     </div>
@@ -615,21 +625,21 @@ const SleeperFinalIc = ({
                 <table style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed' }}>
                   <tbody>
                     <tr>
-                      <td style={{ width: '45%', padding: '4px', borderRight: '1px solid black', borderBottom: '1px solid black', fontSize: '9px', verticalAlign: 'top' }}>
+                      <td style={{ width: '44%', padding: '6px 8px', borderRight: '1px solid black', borderBottom: '1px solid black', fontSize: '9px', verticalAlign: 'top', minHeight: '90px' }}>
                         <div style={{ fontWeight: 'bold', lineHeight: '1.2' }}>सील बंदी/मोहर बंदी का स्वरूप और सील मोहर का स्थान<br />Pattern of sealing/stamping &amp; location of seal/stamp/sticker</div>
-                        <div style={{ marginTop: '4px', fontWeight: 'bold', fontSize: '9px', lineHeight: '1.25', textTransform: 'uppercase' }}>
+                        <div style={{ marginTop: '6px', fontWeight: 'bold', fontSize: '9px', lineHeight: '1.3', textTransform: 'uppercase', minHeight: '50px' }}>
                           <EditableField value={sealingPattern} fieldName="sealingPattern" type="textarea" style={{ fontSize: '9px', fontWeight: 'bold' }} {...fieldProps} />
                         </div>
                       </td>
-                      <td style={{ width: '25%', padding: '4px', borderRight: '1px solid black', borderBottom: '1px solid black', fontSize: '9px', verticalAlign: 'top' }}>
+                      <td style={{ width: '22%', padding: '6px 8px', borderRight: '1px solid black', borderBottom: '1px solid black', fontSize: '9px', verticalAlign: 'top', minHeight: '90px' }}>
                         <div style={{ fontWeight: 'bold', lineHeight: '1.2' }}>मुहर / स्टाम्प की प्रतिकृति<br />Facsimile of seal/stamp/sticker</div>
-                        <div style={{ marginTop: '4px', fontStyle: 'italic', fontSize: '9px', lineHeight: '1.25' }}>
+                        <div style={{ marginTop: '6px', fontStyle: 'italic', fontSize: '9px', lineHeight: '1.3', minHeight: '50px' }}>
                           <EditableField value={facsimileText} fieldName="facsimileText" type="textarea" style={{ fontSize: '9px' }} {...fieldProps} />
                         </div>
                       </td>
-                      <td rowSpan="2" style={{ width: '30%', padding: '4px', verticalAlign: 'top' }}>
+                      <td rowSpan="2" style={{ width: '34%', padding: '6px 8px', verticalAlign: 'top' }}>
                         <div className="ie-signature-box" style={{
-                          minHeight: '90px',
+                          minHeight: '135px',
                           display: 'flex',
                           flexDirection: 'column',
                           justifyContent: 'space-between',
@@ -646,11 +656,13 @@ const SleeperFinalIc = ({
                       </td>
                     </tr>
                     <tr>
-                      <td colSpan="2" style={{ padding: '4px 6px', fontSize: '10px', verticalAlign: 'top', borderRight: '1px solid black' }}>
-                        <span style={{ fontWeight: '600' }}>अस्वीकृति का कारण / Reasons for rejection: </span>
-                        <span style={{ fontStyle: 'italic' }}>
-                          <EditableField value={reasonsForRejection} fieldName="reasonsForRejection" style={{ display: 'inline-block', width: '260px', fontSize: '10px' }} {...fieldProps} />
-                        </span>
+                      <td colSpan="2" style={{ padding: '6px 8px', fontSize: '9.5px', verticalAlign: 'top', borderRight: '1px solid black', minHeight: '42px' }}>
+                        <div style={{ display: 'flex', alignItems: 'flex-start', gap: '6px' }}>
+                          <span style={{ fontWeight: 'bold', whiteSpace: 'nowrap' }}>अस्वीकृति का कारण : Reason of rejection:</span>
+                          <span style={{ fontStyle: 'italic', fontWeight: 'bold', flex: 1, textTransform: 'uppercase' }}>
+                            <EditableField value={reasonsForRejection} fieldName="reasonsForRejection" type="textarea" style={{ width: '100%', fontSize: '9.5px', fontWeight: 'bold', fontStyle: 'italic' }} {...fieldProps} />
+                          </span>
+                        </div>
                       </td>
                     </tr>
                   </tbody>
@@ -675,6 +687,8 @@ const SleeperFinalIc = ({
         </table>
 
       </fieldset>
+      {/* Footer spacing for pre-printed stationery footer margin */}
+      <div style={{ minHeight: '15mm' }} className="sleeper-ic-footer-spacer"></div>
     </div>
   );
 };

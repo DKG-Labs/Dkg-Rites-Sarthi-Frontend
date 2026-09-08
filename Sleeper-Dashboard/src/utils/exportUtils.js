@@ -44,11 +44,11 @@ export async function exportToPdf(element, filename = "certificate.pdf") {
         }
       });
 
-      const clonedElement = clonedDoc.querySelector('.certificate-page') || clonedDoc.body;
+      const clonedElement = clonedDoc.querySelector('.certificate-page') || clonedDoc.querySelector('.sleeper-ic-page') || clonedDoc.body;
       clonedElement.style.width = '210mm';
       clonedElement.style.maxWidth = '210mm';
       clonedElement.style.margin = '0 auto';
-      clonedElement.style.padding = '35mm 7mm 15mm 7mm';
+      clonedElement.style.padding = '0mm 7mm 15mm 7mm';
       clonedElement.style.boxSizing = 'border-box';
       clonedElement.style.backgroundColor = '#ffffff';
     },
@@ -102,11 +102,11 @@ export async function generatePdfBase64(element, filename = null) {
         }
       });
 
-      const clonedElement = clonedDoc.querySelector('.certificate-page') || clonedDoc.body;
+      const clonedElement = clonedDoc.querySelector('.certificate-page') || clonedDoc.querySelector('.sleeper-ic-page') || clonedDoc.body;
       clonedElement.style.width = '210mm';
       clonedElement.style.maxWidth = '210mm';
       clonedElement.style.margin = '0 auto';
-      clonedElement.style.padding = '35mm 7mm 15mm 7mm';
+      clonedElement.style.padding = '0mm 7mm 15mm 7mm';
       clonedElement.style.boxSizing = 'border-box';
       clonedElement.style.backgroundColor = '#ffffff';
     },
@@ -144,7 +144,7 @@ export async function exportToImage(element, filename = "certificate.png") {
  * Dynamically calculates the PDF (cood, size) coordinates for the eSign stamp
  * based on the actual rendered DOM position of the Inspecting Engineer box.
  */
-export function calculateSignatureCoords(containerElement, defaultCood = "395,145", defaultSize = "170,36") {
+export function calculateSignatureCoords(containerElement, defaultCood = "410,165", defaultSize = "155,34") {
   try {
     if (!containerElement) return { cood: defaultCood, size: defaultSize };
 
@@ -164,7 +164,7 @@ export function calculateSignatureCoords(containerElement, defaultCood = "395,14
 
     if (!pageRect.width || !pageRect.height) return { cood: defaultCood, size: defaultSize };
 
-    // A4 dimensions in PDF points (72 points per inch)
+    // A4 dimensions in PDF points (72 points per inch) -> 595.28 x 841.89
     const pdfWidth = 595.28;
     const pdfHeight = 841.89;
 
@@ -173,13 +173,21 @@ export function calculateSignatureCoords(containerElement, defaultCood = "395,14
     const bottomRatio = (pageRect.bottom - ieRect.bottom) / pageRect.height;
     const heightRatio = ieRect.height / pageRect.height;
 
-    const pdfX = Math.round(leftRatio * pdfWidth) + 4;
-    const pdfY = Math.round(bottomRatio * pdfHeight) + 4;
+    const boxWidthInPoints = widthRatio * pdfWidth;
+    const boxHeightInPoints = heightRatio * pdfHeight;
 
-    const pdfW = Math.max(100, Math.round(widthRatio * pdfWidth) - 8);
-    const pdfH = Math.max(30, Math.round(heightRatio * pdfHeight) - 8);
+    // Standard eSign stamp size
+    const pdfW = Math.min(155, Math.max(120, Math.round(boxWidthInPoints - 16)));
+    const pdfH = 34;
 
-    console.log(`📐 Dynamic Signature Coords Calculated: cood="${pdfX},${pdfY}", size="${pdfW},${pdfH}"`);
+    // Center horizontally inside the Inspecting Engineer cell
+    const pdfX = Math.round(leftRatio * pdfWidth) + Math.max(8, Math.round((boxWidthInPoints - pdfW) / 2));
+    
+    // Elevate vertically into the middle of the cell so it stays comfortably inside and never overflows the bottom border
+    const verticalElevation = Math.max(18, Math.round(boxHeightInPoints * 0.22));
+    const pdfY = Math.round(bottomRatio * pdfHeight) + verticalElevation;
+
+    console.log(`📐 Dynamic Signature Coords Calculated: cood="${pdfX},${pdfY}", size="${pdfW},${pdfH}" (elevation: +${verticalElevation}pt)`);
 
     return {
       cood: `${pdfX},${pdfY}`,

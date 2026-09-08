@@ -7,6 +7,17 @@ import autoTable from 'jspdf-autotable';
  * @param {Object} call - The inspection call object or summary object
  * @param {boolean} shouldDownload - Whether to trigger auto-download
  */
+const resolveSleeperCaseNo = (rawCaseNo, rio) => {
+    if (!rawCaseNo || !String(rawCaseNo).trim()) return null;
+    const parts = String(rawCaseNo).split(',').map(s => s.trim()).filter(Boolean);
+    if (rio && String(rio).trim()) {
+        const firstLetter = String(rio).trim().charAt(0).toUpperCase();
+        const matched = parts.find(p => p.toUpperCase().startsWith(firstLetter));
+        return matched || null;
+    }
+    return parts[0] || null;
+};
+
 export const generateCallLetterPDF = (call, shouldDownload = true) => {
     if (!call) return;
 
@@ -214,12 +225,16 @@ export const generateCallLetterPDF = (call, shouldDownload = true) => {
         batchesDisplay = `Total Lots Offered: ${merged.noOfLots} | Total Offered: ${effectiveOfferedQty} ${effectiveUom}`;
     }
 
+    const rawCaseNo = merged.caseNo || merged.case_no || merged.ibsCaseNo || merged.poCaseNo;
+    const resolvedCaseNo = resolveSleeperCaseNo(rawCaseNo, rawRioCode || (typeof localStorage !== 'undefined' && localStorage.getItem('plantRio')));
+
     const mainTableBody = [
         ['From', redVal(displayFrom)],
         ['Date', redVal(formattedCallDate)],
         ['To', redValNormal(displayTo)],
         [{ content: 'Dear Sir,\nPlease arrange to inspect following goods lying ready with us. It is certified that the stores offered conform to governing specifications.', colSpan: 2, styles: { fontSize: 8, fontStyle: 'normal', textColor: labelTextColor } }],
         ['Inspection Call Number', redVal(callNo)],
+        ['Case No.', redVal(resolvedCaseNo || '-')],
         ['IE', redValNormal(ieName || '-')],
         ['Stage of Inspection', { content: stageDisplay, styles: { textColor: [30, 41, 59], fontStyle: 'normal' } }],
         ['PO Number & Date', redVal(displayPoNoDate)],

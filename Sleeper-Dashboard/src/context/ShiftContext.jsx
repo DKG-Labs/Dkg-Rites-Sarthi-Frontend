@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import { apiService } from '../services/api';
 import { useToast } from '../context/ToastContext';
 import { mapWireTensionRecords, mapCompactionRecords, mapSteamCuringRecords, mapBatchWeighmentData } from '../utils/shiftMappingUtils';
@@ -457,7 +457,13 @@ export const ShiftProvider = ({ children }) => {
         }
     }, []);
 
+    const isFetchingShiftDataRef = useRef(false);
+
     const loadShiftData = useCallback(async () => {
+        if (isFetchingShiftDataRef.current) {
+            return;
+        }
+        isFetchingShiftDataRef.current = true;
         setIsLoading(true);
         try {
             await Promise.allSettled([
@@ -473,6 +479,7 @@ export const ShiftProvider = ({ children }) => {
             console.error("Error loading shift data:", error);
         } finally {
             setIsLoading(false);
+            isFetchingShiftDataRef.current = false;
         }
     }, [fetchMoisture, fetchManualChecks, fetchWireTension, fetchCompaction, fetchBatchWeighment, fetchSteamCuring, fetchBenchMoulds]);
 

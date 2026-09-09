@@ -81,7 +81,8 @@ const CompactionConcrete = ({
 
     useEffect(() => {
         if (loadShiftData) loadShiftData();
-    }, [loadShiftData]);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
 
     // Fetch dynamic locations for the current Unit (Plant)
     useEffect(() => {

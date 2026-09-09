@@ -77,7 +77,8 @@ const BatchWeighment = ({
         if (loadShiftData && viewMode === 'witnessed') {
             loadShiftData().catch(() => {});
         }
-    }, [viewMode, loadShiftData]);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [viewMode]);
 
     // Safety check for watchedRecords being an array
     const records = Array.isArray(witnessedRecords) ? witnessedRecords : [];

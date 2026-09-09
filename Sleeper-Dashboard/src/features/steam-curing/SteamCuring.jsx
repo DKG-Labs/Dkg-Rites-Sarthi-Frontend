@@ -443,7 +443,8 @@ const SteamCuring = ({ onBack, steamRecords: propSteamRecords, setSteamRecords: 
         if (fetchSteamCuring) {
             fetchSteamCuring();
         }
-    }, [fetchSteamCuring]);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
 
     // Fetch Dynamic Locations for current Unit (Matching Demoulding Card logic)
     useEffect(() => {

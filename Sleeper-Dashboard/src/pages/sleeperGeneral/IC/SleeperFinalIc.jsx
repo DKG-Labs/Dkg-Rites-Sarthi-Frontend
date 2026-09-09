@@ -129,8 +129,27 @@ const SleeperFinalIc = ({
     inspectingEngineer = "",
     bookNo = "",
     setNo = "",
-    region = "RITES LTD, CENTRAL REGION, BHILAI"
+    region = "",
+    rio = ""
   } = data;
+
+  const getRegionHeader = (rioCode) => {
+    const code = String(rioCode || '').trim().toUpperCase();
+    if (code === 'CRIO' || code === 'CR' || code.includes('CENTRAL') || code.includes('BHILAI')) {
+      return "RITES LIMITED, CENTRAL REGION, BHILAI";
+    } else if (code === 'ERIO' || code === 'ER' || code.includes('EASTERN') || code.includes('KOLKATA')) {
+      return "RITES LIMITED, EASTERN REGION, KOLKATA";
+    } else if (code === 'NRIO' || code === 'NR' || code.includes('NORTHERN') || code.includes('DELHI')) {
+      return "RITES LIMITED, NORTHERN REGION, DELHI";
+    } else if (code === 'WRIO' || code === 'WR' || code.includes('WESTERN') || code.includes('MUMBAI')) {
+      return "RITES LIMITED, WESTERN REGION, MUMBAI";
+    } else if (code === 'SRIO' || code === 'SR' || code.includes('SOUTHERN') || code.includes('CHENNAI')) {
+      return "RITES LIMITED, SOUTHERN REGION, CHENNAI";
+    }
+    return code ? `RITES LIMITED, ${code}` : "RITES LIMITED, CENTRAL REGION, BHILAI";
+  };
+
+  const effectiveRegion = region || getRegionHeader(rio || (typeof localStorage !== 'undefined' ? (localStorage.getItem('plantRio') || localStorage.getItem('rio')) : ''));
 
   const isBookSetEntered = Boolean(bookNo && bookNo.trim().length > 0 && setNo && /^\d{3}$/.test(setNo.trim()));
 
@@ -343,7 +362,7 @@ const SleeperFinalIc = ({
           letterSpacing: '0.2px',
           textTransform: 'uppercase'
         }}>
-          {region || "RITES LIMITED, CENTRAL REGION, BHILAI"}
+          {effectiveRegion}
         </div>
         <div style={{
           flex: 1,

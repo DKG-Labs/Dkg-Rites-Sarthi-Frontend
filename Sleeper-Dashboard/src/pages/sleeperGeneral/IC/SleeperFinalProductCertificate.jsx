@@ -67,6 +67,23 @@ const resolveSleeperCaseNo = (rawCaseNo, rio) => {
     return parts[0] || null;
 };
 
+const getRegionHeader = (rioCode, fallback = "RITES LIMITED, CENTRAL REGION, BHILAI") => {
+    const code = String(rioCode || '').trim().toUpperCase();
+    if (!code) return fallback;
+    if (code === 'CRIO' || code === 'CR' || code.includes('CENTRAL') || code.includes('BHILAI')) {
+        return "RITES LIMITED, CENTRAL REGION, BHILAI";
+    } else if (code === 'ERIO' || code === 'ER' || code.includes('EASTERN') || code.includes('KOLKATA')) {
+        return "RITES LIMITED, EASTERN REGION, KOLKATA";
+    } else if (code === 'NRIO' || code === 'NR' || code.includes('NORTHERN') || code.includes('DELHI')) {
+        return "RITES LIMITED, NORTHERN REGION, DELHI";
+    } else if (code === 'WRIO' || code === 'WR' || code.includes('WESTERN') || code.includes('MUMBAI')) {
+        return "RITES LIMITED, WESTERN REGION, MUMBAI";
+    } else if (code === 'SRIO' || code === 'SR' || code.includes('SOUTHERN') || code.includes('CHENNAI')) {
+        return "RITES LIMITED, SOUTHERN REGION, CHENNAI";
+    }
+    return `RITES LIMITED, ${code}`;
+};
+
 export default function SleeperFinalProductCertificate() {
   const printAreaRef = useRef();
   const [isEditing, setIsEditing] = useState(false);
@@ -225,7 +242,7 @@ export default function SleeperFinalProductCertificate() {
         facsimileText: ic?.facsimileText || c?.facsimileText || "",
         reasonsForRejection: ic?.reasonsForRejection || c?.reasonsForRejection || defaultRejectionReason,
         inspectingEngineer: ic?.inspectingEngineer || c?.inspectingEngineer || "",
-        region: ic?.region || c?.region || "RITES LIMITED, CENTRAL REGION, BHILAI"
+        region: ic?.region || c?.region || getRegionHeader(ic?.rio || c?.rio || c?.plantRio || (typeof localStorage !== 'undefined' ? (localStorage.getItem('plantRio') || localStorage.getItem('rio')) : ''))
     };
   };
 

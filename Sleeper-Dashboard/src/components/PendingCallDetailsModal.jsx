@@ -39,13 +39,16 @@ const PendingCallDetailsModal = ({
     try {
       let enrichedCall = { ...call, callNumber };
       try {
-        const res = await apiService.getInspectionCallSummary(callNumber);
-        if (res && (res.responseData || res.data)) {
-          const details = res.responseData || res.data;
+        const res = await apiService.getCallLetterDetails(callNumber);
+        const dataObj = res?.data || res;
+        if (dataObj && (dataObj.responseData || dataObj.data)) {
+          const details = dataObj.responseData || dataObj.data;
           enrichedCall = { ...enrichedCall, ...details };
+        } else if (dataObj && typeof dataObj === 'object') {
+          enrichedCall = { ...enrichedCall, ...dataObj };
         }
       } catch (fetchErr) {
-        console.warn('Could not fetch online details, generating from call cache:', fetchErr);
+        console.warn('Could not fetch online call letter details, generating from call cache:', fetchErr);
       }
 
       generateCallLetterPDF(enrichedCall);

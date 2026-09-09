@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 // const isLocal = typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
-//export const API_BASE_URL = "http://localhost:8080/sarthi-backend/api";
+// export const API_BASE_URL = "http://localhost:8080/sarthi-backend/api";
 export const API_BASE_URL = 'https://sarthibackendservice-bfe2eag3byfkbsa6.canadacentral-01.azurewebsites.net/sarthi-backend/api';
 //export const API_BASE_URL = 'https://api.ritesqasarthi.com/sarthi-backend/api';
 const BASE_URL = API_BASE_URL;
@@ -48,10 +48,10 @@ const getWithCache = (url, options) => {
 api.interceptors.response.use(
     (response) => response.data,
     (error) => {
-        const message = 
-            error.response?.data?.responseStatus?.message || 
-            error.response?.data?.message || 
-            error.message || 
+        const message =
+            error.response?.data?.responseStatus?.message ||
+            error.response?.data?.message ||
+            error.message ||
             'An unexpected error occurred';
         console.error('API Error:', message, error.config?.url);
         return Promise.reject(new Error(message));
@@ -315,8 +315,8 @@ export const apiService = {
     getCompanyUnitsByUser: (userId) => api.get(`/sleeper-mapping/company-units/${userId}`),
 
     // ================= Final Inspection Controller ================= //
-    getFinalInspectionBatches: (moduleId = 1, params = {}) => api.get('/FinalInspectionController/inspection/batches', { 
-        params: { ...params, moduleId } 
+    getFinalInspectionBatches: (moduleId = 1, params = {}) => api.get('/FinalInspectionController/inspection/batches', {
+        params: { ...params, moduleId }
     }),
     getFinalInspectionBatchDetail: (batchId, moduleId = 1, sleeperType) => api.get(`/FinalInspectionController/inspection/batch?batchId=${batchId}&moduleId=${moduleId}&sleeperType=${encodeURIComponent(sleeperType || '')}`),
     saveFinalInspection: (payload) => api.post('/FinalInspectionController/save', payload),
@@ -332,6 +332,7 @@ export const apiService = {
     saveSection1: (payload) => api.post('/FinalCallinspection/section1', payload),
     saveSection2: (payload) => api.post('/FinalCallinspection/section2', payload),
     getInspectionCallSummary: (callNo) => api.get(`/main-ie/inspection-call-summary/${callNo}`),
+    getCallLetterDetails: (requestId) => api.get(`/call-letter/details?requestId=${encodeURIComponent(requestId)}`),
     getBatchWiseDetails: (callNo) => api.get(`/main-ie/inspection-call/batch-wise/${callNo}`),
     saveMainIeInspectionBatch: (payload) => api.post('/MainIe-finalcallsleeperInspection', payload),
     saveMainIeInspectionHeader: (payload) => api.post('/MainIe-finalcallsleeperInspection/finalCallHeader/save', payload),
@@ -385,7 +386,7 @@ export const apiService = {
     createMFTest: (payload) => api.post('/mf-test-details', payload),
     updateMFTest: (id, payload) => api.put(`/mf-test-details/${id}`, payload),
     deleteMFTest: (id) => api.delete(`/mf-test-details/${id}`),
-    
+
     // ================= Epoxy Treated Sleepers (ET) =================
     getAllETLogs: (params) => api.get('/et', { params }),
     getETById: (id) => api.get(`/et/${id}`),

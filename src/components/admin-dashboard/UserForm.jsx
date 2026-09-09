@@ -1998,7 +1998,13 @@ export const UserForm = ({ user, roles = [], rolesLoading = false, existingUsers
                                         onChange={handleChange}
                                         required={!isZonalRailway}
                                         disabled={isZonalRailway && user}
+                                        style={isZonalRailway && user ? { backgroundColor: '#f1f5f9', cursor: 'not-allowed' } : {}}
                                     />
+                                    {isZonalRailway && user && (
+                                        <small style={{ color: '#64748b', fontSize: '11px', marginTop: '4px', display: 'block' }}>
+                                            Fixed for Zonal Railway user (cannot be modified)
+                                        </small>
+                                    )}
                                 </div>
                             )}
                             {!isZonalRailway && (

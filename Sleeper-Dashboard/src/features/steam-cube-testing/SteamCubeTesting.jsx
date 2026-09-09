@@ -1287,10 +1287,9 @@ const SampleDeclarationModal = ({ sample, isModifying, onClose, onSave, onDelete
                         <div className="input-group">
                             <label style={{ fontSize: '12px', fontWeight: '700', color: '#475569', marginBottom: '4px' }}>LBC Time</label>
                             <input 
-                                type="text" 
-                                readOnly
-                                value={formData.lbcTime || '-'} 
-                                placeholder="Auto-fetched via Batch"
+                                type="time" 
+                                value={formData.lbcTime || ''} 
+                                onChange={e => setFormData({ ...formData, lbcTime: e.target.value })}
                                 style={{ 
                                     width: '100%', 
                                     padding: '0 12px', 
@@ -1298,11 +1297,9 @@ const SampleDeclarationModal = ({ sample, isModifying, onClose, onSave, onDelete
                                     borderRadius: '8px', 
                                     border: '1.5px solid #e2e8f0', 
                                     fontSize: '14px', 
-                                    color: '#64748b', 
-                                    background: '#f8fafc', 
-                                    fontWeight: '600',
-                                    outline: 'none',
-                                    cursor: 'not-allowed'
+                                    color: '#1e293b', 
+                                    background: '#fff', 
+                                    outline: 'none'
                                 }}
                             />
                         </div>

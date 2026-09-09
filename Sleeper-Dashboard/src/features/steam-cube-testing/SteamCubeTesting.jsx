@@ -1038,34 +1038,39 @@ const SampleDeclarationModal = ({ sample, isModifying, onClose, onSave, onDelete
             const bNo = String(isObj ? (b.batchNo || b.batchNumber || b.id) : b).trim();
             if (bNo && !seen.has(bNo.toLowerCase())) {
                 seen.add(bNo.toLowerCase());
+                const matchedDecl = (productionDeclarations || []).find(p => 
+                    String(p.batchNumber || p.batchNo || '').trim().toLowerCase() === bNo.toLowerCase()
+                );
                 options.push({
                     batchNo: bNo,
-                    chamberNo: isObj ? b.chamberNo : null,
-                    raw: b
+                    chamberNo: isObj ? b.chamberNo : (matchedDecl?.chamberNo || matchedDecl?.chambers?.[0]?.chamberNo || null),
+                    raw: isObj ? b : matchedDecl
                 });
             }
         });
 
-        // 2. From productionDeclarations, strictly filtered by casting date
-        (productionDeclarations || []).forEach(p => {
-            const pDate = normalizeDateToYMD(p.castingDate || p.dateOfCasting);
-            if (targetDate && pDate && pDate !== targetDate) return;
+        // 2. Only if productionBatches is empty, fallback to productionDeclarations with strict date and location match
+        if (options.length === 0) {
+            (productionDeclarations || []).forEach(p => {
+                const pDate = normalizeDateToYMD(p.castingDate || p.dateOfCasting || p.entryDate);
+                if (targetDate && (!pDate || pDate !== targetDate)) return;
 
-            if (selectedLoc) {
-                const pLoc = String(p.productionUnit || p.lineNo || p.shedNo || p.location || '').trim().toLowerCase();
-                if (pLoc && !pLoc.includes(selectedLoc) && !selectedLoc.includes(pLoc)) return;
-            }
+                if (selectedLoc) {
+                    const pLoc = String(p.productionUnit || p.lineNo || p.shedNo || p.location || '').trim().toLowerCase();
+                    if (!pLoc || (!pLoc.includes(selectedLoc) && !selectedLoc.includes(pLoc))) return;
+                }
 
-            const bNo = String(p.batchNumber || p.batchNo || '').trim();
-            if (bNo && !seen.has(bNo.toLowerCase())) {
-                seen.add(bNo.toLowerCase());
-                options.push({
-                    batchNo: bNo,
-                    chamberNo: p.chamberNo || (p.chambers?.[0]?.chamberNo) || null,
-                    raw: p
-                });
-            }
-        });
+                const bNo = String(p.batchNumber || p.batchNo || '').trim();
+                if (bNo && !seen.has(bNo.toLowerCase())) {
+                    seen.add(bNo.toLowerCase());
+                    options.push({
+                        batchNo: bNo,
+                        chamberNo: p.chamberNo || (p.chambers?.[0]?.chamberNo) || null,
+                        raw: p
+                    });
+                }
+            });
+        }
 
         return options;
     }, [productionBatches, productionDeclarations, formData.castingDate, formData.lineNo, formData.shedNo]);

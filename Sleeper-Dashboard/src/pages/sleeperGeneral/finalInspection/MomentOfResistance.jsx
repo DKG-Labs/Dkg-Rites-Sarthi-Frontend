@@ -295,7 +295,8 @@ const MomentOfResistance = () => {
 
     useEffect(() => {
         fetchMRData();
-    }, [fetchMRData]);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
 
     // Filtered lists for tabs
     const declarationList = useMemo(() => batches.filter(b => b.status === 'Pending Declaration' && b.waterCubeStatus !== 'Rejected'), [batches]);

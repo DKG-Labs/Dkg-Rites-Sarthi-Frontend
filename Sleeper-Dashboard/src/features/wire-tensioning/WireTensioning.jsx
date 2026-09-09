@@ -100,7 +100,8 @@ const WireTensioning = ({ onBack, batches = [], sharedState, displayMode = 'moda
         if (loadShiftData) {
             loadShiftData();
         }
-    }, [loadShiftData]);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
 
     const [scadaRecords, setScadaRecords] = useState([]);
 

@@ -9,6 +9,11 @@ const getAuthHeaders = () => ({
     : {})
 });
 
+const getBaseUrl = () => {
+  const base = (API_BASE_URL || '').replace(/\/+$/, '');
+  return base;
+};
+
 /**
  * Upload Signed Certificate (Base64) to Azure Blob Storage
  * @param {Object} payload - { icNumber, signedData, fileName, uploadedBy }
@@ -17,7 +22,7 @@ const getAuthHeaders = () => ({
 export const uploadSignedCertificate = async (payload) => {
   try {
     console.log('🔍 Uploading signed certificate to Azure for IC:', payload.icNumber);
-    const url = `${API_BASE_URL.replace('/api', '')}/api/certificate-storage/upload`;
+    const url = `${getBaseUrl()}/certificate-storage/upload`;
     const response = await fetch(url, {
       method: 'POST',
       headers: getAuthHeaders(),
@@ -59,7 +64,7 @@ export const uploadSignedCertificateFile = async (file, icNumber, uploadedBy) =>
       headers['Authorization'] = `Bearer ${token}`;
     }
 
-    const url = `${API_BASE_URL.replace('/api', '')}/api/certificate-storage/upload-file`;
+    const url = `${getBaseUrl()}/certificate-storage/upload-file`;
     const response = await fetch(url, {
       method: 'POST',
       headers,
@@ -88,7 +93,7 @@ export const uploadSignedCertificateFile = async (file, icNumber, uploadedBy) =>
 export const viewSignedCertificate = async (icNumber) => {
   try {
     console.log('🔍 Fetching signed certificate from Azure for IC:', icNumber);
-    const url = `${API_BASE_URL.replace('/api', '')}/api/certificate-storage/view?icNumber=${encodeURIComponent(icNumber)}`;
+    const url = `${getBaseUrl()}/certificate-storage/view?icNumber=${encodeURIComponent(icNumber)}`;
     const response = await fetch(url, {
       method: 'GET',
       headers: getAuthHeaders()
@@ -112,13 +117,12 @@ export const viewSignedCertificate = async (icNumber) => {
 };
 
 /**
-/**
  * Save or update Sleeper Final IC Edit Data (sleeper_final_ic_edit table)
  * @param {Object} payload 
  */
 export const saveFinalIcEditData = async (payload) => {
   try {
-    const url = `${API_BASE_URL.replace('/api', '')}/api/sleeper-final-ic-edit`;
+    const url = `${getBaseUrl()}/sleeper-final-ic-edit`;
     const response = await fetch(url, {
       method: 'POST',
       headers: getAuthHeaders(),
@@ -139,7 +143,7 @@ export const saveFinalIcEditData = async (payload) => {
 export const getFinalIcEditData = async (icNumber) => {
   try {
     const encodedIcNumber = encodeURIComponent(icNumber);
-    const url = `${API_BASE_URL.replace('/api', '')}/api/sleeper-final-ic-edit?icNumber=${encodedIcNumber}`;
+    const url = `${getBaseUrl()}/sleeper-final-ic-edit?icNumber=${encodedIcNumber}`;
     const response = await fetch(url, {
       method: 'GET',
       headers: getAuthHeaders()
@@ -159,7 +163,7 @@ export const getFinalIcEditData = async (icNumber) => {
  */
 export const saveFinalIcSaveChanges = async (payload) => {
   try {
-    const url = `${API_BASE_URL.replace('/api', '')}/api/sleeper-final-ic-save-changes`;
+    const url = `${getBaseUrl()}/sleeper-final-ic-save-changes`;
     const response = await fetch(url, {
       method: 'POST',
       headers: getAuthHeaders(),
@@ -180,7 +184,7 @@ export const saveFinalIcSaveChanges = async (payload) => {
 export const getFinalIcSaveChanges = async (icNumber) => {
   try {
     const encodedIcNumber = encodeURIComponent(icNumber);
-    const url = `${API_BASE_URL.replace('/api', '')}/api/sleeper-final-ic-save-changes?icNumber=${encodedIcNumber}`;
+    const url = `${getBaseUrl()}/sleeper-final-ic-save-changes?icNumber=${encodedIcNumber}`;
     const response = await fetch(url, {
       method: 'GET',
       headers: getAuthHeaders()

@@ -6,6 +6,18 @@ import './AttendingCallDashboard.css';
 import { apiService } from '../../../services/api';
 import { getStoredUser } from '../../../services/authService';
 
+const resolveSleeperCaseNo = (rawCaseNo, rio) => {
+    if (!rawCaseNo || !String(rawCaseNo).trim()) return '-';
+    const parts = String(rawCaseNo).split(',').map(s => s.trim()).filter(Boolean);
+    const effectiveRio = rio || (typeof localStorage !== 'undefined' ? localStorage.getItem('plantRio') : '');
+    if (effectiveRio && String(effectiveRio).trim()) {
+        const firstLetter = String(effectiveRio).trim().charAt(0).toUpperCase();
+        const matched = parts.find(p => p.toUpperCase().startsWith(firstLetter));
+        if (matched) return matched;
+    }
+    return parts[0] || '-';
+};
+
 const AttendingCallDashboard = ({ mode }) => {
     const [internalActiveTab, setInternalActiveTab] = useState(() => {
         return sessionStorage.getItem('attendingCallActiveTab') || 'pending';
@@ -537,7 +549,7 @@ const AttendingCallDashboard = ({ mode }) => {
                                                 </td>
                                                 <td style={{ fontWeight: '700', color: '#0f172a', whiteSpace: 'nowrap' }}>{call.requestId || call.callNo || '-'}</td>
                                                 <td style={{ whiteSpace: 'nowrap', fontWeight: '600', color: '#1e293b' }}>{call.rlyPoSrNo || (call.poNo ? `${call.poNo}${call.poSr ? ' / ' + call.poSr : ''}` : '-')}</td>
-                                                <td style={{ whiteSpace: 'nowrap', fontWeight: '600', color: '#475569' }}>{call.caseNo || call.ibsCaseNo || '-'}</td>
+                                                <td style={{ whiteSpace: 'nowrap', fontWeight: '600', color: '#475569' }}>{resolveSleeperCaseNo(call.caseNo || call.ibsCaseNo, call.rio || call.plantRio)}</td>
                                                 <td title={call.vendorName || call.vendorCode || ''} style={{ maxWidth: '200px' }}>
                                                     <div style={{ fontWeight: '600', color: '#0f172a', lineHeight: '1.25' }}>
                                                         {(call.vendorName || call.vendorCode || '-').split('~')[0]}
@@ -732,7 +744,7 @@ const AttendingCallDashboard = ({ mode }) => {
                                                 <td className="checkbox-col"><input type="checkbox" checked={call.checked} onChange={() => toggleCheck(call.id)} /></td>
                                                 <td className="req-id-cell" style={{ fontWeight: '700', color: '#0f172a' }}>{call.requestId}</td>
                                                 <td>{call.rlyPoSrNo || call.poNo || '-'}</td>
-                                                <td>{call.caseNo || call.ibsCaseNo || '-'}</td>
+                                                <td>{resolveSleeperCaseNo(call.caseNo || call.ibsCaseNo, call.rio || call.plantRio)}</td>
                                                 <td>{call.vendorName || call.vendorCode || '-'}</td>
                                                 <td>{call.productType || 'Sleeper'}</td>
                                                 <td>{call.createdDate ? new Date(call.createdDate).toLocaleDateString('en-GB') : 'N/A'}</td>

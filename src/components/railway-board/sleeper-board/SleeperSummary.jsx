@@ -39,85 +39,94 @@ const SleeperSummary = ({
     isDashboardLoading = false
 }) => {
     const [rejectedInProcess, setRejectedInProcess] = useState(0);
-    const [rejectedInFinal, setRejectedInFinal] = useState(0);
     const [rejectionPercentage, setRejectionPercentage] = useState(0);
     const [pendingCalls, setPendingCalls] = useState(0);
     const [underInspectionCalls, setUnderInspectionCalls] = useState(0);
     const [totalProduction, setTotalProduction] = useState(0);
     const [sleeperIcIssued, setSleeperIcIssued] = useState(0);
+    const [finalAcceptedNos, setFinalAcceptedNos] = useState(0);
+    const [finalAcceptedSet, setFinalAcceptedSet] = useState(0);
+    const [finalRejectedNos, setFinalRejectedNos] = useState(0);
+    const [finalRejectedSet, setFinalRejectedSet] = useState(0);
 
     useEffect(() => {
         if (filterData) {
             setRejectedInProcess(extractNumber(filterData.rejectedInProcess));
-            setRejectedInFinal(extractNumber(filterData.rejectedInFinal));
             setRejectionPercentage(extractNumber(filterData.rejectionPercentage));
             setPendingCalls(extractNumber(filterData.pendingCalls));
             setUnderInspectionCalls(extractNumber(filterData.underInspectionCalls));
             setTotalProduction(extractNumber(filterData.totalProduction));
             setSleeperIcIssued(extractNumber(filterData.sleeperIcIssued));
+            setFinalAcceptedNos(extractNumber(filterData.finalAcceptedNos));
+            setFinalAcceptedSet(extractNumber(filterData.finalAcceptedSet));
+            setFinalRejectedNos(extractNumber(filterData.finalRejectedNos));
+            setFinalRejectedSet(extractNumber(filterData.finalRejectedSet));
             return;
         }
 
         const fetchCounts = async () => {
             if (cachedSleeperSummary && lastRefreshTick_SleeperSummary === refreshTick && !filterApplied) {
                 setRejectedInProcess(cachedSleeperSummary.rejectedInProcess);
-                setRejectedInFinal(cachedSleeperSummary.rejectedInFinal);
                 setRejectionPercentage(cachedSleeperSummary.rejectionPercentage);
                 setPendingCalls(cachedSleeperSummary.pendingCalls);
                 setUnderInspectionCalls(cachedSleeperSummary.underInspectionCalls);
                 setTotalProduction(cachedSleeperSummary.totalProduction || 0);
                 setSleeperIcIssued(cachedSleeperSummary.sleeperIcIssued || 0);
+                setFinalAcceptedNos(cachedSleeperSummary.finalAcceptedNos || 0);
+                setFinalAcceptedSet(cachedSleeperSummary.finalAcceptedSet || 0);
+                setFinalRejectedNos(cachedSleeperSummary.finalRejectedNos || 0);
+                setFinalRejectedSet(cachedSleeperSummary.finalRejectedSet || 0);
                 return;
             }
 
             try {
-                // Fetch Demoulding Rejection
-                const demouldingRes = await reportService.getDemouldingRejectedCount();
-                const rejProcess = extractNumber(demouldingRes?.responseData !== undefined ? demouldingRes.responseData : demouldingRes);
-                setRejectedInProcess(rejProcess);
+                const res = await reportService.getSleeperDashboardSummaryFiltered(vendor, zone);
+                const data = res?.responseData || res?.data || res;
+                if (data) {
+                    const rejProc = extractNumber(data.rejectedInProcess);
+                    const rejPct = extractNumber(data.rejectionPercentage);
+                    const pCalls = extractNumber(data.pendingCalls);
+                    const uCalls = extractNumber(data.underInspectionCalls);
+                    const tProd = extractNumber(data.totalProduction);
+                    const sIc = extractNumber(data.sleeperIcIssued);
+                    const fAccNos = extractNumber(data.finalAcceptedNos);
+                    const fAccSet = extractNumber(data.finalAcceptedSet);
+                    const fRejNos = extractNumber(data.finalRejectedNos);
+                    const fRejSet = extractNumber(data.finalRejectedSet);
 
-                // Fetch Final Inspection Rejection
-                const finalRes = await reportService.getFinalRejectedCount();
-                const rejFinal = extractNumber(finalRes?.responseData !== undefined ? finalRes.responseData : finalRes);
-                setRejectedInFinal(rejFinal);
+                    setRejectedInProcess(rejProc);
+                    setRejectionPercentage(rejPct);
+                    setPendingCalls(pCalls);
+                    setUnderInspectionCalls(uCalls);
+                    setTotalProduction(tProd);
+                    setSleeperIcIssued(sIc);
+                    setFinalAcceptedNos(fAccNos);
+                    setFinalAcceptedSet(fAccSet);
+                    setFinalRejectedNos(fRejNos);
+                    setFinalRejectedSet(fRejSet);
 
-                // Fetch Rejection Percentage
-                const rejectionRes = await reportService.getRejectionPercentage();
-                const rawPct = rejectionRes?.responseData !== undefined ? rejectionRes.responseData : rejectionRes;
-                const rejPct = extractNumber(rawPct);
-                setRejectionPercentage(rejPct);
-
-                // Fetch Final Inspection Call Status Counts
-                const callStatusRes = await reportService.getFinalInspectionCallStatusCounts();
-                const callStatusData = (callStatusRes?.responseData && typeof callStatusRes.responseData === 'object')
-                    ? callStatusRes.responseData
-                    : (callStatusRes && typeof callStatusRes === 'object' && !callStatusRes.responseStatus ? callStatusRes : {});
-
-                const pendCalls = extractNumber(callStatusData.pending);
-                const underInspCalls = extractNumber(callStatusData.underInspection);
-                
-                setPendingCalls(pendCalls);
-                setUnderInspectionCalls(underInspCalls);
-
-                if (!filterApplied) {
-                    cachedSleeperSummary = {
-                        rejectedInProcess: rejProcess,
-                        rejectedInFinal: rejFinal,
-                        rejectionPercentage: rejPct,
-                        pendingCalls: pendCalls,
-                        underInspectionCalls: underInspCalls,
-                        totalProduction: 0,
-                        sleeperIcIssued: 0
-                    };
-                    lastRefreshTick_SleeperSummary = refreshTick;
+                    if (!filterApplied) {
+                        cachedSleeperSummary = {
+                            rejectedInProcess: rejProc,
+                            rejectionPercentage: rejPct,
+                            pendingCalls: pCalls,
+                            underInspectionCalls: uCalls,
+                            totalProduction: tProd,
+                            sleeperIcIssued: sIc,
+                            finalAcceptedNos: fAccNos,
+                            finalAcceptedSet: fAccSet,
+                            finalRejectedNos: fRejNos,
+                            finalRejectedSet: fRejSet
+                        };
+                        lastRefreshTick_SleeperSummary = refreshTick;
+                    }
                 }
-
             } catch (error) {
                 console.error("Error fetching sleeper rejection metrics:", error);
             }
         };
         fetchCounts();
-    }, [refreshTick, filterData, filterApplied]);
+    }, [refreshTick, filterData, filterApplied, vendor, zone]);
 
     const actualSummary = (summaryData?.responseData && typeof summaryData.responseData === 'object') 
         ? summaryData.responseData 
@@ -131,16 +140,11 @@ const SleeperSummary = ({
     // Sleeper Production from production_declaration table
     const prodTotal = totalProduction > 0 ? totalProduction : extractNumber(actualSummary.sleeperTotalProduction ?? 0);
 
-    // Final Accepted Quantity (Total Casted - Final Rejected)
-    const finalAcceptedNos = prodTotal > 0 ? Math.max(0, prodTotal - rejectedInFinal) : 0;
-    const finalAcceptedSet = 0;
-
     // Process Accepted (Nos) (Total Casted - Demoulding Rejected)
     const processAcceptedNos = prodTotal > 0 ? Math.max(0, prodTotal - rejectedInProcess) : 0;
     const processRejectedNos = rejectedInProcess;
 
-    const finalRejectedNos = rejectedInFinal;
-    const finalRejectedSet = 0;
+    const finalRejectedTotal = finalRejectedNos + finalRejectedSet;
 
     // Production & Rejections
     const avgProductionPerDay = extractNumber(actualSummary.sleeperAvgProductionPerDay ?? (prodTotal > 0 ? Math.round(prodTotal / 30) : 0));
@@ -148,7 +152,7 @@ const SleeperSummary = ({
         ? ((processRejectedNos / prodTotal) * 100).toFixed(2)
         : '0.00';
     const finalRejectionPercentage = prodTotal > 0
-        ? ((finalRejectedNos / prodTotal) * 100).toFixed(2)
+        ? ((finalRejectedTotal / prodTotal) * 100).toFixed(2)
         : '0.00';
     const overallRejectionPercentage = (Number.isFinite(rejectionPercentage) ? rejectionPercentage : 0).toFixed(2);
 

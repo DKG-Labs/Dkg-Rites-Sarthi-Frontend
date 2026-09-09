@@ -34,7 +34,7 @@ const FinalInspectionSkeleton = ({ onBack }) => (
         <header className="inspection-header skeleton-header">
             <div className="header-left" style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
                 <button className="back-icon-btn" onClick={onBack} title="Back to Dashboard">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="m15 18-6-6 6-6"/></svg>
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="m15 18-6-6 6-6" /></svg>
                 </button>
                 <div className="skeleton-line" style={{ width: '220px', height: '28px', borderRadius: '8px' }} />
                 <div className="skeleton-capsules-row">
@@ -113,13 +113,13 @@ const FinalInspectionScreen = ({ call, onBack }) => {
             setSectionBStatus('approved');
         }
     }, [call]);
-    
+
     // Batch and Sleeper Data
     const [batches, setBatches] = useState([]);
 
     const [expandedBatches, setExpandedBatches] = useState({});
     const [activeAction, setActiveAction] = useState(null); // 'rejection' or 'et'
-    
+
     const [rejectionEntry, setRejectionEntry] = useState({ batchNo: '', sleeperNo: '', reason: '' });
     const [etEntry, setEtEntry] = useState({ batchNo: '', sleeperNo: '', reason: '' });
 
@@ -250,10 +250,10 @@ const FinalInspectionScreen = ({ call, onBack }) => {
 
     const [sectionAStatus, setSectionAStatus] = useState(null); // 'approved' or 'rejected'
     const [sectionBStatus, setSectionBStatus] = useState(null); // 'approved' or 'rejected'
-    
+
     const [sectionAExpanded, setSectionAExpanded] = useState(true);
     const [sectionBExpanded, setSectionBExpanded] = useState(false);
-    
+
     const [isSectionBVisible, setIsSectionBVisible] = useState(false);
     const [summaryData, setSummaryData] = useState(null);
     const [batchDetails, setBatchDetails] = useState([]);
@@ -383,9 +383,9 @@ const FinalInspectionScreen = ({ call, onBack }) => {
                 remarks: "PO details verified",
                 actionBy: Number(user?.userId || 0)
             };
-            
+
             await apiService.performTransitionAction(payload);
-            
+
             setPoVerified(true);
             setStep('inspection-form');
         } catch (error) {
@@ -483,7 +483,7 @@ const FinalInspectionScreen = ({ call, onBack }) => {
                                 placeOfInspection: sec2?.placeOfInspection || prev?.placeOfInspection || sec1?.vendorName
                             }));
                         }
-                    } catch (e) {}
+                    } catch (e) { }
                     return;
                 }
 
@@ -538,7 +538,7 @@ const FinalInspectionScreen = ({ call, onBack }) => {
                             })).filter(s => Boolean(s.sleeperCode) && String(s.sleeperCode).trim() !== '0'),
                             mfTestedSleepers: (b.mfSleepers || []).map(s => typeof s === 'string' ? s : (s?.sleeperCode || '')).filter(s => Boolean(s) && String(s).trim() !== '0'),
                             sleepers: [
-                                ...(b.goodSleepers || []).map(s => typeof s === 'string' ? s : (s?.sleeperCode || '')).filter(s => Boolean(s) && String(s).trim() !== '0'), 
+                                ...(b.goodSleepers || []).map(s => typeof s === 'string' ? s : (s?.sleeperCode || '')).filter(s => Boolean(s) && String(s).trim() !== '0'),
                                 ...(b.rejectedSleepers || []).map(s => typeof s === 'string' ? s : (s?.sleeperCode || '')).filter(s => Boolean(s) && String(s).trim() !== '0')
                             ]
                         }, currentType));
@@ -699,13 +699,13 @@ const FinalInspectionScreen = ({ call, onBack }) => {
 
     const getTurnoutSleepers = (sleeperType, maxCount) => {
         const typeStr = sleeperType || summaryData?.sleeperType || icForm?.ercType || call?.sleeperType || '';
-        const matchedKey = Object.keys(TURNOUT_SLEEPER_CONFIG).find(k => 
+        const matchedKey = Object.keys(TURNOUT_SLEEPER_CONFIG).find(k =>
             typeStr && (
-                k.toLowerCase().includes(typeStr.toLowerCase()) || 
-                typeStr.toLowerCase().includes(k.toLowerCase()) || 
-                (typeStr.includes('9790') && k.includes('9790')) || 
-                (typeStr.includes('4218') && k.includes('4218')) || 
-                (typeStr.includes('4865') && k.includes('4865')) || 
+                k.toLowerCase().includes(typeStr.toLowerCase()) ||
+                typeStr.toLowerCase().includes(k.toLowerCase()) ||
+                (typeStr.includes('9790') && k.includes('9790')) ||
+                (typeStr.includes('4218') && k.includes('4218')) ||
+                (typeStr.includes('4865') && k.includes('4865')) ||
                 (typeStr.includes('9841') && k.includes('9841'))
             )
         ) || '1 in 12 PnC: RT-9790';
@@ -718,7 +718,7 @@ const FinalInspectionScreen = ({ call, onBack }) => {
     const naturalSortSleepers = (arr = [], sType = '') => {
         const typeStr = sType || summaryData?.sleeperType || icForm?.ercType || call?.sleeperType || '';
         const isTurnout = typeStr.includes('PnC') || typeStr.includes('RT-9790') || typeStr.includes('RT-4218') || typeStr.includes('RT-4865') || typeStr.includes('Turnout') || (batches?.[0]?.batchNo || '').toUpperCase().startsWith('TO');
-        
+
         if (isTurnout) {
             const turnoutSeq = getTurnoutSleepers(typeStr);
             const orderMap = new Map(turnoutSeq.map((c, i) => [c, i]));
@@ -747,7 +747,7 @@ const FinalInspectionScreen = ({ call, onBack }) => {
     const sanitizeBatchSleepers = (b, sType) => {
         const currentType = sType || summaryData?.sleeperType || icForm?.ercType || call?.sleeperType || '';
         const isTurnout = (currentType && (currentType.includes('PnC') || currentType.includes('RT-9790') || currentType.includes('RT-4218') || currentType.includes('RT-4865') || currentType.includes('Turnout'))) || (b.batchNo && b.batchNo.toUpperCase().startsWith('TO'));
-        
+
         let accepted = (b.goodSleepers || b.acceptedSleepers || []).map(s => typeof s === 'string' ? s : (s?.sleeperCode || '')).filter(s => Boolean(s) && String(s).trim() !== '0');
         let rejected = (b.rejectedSleepers || []).map(s => ({
             sleeperCode: typeof s === 'string' ? s : (s?.sleeperCode || s?.sleeperNo || ''),
@@ -760,7 +760,7 @@ const FinalInspectionScreen = ({ call, onBack }) => {
             if (hasWrongLineNumbers || accepted.length === 0) {
                 const count = b.qtyCasted || b.casted || b.offeredNow || b.totalSleepersCasted || 62;
                 const turnoutList = getTurnoutSleepers(currentType, count);
-                
+
                 if (rejected.length > 0) {
                     const validRejected = rejected.map((r, idx) => {
                         const code = getSCode(r);
@@ -825,7 +825,7 @@ const FinalInspectionScreen = ({ call, onBack }) => {
                 epoxyTreatedSleepers: (batch.etSleepers || []).map(s => typeof s === 'string' ? { sleeperCode: s, reason: 'Epoxy Treatment' } : { sleeperCode: s.sleeperCode, reason: s.reason || 'Epoxy Treatment' })
             }))
         };
-        
+
         let savedResultId = null;
         try {
             const sfrRes = await apiService.saveSleeperFinalResult(finalResultPayload);
@@ -857,7 +857,7 @@ const FinalInspectionScreen = ({ call, onBack }) => {
             createdBy: String(user?.userId || ''),
             updatedBy: String(user?.userId || '')
         };
-        
+
         await apiService.saveMainIeInspectionHeader(headerPayload);
 
         // 3. Save Batch-wise details with ET reason
@@ -880,21 +880,21 @@ const FinalInspectionScreen = ({ call, onBack }) => {
                 createdBy: String(user?.userId || ''),
                 updatedBy: String(user?.userId || ''),
                 goodSleepers: (batch.acceptedSleepers || []).map(s => ({ sleeperCode: typeof s === 'string' ? s : s.sleeperCode })),
-                rejectedSleepers: (batch.rejectedSleepers || []).map(s => ({ 
-                    sleeperCode: typeof s === 'string' ? s : s.sleeperCode, 
-                    reason: (typeof s === 'object' && s.reason) ? s.reason : 'Rejected', 
+                rejectedSleepers: (batch.rejectedSleepers || []).map(s => ({
+                    sleeperCode: typeof s === 'string' ? s : s.sleeperCode,
+                    reason: (typeof s === 'object' && s.reason) ? s.reason : 'Rejected',
                     type: (typeof s === 'object' && s.type) ? s.type : 'Main IE Rejection',
                     sleeperFinalResultId: savedResultId
                 })),
-                etSleepers: (batch.etSleepers || []).map(s => ({ 
+                etSleepers: (batch.etSleepers || []).map(s => ({
                     sleeperCode: typeof s === 'string' ? s : s.sleeperCode,
                     reason: (typeof s === 'object' && s.reason) ? s.reason : 'Epoxy Treatment',
                     sleeperFinalResultId: savedResultId
                 })),
                 mfSleepers: (batch.mfTestedSleepers || []).map(s => ({ sleeperCode: typeof s === 'string' ? s : s.sleeperCode })),
-                finalRejections: (batch.rejectedSleepers || []).map(s => ({ 
-                    sleeperCode: typeof s === 'string' ? s : s.sleeperCode, 
-                    reason: (typeof s === 'object' && s.reason) ? s.reason : 'Final Rejection', 
+                finalRejections: (batch.rejectedSleepers || []).map(s => ({
+                    sleeperCode: typeof s === 'string' ? s : s.sleeperCode,
+                    reason: (typeof s === 'object' && s.reason) ? s.reason : 'Final Rejection',
                     type: 'Final',
                     sleeperFinalResultId: savedResultId
                 }))
@@ -995,10 +995,10 @@ const FinalInspectionScreen = ({ call, onBack }) => {
             if (batch.batchNo === rejectionEntry.batchNo) {
                 if (batch.rejectedSleepers.some(s => getSCode(s) === rejectionEntry.sleeperNo)) return batch;
                 const newAccepted = naturalSortSleepers(batch.acceptedSleepers.filter(s => getSCode(s) !== rejectionEntry.sleeperNo));
-                const newRejected = naturalSortSleepers([...batch.rejectedSleepers, { 
-                    sleeperCode: rejectionEntry.sleeperNo, 
-                    reason: rejectionEntry.reason, 
-                    type: 'Main IE Rejection' 
+                const newRejected = naturalSortSleepers([...batch.rejectedSleepers, {
+                    sleeperCode: rejectionEntry.sleeperNo,
+                    reason: rejectionEntry.reason,
+                    type: 'Main IE Rejection'
                 }]);
                 return {
                     ...batch,
@@ -1020,11 +1020,11 @@ const FinalInspectionScreen = ({ call, onBack }) => {
         setBatches(prev => prev.map(batch => {
             if (batch.batchNo === etEntry.batchNo) {
                 if (batch.etSleepers.some(s => getSCode(s) === etEntry.sleeperNo)) return batch;
-                
+
                 const newAccepted = naturalSortSleepers(batch.acceptedSleepers.filter(s => getSCode(s) !== etEntry.sleeperNo));
-                const newEt = naturalSortSleepers([...batch.etSleepers, { 
-                    sleeperCode: etEntry.sleeperNo, 
-                    reason: etEntry.reason 
+                const newEt = naturalSortSleepers([...batch.etSleepers, {
+                    sleeperCode: etEntry.sleeperNo,
+                    reason: etEntry.reason
                 }]);
                 return {
                     ...batch,
@@ -1150,7 +1150,7 @@ const FinalInspectionScreen = ({ call, onBack }) => {
                                     </button>
                                 </div>
                             </div>
-                            
+
                             {sectionAExpanded && (
                                 <div className="verification-form-body-modern">
                                     <div className="form-grid-modern-4col">
@@ -1194,7 +1194,7 @@ const FinalInspectionScreen = ({ call, onBack }) => {
                                             </div>
                                         </div>
                                     </div>
-                                    
+
                                     <div className="section-status-actions">
                                         {sectionAStatus === 'approved' ? (
                                             <div className="section-verified-confirmation-row">
@@ -1202,7 +1202,7 @@ const FinalInspectionScreen = ({ call, onBack }) => {
                                                     <span className="verified-check-icon">✓</span>
                                                     <span className="verified-check-text">Section A Information Verified & Saved</span>
                                                 </div>
-                                                <button 
+                                                <button
                                                     type="button"
                                                     className="btn-status-reverify"
                                                     disabled={isVerificationBusy}
@@ -1213,7 +1213,7 @@ const FinalInspectionScreen = ({ call, onBack }) => {
                                             </div>
                                         ) : (
                                             <>
-                                                <button 
+                                                <button
                                                     type="button"
                                                     className={`btn-status-not-ok ${sectionAStatus === 'rejected' ? 'active' : ''}`}
                                                     disabled={isVerificationBusy}
@@ -1221,7 +1221,7 @@ const FinalInspectionScreen = ({ call, onBack }) => {
                                                 >
                                                     ✕ Not OK
                                                 </button>
-                                                <button 
+                                                <button
                                                     type="button"
                                                     className="btn-status-ok"
                                                     disabled={isVerificationBusy}
@@ -1295,11 +1295,11 @@ const FinalInspectionScreen = ({ call, onBack }) => {
                                             </div>
                                             <div className="form-group-modern">
                                                 <label>Type of Sleeper <span className="req-star">*</span></label>
-                                                <select 
+                                                <select
                                                     className="input-field-mock modern-select"
                                                     value={icForm.ercType}
                                                     disabled={isVerificationBusy}
-                                                    onChange={(e) => setIcForm({...icForm, ercType: e.target.value})}
+                                                    onChange={(e) => setIcForm({ ...icForm, ercType: e.target.value })}
                                                 >
                                                     <option value="PSC Sleeper">PSC Sleeper</option>
                                                     <option value="Normal Sleeper">Normal Sleeper</option>
@@ -1359,7 +1359,7 @@ const FinalInspectionScreen = ({ call, onBack }) => {
                                                         <span className="verified-check-icon">✓</span>
                                                         <span className="verified-check-text">Section B Information Verified & Saved</span>
                                                     </div>
-                                                    <button 
+                                                    <button
                                                         type="button"
                                                         className="btn-status-reverify"
                                                         disabled={isVerificationBusy}
@@ -1370,7 +1370,7 @@ const FinalInspectionScreen = ({ call, onBack }) => {
                                                 </div>
                                             ) : (
                                                 <>
-                                                    <button 
+                                                    <button
                                                         type="button"
                                                         className={`btn-status-not-ok ${sectionBStatus === 'rejected' ? 'active' : ''}`}
                                                         disabled={isVerificationBusy}
@@ -1378,7 +1378,7 @@ const FinalInspectionScreen = ({ call, onBack }) => {
                                                     >
                                                         ✕ Not OK
                                                     </button>
-                                                    <button 
+                                                    <button
                                                         type="button"
                                                         className="btn-status-ok"
                                                         disabled={isVerificationBusy}
@@ -1400,12 +1400,12 @@ const FinalInspectionScreen = ({ call, onBack }) => {
                             </div>
                         )}
                     </div>
-                    
+
                     {/* FOOTER */}
                     <div className="verification-footer sticky">
                         <div className="footer-actions-left">
-                            <button 
-                                className="back-landing-btn-modern" 
+                            <button
+                                className="back-landing-btn-modern"
                                 disabled={isVerificationBusy}
                                 onClick={onBack}
                             >
@@ -1413,8 +1413,8 @@ const FinalInspectionScreen = ({ call, onBack }) => {
                             </button>
                         </div>
                         <div className="footer-actions-right">
-                            <button 
-                                className="open-verify-btn-modern" 
+                            <button
+                                className="open-verify-btn-modern"
                                 disabled={sectionBStatus !== 'approved' || isVerificationBusy}
                                 onClick={handlePoVerify}
                             >
@@ -1438,7 +1438,7 @@ const FinalInspectionScreen = ({ call, onBack }) => {
             <header className="inspection-header">
                 <div className="header-left">
                     <button className="back-icon-btn" onClick={onBack} title="Back to Dashboard">
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="m15 18-6-6 6-6"/></svg>
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="m15 18-6-6 6-6" /></svg>
                     </button>
                     <div className="header-call-meta">
                         <div className="title-row">
@@ -1616,12 +1616,12 @@ const FinalInspectionScreen = ({ call, onBack }) => {
                                 <span className="verdict-hint-tag">Log Rejections & Epoxy Treatments (ET)</span>
                             </div>
                         </div>
-                        
+
                         <div className="verdict-cards-grid">
                             {/* Card 1: Add Rejection */}
                             <div className={`verdict-interactive-card card-rejection ${activeAction === 'rejection' ? 'expanded' : ''}`}>
-                                <div 
-                                    className="verdict-card-header" 
+                                <div
+                                    className="verdict-card-header"
                                     onClick={() => setActiveAction(activeAction === 'rejection' ? null : 'rejection')}
                                 >
                                     <div className="header-left-group">
@@ -1645,7 +1645,7 @@ const FinalInspectionScreen = ({ call, onBack }) => {
                                                 <label>Batch Number <span className="req">*</span></label>
                                                 <ModernSearchableSelect
                                                     value={rejectionEntry.batchNo}
-                                                    onChange={(val) => setRejectionEntry({...rejectionEntry, batchNo: val, sleeperNo: ''})}
+                                                    onChange={(val) => setRejectionEntry({ ...rejectionEntry, batchNo: val, sleeperNo: '' })}
                                                     options={batches.map(b => ({ value: b.batchNo, label: `Batch ${b.batchNo}` }))}
                                                     placeholder="Search or Select Batch"
                                                     theme="red"
@@ -1655,7 +1655,7 @@ const FinalInspectionScreen = ({ call, onBack }) => {
                                                 <label>Sleeper Number <span className="req">*</span></label>
                                                 <ModernSearchableSelect
                                                     value={rejectionEntry.sleeperNo}
-                                                    onChange={(val) => setRejectionEntry({...rejectionEntry, sleeperNo: val})}
+                                                    onChange={(val) => setRejectionEntry({ ...rejectionEntry, sleeperNo: val })}
                                                     options={naturalSortSleepers(batches.find(b => b.batchNo === rejectionEntry.batchNo)?.acceptedSleepers || [])
                                                         .map(s => {
                                                             const code = getSCode(s);
@@ -1670,9 +1670,9 @@ const FinalInspectionScreen = ({ call, onBack }) => {
                                         </div>
                                         <div className="form-input-group full-width-input">
                                             <label>Reason for Rejection <span className="req">*</span></label>
-                                            <select 
-                                                value={rejectionEntry.reason} 
-                                                onChange={(e) => setRejectionEntry({...rejectionEntry, reason: e.target.value})}
+                                            <select
+                                                value={rejectionEntry.reason}
+                                                onChange={(e) => setRejectionEntry({ ...rejectionEntry, reason: e.target.value })}
                                             >
                                                 <option value="">Select Reason for Rejection</option>
                                                 <option value="Surface Crack">Surface Crack</option>
@@ -1689,11 +1689,11 @@ const FinalInspectionScreen = ({ call, onBack }) => {
                                     </div>
                                 )}
                             </div>
-    
+
                             {/* Card 2: Add ET */}
                             <div className={`verdict-interactive-card card-et ${activeAction === 'et' ? 'expanded' : ''}`}>
-                                <div 
-                                    className="verdict-card-header" 
+                                <div
+                                    className="verdict-card-header"
                                     onClick={() => setActiveAction(activeAction === 'et' ? null : 'et')}
                                 >
                                     <div className="header-left-group">
@@ -1717,7 +1717,7 @@ const FinalInspectionScreen = ({ call, onBack }) => {
                                                 <label>Batch Number <span className="req">*</span></label>
                                                 <ModernSearchableSelect
                                                     value={etEntry.batchNo}
-                                                    onChange={(val) => setEtEntry({...etEntry, batchNo: val, sleeperNo: ''})}
+                                                    onChange={(val) => setEtEntry({ ...etEntry, batchNo: val, sleeperNo: '' })}
                                                     options={batches.map(b => ({ value: b.batchNo, label: `Batch ${b.batchNo}` }))}
                                                     placeholder="Search or Select Batch"
                                                     theme="blue"
@@ -1727,7 +1727,7 @@ const FinalInspectionScreen = ({ call, onBack }) => {
                                                 <label>Sleeper Number <span className="req">*</span></label>
                                                 <ModernSearchableSelect
                                                     value={etEntry.sleeperNo}
-                                                    onChange={(val) => setEtEntry({...etEntry, sleeperNo: val})}
+                                                    onChange={(val) => setEtEntry({ ...etEntry, sleeperNo: val })}
                                                     options={naturalSortSleepers(batches.find(b => b.batchNo === etEntry.batchNo)?.acceptedSleepers || [])
                                                         .map(s => {
                                                             const code = getSCode(s);
@@ -1742,9 +1742,9 @@ const FinalInspectionScreen = ({ call, onBack }) => {
                                         </div>
                                         <div className="form-input-group full-width-input">
                                             <label>Reason for Epoxy Treatment <span className="req">*</span></label>
-                                            <select 
-                                                value={etEntry.reason} 
-                                                onChange={(e) => setEtEntry({...etEntry, reason: e.target.value})}
+                                            <select
+                                                value={etEntry.reason}
+                                                onChange={(e) => setEtEntry({ ...etEntry, reason: e.target.value })}
                                             >
                                                 <option value="">Select Reason for ET</option>
                                                 <option value="Surface Crack">Surface Crack</option>
@@ -1801,33 +1801,33 @@ const FinalInspectionScreen = ({ call, onBack }) => {
 
                         {/* Action Buttons Row with Concurrency Lockout */}
                         <div className="final-action-buttons-row">
-                            <button 
-                                className="btn-action-custom btn-save-draft" 
-                                onClick={handleSaveDraft} 
+                            <button
+                                className="btn-action-custom btn-save-draft"
+                                onClick={handleSaveDraft}
                                 disabled={isProcessing}
                                 style={{ opacity: isProcessing ? 0.6 : 1, cursor: isProcessing ? 'not-allowed' : 'pointer' }}
                             >
                                 {activeActionLoading === 'draft' ? '⏳ Saving Draft...' : '💾 SAVE DRAFT'}
                             </button>
-                            <button 
-                                className="btn-action-custom btn-pause-inspection" 
-                                onClick={() => handleWorkflowAction('PAUSE')} 
+                            <button
+                                className="btn-action-custom btn-pause-inspection"
+                                onClick={() => handleWorkflowAction('PAUSE')}
                                 disabled={isProcessing}
                                 style={{ opacity: isProcessing ? 0.6 : 1, cursor: isProcessing ? 'not-allowed' : 'pointer' }}
                             >
                                 {activeActionLoading === 'pause' ? '⏳ Pausing...' : '⏸️ PAUSE INSPECTION'}
                             </button>
-                            <button 
-                                className="btn-action-custom btn-withdraw-inspection" 
-                                onClick={() => handleWorkflowAction('WITHDRAW')} 
+                            <button
+                                className="btn-action-custom btn-withdraw-inspection"
+                                onClick={() => handleWorkflowAction('WITHDRAW')}
                                 disabled={isProcessing}
                                 style={{ opacity: isProcessing ? 0.6 : 1, cursor: isProcessing ? 'not-allowed' : 'pointer' }}
                             >
                                 {activeActionLoading === 'withdraw' ? '⏳ Withdrawing...' : '🚫 WITHDRAW'}
                             </button>
-                            <button 
-                                className="btn-action-custom btn-finish-inspection" 
-                                onClick={() => handleWorkflowAction('FINISH')} 
+                            <button
+                                className="btn-action-custom btn-finish-inspection"
+                                onClick={() => handleWorkflowAction('FINISH')}
                                 disabled={isProcessing}
                                 style={{ opacity: isProcessing ? 0.6 : 1, cursor: isProcessing ? 'not-allowed' : 'pointer' }}
                             >

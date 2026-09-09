@@ -198,7 +198,8 @@ const EditableChamberSelect = ({ value, onChange, availableChambers = [] }) => {
     }, []);
 
     const handleSelect = (chNo) => {
-        onChange(chNo);
+        const numOnly = String(chNo).replace(/[^0-9]/g, '') || String(chNo);
+        onChange(numOnly);
         setIsOpen(false);
     };
 
@@ -207,12 +208,19 @@ const EditableChamberSelect = ({ value, onChange, availableChambers = [] }) => {
         if (availableChambers && availableChambers.length > 0) {
             availableChambers.forEach(c => {
                 const val = typeof c === 'object' ? String(c.chamberNo || c.id || '') : String(c);
-                if (val) set.add(val);
+                const numOnly = val.replace(/[^0-9]/g, '');
+                if (numOnly) set.add(numOnly);
+                else if (val) set.add(val);
             });
         } else {
             ['1', '2', '3', '4', '5', '6', '7', '8'].forEach(c => set.add(c));
         }
-        return Array.from(set);
+        return Array.from(set).sort((a, b) => {
+            const numA = parseInt(a, 10);
+            const numB = parseInt(b, 10);
+            if (!isNaN(numA) && !isNaN(numB)) return numA - numB;
+            return a.localeCompare(b);
+        });
     }, [availableChambers]);
 
     return (
@@ -221,7 +229,7 @@ const EditableChamberSelect = ({ value, onChange, availableChambers = [] }) => {
                 <input
                     type="text"
                     value={value || ''}
-                    onChange={e => onChange(e.target.value)}
+                    onChange={e => onChange(e.target.value.replace(/[^0-9]/g, ''))}
                     onFocus={() => setIsOpen(true)}
                     placeholder="Select or enter Chamber No."
                     style={{
@@ -279,24 +287,24 @@ const EditableChamberSelect = ({ value, onChange, availableChambers = [] }) => {
                     zIndex: 9999
                 }}>
                     {chamberOptions.map((ch, idx) => {
-                        const displayText = String(ch).toLowerCase().startsWith('chamber') ? ch : `Chamber ${ch}`;
+                        const numOnly = String(ch).replace(/[^0-9]/g, '') || String(ch);
                         return (
                             <div
                                 key={idx}
-                                onClick={() => handleSelect(ch)}
+                                onClick={() => handleSelect(numOnly)}
                                 style={{
                                     padding: '8px 12px',
                                     fontSize: '13px',
                                     cursor: 'pointer',
-                                    background: String(ch) === String(value) ? '#eff6ff' : '#fff',
-                                    color: String(ch) === String(value) ? '#1d4ed8' : '#1e293b',
-                                    fontWeight: String(ch) === String(value) ? '700' : '400',
+                                    background: String(numOnly) === String(value) ? '#eff6ff' : '#fff',
+                                    color: String(numOnly) === String(value) ? '#1d4ed8' : '#1e293b',
+                                    fontWeight: String(numOnly) === String(value) ? '700' : '400',
                                     borderBottom: idx < chamberOptions.length - 1 ? '1px solid #f1f5f9' : 'none'
                                 }}
-                                onMouseEnter={e => { if (String(ch) !== String(value)) e.currentTarget.style.background = '#f8fafc'; }}
-                                onMouseLeave={e => { if (String(ch) !== String(value)) e.currentTarget.style.background = '#fff'; }}
+                                onMouseEnter={e => { if (String(numOnly) !== String(value)) e.currentTarget.style.background = '#f8fafc'; }}
+                                onMouseLeave={e => { if (String(numOnly) !== String(value)) e.currentTarget.style.background = '#fff'; }}
                             >
-                                {displayText}
+                                {numOnly}
                             </div>
                         );
                     })}
@@ -575,7 +583,7 @@ const SteamCuring = ({ onBack, steamRecords: propSteamRecords, setSteamRecords: 
                     const data = response?.responseData;
                     if (data) {
                         const grade = data.mixDesignReference ? data.mixDesignReference.split(' - ')[0] : 'M60';
-                        const chamberList = (data.chambers || []).map(c => String(c.chamberNo));
+                        const chamberList = (data.chambers || []).map(c => String(c.chamberNo).replace(/[^0-9]/g, '')).filter(Boolean);
                         setAvailableChambers(chamberList);
                         
                         const chamber = chamberList.length > 0 ? chamberList[0] : '';
@@ -598,7 +606,7 @@ const SteamCuring = ({ onBack, steamRecords: propSteamRecords, setSteamRecords: 
             const allDecls = Object.values(allBatchDeclarations).flat();
             const localMatch = allDecls.find(b => String(b.batchNo) === batchNoStr);
             if (localMatch) {
-                const chamberList = (localMatch.chambers || []).map(c => String(c.chamberNo));
+                const chamberList = (localMatch.chambers || []).map(c => String(c.chamberNo).replace(/[^0-9]/g, '')).filter(Boolean);
                 setAvailableChambers(chamberList);
                 setManualForm(prev => ({ 
                     ...prev, 

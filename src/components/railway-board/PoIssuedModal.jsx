@@ -51,6 +51,16 @@ const PoIssuedModal = ({ isOpen, onClose, data, title, isLoading }) => {
                             onChange={(e) => setSearchTerm(e.target.value)}
                             disabled={isLoading}
                         />
+                        {searchTerm && (
+                            <button
+                                type="button"
+                                className="search-clear-btn"
+                                onClick={() => setSearchTerm('')}
+                                title="Clear search"
+                            >
+                                <i className="fa-solid fa-xmark"></i>
+                            </button>
+                        )}
                     </div>
                     <div className="filter-group">
                         <select 

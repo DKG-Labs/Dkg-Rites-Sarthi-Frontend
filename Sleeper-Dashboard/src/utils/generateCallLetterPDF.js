@@ -16,6 +16,17 @@ const val = (v, fallback = '-') => (v !== null && v !== undefined && String(v).t
  * @param {object} call - Call data object from the dashboard
  * @param {boolean} shouldDownload - Whether to trigger browser download immediately
  */
+const resolveSleeperCaseNo = (rawCaseNo, rio) => {
+    if (!rawCaseNo || !String(rawCaseNo).trim()) return null;
+    const parts = String(rawCaseNo).split(',').map(s => s.trim()).filter(Boolean);
+    if (rio && String(rio).trim()) {
+        const firstLetter = String(rio).trim().charAt(0).toUpperCase();
+        const matched = parts.find(p => p.toUpperCase().startsWith(firstLetter));
+        return matched || null;
+    }
+    return parts[0] || null;
+};
+
 export const generateCallLetterPDF = (call, shouldDownload = true) => {
     if (!call) return null;
 
@@ -100,6 +111,7 @@ export const generateCallLetterPDF = (call, shouldDownload = true) => {
         if (valueFn) {
             valueFn(margin + col1W + 2, y + rowH / 2 + 1.5);
         } else if (Array.isArray(value)) {
+            // Segments with different colours
             let xOff = margin + col1W + 2;
             value.forEach(seg => {
                 setFont('normal', 9, seg.color || RED);
@@ -108,6 +120,7 @@ export const generateCallLetterPDF = (call, shouldDownload = true) => {
             });
         } else {
             setFont('normal', 9, typeof value === 'object' && value?.color ? value.color : RED);
+            // Clip long text within cell
             const maxW = col2W - 4;
             const lines = doc.splitTextToSize(textVal, maxW);
             const lineH = 4.5;
@@ -199,10 +212,10 @@ export const generateCallLetterPDF = (call, shouldDownload = true) => {
     const getRioAddress = () => {
         const scrCodeToRio = {
             'ECR': 'ERIO', 'ER': 'ERIO', 'SER': 'ERIO', 'ECOR': 'ERIO',
-            'NR':  'NRIO', 'NWR': 'NRIO', 'NFR': 'NRIO', 'NER': 'NRIO',
+            'NR': 'NRIO', 'NWR': 'NRIO', 'NFR': 'NRIO', 'NER': 'NRIO',
             'NCR': 'CRIO', 'CR': 'CRIO', 'WCR': 'CRIO',
-            'WR':  'WRIO', 'SWR': 'WRIO',
-            'SR':  'SRIO', 'SCR': 'SRIO',
+            'WR': 'WRIO', 'SWR': 'WRIO',
+            'SR': 'SRIO', 'SCR': 'SRIO',
         };
         const rawScrCode = String(call.scrCode || call.rlyShortName || '').trim().toUpperCase();
         const rioFromScr = rawScrCode ? (scrCodeToRio[rawScrCode] || null) : null;
@@ -265,7 +278,9 @@ export const generateCallLetterPDF = (call, shouldDownload = true) => {
     drawRow('Inspection Call Number', callNumberStr, { rowH: 9 });
 
     // Case Number
-    drawRow('Case No.', val(call.caseNo || call.case_no), { rowH: 9 });
+    const rawCaseNo = call.caseNo || call.case_no || call.ibsCaseNo || call.poCaseNo;
+    const resolvedCaseNo = resolveSleeperCaseNo(rawCaseNo, call.rio || call.rioCode || (typeof localStorage !== 'undefined' && localStorage.getItem('plantRio')));
+    drawRow('Case No.', val(resolvedCaseNo || rawCaseNo), { rowH: 9 });
 
     // IE
     const rawIeName = call.assignedIeName || call.ieName || call.assignedIE;

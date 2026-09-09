@@ -30,6 +30,22 @@ export const CALL_STATUS = {
   REJECTED_CLOSED: 'rejected_closed'
 };
 
+// SRS 12 Reasons for Cancellation
+export const CANCELLATION_REASONS = [
+  'Material Not Found',
+  'Call letter received after expiry of delivery period',
+  'Call letter not submitted in prescribed format',
+  'Refusal to undertake tests in approved independent test house/RITES lab at vendor\'s cost',
+  'Material offered at premises where adequate room or lighting is not available for proper sampling/inspection',
+  'Internal inspection and test records incomplete/not as per contractual requirement',
+  'Packing list showing quantities offered item-wise and consignee-wise not available/readable',
+  'Lot mixed and not segregated; re-offer required after proper segregation',
+  'Inspection could not be arranged despite personal contact/phone discussion with vendor',
+  'Required documents (Drawing/Specification/Purchase Order etc.) not produced at the time of inspection',
+  'Call Withdrawn by Vendor',
+  'Others (Specify)'
+];
+
 // Call Status Display Configuration
 export const CALL_STATUS_CONFIG = {
   [CALL_STATUS.PENDING_VERIFICATION]: {

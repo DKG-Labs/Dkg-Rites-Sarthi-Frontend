@@ -156,15 +156,20 @@ const FinalInspectionScreen = ({ call, onBack }) => {
         remarks: ''
     });
 
+    const verificationLoadedRef = React.useRef(null);
+
     useEffect(() => {
+        const callReqId = call?.requestId;
+        if (!callReqId || verificationLoadedRef.current === callReqId) return;
+        verificationLoadedRef.current = callReqId;
+
         const loadInitialVerificationDetails = async () => {
-            if (!call?.requestId) return;
             try {
                 setIsLoadingData(true);
                 const [sec1Res, sec2Res, summaryRes] = await Promise.allSettled([
-                    apiService.getSection1Details(call.requestId),
-                    apiService.getSection2Details(call.requestId),
-                    apiService.getInspectionCallSummary(call.requestId)
+                    apiService.getSection1Details(callReqId),
+                    apiService.getSection2Details(callReqId),
+                    apiService.getInspectionCallSummary(callReqId)
                 ]);
 
                 const sec1 = sec1Res.status === 'fulfilled' ? sec1Res.value?.responseData : null;
@@ -173,10 +178,10 @@ const FinalInspectionScreen = ({ call, onBack }) => {
 
                 if (sec1) {
                     setPoForm({
-                        poNo: sec1.rlyPoNo || summary?.poNo || call.requestId,
+                        poNo: sec1.rlyPoNo || summary?.poNo || callReqId,
                         poDate: sec1.poDate ? sec1.poDate.split('T')[0] : '',
                         poQty: sec1.poQty ? `${sec1.poQty} Nos` : (summary?.qtyOfferedNow ? `${summary.qtyOfferedNow} Nos` : ''),
-                        vendorName: sec1.vendorName || call.vendorCode || '',
+                        vendorName: sec1.vendorName || call?.vendorCode || '',
                         maNo: sec1.maNo || 'N/A',
                         maDate: sec1.maDate ? sec1.maDate.split('T')[0] : 'N/A',
                         purchasingAuthority: sec1.purchasingAuthority || '',
@@ -189,17 +194,17 @@ const FinalInspectionScreen = ({ call, onBack }) => {
                 } else if (summary) {
                     setPoForm(prev => ({
                         ...prev,
-                        poNo: summary.poNo || call.requestId,
+                        poNo: summary.poNo || callReqId,
                         poDate: summary.callDate || '',
                         poQty: summary.qtyOfferedNow ? `${summary.qtyOfferedNow} Nos` : '',
-                        vendorName: call.vendorCode || '',
+                        vendorName: call?.vendorCode || '',
                         billPayingOfficer: summary.billPayingOfficer || summary.billPayOffDesc || ''
                     }));
                 }
 
                 if (sec2) {
                     setIcForm({
-                        callNo: sec2.inspectionCallNo || call.requestId,
+                        callNo: sec2.inspectionCallNo || callReqId,
                         callDate: sec2.inspectionCallDate ? sec2.inspectionCallDate.split('T')[0] : '',
                         desiredDate: sec2.inspectionDesiredDate ? sec2.inspectionDesiredDate.split('T')[0] : (summary?.desiredInspectionDate || ''),
                         rlyPoSr: sec2.rlyPoSr || (summary?.rlyPoNo ? `${summary.rlyPoNo}/001` : ''),
@@ -222,7 +227,7 @@ const FinalInspectionScreen = ({ call, onBack }) => {
                 } else if (summary) {
                     setIcForm(prev => ({
                         ...prev,
-                        callNo: call.requestId,
+                        callNo: callReqId,
                         callDate: summary.callDate ? summary.callDate.split('T')[0] : '',
                         desiredDate: summary.desiredInspectionDate ? summary.desiredInspectionDate.split('T')[0] : '',
                         rlyPoSr: summary.rlyPoNo ? `${summary.rlyPoNo}/001` : '',
@@ -246,7 +251,7 @@ const FinalInspectionScreen = ({ call, onBack }) => {
         };
 
         loadInitialVerificationDetails();
-    }, [call, step]);
+    }, [call?.requestId]);
 
     const [sectionAStatus, setSectionAStatus] = useState(null); // 'approved' or 'rejected'
     const [sectionBStatus, setSectionBStatus] = useState(null); // 'approved' or 'rejected'
@@ -435,60 +440,41 @@ const FinalInspectionScreen = ({ call, onBack }) => {
                     }));
                 }
 
-                // 1. Check Local Draft FIRST (Priority for edits and refreshed sessions)
-                const savedDraft = localStorage.getItem(`inspection_draft_${callNo}`);
-                let loadedFromDraft = false;
-                if (savedDraft) {
-                    try {
-                        const draft = JSON.parse(savedDraft);
-                        if (draft && Array.isArray(draft.batches) && draft.batches.length > 0) {
-                            const currentType = draft.summaryData?.sleeperType || call?.sleeperType || '';
-                            setBatches(draft.batches.map(b => sanitizeBatchSleepers(b, currentType)));
-                            if (draft.summaryData) {
-                                setSummaryData({
-                                    ...draft.summaryData,
-                                    poNo: sec1?.rlyPoNo || draft.summaryData.poNo || callNo,
-                                    poDate: sec1?.poDate ? sec1.poDate.split('T')[0] : draft.summaryData.poDate,
-                                    vendorName: sec1?.vendorName || draft.summaryData.vendorName,
-                                    quantityOnOrder: sec1?.poQty ? `${sec1.poQty} Nos` : draft.summaryData.quantityOnOrder,
-                                    maNo: sec1?.maNo || draft.summaryData.maNo || 'N/A',
-                                    maDate: sec1?.maDate ? sec1.maDate.split('T')[0] : (draft.summaryData.maDate || 'N/A'),
-                                    billPayingOfficer: sec1?.billPayingOfficer || draft.summaryData.billPayingOfficer,
-                                    placeOfInspection: sec2?.placeOfInspection || draft.summaryData.placeOfInspection || sec1?.vendorName
-                                });
-                            }
-                            loadedFromDraft = true;
-                            console.log(`[Inspection Data] Restored latest draft for ${callNo} from local cache.`);
-                        }
-                    } catch (e) {
-                        console.error("Error parsing saved draft:", e);
+                // 1. Fetch Master Batches from backend
+                let masterBatches = [];
+                try {
+                    const batchResp = await apiService.getBatchWiseDetails(callNo);
+                    if (batchResp && batchResp.responseData && Array.isArray(batchResp.responseData)) {
+                        const currentType = call?.sleeperType || summaryData?.sleeperType || '';
+                        masterBatches = batchResp.responseData.map(b => sanitizeBatchSleepers({
+                            batchNo: b.batchNo,
+                            dateCasted: b.castingDate,
+                            qtyCasted: b.totalSleepersCasted || 0,
+                            offeredPrev: 0,
+                            offeredNow: b.offeredNow || 0,
+                            passed: b.passed || 0,
+                            rejected: b.rejected || 0,
+                            unoffered: b.unoffered || 0,
+                            sleepers: [...(b.acceptedSleepers || []), ...(b.rejectedSleepers || [])].filter(s => Boolean(s) && String(s).trim() !== '0'),
+                            acceptedSleepers: (b.acceptedSleepers || []).map(s => typeof s === 'string' ? s : (s?.sleeperCode || '')).filter(s => Boolean(s) && String(s).trim() !== '0'),
+                            rejectedSleepers: (b.rejectedSleepers || []).map(s => ({
+                                sleeperCode: typeof s === 'string' ? s : (s?.sleeperCode || s?.sleeperNo || ''),
+                                reason: (typeof s === 'object' && s?.reason) ? s.reason : 'Rejected',
+                                type: (typeof s === 'object' && s?.type) ? s.type : 'Main IE Rejection'
+                            })).filter(s => Boolean(s.sleeperCode) && String(s.sleeperCode).trim() !== '0'),
+                            etSleepers: (b.etSleepers || []).map(s => ({
+                                sleeperCode: typeof s === 'string' ? s : (s?.sleeperCode || s?.sleeperNo || ''),
+                                reason: (typeof s === 'object' && s?.reason) ? s.reason : 'Epoxy Treatment'
+                            })).filter(s => Boolean(s.sleeperCode) && String(s.sleeperCode).trim() !== '0'),
+                            mfTestedSleepers: []
+                        }, currentType));
                     }
+                } catch (err) {
+                    console.error("Error fetching master batch details:", err);
                 }
 
-                // If draft loaded, fetch any missing summary metadata but DO NOT overwrite batches
-                if (loadedFromDraft) {
-                    try {
-                        const summaryResp = await apiService.getInspectionCallSummary(callNo);
-                        if (summaryResp && summaryResp.responseData) {
-                            setSummaryData(prev => ({
-                                ...(summaryResp.responseData || {}),
-                                ...(prev || {}),
-                                poNo: sec1?.rlyPoNo || prev?.poNo || summaryResp.responseData.poNo || callNo,
-                                poDate: sec1?.poDate ? sec1.poDate.split('T')[0] : (prev?.poDate || summaryResp.responseData.poDate),
-                                vendorName: sec1?.vendorName || prev?.vendorName || summaryResp.responseData.vendorName,
-                                quantityOnOrder: sec1?.poQty ? `${sec1.poQty} Nos` : (prev?.quantityOnOrder || summaryResp.responseData.quantityOnOrder),
-                                maNo: sec1?.maNo || prev?.maNo || 'N/A',
-                                maDate: sec1?.maDate ? sec1.maDate.split('T')[0] : (prev?.maDate || 'N/A'),
-                                billPayingOfficer: sec1?.billPayingOfficer || prev?.billPayingOfficer,
-                                placeOfInspection: sec2?.placeOfInspection || prev?.placeOfInspection || sec1?.vendorName
-                            }));
-                        }
-                    } catch (e) { }
-                    return;
-                }
-
-                // 2. If no local draft, check SAVED inspection data from backend
-                let hasSavedBackendData = false;
+                // 2. Fetch Saved Header & Batches from Backend
+                let savedBackendBatches = [];
                 try {
                     const savedHeader = await apiService.getSavedMainIeHeader(callNo);
                     if (savedHeader && savedHeader.responseData) {
@@ -507,7 +493,6 @@ const FinalInspectionScreen = ({ call, onBack }) => {
                             billPayingOfficer: sec1?.billPayingOfficer || savedHeader.responseData.billPayingOfficer,
                             placeOfInspection: sec2?.placeOfInspection || sec1?.vendorName
                         });
-                        hasSavedBackendData = true;
                     }
                 } catch (err) {
                     console.log("No saved header found on backend.");
@@ -517,7 +502,7 @@ const FinalInspectionScreen = ({ call, onBack }) => {
                     const savedBatches = await apiService.getSavedMainIeBatches(callNo);
                     if (savedBatches && savedBatches.responseData && Array.isArray(savedBatches.responseData) && savedBatches.responseData.length > 0) {
                         const currentType = call?.sleeperType || summaryData?.sleeperType || '';
-                        const mappedSaved = savedBatches.responseData.map(b => sanitizeBatchSleepers({
+                        savedBackendBatches = savedBatches.responseData.map(b => sanitizeBatchSleepers({
                             batchNo: b.batchNo,
                             dateCasted: b.dateCasted,
                             qtyCasted: b.casted || 0,
@@ -542,65 +527,92 @@ const FinalInspectionScreen = ({ call, onBack }) => {
                                 ...(b.rejectedSleepers || []).map(s => typeof s === 'string' ? s : (s?.sleeperCode || '')).filter(s => Boolean(s) && String(s).trim() !== '0')
                             ]
                         }, currentType));
-                        setBatches(mappedSaved);
-                        hasSavedBackendData = true;
                     }
                 } catch (err) {
                     console.log("No saved batches found on backend.");
                 }
 
-                // 3. Fallback to Initial Production Data if nothing was saved yet
-                if (!hasSavedBackendData) {
+                // 3. Check Local Draft
+                let draftBatches = [];
+                const savedDraft = localStorage.getItem(`inspection_draft_${callNo}`);
+                if (savedDraft) {
                     try {
-                        const summaryResp = await apiService.getInspectionCallSummary(callNo);
-                        if (summaryResp && summaryResp.responseData) {
-                            setSummaryData({
-                                ...summaryResp.responseData,
-                                poNo: sec1?.rlyPoNo || summaryResp.responseData.poNo || callNo,
-                                poDate: sec1?.poDate ? sec1.poDate.split('T')[0] : summaryResp.responseData.poDate,
-                                vendorName: sec1?.vendorName || summaryResp.responseData.vendorName,
-                                quantityOnOrder: sec1?.poQty ? `${sec1.poQty} Nos` : summaryResp.responseData.quantityOnOrder,
-                                maNo: sec1?.maNo || 'N/A',
-                                maDate: sec1?.maDate ? sec1.maDate.split('T')[0] : 'N/A',
-                                billPayingOfficer: sec1?.billPayingOfficer,
-                                placeOfInspection: sec2?.placeOfInspection || sec1?.vendorName
-                            });
+                        const draft = JSON.parse(savedDraft);
+                        if (draft && Array.isArray(draft.batches) && draft.batches.length > 0) {
+                            const currentType = draft.summaryData?.sleeperType || call?.sleeperType || '';
+                            draftBatches = draft.batches.map(b => sanitizeBatchSleepers(b, currentType));
+                            if (draft.summaryData) {
+                                setSummaryData(prev => ({
+                                    ...(prev || {}),
+                                    ...draft.summaryData,
+                                    poNo: sec1?.rlyPoNo || draft.summaryData.poNo || callNo,
+                                    poDate: sec1?.poDate ? sec1.poDate.split('T')[0] : draft.summaryData.poDate,
+                                    vendorName: sec1?.vendorName || draft.summaryData.vendorName,
+                                    quantityOnOrder: sec1?.poQty ? `${sec1.poQty} Nos` : draft.summaryData.quantityOnOrder,
+                                    maNo: sec1?.maNo || draft.summaryData.maNo || 'N/A',
+                                    maDate: sec1?.maDate ? sec1.maDate.split('T')[0] : (draft.summaryData.maDate || 'N/A'),
+                                    billPayingOfficer: sec1?.billPayingOfficer || draft.summaryData.billPayingOfficer,
+                                    placeOfInspection: sec2?.placeOfInspection || draft.summaryData.placeOfInspection || sec1?.vendorName
+                                }));
+                            }
                         }
-                    } catch (err) {
-                        console.error("Error fetching initial inspection summary:", err);
+                    } catch (e) {
+                        console.error("Error parsing saved draft:", e);
                     }
+                }
 
-                    try {
-                        const batchResp = await apiService.getBatchWiseDetails(callNo);
-                        if (batchResp && batchResp.responseData && Array.isArray(batchResp.responseData)) {
-                            const currentType = call?.sleeperType || summaryData?.sleeperType || '';
-                            const mappedBatches = batchResp.responseData.map(b => sanitizeBatchSleepers({
-                                batchNo: b.batchNo,
-                                dateCasted: b.castingDate,
-                                qtyCasted: b.totalSleepersCasted || 0,
-                                offeredPrev: 0,
-                                offeredNow: b.offeredNow || 0,
-                                passed: b.passed || 0,
-                                rejected: b.rejected || 0,
-                                unoffered: b.unoffered || 0,
-                                sleepers: [...(b.acceptedSleepers || []), ...(b.rejectedSleepers || [])].filter(s => Boolean(s) && String(s).trim() !== '0'),
-                                acceptedSleepers: (b.acceptedSleepers || []).map(s => typeof s === 'string' ? s : (s?.sleeperCode || '')).filter(s => Boolean(s) && String(s).trim() !== '0'),
-                                rejectedSleepers: (b.rejectedSleepers || []).map(s => ({
-                                    sleeperCode: typeof s === 'string' ? s : (s?.sleeperCode || s?.sleeperNo || ''),
-                                    reason: (typeof s === 'object' && s?.reason) ? s.reason : 'Rejected',
-                                    type: (typeof s === 'object' && s?.type) ? s.type : 'Main IE Rejection'
-                                })).filter(s => Boolean(s.sleeperCode) && String(s.sleeperCode).trim() !== '0'),
-                                etSleepers: (b.etSleepers || []).map(s => ({
-                                    sleeperCode: typeof s === 'string' ? s : (s?.sleeperCode || s?.sleeperNo || ''),
-                                    reason: (typeof s === 'object' && s?.reason) ? s.reason : 'Epoxy Treatment'
-                                })).filter(s => Boolean(s.sleeperCode) && String(s.sleeperCode).trim() !== '0'),
-                                mfTestedSleepers: []
-                            }, currentType));
-                            setBatches(mappedBatches);
+                // 4. Merge Saved / Draft Overlay on Master Batches so ALL batches are always present
+                const overlayMap = new Map();
+                // Priority: draftBatches > savedBackendBatches
+                savedBackendBatches.forEach(b => { if (b.batchNo) overlayMap.set(b.batchNo.trim(), b); });
+                draftBatches.forEach(b => { if (b.batchNo) overlayMap.set(b.batchNo.trim(), b); });
+
+                let combinedBatches = [];
+                if (masterBatches.length > 0) {
+                    combinedBatches = masterBatches.map(mb => {
+                        const overlay = overlayMap.get(mb.batchNo?.trim());
+                        if (overlay) {
+                            return {
+                                ...mb,
+                                ...overlay,
+                                qtyCasted: overlay.qtyCasted || mb.qtyCasted,
+                                offeredNow: overlay.offeredNow || mb.offeredNow,
+                                passed: overlay.passed ?? mb.passed,
+                                rejected: overlay.rejected ?? mb.rejected,
+                                unoffered: overlay.unoffered ?? mb.unoffered,
+                                sleepers: (overlay.sleepers && overlay.sleepers.length > 0) ? overlay.sleepers : mb.sleepers,
+                                acceptedSleepers: (overlay.acceptedSleepers && overlay.acceptedSleepers.length > 0) ? overlay.acceptedSleepers : mb.acceptedSleepers,
+                                rejectedSleepers: overlay.rejectedSleepers || mb.rejectedSleepers || [],
+                                etSleepers: overlay.etSleepers || mb.etSleepers || []
+                            };
                         }
-                    } catch (err) {
-                        console.error("Error fetching initial batch details:", err);
+                        return mb;
+                    });
+                } else {
+                    combinedBatches = draftBatches.length > 0 ? draftBatches : savedBackendBatches;
+                }
+
+                setBatches(combinedBatches);
+
+                // Fetch inspection call summary if summaryData is still missing
+                try {
+                    const summaryResp = await apiService.getInspectionCallSummary(callNo);
+                    if (summaryResp && summaryResp.responseData) {
+                        setSummaryData(prev => ({
+                            ...(summaryResp.responseData || {}),
+                            ...(prev || {}),
+                            poNo: sec1?.rlyPoNo || prev?.poNo || summaryResp.responseData.poNo || callNo,
+                            poDate: sec1?.poDate ? sec1.poDate.split('T')[0] : (prev?.poDate || summaryResp.responseData.poDate),
+                            vendorName: sec1?.vendorName || prev?.vendorName || summaryResp.responseData.vendorName,
+                            quantityOnOrder: sec1?.poQty ? `${sec1.poQty} Nos` : (prev?.quantityOnOrder || summaryResp.responseData.quantityOnOrder),
+                            maNo: sec1?.maNo || prev?.maNo || 'N/A',
+                            maDate: sec1?.maDate ? sec1.maDate.split('T')[0] : (prev?.maDate || 'N/A'),
+                            billPayingOfficer: sec1?.billPayingOfficer || prev?.billPayingOfficer,
+                            placeOfInspection: sec2?.placeOfInspection || prev?.placeOfInspection || sec1?.vendorName
+                        }));
                     }
+                } catch (err) {
+                    console.error("Error fetching inspection summary:", err);
                 }
             } catch (err) {
                 console.error("Error initializing inspection data:", err);

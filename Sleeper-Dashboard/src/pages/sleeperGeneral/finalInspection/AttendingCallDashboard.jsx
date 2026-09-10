@@ -95,20 +95,12 @@ const AttendingCallDashboard = ({ mode }) => {
     const [completedCalls, setCompletedCalls] = useState([]);
     const [expandedActions, setExpandedActions] = useState({});
 
-    const loadCalls = async () => {
+    const loadCalls = async (tabToLoad = activeTab) => {
         setIsLoading(true);
         try {
             const user = getStoredUser();
             const userId = user?.userId;
             const plantId = localStorage.getItem('plantId');
-
-            const [pendingRes, completedRes] = await Promise.allSettled([
-                apiService.getAllPendingWorkflowTransitions('Main IE', userId, plantId),
-                apiService.getCompletedFinalCalls()
-            ]);
-
-            const pendingData = (pendingRes.status === 'fulfilled' && pendingRes.value?.responseData) ? pendingRes.value.responseData : [];
-            const completedDataAll = (completedRes.status === 'fulfilled' && completedRes.value?.responseData) ? completedRes.value.responseData : [];
 
             const isNonPendingActionOrStatus = (c) => {
                 const action = (c.action || '').toUpperCase();
@@ -143,110 +135,124 @@ const AttendingCallDashboard = ({ mode }) => {
                 );
             };
 
-            // 1. List of Calls Pending: ONLY active pending inspection calls
-            const pendingList = pendingData.filter(item => {
-                const matchesPlant = !plantId || item.plantId === plantId;
-                return matchesPlant && !isNonPendingActionOrStatus(item);
-            }).map(item => {
-                let displayStatus = item.jobStatus;
-                if (!displayStatus || displayStatus === 'PENDING') {
-                    if (item.scheduleDate || item.scheduledDate || item.action === 'MAIN_IE_SCHEDULE_CALL') {
-                        displayStatus = 'SCHEDULED';
-                    } else if (item.status === 'RIO_VERIFIED' || item.action === 'VERIFY') {
-                        displayStatus = 'RIO_VERIFIED';
-                    } else {
-                        displayStatus = item.status || 'RIO_VERIFIED';
+            if (tabToLoad === 'pending') {
+                // 1. List of Calls Pending: ONLY trigger pending workflow transitions
+                const res = await apiService.getAllPendingWorkflowTransitions('Main IE', userId, plantId);
+                const pendingData = (res && res.responseData) ? res.responseData : [];
+
+                const pendingList = pendingData.filter(item => {
+                    const matchesPlant = !plantId || item.plantId === plantId;
+                    return matchesPlant && !isNonPendingActionOrStatus(item);
+                }).map(item => {
+                    let displayStatus = item.jobStatus;
+                    if (!displayStatus || displayStatus === 'PENDING') {
+                        if (item.scheduleDate || item.scheduledDate || item.action === 'MAIN_IE_SCHEDULE_CALL') {
+                            displayStatus = 'SCHEDULED';
+                        } else if (item.status === 'RIO_VERIFIED' || item.action === 'VERIFY') {
+                            displayStatus = 'RIO_VERIFIED';
+                        } else {
+                            displayStatus = item.status || 'RIO_VERIFIED';
+                        }
                     }
-                }
-                return {
+                    return {
+                        ...item,
+                        id: item.workflowTransitionId,
+                        status: displayStatus,
+                        jobStatus: displayStatus,
+                        checked: false
+                    };
+                });
+
+                setPendingCalls(pendingList);
+            } else {
+                // 2. Issuance of IC & Completed Calls sources
+                const [pendingRes, completedRes] = await Promise.allSettled([
+                    apiService.getAllPendingWorkflowTransitions('Main IE', userId, plantId),
+                    apiService.getCompletedFinalCalls()
+                ]);
+
+                const pendingData = (pendingRes.status === 'fulfilled' && pendingRes.value?.responseData) ? pendingRes.value.responseData : [];
+                const completedDataAll = (completedRes.status === 'fulfilled' && completedRes.value?.responseData) ? completedRes.value.responseData : [];
+
+                const isSignedOrArchived = (c) => {
+                    const action = (c.action || '').toUpperCase();
+                    const status = (c.status || '').toUpperCase();
+                    const jobStatus = (c.jobStatus || '').toUpperCase();
+                    return (
+                        action === 'GENERATE_IC' ||
+                        action === 'IC_GENERATION' ||
+                        action === 'DSC_SIGN_IC' ||
+                        action === 'IC_SIGNED' ||
+                        action.includes('CANCEL') ||
+                        action.includes('WITHDRAW') ||
+                        jobStatus === 'GENERATE_IC' ||
+                        jobStatus === 'IC_GENERATION' ||
+                        jobStatus === 'GENERATED' ||
+                        jobStatus === 'DSC_SIGN_IC' ||
+                        jobStatus === 'IC_SIGNED' ||
+                        jobStatus.includes('CANCEL') ||
+                        jobStatus.includes('WITHDRAW') ||
+                        status === 'GENERATE_IC' ||
+                        status === 'IC_GENERATION' ||
+                        status === 'GENERATED' ||
+                        status === 'DSC_SIGN_IC' ||
+                        status === 'IC_SIGNED' ||
+                        status.includes('CANCEL') ||
+                        status.includes('WITHDRAW')
+                    );
+                };
+
+                const allCompletedSource = [...completedDataAll, ...pendingData.filter(isNonPendingActionOrStatus)];
+                
+                const uniqueCompletedMap = new Map();
+                allCompletedSource.forEach(item => {
+                    const reqId = item.requestId || item.callNo;
+                    if (reqId) {
+                        if (!uniqueCompletedMap.has(reqId) || (item.workflowTransitionId > uniqueCompletedMap.get(reqId).workflowTransitionId)) {
+                            uniqueCompletedMap.set(reqId, item);
+                        }
+                    }
+                });
+                const dedupedCompleted = Array.from(uniqueCompletedMap.values());
+
+                // Issuance of IC tab
+                const certCalls = dedupedCompleted.filter(c => {
+                    const matchesPlant = !plantId || c.plantId === plantId;
+                    return matchesPlant && !isSignedOrArchived(c);
+                }).map(item => ({
                     ...item,
                     id: item.workflowTransitionId,
-                    status: displayStatus,
-                    jobStatus: displayStatus,
+                    status: item.jobStatus || item.status || 'COMPLETED',
+                    jobStatus: item.jobStatus || item.status || 'COMPLETED',
                     checked: false
-                };
-            });
+                }));
 
-            // 2. Issuance of IC & Completed Calls sources (from /allFInalCallCompletedCalls and completed transitions)
-            const isSignedOrArchived = (c) => {
-                const action = (c.action || '').toUpperCase();
-                const status = (c.status || '').toUpperCase();
-                const jobStatus = (c.jobStatus || '').toUpperCase();
-                return (
-                    action === 'GENERATE_IC' ||
-                    action === 'IC_GENERATION' ||
-                    action === 'DSC_SIGN_IC' ||
-                    action === 'IC_SIGNED' ||
-                    action.includes('CANCEL') ||
-                    action.includes('WITHDRAW') ||
-                    jobStatus === 'GENERATE_IC' ||
-                    jobStatus === 'IC_GENERATION' ||
-                    jobStatus === 'GENERATED' ||
-                    jobStatus === 'DSC_SIGN_IC' ||
-                    jobStatus === 'IC_SIGNED' ||
-                    jobStatus.includes('CANCEL') ||
-                    jobStatus.includes('WITHDRAW') ||
-                    status === 'GENERATE_IC' ||
-                    status === 'IC_GENERATION' ||
-                    status === 'GENERATED' ||
-                    status === 'DSC_SIGN_IC' ||
-                    status === 'IC_SIGNED' ||
-                    status.includes('CANCEL') ||
-                    status.includes('WITHDRAW')
-                );
-            };
-
-            const allCompletedSource = [...completedDataAll, ...pendingData.filter(isNonPendingActionOrStatus)];
-            
-            const uniqueCompletedMap = new Map();
-            allCompletedSource.forEach(item => {
-                const reqId = item.requestId || item.callNo;
-                if (reqId) {
-                    if (!uniqueCompletedMap.has(reqId) || (item.workflowTransitionId > uniqueCompletedMap.get(reqId).workflowTransitionId)) {
-                        uniqueCompletedMap.set(reqId, item);
+                // Completed Calls tab
+                const finalCompletedCalls = dedupedCompleted.filter(c => {
+                    const matchesPlant = !plantId || c.plantId === plantId;
+                    return matchesPlant && isSignedOrArchived(c);
+                }).map(item => {
+                    const action = (item.action || '').toUpperCase();
+                    const jobStatus = (item.jobStatus || '').toUpperCase();
+                    const status = (item.status || '').toUpperCase();
+                    let displayStatus = 'Completed - E-Signed';
+                    if (action.includes('CANCEL') || jobStatus.includes('CANCEL') || status.includes('CANCEL')) {
+                        displayStatus = 'Cancelled';
+                    } else if (action.includes('WITHDRAW') || jobStatus.includes('WITHDRAW') || status.includes('WITHDRAW')) {
+                        displayStatus = 'Withdrawn';
                     }
-                }
-            });
-            const dedupedCompleted = Array.from(uniqueCompletedMap.values());
+                    return {
+                        ...item,
+                        id: item.workflowTransitionId,
+                        status: displayStatus,
+                        jobStatus: 'COMPLETED',
+                        checked: false
+                    };
+                });
 
-            // 2. Issuance of IC tab
-            const certCalls = dedupedCompleted.filter(c => {
-                const matchesPlant = !plantId || c.plantId === plantId;
-                return matchesPlant && !isSignedOrArchived(c);
-            }).map(item => ({
-                ...item,
-                id: item.workflowTransitionId,
-                status: item.jobStatus || item.status || 'COMPLETED',
-                jobStatus: item.jobStatus || item.status || 'COMPLETED',
-                checked: false
-            }));
-
-            // 3. Completed Calls tab
-            const finalCompletedCalls = dedupedCompleted.filter(c => {
-                const matchesPlant = !plantId || c.plantId === plantId;
-                return matchesPlant && isSignedOrArchived(c);
-            }).map(item => {
-                const action = (item.action || '').toUpperCase();
-                const jobStatus = (item.jobStatus || '').toUpperCase();
-                const status = (item.status || '').toUpperCase();
-                let displayStatus = 'Completed - E-Signed';
-                if (action.includes('CANCEL') || jobStatus.includes('CANCEL') || status.includes('CANCEL')) {
-                    displayStatus = 'Cancelled';
-                } else if (action.includes('WITHDRAW') || jobStatus.includes('WITHDRAW') || status.includes('WITHDRAW')) {
-                    displayStatus = 'Withdrawn';
-                }
-                return {
-                    ...item,
-                    id: item.workflowTransitionId,
-                    status: displayStatus,
-                    jobStatus: 'COMPLETED',
-                    checked: false
-                };
-            });
-
-            setPendingCalls(pendingList);
-            setIssuanceCalls(certCalls);
-            setCompletedCalls(finalCompletedCalls);
+                setIssuanceCalls(certCalls);
+                setCompletedCalls(finalCompletedCalls);
+            }
         } catch (error) {
             console.error("Error loading calls:", error);
         } finally {
@@ -254,12 +260,12 @@ const AttendingCallDashboard = ({ mode }) => {
         }
     };
 
-    const fetchPendingCalls = loadCalls;
-    const fetchIssuanceCalls = loadCalls;
-    const fetchCompletedCalls = loadCalls;
+    const fetchPendingCalls = () => loadCalls('pending');
+    const fetchIssuanceCalls = () => loadCalls('issuance');
+    const fetchCompletedCalls = () => loadCalls('completed');
 
     useEffect(() => {
-        loadCalls();
+        loadCalls(activeTab);
     }, [activeTab]); // Track which call has actions shown
 
     const toggleCheck = (id) => {
@@ -299,7 +305,6 @@ const AttendingCallDashboard = ({ mode }) => {
             }
             
             handleInitiate(updatedCall);
-            loadCalls();
         } catch (error) {
             console.error(`Error performing ${actionName}:`, error);
             handleInitiate(call);
@@ -350,7 +355,6 @@ const AttendingCallDashboard = ({ mode }) => {
             setShowShiftModal(false);
             setSelectedCallForShift(null);
             handleInitiate(updatedCall);
-            loadCalls();
         } catch (error) {
             console.error("Error confirming shift details:", error);
             alert("Failed to proceed: " + error.message);

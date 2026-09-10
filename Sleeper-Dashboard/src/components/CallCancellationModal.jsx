@@ -60,7 +60,7 @@ const CallCancellationModal = ({
     // 1. Direct Inspection Call Summary API
     if (requestId) {
       try {
-        const callUrl = `${cleanBase}/api/sleeper-inspection-call/summary/${encodeURIComponent(requestId)}`;
+        const callUrl = `${cleanBase}/api/main-ie/inspection-call-summary/${encodeURIComponent(requestId)}`;
         const resp = await fetch(callUrl, { method: 'GET', headers });
         if (resp.ok) {
           const json = await resp.json();

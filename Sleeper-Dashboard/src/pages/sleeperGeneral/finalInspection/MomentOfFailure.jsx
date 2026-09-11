@@ -32,7 +32,7 @@ const formatDateToInput = (dateStr) => {
 const isGrade = (val) => /^M\s*[-]?\s*\d+/i.test(String(val || '').trim());
 
 const extractDrawingNo = (item) => {
-    if (!item) return 'RT-8746';
+    if (!item) return '';
     const candidates = [
         item.drawingNo,
         item.sleeperType,
@@ -56,7 +56,7 @@ const extractDrawingNo = (item) => {
             if (g.sleeperType && !isGrade(g.sleeperType)) return g.sleeperType.trim();
         }
     }
-    return item.sleeperType || item.drawingNo || 'RT-8746';
+    return '';
 };
 
 const normalizePlantType = (val) => {
@@ -64,6 +64,11 @@ const normalizePlantType = (val) => {
     const s = String(val).toLowerCase().trim();
     if (s.includes('stress')) return 'Stress Bench';
     return 'Long Line';
+};
+
+const isSamePlant = (itemPlant, targetPlant) => {
+    if (!targetPlant || !itemPlant) return true;
+    return String(itemPlant).replace(':', '').trim().toLowerCase() === String(targetPlant).replace(':', '').trim().toLowerCase();
 };
 
 const MomentOfFailure = () => {
@@ -93,25 +98,19 @@ const MomentOfFailure = () => {
                 apiService.getAllMRTests().catch(() => ({ responseData: [] }))
             ]);
 
-            const filteredSamples = (samplesRes.responseData || [])
-                .filter(s => s.plantId === activePlantId || !s.plantId);
-            const filteredTests = (testsRes.responseData || [])
-                .filter(t => t.plantId === activePlantId || !t.plantId);
+            const filteredSamples = (samplesRes.responseData || []).filter(s => isSamePlant(s.plantId, activePlantId));
+            const filteredTests = (testsRes.responseData || []).filter(t => isSamePlant(t.plantId, activePlantId));
 
             const rawProds = prodRes?.responseData || prodRes?.data?.responseData || prodRes?.data || (Array.isArray(prodRes) ? prodRes : []);
-            const filteredProds = (Array.isArray(rawProds) ? rawProds : []).filter(p => {
-                if (!activePlantId || !p.plantId) return true;
-                const cleanItemPlant = String(p.plantId).replace(':', '').trim();
-                const cleanTargetPlant = String(activePlantId).replace(':', '').trim();
-                return cleanItemPlant === cleanTargetPlant;
-            });
+            const filteredProds = (Array.isArray(rawProds) ? rawProds : []).filter(p => isSamePlant(p.plantId, activePlantId));
 
             const rawMr = mrRes?.responseData || mrRes?.data || (Array.isArray(mrRes) ? mrRes : []);
+            const filteredMr = (Array.isArray(rawMr) ? rawMr : []).filter(m => isSamePlant(m.plantId, activePlantId));
 
             setDeclaredSamples(filteredSamples);
             setTestedSamples(filteredTests);
             setProductionDeclarations(filteredProds);
-            setMrTests(Array.isArray(rawMr) ? rawMr : []);
+            setMrTests(filteredMr);
         } catch (error) {
             console.error('Failed to fetch MF data:', error);
         } finally {
@@ -1310,7 +1309,7 @@ const MFDetailsModal = ({ sample, onClose, onModify, onEnterTest, onDelete, prod
         String(p.batchNumber || p.batchNo || '').trim().toLowerCase() === String(sample.batchNo || '').trim().toLowerCase()
     );
 
-    const resolvedDrawingNo = extractDrawingNo(sample) || extractDrawingNo(matchedProd);
+    const resolvedDrawingNo = extractDrawingNo(sample) || extractDrawingNo(matchedProd) || sample.sleeperType || sample.drawingNo || matchedProd?.drawingNo || matchedProd?.sleeperType || '-';
     const resolvedConcreteGrade = sample.concreteGrade || matchedProd?.mixDesignReference || matchedProd?.concreteGrade || '-';
 
     // Logic: 8-hour window from creation (only if createdDate is provided by server)

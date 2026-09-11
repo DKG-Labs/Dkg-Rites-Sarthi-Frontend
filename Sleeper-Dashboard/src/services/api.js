@@ -30,14 +30,15 @@ api.interceptors.request.use(
 const pendingRequests = new Map();
 
 const getWithCache = (url, options) => {
-    if (pendingRequests.has(url)) {
-        return pendingRequests.get(url);
+    const cacheKey = options?.params ? `${url}?${JSON.stringify(options.params)}` : url;
+    if (pendingRequests.has(cacheKey)) {
+        return pendingRequests.get(cacheKey);
     }
     const promise = api.get(url, options).finally(() => {
         // Clear cache after a short delay to allow fresh fetches later
-        setTimeout(() => pendingRequests.delete(url), 1000);
+        setTimeout(() => pendingRequests.delete(cacheKey), 2000);
     });
-    pendingRequests.set(url, promise);
+    pendingRequests.set(cacheKey, promise);
     return promise;
 };
 
@@ -100,9 +101,9 @@ export const apiService = {
         getByUser: (userId) => api.get(`/water-cube-sample/getByUser/${userId}`),
         saveTestResult: (data) => api.post('/water-cube-sample/save-test-result', data),
         getTestResultsByUser: (userId) => api.get(`/water-cube-sample/test-results/user/${userId}`),
-        getAllTests: () => api.get('/water-cube-sample/getAllTests')
+        getAllTests: () => getWithCache('/water-cube-sample/getAllTests')
     },
-    getAllWaterCubeTests: () => api.get('/water-cube-sample/getAllTests'),
+    getAllWaterCubeTests: () => getWithCache('/water-cube-sample/getAllTests'),
 
     // ================= Water Quality Testing =================
     waterQuality: {
@@ -290,9 +291,9 @@ export const apiService = {
     getDowelRecordById: (id) => api.get(`/dowel/${id}`),
 
     getProductionDeclarationRecordById: (id) => api.get(`/production-declaration/${id}`),
-    getAllProductionDeclarations: () => api.get('/production-declaration/getAll'),
-    getVerifiedProductionDeclarations: () => api.get('/production-declaration/verified-declarations'),
-    getAllVerifedWaterBatchs: (params = {}) => api.get('/production-declaration/getAllVerifedWaterBatchs', { params }),
+    getAllProductionDeclarations: () => getWithCache('/production-declaration/getAll'),
+    getVerifiedProductionDeclarations: () => getWithCache('/production-declaration/verified-declarations'),
+    getAllVerifedWaterBatchs: (params = {}) => getWithCache('/production-declaration/getAllVerifedWaterBatchs', { params }),
     getAllProductionBatches: (vendorId, castingDate, plantId, productionUnit) =>
         api.get('/production-declaration/getAll/batches', {
             params: { vendorId, castingDate, plantId, productionUnit }
@@ -344,7 +345,7 @@ export const apiService = {
     updateMRRecord: (id, payload) => api.put(`/moment-of-resistance/update/${id}`, payload),
     getMRRecordById: (id) => api.get(`/moment-of-resistance/${id}`),
     getMRTodayRecords: (params) => api.get('/moment-of-resistance/mrTodayRecord', { params }),
-    getAllMRRecords: () => api.get('/moment-of-resistance/all'),
+    getAllMRRecords: () => getWithCache('/moment-of-resistance/all'),
     deleteMRRecord: (id) => api.delete(`/moment-of-resistance/delete/${id}`),
 
     // ================= Moment of Resistance Testing (MR Testing) =================
@@ -352,19 +353,19 @@ export const apiService = {
     updateMRTest: (id, payload) => api.put(`/mr-testing/update/${id}`, payload),
     getMRTestById: (id) => api.get(`/mr-testing/${id}`),
     getMRTestTodayRecords: (params) => api.get('/mr-testing/mrTestTodayRecord', { params }),
-    getAllMRTests: () => api.get('/mr-testing/all'),
+    getAllMRTests: () => getWithCache('/mr-testing/all'),
     deleteMRTest: (id) => api.delete(`/mr-testing/delete/${id}`),
 
     // ================= Modulus of Rupture (MOR) =================
     // Sample Declaration
-    getAllMORSamples: () => api.get('/FinalInspectionController'),
+    getAllMORSamples: () => getWithCache('/FinalInspectionController'),
     getMORSampleById: (id) => api.get(`/FinalInspectionController/${id}`),
     createMORSample: (payload) => api.post('/FinalInspectionController', payload),
     updateMORSample: (id, payload) => api.put(`/FinalInspectionController/${id}`, payload),
     deleteMORSample: (id) => api.delete(`/FinalInspectionController/${id}`),
 
     // Test Results
-    getAllMORTests: () => api.get('/mor-test'),
+    getAllMORTests: () => getWithCache('/mor-test'),
     getMORTestById: (id) => api.get(`/mor-test/${id}`),
     createMORTest: (payload) => api.post('/mor-test', payload),
     updateMORTest: (id, payload) => api.put(`/mor-test/${id}`, payload),

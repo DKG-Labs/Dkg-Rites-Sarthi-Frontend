@@ -323,9 +323,17 @@ export default function RailpadFinalProductCertificate({ call = {}, onBack, isVi
           try {
             const processData = await getProcessInspectionResult(callNo);
             if (processData) {
-              mappedData.qtyNowOffered = processData.totalManufacturedQty || 0;
-              mappedData.qtyNowPassed = processData.totalAcceptedQty || 0;
-              mappedData.qtyNowRejected = processData.totalRejectedQty || 0;
+              const mfg = processData.totalManufacturedQty || 0;
+              const rej = processData.totalRejectedQty || 0;
+              const maxAcc = Math.max(0, mfg - rej);
+              const acc = (processData.totalAcceptedQty !== undefined && processData.totalAcceptedQty !== null)
+                ? processData.totalAcceptedQty
+                : maxAcc;
+              const finalAcc = (rej > 0 && acc > maxAcc) ? maxAcc : acc;
+
+              mappedData.qtyNowOffered = mfg;
+              mappedData.qtyNowPassed = finalAcc;
+              mappedData.qtyNowRejected = rej;
               
               if (processData.lotRangeFrom && processData.lotRangeTo) {
                 if (String(processData.lotRangeFrom).trim().toLowerCase() === String(processData.lotRangeTo).trim().toLowerCase()) {

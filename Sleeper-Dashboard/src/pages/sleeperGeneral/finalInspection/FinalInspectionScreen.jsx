@@ -575,7 +575,8 @@ const FinalInspectionScreen = ({ call, onBack }) => {
                             return {
                                 ...mb,
                                 ...overlay,
-                                qtyCasted: overlay.qtyCasted || mb.qtyCasted,
+                                qtyCasted: mb.qtyCasted || overlay.qtyCasted,
+                                dateCasted: mb.dateCasted || overlay.dateCasted,
                                 offeredNow: overlay.offeredNow || mb.offeredNow,
                                 passed: overlay.passed ?? mb.passed,
                                 rejected: overlay.rejected ?? mb.rejected,

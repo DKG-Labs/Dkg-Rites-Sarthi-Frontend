@@ -255,13 +255,27 @@ export default function SleeperFinalProductCertificate() {
               const res = await apiService.getSleeperIc(requestId);
               const icData = res.data || res.responseData || res;
 
+              const candidateKeys = Array.from(new Set([
+                icData?.certificateNo,
+                icData?.icNo,
+                call?.certificateNo,
+                call?.icNo,
+                requestId,
+                call?.callNo,
+                call?.call_no,
+                call?.requestId
+              ].filter(Boolean)));
+
               let savedEdit = null;
-              try {
-                savedEdit = await getFinalIcSaveChanges(requestId);
-                if (!savedEdit) {
-                  savedEdit = await getFinalIcEditData(requestId);
-                }
-              } catch (_) {}
+              for (const key of candidateKeys) {
+                try {
+                  savedEdit = await getFinalIcSaveChanges(key);
+                  if (!savedEdit) {
+                    savedEdit = await getFinalIcEditData(key);
+                  }
+                  if (savedEdit) break;
+                } catch (_) {}
+              }
 
               if (icData || savedEdit) {
                   setData(prev => {
@@ -291,11 +305,15 @@ export default function SleeperFinalProductCertificate() {
                           maNumberAndDate: savedEdit.maNumberAndDate || updated.maNumberAndDate || prev.maNumberAndDate,
                           purchasingAuthority: savedEdit.purchasingAuthority || updated.purchasingAuthority || prev.purchasingAuthority,
                           description: cleanSavedDesc || updated.description || prev.description,
+                          contractor: savedEdit.manufacturer || updated.contractor || prev.contractor,
+                          placeOfInspection: savedEdit.manufacturer || updated.placeOfInspection || prev.placeOfInspection,
                           trRecDate: savedEdit.trRecDate || updated.trRecDate || prev.trRecDate,
                           noOfVisits: savedEdit.noOfVisits || updated.noOfVisits || prev.noOfVisits,
                           datesOfInspection: savedEdit.datesOfInspection || updated.datesOfInspection || prev.datesOfInspection,
                           sealingPattern: savedEdit.sealingPattern || updated.sealingPattern || prev.sealingPattern,
                           reasonsForRejection: (savedEdit.reasonsForRejection && savedEdit.reasonsForRejection !== 'Not Applicable') ? savedEdit.reasonsForRejection : (updated.reasonsForRejection || prev.reasonsForRejection),
+                          facsimileText: savedEdit.facsimileText || updated.facsimileText || prev.facsimileText,
+                          inspectingEngineer: savedEdit.inspectingEngineer || updated.inspectingEngineer || prev.inspectingEngineer,
                         };
                       }
                       return {
@@ -504,9 +522,9 @@ export default function SleeperFinalProductCertificate() {
   const handleSaveChanges = async () => {
     try {
       const user = getStoredUser();
-      const icNo = data.certificateNo || call.requestId || call.callNo || call.call_no || "Sleeper_IC";
-      await saveFinalIcSaveChanges({
-        icNumber: icNo,
+      const primaryIcNo = data.certificateNo || call.certificateNo || call.icNo || call.requestId || call.callNo || call.call_no || "Sleeper_IC";
+      const savePayload = {
+        icNumber: primaryIcNo,
         certificateId: null,
         bookNo: data.bookNo,
         setNo: data.setNo,
@@ -529,7 +547,18 @@ export default function SleeperFinalProductCertificate() {
         inspectingEngineer: data.inspectingEngineer,
         createdBy: user?.userId ? String(user.userId) : "Inspecting Engineer",
         updatedBy: user?.userId ? String(user.userId) : "Inspecting Engineer"
-      });
+      };
+
+      await saveFinalIcSaveChanges(savePayload);
+
+      // Also save with call.requestId / call.callNo if different, ensuring seamless lookup
+      const altId = call.requestId || call.callNo || call.call_no;
+      if (altId && String(altId).trim() !== String(primaryIcNo).trim()) {
+        try {
+          await saveFinalIcSaveChanges({ ...savePayload, icNumber: String(altId).trim() });
+        } catch (_) {}
+      }
+
       setNotification({ open: true, message: "Changes saved successfully as draft!", severity: 'success' });
       setIsEditing(false);
     } catch (e) {

@@ -169,22 +169,30 @@ const WaterCubeTesting = () => {
             setDoneTests(mappedDone);
 
             // Collect all identifiers of batches that are already tested
-            const testedSampleDeclIds = new Set(plantTests.map(t => String(t.waterCubeSampleDeclarationId)).filter(id => id && id !== 'null' && id !== 'undefined'));
-            const testedProdDeclIds = new Set(plantTests.map(t => String(t.productionDeclarationId)).filter(id => id && id !== 'null' && id !== 'undefined'));
-            const testedBatchNumbers = new Set(plantTests.map(t => String(t.batchNumber || t.batchNo || '').trim().toLowerCase()).filter(Boolean));
+            const testedSampleDeclIds = new Set(
+                plantTests.map(t => String(t.waterCubeSampleDeclarationId)).filter(id => id && id !== 'null' && id !== 'undefined')
+            );
+            const testedProdDeclIds = new Set(
+                plantTests.map(t => String(t.productionDeclarationId)).filter(id => id && id !== 'null' && id !== 'undefined')
+            );
+
+            // Also include productionDeclarationIds of any sample declarations that have been tested
+            plantSamples.forEach(s => {
+                if (s.productionDeclarationId && testedSampleDeclIds.has(String(s.id))) {
+                    testedProdDeclIds.add(String(s.productionDeclarationId));
+                }
+            });
 
             // ==========================================
             // SECTION 2: DECLARED SAMPLES (Pending Testing)
             // ==========================================
             const activeSamplesRaw = plantSamples.filter(s => {
                 const sampleDeclId = String(s.id);
-                const prodDeclId = String(s.productionDeclarationId);
-                const batchNum = String(s.batchNumber || s.batchNo || '').trim().toLowerCase();
+                const prodDeclId = s.productionDeclarationId ? String(s.productionDeclarationId) : null;
 
                 // Exclude if already tested in Section 3
                 if (testedSampleDeclIds.has(sampleDeclId)) return false;
-                if (prodDeclId && prodDeclId !== 'null' && prodDeclId !== 'undefined' && testedProdDeclIds.has(prodDeclId)) return false;
-                if (batchNum && testedBatchNumbers.has(batchNum)) return false;
+                if (prodDeclId && testedProdDeclIds.has(prodDeclId)) return false;
 
                 return true;
             });
@@ -230,24 +238,21 @@ const WaterCubeTesting = () => {
             setActiveDeclarations(groupedActive);
 
             // Collect all identifiers of actively declared batches (pending testing)
-            const activeSampleDeclIds = new Set(activeSamplesRaw.map(s => String(s.id)).filter(id => id && id !== 'null' && id !== 'undefined'));
-            const activeProdDeclIds = new Set(activeSamplesRaw.map(s => String(s.productionDeclarationId)).filter(id => id && id !== 'null' && id !== 'undefined'));
-            const activeBatchNumbers = new Set(activeSamplesRaw.map(s => String(s.batchNumber || s.batchNo || '').trim().toLowerCase()).filter(Boolean));
+            const activeProdDeclIds = new Set(
+                activeSamplesRaw.map(s => String(s.productionDeclarationId)).filter(id => id && id !== 'null' && id !== 'undefined')
+            );
 
             // ==========================================
             // SECTION 1: DECLARE SAMPLES FOR TESTING (Pending Declaration)
             // ==========================================
             const pendingProdBatches = plantProds.filter(p => {
                 const prodId = String(p.id);
-                const batchNum = String(p.batchNumber || p.batchNo || '').trim().toLowerCase();
 
                 // Exclude if already in Section 3 (Tested)
                 if (testedProdDeclIds.has(prodId)) return false;
-                if (batchNum && testedBatchNumbers.has(batchNum)) return false;
 
                 // Exclude if already in Section 2 (Declared)
                 if (activeProdDeclIds.has(prodId)) return false;
-                if (batchNum && activeBatchNumbers.has(batchNum)) return false;
 
                 return true;
             });
@@ -273,7 +278,7 @@ const WaterCubeTesting = () => {
 
     useEffect(() => {
         fetchAllData();
-    }, [activeTab, dutyUnit]);
+    }, [dutyUnit]);
 
     const handleFinalizeSample = async (formData) => {
         try {
@@ -928,26 +933,18 @@ const SampleDeclarationModal = ({ batches, isModifying, onClose, onSave }) => {
             setLoading(true);
             try {
                 const promises = batches.map(async b => {
+                    if (b.raw && (b.raw.chambers?.length > 0 || b.raw.gangs?.length > 0)) {
+                        return b.raw;
+                    }
                     const prodId = b.productionDeclarationId || b.raw?.productionDeclarationId || (!isModifying ? b.id : null);
                     if (prodId) {
-                        const data = await getProductionDeclarationById(prodId);
-                        if (data && (data.chambers?.length > 0 || data.gangs?.length > 0)) {
-                            return data;
-                        }
-                    }
-                    
-                    // Fallback by batch number if prodId didn't return chambers/gangs
-                    if (b.batchNo) {
-                        const allDecls = await getProductionDeclarations().catch(() => []);
-                        const firstBatchNo = String(b.batchNo).split(',')[0].trim();
-                        const found = allDecls.find(d => 
-                            String(d.batchNumber).trim() === firstBatchNo || 
-                            (prodId && d.id === prodId)
-                        );
-                        if (found) {
-                            if (found.chambers?.length > 0 || found.gangs?.length > 0) return found;
-                            const full = await getProductionDeclarationById(found.id);
-                            if (full) return full;
+                        try {
+                            const data = await getProductionDeclarationById(prodId);
+                            if (data && (data.chambers?.length > 0 || data.gangs?.length > 0)) {
+                                return data;
+                            }
+                        } catch (e) {
+                            console.warn("Failed to fetch full decl by ID:", prodId, e);
                         }
                     }
                     return b.raw;

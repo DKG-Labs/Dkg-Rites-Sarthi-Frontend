@@ -149,17 +149,20 @@ const RailpadProcessInspectionDashboard = ({ user, call, currentShift, onBack, o
 
           // Pre-select drafted batches
           draft.batches.forEach(b => {
-            const avail = b.qtyAvailable !== undefined ? b.qtyAvailable : (b.qtyManufactured - (b.qtyRejected || 0));
-            const acc = b.qtyAccepted !== undefined ? b.qtyAccepted : avail;
+            const avail = b.qtyAvailable !== undefined ? b.qtyAvailable : b.qtyManufactured;
+            const rej = b.qtyRejected || 0;
+            const netAcc = Math.max(0, avail - rej);
+            const acc = (b.qtyAccepted !== undefined && b.qtyAccepted !== null) ? b.qtyAccepted : netAcc;
+            const finalAcc = (rej > 0 && acc > netAcc) ? netAcc : acc;
             newSelectedBatches[b.declarationBatchId] = {
               declarationBatchId: b.declarationBatchId,
               batchNo: b.batchNo,
               drawingNo: b.drawingNo,
               qtyManufactured: b.qtyManufactured,
               availableQty: avail,
-              acceptedQty: acc,
-              qtyRejected: b.qtyRejected || 0,
-              qtyRemaining: b.qtyRemaining !== undefined ? b.qtyRemaining : Math.max(0, avail - acc),
+              acceptedQty: finalAcc,
+              qtyRejected: rej,
+              qtyRemaining: b.qtyRemaining !== undefined ? b.qtyRemaining : Math.max(0, avail - finalAcc - rej),
               productionDate: b.productionDate
             };
           });
@@ -245,15 +248,17 @@ const RailpadProcessInspectionDashboard = ({ user, call, currentShift, onBack, o
         delete next[batch.declarationBatchId];
       } else {
         const avail = batch.availableQty !== undefined ? batch.availableQty : batch.qtyManufactured;
+        const rej = batch.verificationRejectedQty || 0;
+        const defaultAccepted = Math.max(0, avail - rej);
         next[batch.declarationBatchId] = {
           declarationBatchId: batch.declarationBatchId,
           batchNo: batch.batchNo,
           drawingNo: batch.drawingNo,
           qtyManufactured: batch.qtyManufactured,
           availableQty: avail,
-          acceptedQty: avail,
-          qtyRejected: batch.verificationRejectedQty || 0,
-          qtyRemaining: 0,
+          acceptedQty: defaultAccepted,
+          qtyRejected: rej,
+          qtyRemaining: Math.max(0, avail - defaultAccepted - rej),
           productionDate: batch.productionDate,
           rejections: batch.rejections || []
         };
@@ -276,15 +281,17 @@ const RailpadProcessInspectionDashboard = ({ user, call, currentShift, onBack, o
         dateBatches.forEach(b => {
           if (!next[b.declarationBatchId]) {
             const avail = b.availableQty !== undefined ? b.availableQty : b.qtyManufactured;
+            const rej = b.verificationRejectedQty || 0;
+            const defaultAccepted = Math.max(0, avail - rej);
             next[b.declarationBatchId] = {
               declarationBatchId: b.declarationBatchId,
               batchNo: b.batchNo,
               drawingNo: b.drawingNo,
               qtyManufactured: b.qtyManufactured,
               availableQty: avail,
-              acceptedQty: avail,
-              qtyRejected: b.verificationRejectedQty || 0,
-              qtyRemaining: 0,
+              acceptedQty: defaultAccepted,
+              qtyRejected: rej,
+              qtyRemaining: Math.max(0, avail - defaultAccepted - rej),
               productionDate: b.productionDate,
               rejections: b.rejections || []
             };
@@ -300,9 +307,11 @@ const RailpadProcessInspectionDashboard = ({ user, call, currentShift, onBack, o
     setSelectedBatches(prev => {
       if (!prev[batchId]) return prev;
       const avail = prev[batchId].availableQty !== undefined ? prev[batchId].availableQty : prev[batchId].qtyManufactured;
+      const rej = prev[batchId].qtyRejected || 0;
+      const maxAllowed = Math.max(0, avail - rej);
       const parsed = val === '' ? '' : parseInt(val, 10);
       const num = typeof parsed === 'number' && !isNaN(parsed) ? parsed : 0;
-      const rem = typeof parsed === 'number' ? Math.max(0, avail - num) : avail;
+      const rem = typeof parsed === 'number' ? Math.max(0, avail - num - rej) : Math.max(0, avail - rej);
       return {
         ...prev,
         [batchId]: {
@@ -323,12 +332,14 @@ const RailpadProcessInspectionDashboard = ({ user, call, currentShift, onBack, o
 
     Object.values(selectedBatches).forEach(b => {
       const avail = b.availableQty !== undefined ? b.availableQty : b.qtyManufactured;
+      const rej = b.qtyRejected || 0;
+      const maxAllowed = Math.max(0, avail - rej);
       totalManufactured += (b.qtyManufactured || avail);
-      totalRejected += (b.qtyRejected || 0);
+      totalRejected += rej;
 
-      const rawAcc = (b.acceptedQty !== undefined && b.acceptedQty !== null) ? b.acceptedQty : avail;
+      const rawAcc = (b.acceptedQty !== undefined && b.acceptedQty !== null) ? b.acceptedQty : maxAllowed;
       const acc = typeof rawAcc === 'number' ? rawAcc : (rawAcc === '' ? NaN : parseInt(rawAcc, 10));
-      if (rawAcc === '' || isNaN(acc) || acc <= 0 || acc > avail) {
+      if (rawAcc === '' || isNaN(acc) || acc < 0 || acc > maxAllowed) {
         hasInvalidQty = true;
       }
       totalAccepted += (!isNaN(acc) && acc > 0 ? acc : 0);
@@ -365,15 +376,17 @@ const RailpadProcessInspectionDashboard = ({ user, call, currentShift, onBack, o
       const next = {};
       batches.forEach(b => {
         const avail = b.availableQty !== undefined ? b.availableQty : b.qtyManufactured;
+        const rej = b.verificationRejectedQty || 0;
+        const defaultAccepted = Math.max(0, avail - rej);
         next[b.declarationBatchId] = {
           declarationBatchId: b.declarationBatchId,
           batchNo: b.batchNo,
           drawingNo: b.drawingNo,
           qtyManufactured: b.qtyManufactured,
           availableQty: avail,
-          acceptedQty: avail,
-          qtyRejected: b.verificationRejectedQty || 0,
-          qtyRemaining: 0,
+          acceptedQty: defaultAccepted,
+          qtyRejected: rej,
+          qtyRemaining: Math.max(0, avail - defaultAccepted - rej),
           productionDate: b.productionDate,
           rejections: b.rejections || []
         };
@@ -649,8 +662,11 @@ const RailpadProcessInspectionDashboard = ({ user, call, currentShift, onBack, o
           const batchData = selectedBatches[id];
           const originalBatch = batches.find(b => b.declarationBatchId.toString() === id.toString()) || {};
           const avail = batchData.availableQty !== undefined ? batchData.availableQty : (originalBatch.availableQty || batchData.qtyManufactured);
-          const acc = typeof batchData.acceptedQty === 'number' ? batchData.acceptedQty : parseInt(batchData.acceptedQty, 10) || 0;
-          const rem = Math.max(0, avail - acc);
+          const rej = batchData.qtyRejected || 0;
+          const maxAllowed = Math.max(0, avail - rej);
+          const rawAcc = typeof batchData.acceptedQty === 'number' ? batchData.acceptedQty : parseInt(batchData.acceptedQty, 10);
+          const acc = (!isNaN(rawAcc) && rawAcc >= 0) ? Math.min(rawAcc, maxAllowed) : maxAllowed;
+          const rem = Math.max(0, avail - acc - rej);
 
           let batchRejectionReason = null;
           if (batchData.qtyRejected > 0) {

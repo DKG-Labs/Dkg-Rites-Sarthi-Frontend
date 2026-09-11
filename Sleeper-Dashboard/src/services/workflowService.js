@@ -165,31 +165,51 @@ export const getShedsByVendorCode = async (vendorId, plantId) => {
   }
 };
 
+let prodDeclsCache = null;
+let prodDeclsPromise = null;
+let lastProdDeclsTime = 0;
+
 /**
  * Fetch all Production Declarations
  * @returns {Promise<Array>} List of production declarations
  */
-export const getProductionDeclarations = async () => {
-  try {
-    const token = localStorage.getItem('authToken');
-    const response = await fetch(`${API_BASE_URL}/production-declaration/getAll`, {
-      method: 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`
-      },
-    });
-
-    if (!response.ok) {
-      throw new Error('Failed to fetch production declarations');
-    }
-
-    const data = await response.json();
-    return data.responseData || data;
-  } catch (error) {
-    console.error('Error fetching production declarations:', error);
-    return [];
+export const getProductionDeclarations = async (forceRefresh = false) => {
+  const now = Date.now();
+  if (!forceRefresh && prodDeclsCache && (now - lastProdDeclsTime < 10000)) {
+    return prodDeclsCache;
   }
+  if (!forceRefresh && prodDeclsPromise) {
+    return prodDeclsPromise;
+  }
+
+  prodDeclsPromise = (async () => {
+    try {
+      const token = localStorage.getItem('authToken');
+      const response = await fetch(`${API_BASE_URL}/production-declaration/getAll`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to fetch production declarations');
+      }
+
+      const data = await response.json();
+      prodDeclsCache = data.responseData || data;
+      lastProdDeclsTime = Date.now();
+      return prodDeclsCache;
+    } catch (error) {
+      console.error('Error fetching production declarations:', error);
+      return [];
+    } finally {
+      prodDeclsPromise = null;
+    }
+  })();
+
+  return prodDeclsPromise;
 };
 
 /**
@@ -312,31 +332,41 @@ export const getWaterCubeSamplesByUser = async (userId) => {
   }
 };
 
+let waterCubeSamplesPromise = null;
+
 /**
  * Fetch all Water Cube Sample Declarations
  * @returns {Promise<Array>} List of declarations
  */
 export const getWaterCubeSamples = async () => {
-  try {
-    const token = localStorage.getItem('authToken');
-    const response = await fetch(`${API_BASE_URL}/water-cube-sample/getAll`, {
-      method: 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`
-      },
-    });
+  if (waterCubeSamplesPromise) return waterCubeSamplesPromise;
 
-    if (!response.ok) {
-      throw new Error('Failed to fetch all water cube sample declarations');
+  waterCubeSamplesPromise = (async () => {
+    try {
+      const token = localStorage.getItem('authToken');
+      const response = await fetch(`${API_BASE_URL}/water-cube-sample/getAll`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to fetch all water cube sample declarations');
+      }
+
+      const data = await response.json();
+      return data.responseData || data;
+    } catch (error) {
+      console.error('Error fetching all water cube sample declarations:', error);
+      return [];
+    } finally {
+      waterCubeSamplesPromise = null;
     }
+  })();
 
-    const data = await response.json();
-    return data.responseData || data;
-  } catch (error) {
-    console.error('Error fetching all water cube sample declarations:', error);
-    return [];
-  }
+  return waterCubeSamplesPromise;
 };
 
 /**
@@ -906,31 +936,41 @@ export const getWaterCubeTestResultsByUser = async (userId) => {
   }
 };
 
+let allWaterCubeTestsPromise = null;
+
 /**
  * Get all Water Cube Test Results
  * @returns {Promise<Array>} List of all records
  */
 export const getAllWaterCubeTests = async () => {
-  try {
-    const token = localStorage.getItem('authToken');
-    const response = await fetch(`${API_BASE_URL}/water-cube-sample/getAllTests`, {
-      method: 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`
+  if (allWaterCubeTestsPromise) return allWaterCubeTestsPromise;
+
+  allWaterCubeTestsPromise = (async () => {
+    try {
+      const token = localStorage.getItem('authToken');
+      const response = await fetch(`${API_BASE_URL}/water-cube-sample/getAllTests`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to fetch all Water Cube tests');
       }
-    });
 
-    if (!response.ok) {
-      throw new Error('Failed to fetch all Water Cube tests');
+      const result = await response.json();
+      return result.responseData || result;
+    } catch (error) {
+      console.error('Error fetching all Water Cube tests:', error);
+      return [];
+    } finally {
+      allWaterCubeTestsPromise = null;
     }
+  })();
 
-    const result = await response.json();
-    return result.responseData || result;
-  } catch (error) {
-    console.error('Error fetching all Water Cube tests:', error);
-    return [];
-  }
+  return allWaterCubeTestsPromise;
 };
 
 /**

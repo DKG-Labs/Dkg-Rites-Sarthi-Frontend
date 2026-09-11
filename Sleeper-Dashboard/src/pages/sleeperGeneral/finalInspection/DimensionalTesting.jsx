@@ -41,22 +41,31 @@ const DimensionalTesting = ({ type }) => {
                 .map(batch => {
                     let percentage = Number(batch.testedPercentage ?? 0);
 
-                // If the list response happens to include a sleepers array, derive percentage from it
-                if (batch.sleepers && Array.isArray(batch.sleepers) && batch.sleepers.length > 0) {
-                    const total = batch.sleepers.length;
-                    const testedCount = batch.sleepers.filter(s =>
-                        s.status && s.status.toUpperCase() !== 'PENDING'
-                    ).length;
-                    percentage = (testedCount / total) * 100;
-                }
+                    // If the list response happens to include a sleepers array, derive percentage from it
+                    if (batch.sleepers && Array.isArray(batch.sleepers) && batch.sleepers.length > 0) {
+                        const total = batch.sleepers.length;
+                        const pendingCount = batch.sleepers.filter(s =>
+                            !s.status || s.status.toUpperCase() === 'PENDING'
+                        ).length;
+                        const testedCount = total - pendingCount;
+                        if (pendingCount === 0) {
+                            percentage = 100;
+                        } else {
+                            percentage = (testedCount / total) * 100;
+                        }
+                    }
 
-                return {
-                    ...batch,
-                    // Ensure noOfSleepers always has a displayable value
-                    noOfSleepers: batch.noOfSleepers ?? batch.totalBatchQty ?? 0,
-                    testedPercentage: Math.min(percentage, 100).toFixed(2)
-                };
-            });
+                    if (percentage >= 99.5) {
+                        percentage = 100;
+                    }
+
+                    return {
+                        ...batch,
+                        // Ensure noOfSleepers always has a displayable value
+                        noOfSleepers: batch.noOfSleepers ?? batch.totalBatchQty ?? 0,
+                        testedPercentage: Math.min(percentage, 100).toFixed(2)
+                    };
+                });
             
             setBatches(processedData);
         } catch (error) {
@@ -101,13 +110,13 @@ const DimensionalTesting = ({ type }) => {
         const isTurnout = category.includes('turnout');
 
         if (type === 'visual') {
-            return pct >= 100;
+            return pct >= 99.5 || pct >= 100;
         } else if (type === 'critical') {
             return isTurnout ? pct >= 20 : pct >= 10;
         } else if (type === 'noncritical') {
             return isTurnout ? pct >= 5 : pct >= 1;
         }
-        return pct >= 100;
+        return pct >= 99.5 || pct >= 100;
     };
 
     const config = {

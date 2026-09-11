@@ -1262,7 +1262,7 @@ const SampleDeclarationModal = ({ sample, isModifying, onClose, onSave, onDelete
                             />
                         </div>
                         <div className="input-group">
-                            <label style={{ fontSize: '12px', fontWeight: '700', color: '#475569', marginBottom: '4px' }}>Date of Declaration</label>
+                            <label style={{ fontSize: '12px', fontWeight: '700', color: '#475569', marginBottom: '4px' }}>Date of Declaration / L.B.C Date</label>
                             <input 
                                 type="date" 
                                 value={formData.declarationDate} 
@@ -1553,7 +1553,7 @@ const TestDetailsModal = ({ sample, onClose, onSave, onDelete, isModifying, acti
                         <div style={{ background: '#f8fafc', padding: '16px', borderRadius: '12px', border: '1px solid #e2e8f0', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '12px' }}>
                             <div><div style={{ fontSize: '10px', color: '#64748b' }}>Location</div><div style={{ fontWeight: '700', fontSize: '13px', color: '#13343b' }}>{sample.shedNo || sample.lineNo || sample.location || '-'}</div></div>
                             <div><div style={{ fontSize: '10px', color: '#64748b' }}>Date of Casting</div><div style={{ fontWeight: '700', fontSize: '13px' }}>{sample.castingDate ? sample.castingDate.split('-').reverse().join('/') : '-'}</div></div>
-                            <div><div style={{ fontSize: '10px', color: '#64748b' }}>Date of Declaration</div><div style={{ fontWeight: '700', fontSize: '13px', color: '#0d9488' }}>{sample.declarationDate ? sample.declarationDate.split('-').reverse().join('/') : (sample.castingDate ? sample.castingDate.split('-').reverse().join('/') : '-')}</div></div>
+                            <div><div style={{ fontSize: '10px', color: '#64748b' }}>Date of Declaration / L.B.C Date</div><div style={{ fontWeight: '700', fontSize: '13px', color: '#0d9488' }}>{sample.declarationDate ? sample.declarationDate.split('-').reverse().join('/') : (sample.castingDate ? sample.castingDate.split('-').reverse().join('/') : '-')}</div></div>
                             <div><div style={{ fontSize: '10px', color: '#64748b' }}>Batch No.</div><div style={{ fontWeight: '700', fontSize: '13px' }}>{sample.batchNo || '-'}</div></div>
                             <div><div style={{ fontSize: '10px', color: '#64748b' }}>LBC Time</div><div style={{ fontWeight: '700', fontSize: '13px' }}>{sample.lbcTime || '-'}</div></div>
                             <div><div style={{ fontSize: '10px', color: '#64748b' }}>Concrete Grade</div><div style={{ fontWeight: '700', fontSize: '13px' }}>{sample.concreteGrade || sample.grade || '-'}</div></div>
@@ -1591,9 +1591,9 @@ const TestDetailsModal = ({ sample, onClose, onSave, onDelete, isModifying, acti
                                             <td style={{ padding: '6px 8px' }}>
                                                 <input
                                                     type="date"
-                                                    readOnly
                                                     value={cube.testDate || testData.testDate || getTodayLocalDate()}
-                                                    style={{ width: '100%', padding: '8px 6px', border: '1px solid #cbd5e1', borderRadius: '6px', fontSize: '12px', color: '#64748b', background: '#f8fafc', fontWeight: '600', outline: 'none', cursor: 'not-allowed' }}
+                                                    onChange={e => updateCubeData(idx, 'testDate', e.target.value)}
+                                                    style={{ width: '100%', padding: '8px 6px', border: '1.5px solid #cbd5e1', borderRadius: '6px', fontSize: '12px', color: '#13343b', background: '#fff', fontWeight: '500', outline: 'none' }}
                                                 />
                                             </td>
                                             <td style={{ padding: '6px 8px' }}>

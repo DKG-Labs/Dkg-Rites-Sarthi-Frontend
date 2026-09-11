@@ -64,10 +64,11 @@ const MomentOfResistance = () => {
                 return String(itemPlant).replace(':', '').trim() === String(targetPlant).replace(':', '').trim();
             };
 
-            const completedWaterBatchNos = new Set(
+            const completedWaterProdDeclIds = new Set(
                 (Array.isArray(waterTests) ? waterTests : [])
                     .filter(t => isSamePlant(t.plantId, params.plantId))
-                    .map(t => String(t.batchNumber || t.batchNo).trim())
+                    .map(t => String(t.productionDeclarationId || t.waterCubeSampleDeclaration?.productionDeclarationId))
+                    .filter(id => id && id !== 'null' && id !== 'undefined')
             );
 
             // Build exhaustive production declaration map for all batches
@@ -185,7 +186,7 @@ const MomentOfResistance = () => {
                 })
                 .map(({ item, bNo, actualSleeperType, batchMatch }) => {
                     const samplesToTest = item.mrSamplesRequired || (item.condition2 ? 2 : 1);
-                    const isWaterDone = Boolean(item.waterCubeTestStatus) || completedWaterBatchNos.has(bNo);
+                    const isWaterDone = Boolean(item.waterCubeTestStatus) || (item.id && completedWaterProdDeclIds.has(String(item.id)));
                     return {
                         id: item.id,
                         productionDeclarationId: item.id,

@@ -93,12 +93,12 @@ const EditableField = ({
   isEditing = false,
   isViewOnly = false,
   isBusy = false,
-  isBookSetEntered = false,
+  bookSetValidation = null,
   allowedFields = [],
   onFieldChange = () => {}
 }) => {
   const isBookOrSet = fieldName === "bookNo" || fieldName === "setNo";
-  const canEdit = isEditing && allowedFields.includes(fieldName) && (isBookOrSet || isBookSetEntered);
+  const canEdit = isEditing && allowedFields.includes(fieldName) && (isBookOrSet || bookSetValidation?.isValid);
   
   if (canEdit) {
     if (type === "textarea") {
@@ -219,7 +219,7 @@ const RailpadProcessIc = ({
     isEditing,
     isViewOnly,
     isBusy,
-    isBookSetEntered,
+    bookSetValidation,
     allowedFields,
     onFieldChange
   };

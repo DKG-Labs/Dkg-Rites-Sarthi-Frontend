@@ -166,11 +166,7 @@ const SleeperFinalIc = ({
     .replace(/[\r\n]+/g, ' ')
     .trim();
 
-  const isOldIcValid = Boolean(data?.bookNo && String(data?.bookNo).trim().length > 0 && /^\d{3}$/.test(data?.setNo));
-  const isFormLocked = isEditing && (
-    (data?.icType === 'new' && !bookSetValidation?.isValid) ||
-    (data?.icType !== 'new' && !isOldIcValid)
-  );
+  const isFormLocked = isEditing && !bookSetValidation?.isValid;
 
   const tableStyle = {
     width: '100%',
@@ -229,32 +225,6 @@ const SleeperFinalIc = ({
       {/* Book & Set Number Centered Container */}
       <div style={{ display: 'flex', justifyContent: 'center', width: '100%', marginBottom: '12px' }}>
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-          
-          {/* Old / New IC Toggle */}
-          {isEditing && (
-            <div className="no-print" style={{ display: 'flex', gap: '12px', marginBottom: '4px', fontSize: '10px', fontWeight: '600' }}>
-              <label style={{ display: 'flex', alignItems: 'center', gap: '3px', cursor: 'pointer' }}>
-                <input 
-                  type="radio" 
-                  name="icTypeSleeper" 
-                  value="old" 
-                  style={{ width: '12px', height: '12px', cursor: 'pointer', margin: 0 }}
-                  checked={data?.icType !== 'new'} 
-                  onChange={() => onFieldChange("icType", "old")} 
-                /> Old IC
-              </label>
-              <label style={{ display: 'flex', alignItems: 'center', gap: '3px', cursor: 'pointer' }}>
-                <input 
-                  type="radio" 
-                  name="icTypeSleeper" 
-                  value="new" 
-                  style={{ width: '12px', height: '12px', cursor: 'pointer', margin: 0 }}
-                  checked={data?.icType === 'new'} 
-                  onChange={() => onFieldChange("icType", "new")} 
-                /> New IC
-              </label>
-            </div>
-          )}
 
           <div style={{ display: 'flex', border: '2px solid black', width: '180px', background: 'white' }}>
             <div style={{ flex: 1, borderRight: '2px solid black', display: 'flex', flexDirection: 'column' }}>
@@ -291,7 +261,7 @@ const SleeperFinalIc = ({
             </div>
           </div>
 
-          {isEditing && data?.icType === 'new' && (
+          {isEditing && (
             <div className="no-print" style={{ marginTop: '4px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px' }}>
               <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
                 <button

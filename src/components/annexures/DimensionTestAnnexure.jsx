@@ -1,4 +1,5 @@
 import React from "react";
+import AnnexureLayout from "./AnnexureLayout";
 import AnnexureHeader from "./AnnexureHeader";
 import AnnexureFooter from "./AnnexureFooter";
 import AnnexureEmptyState from "./AnnexureEmptyState";
@@ -25,9 +26,9 @@ const DimensionTestAnnexure = ({ data, selectedCall }) => {
   };
 
   return (
-    <div className="annexure-template dimensional-test-annexure">
+    <div className="multi-annexure-container dimensional-test-annexure">
       {pages.map((page, pageIdx) => (
-        <div key={pageIdx} className="annexure-page-wrapper">
+        <AnnexureLayout key={pageIdx} className="annexure-page-wrapper">
           <AnnexureHeader
             pageNo={`${pageIdx + 1} of ${pages.length}`}
             preparedBy="KJM"
@@ -63,33 +64,33 @@ const DimensionTestAnnexure = ({ data, selectedCall }) => {
                   <th rowSpan={2} className="annexure-th">Accepted / Not accepted</th>
                 </tr>
                 <tr>
-                  <th className="annexure-th">Go<br />Dimension</th>
-                  <th className="annexure-th">No Go<br />Dimension</th>
-                  <th className="annexure-th">Go<br />Dimension</th>
-                  <th className="annexure-th">No Go<br />Dimension</th>
-                  <th className="annexure-th">Go<br />Dimension</th>
-                  <th className="annexure-th">No Go<br />Dimension</th>
+                  <th className="annexure-th">GO (Checking)</th>
+                  <th className="annexure-th">NO GO (Checking)</th>
+                  <th className="annexure-th">Falling in gauge (Checking)</th>
+                  <th className="annexure-th">Gap at back arch (Checking)</th>
+                  <th className="annexure-th">GO gauge</th>
+                  <th className="annexure-th">NO GO gauge</th>
                 </tr>
               </thead>
               <tbody>
-                {page.rows?.map((row, index) => (
-                  <tr key={index}>
-                    <td className="annexure-td">{index + 1}</td>
+                {page.rows?.map((row, rowIdx) => (
+                  <tr key={rowIdx}>
+                    <td className="annexure-td">{rowIdx + 1}</td>
                     <td className="annexure-td data-cell">{row.heatNo || '-'}</td>
-                    <td className="annexure-td data-cell">{row.colourCode || '-'}</td>
+                    <td className="annexure-td data-cell">{row.colourCode || 'N/A'}</td>
                     <td className="annexure-td data-cell">{row.lotNo || '-'}</td>
                     <td className="annexure-td data-cell">{row.qty || row.quantity || 0}</td>
                     <td className="annexure-td data-cell">{row.sampleSize || 0}</td>
-                    {/* Main Gauge */}
-                    <td className="annexure-td data-cell">{formatStatus(row.mainBoxGo)}</td>
-                    <td className="annexure-td data-cell">{formatStatus(row.mainBoxNoGo)}</td>
-                    {/* Falling in Gauges */}
-                    <td className="annexure-td data-cell">{formatStatus(row.fallingGo)}</td>
-                    <td className="annexure-td data-cell">{formatStatus(row.fallingNoGo)}</td>
-                    {/* Flat Bearing */}
+                    
+                    {/* Gauge checks */}
+                    <td className="annexure-td data-cell">{formatStatus(row.mainBoxGo ?? row.mainGaugeGo)}</td>
+                    <td className="annexure-td data-cell">{formatStatus(row.mainBoxNoGo ?? row.mainGaugeNoGo)}</td>
+                    <td className="annexure-td data-cell">{formatStatus(row.fallingGo ?? row.fallingInGauge)}</td>
+                    <td className="annexure-td data-cell">{formatStatus(row.fallingNoGo ?? row.gapAtBackArch)}</td>
                     <td className="annexure-td data-cell">{formatStatus(row.flatBearingGo)}</td>
                     <td className="annexure-td data-cell">{formatStatus(row.flatBearingNoGo)}</td>
-                    
+
+                    {/* Defectives & Status */}
                     <td className="annexure-td data-cell">{row.defectives || 0}</td>
                     <td className="annexure-td data-cell">{row.cumulativeDefectives || 0}</td>
                     <td className="annexure-td data-cell status-cell">
@@ -104,8 +105,7 @@ const DimensionTestAnnexure = ({ data, selectedCall }) => {
           </div>
 
           <AnnexureFooter />
-          {pageIdx < pages.length - 1 && <div className="page-break" />}
-        </div>
+        </AnnexureLayout>
       ))}
     </div>
   );

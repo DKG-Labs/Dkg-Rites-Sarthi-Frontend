@@ -1002,6 +1002,41 @@ export default function FinalProductDashboard({ onBack, onNavigateToSubModule })
     return {};
   });
 
+  /* Common Hologram state for all lots in this inspection call */
+  const [commonHolograms, setCommonHolograms] = useState(() => {
+    const callNo = selectedCall?.call_no;
+    if (callNo) {
+      const persisted = localStorage.getItem(`fpCommonHolograms_${callNo}`);
+      if (persisted) {
+        try {
+          return JSON.parse(persisted);
+        } catch (e) {}
+      }
+      // Fallback: check if any lot in persisted lotInspectionData has holograms
+      const persistedLotData = localStorage.getItem(`fpLotInspectionData_${callNo}`);
+      if (persistedLotData) {
+        try {
+          const parsed = JSON.parse(persistedLotData);
+          for (const key of Object.keys(parsed)) {
+            if (parsed[key]?.holograms && Array.isArray(parsed[key].holograms) && parsed[key].holograms.length > 0) {
+              const hasVal = parsed[key].holograms.some(h => h.from || h.to || h.value);
+              if (hasVal) return parsed[key].holograms;
+            }
+          }
+        } catch (e) {}
+      }
+    }
+    return [{ type: 'range', from: '', to: '' }];
+  });
+
+  // Persist common holograms to localStorage whenever they change
+  useEffect(() => {
+    const callNo = selectedCall?.call_no;
+    if (callNo && commonHolograms && commonHolograms.length > 0) {
+      localStorage.setItem(`fpCommonHolograms_${callNo}`, JSON.stringify(commonHolograms));
+    }
+  }, [commonHolograms, selectedCall?.call_no]);
+
   // Initialize lot inspection data when lots are first loaded
   useEffect(() => {
     const callNo = selectedCall?.call_no;
@@ -1025,7 +1060,6 @@ export default function FinalProductDashboard({ onBack, onNavigateToSubModule })
             bagsStdPacking: '',
             nonStdBagsCount: '',
             nonStdBagsQty: [],
-            holograms: [{ type: 'range', from: '', to: '' }],
             remarks: '',
             ercUsedForTesting: ''
           };
@@ -1211,32 +1245,23 @@ export default function FinalProductDashboard({ onBack, onNavigateToSubModule })
     });
   };
 
-  /* -------------------- HOLOGRAM HANDLERS -------------------- */
-  const addHologram = (lotNo, type) => {
-    setLotInspectionData(prev => ({
+  /* -------------------- COMMON HOLOGRAM HANDLERS -------------------- */
+  const addCommonHologram = (type) => {
+    setCommonHolograms(prev => [
       ...prev,
-      [lotNo]: {
-        ...(prev[lotNo] || {}),
-        holograms: [...(prev[lotNo]?.holograms || []), type === 'range' ? { type: 'range', from: '', to: '' } : { type: 'single', value: '' }]
-      }
-    }));
+      type === 'range' ? { type: 'range', from: '', to: '' } : { type: 'single', value: '' }
+    ]);
   };
 
-  const removeHologram = (lotNo, idx) => {
-    setLotInspectionData(prev => ({
-      ...prev,
-      [lotNo]: {
-        ...(prev[lotNo] || {}),
-        holograms: (prev[lotNo]?.holograms || []).filter((_, i) => i !== idx)
-      }
-    }));
+  const removeCommonHologram = (idx) => {
+    setCommonHolograms(prev => prev.filter((_, i) => i !== idx));
   };
 
-  const updateHologram = (lotNo, idx, field, value) => {
-    setLotInspectionData(prev => {
-      const arr = [...(prev[lotNo]?.holograms || [])];
+  const updateCommonHologram = (idx, field, value) => {
+    setCommonHolograms(prev => {
+      const arr = [...prev];
       arr[idx] = { ...arr[idx], [field]: value };
-      return { ...prev, [lotNo]: { ...(prev[lotNo] || {}), holograms: arr } };
+      return arr;
     });
   };
 
@@ -1397,7 +1422,7 @@ export default function FinalProductDashboard({ onBack, onNavigateToSubModule })
           bagsWithStdPacking: parseInt(lotData.bagsStdPacking) || 0,
           nonStdBagsCount: parseInt(lotData.nonStdBagsCount) || 0,
           nonStdBagsQty: JSON.stringify(lotData.nonStdBagsQty || []),
-          hologramDetails: JSON.stringify(lotData.holograms || []),
+          hologramDetails: JSON.stringify(commonHolograms || []),
           remarks: lotData.remarks || '',
           lotStatus: isLotRejected(lot.lotNo) ? 'REJECTED' : 'ACCEPTED',
           createdBy: currentUser,
@@ -1452,7 +1477,8 @@ export default function FinalProductDashboard({ onBack, onNavigateToSubModule })
     testResultsPerLot,
     isLotRejected,
     rejectedCountsPerLot,
-    capturedImages
+    capturedImages,
+    commonHolograms
   ]);
 
   // Load draft data from localStorage on mount
@@ -1602,7 +1628,7 @@ export default function FinalProductDashboard({ onBack, onNavigateToSubModule })
           bagsWithStdPacking: parseInt(lotData.bagsStdPacking) || 0,
           nonStdBagsCount: parseInt(lotData.nonStdBagsCount) || 0,
           nonStdBagsQty: JSON.stringify(lotData.nonStdBagsQty || []),
-          hologramDetails: JSON.stringify(lotData.holograms || []),
+          hologramDetails: JSON.stringify(commonHolograms || []),
           remarks: lotData.remarks || '',
           lotStatus: isLotRejected(lot.lotNo) ? 'REJECTED' : 'ACCEPTED',
           // Audit fields - backend will use createdBy/createdAt for new records, updatedBy/updatedAt for updates
@@ -1790,7 +1816,7 @@ export default function FinalProductDashboard({ onBack, onNavigateToSubModule })
           bagsWithStdPacking: parseInt(lotData.bagsStdPacking) || 0,
           nonStdBagsCount: parseInt(lotData.nonStdBagsCount) || 0,
           nonStdBagsQty: JSON.stringify(lotData.nonStdBagsQty || []),
-          hologramDetails: JSON.stringify(lotData.holograms || []),
+          hologramDetails: JSON.stringify(commonHolograms || []),
           remarks: lotData.remarks || '',
           lotStatus: isLotRejected(lot.lotNo) ? 'REJECTED' : 'ACCEPTED',
           createdBy: currentUser,
@@ -2156,7 +2182,6 @@ export default function FinalProductDashboard({ onBack, onNavigateToSubModule })
                 bagsStdPacking: '',
                 nonStdBagsCount: '',
                 nonStdBagsQty: [],
-                holograms: [{ type: 'range', from: '', to: '' }],
                 remarks: '',
                 ercUsedForTesting: ''
               };
@@ -2176,47 +2201,43 @@ export default function FinalProductDashboard({ onBack, onNavigateToSubModule })
                     marginBottom: '16px'
                   }}
                 >
-                  {/* Lot Header with Status */}
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px', flexWrap: 'wrap', gap: '8px' }}>
-                    <div style={{ fontWeight: 700, fontSize: '14px' }}>
-                      📦 {lot.lotNo} | Heat: {lot.heatNo} | Qty: {lot.lotSize}
+                  <div className="fp-lot-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <span className="fp-lot-no-badge" style={{ fontWeight: 'bold', fontSize: '14px', color: '#1e293b' }}>
+                        Lot #{lot.lotNo}
+                      </span>
+                      <span style={{ fontSize: '12px', color: '#64748b' }}>
+                        (Heat: {lot.heatNo} | Size: {lot.lotSize} | Sample: {lot.sampleSize})
+                      </span>
                     </div>
-                    {(() => {
-                      const lotStatus = getLotStatus(lot.lotNo);
-                      const styleMap = {
-                        ACCEPTED: { bg: '#dcfce7', color: '#166534', label: '✓ LOT ACCEPTED' },
-                        REJECTED: { bg: '#fee2e2', color: '#991b1b', label: '✗ LOT REJECTED' },
-                        PENDING: { bg: '#fef9c3', color: '#854d0e', label: '⏳ LOT PENDING' }
-                      };
-                      const s = styleMap[lotStatus];
-                      return (
-                        <span style={{
-                          padding: '4px 12px',
-                          borderRadius: '4px',
-                          fontWeight: 700,
-                          fontSize: '12px',
-                          background: s.bg,
-                          color: s.color
-                        }}>
-                          {s.label}
-                        </span>
-                      );
-                    })()}
+                    <span
+                      style={{
+                        padding: '4px 12px',
+                        borderRadius: '12px',
+                        fontSize: '11px',
+                        fontWeight: 'bold',
+                        background: rejected ? '#fee2e2' : '#dcfce7',
+                        color: rejected ? '#991b1b' : '#166534',
+                        border: `1px solid ${rejected ? '#fca5a5' : '#86efac'}`
+                      }}
+                    >
+                      {rejected ? 'REJECTED' : 'ACCEPTED'}
+                    </span>
                   </div>
 
-                  {/* Test Results Summary - All 8 Submodules */}
+                  {/* Submodule Status Badges */}
                   <div style={{ marginBottom: '12px' }}>
-                    <div style={{ fontSize: '12px', fontWeight: '600', marginBottom: '8px', color: '#1f2937' }}>
-                      📊 Submodule Status:
-                    </div>
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '6px' }}>
-                      {(tests && typeof tests === 'object') ? Object.entries(tests).map(([test, status]) => {
-                        // Map test names to display labels
+                    <label style={{ fontSize: '11px', fontWeight: 600, color: '#475569', display: 'block', marginBottom: '6px' }}>
+                      Test Statuses:
+                    </label>
+                    <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+                      {tests ? Object.keys(tests).map(test => {
+                        const status = tests[test];
                         const testLabels = {
-                          'calibration': '📄 Calibration',
+                          'calibration': '📋 Calibration',
                           'visualDim': '📏 Visual & Dim',
                           'hardness': '💎 Hardness',
-                          'inclusion': '🔬 Inclusion',
+                          'inclusion': '🔬 Inclusion & Decarb',
                           'deflection': '📐 Deflection',
                           'toeLoad': '⚖️ Toe Load',
                           'weight': '⚖️ Weight',
@@ -2329,76 +2350,6 @@ export default function FinalProductDashboard({ onBack, onNavigateToSubModule })
                     </div>
                   )}
 
-                  {/* Hologram Section */}
-                  <div style={{ marginBottom: '12px' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
-                      <label style={{ fontSize: '11px', fontWeight: 600, color: '#475569' }}>
-                        Hologram Details
-                      </label>
-                      <div style={{ display: 'flex', gap: '6px' }}>
-                        <button
-                          type="button"
-                          className="fp-btn-sm"
-                          onClick={() => addHologram(lot.lotNo, 'range')}
-                        >
-                          + Range
-                        </button>
-                        <button
-                          type="button"
-                          className="fp-btn-sm"
-                          onClick={() => addHologram(lot.lotNo, 'single')}
-                        >
-                          + Single
-                        </button>
-                      </div>
-                    </div>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                      {(data.holograms && Array.isArray(data.holograms)) ? data.holograms.map((holo, idx) => (
-                        <div key={idx} style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
-                          <span style={{ fontSize: '10px', color: '#64748b', width: '50px' }}>
-                            {holo.type === 'range' ? 'Range:' : 'Single:'}
-                          </span>
-                          {holo.type === 'range' ? (
-                            <>
-                              <input
-                                className="fp-input fp-holo-input"
-                                placeholder="From"
-                                value={holo.from || ''}
-                                onChange={(e) => updateHologram(lot.lotNo, idx, 'from', e.target.value)}
-                                style={{ fontSize: '11px', padding: '6px' }}
-                              />
-                              <span style={{ fontSize: '10px' }}>to</span>
-                              <input
-                                className="fp-input fp-holo-input"
-                                placeholder="To"
-                                value={holo.to || ''}
-                                onChange={(e) => updateHologram(lot.lotNo, idx, 'to', e.target.value)}
-                                style={{ fontSize: '11px', padding: '6px' }}
-                              />
-                            </>
-                          ) : (
-                            <input
-                              className="fp-input fp-holo-input"
-                              placeholder="Hologram No."
-                              value={holo.value || ''}
-                              onChange={(e) => updateHologram(lot.lotNo, idx, 'value', e.target.value)}
-                              style={{ fontSize: '11px', padding: '6px' }}
-                            />
-                          )}
-                          {data.holograms.length > 1 && (
-                            <button
-                              type="button"
-                              className="fp-btn-danger-sm"
-                              onClick={() => removeHologram(lot.lotNo, idx)}
-                            >
-                              ✕
-                            </button>
-                          )}
-                        </div>
-                      )) : null}
-                    </div>
-                  </div>
-
                   {/* Remarks */}
                   <div>
                     <label style={{ fontSize: '11px', fontWeight: 600, color: '#475569', display: 'block', marginBottom: '4px' }}>
@@ -2416,6 +2367,107 @@ export default function FinalProductDashboard({ onBack, onNavigateToSubModule })
                 </div>
               );
             }) : null}
+
+            {/* Common Sealing & Hologram Details Section */}
+            <div
+              style={{
+                marginTop: '16px',
+                padding: '16px',
+                background: '#f8fafc',
+                border: '1px solid #e2e8f0',
+                borderRadius: '8px'
+              }}
+            >
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+                <div>
+                  <h3 style={{ margin: 0, fontSize: '14px', fontWeight: 700, color: '#0f172a', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    🏷️ Sealing &amp; Hologram Details (Common for All Lots)
+                  </h3>
+                  <span style={{ fontSize: '11.5px', color: '#64748b' }}>
+                    Enter RITES hologram serial numbers / ranges affixed on bags for this inspection call
+                  </span>
+                </div>
+                <div style={{ display: 'flex', gap: '6px' }}>
+                  <button
+                    type="button"
+                    className="fp-btn-sm"
+                    onClick={() => addCommonHologram('range')}
+                    style={{ padding: '5px 10px', fontSize: '11px' }}
+                  >
+                    + Add Range
+                  </button>
+                  <button
+                    type="button"
+                    className="fp-btn-sm"
+                    onClick={() => addCommonHologram('single')}
+                    style={{ padding: '5px 10px', fontSize: '11px' }}
+                  >
+                    + Add Single
+                  </button>
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                {commonHolograms.map((holo, idx) => (
+                  <div
+                    key={idx}
+                    style={{
+                      display: 'flex',
+                      gap: '8px',
+                      alignItems: 'center',
+                      background: '#ffffff',
+                      padding: '8px 12px',
+                      borderRadius: '6px',
+                      border: '1px solid #cbd5e1'
+                    }}
+                  >
+                    <span style={{ fontSize: '11px', fontWeight: 600, color: '#475569', minWidth: '65px' }}>
+                      {holo.type === 'range' ? `Range #${idx + 1}:` : `Single #${idx + 1}:`}
+                    </span>
+                    {holo.type === 'range' ? (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flex: 1 }}>
+                        <input
+                          className="fp-input fp-holo-input"
+                          placeholder="From"
+                          value={holo.from || ''}
+                          onChange={(e) => updateCommonHologram(idx, 'from', e.target.value)}
+                          style={{ fontSize: '12px', padding: '6px 8px', maxWidth: '160px' }}
+                        />
+                        <span style={{ fontSize: '11px', color: '#64748b' }}>to</span>
+                        <input
+                          className="fp-input fp-holo-input"
+                          placeholder="To"
+                          value={holo.to || ''}
+                          onChange={(e) => updateCommonHologram(idx, 'to', e.target.value)}
+                          style={{ fontSize: '12px', padding: '6px 8px', maxWidth: '160px' }}
+                        />
+                      </div>
+                    ) : (
+                      <div style={{ flex: 1 }}>
+                        <input
+                          className="fp-input fp-holo-input"
+                          placeholder="Hologram Serial No."
+                          value={holo.value || ''}
+                          onChange={(e) => updateCommonHologram(idx, 'value', e.target.value)}
+                          style={{ fontSize: '12px', padding: '6px 8px', maxWidth: '220px' }}
+                        />
+                      </div>
+                    )}
+                    {commonHolograms.length > 1 && (
+                      <button
+                        type="button"
+                        className="fp-btn-danger-sm"
+                        onClick={() => removeCommonHologram(idx)}
+                        style={{ padding: '4px 8px', fontSize: '11px', borderRadius: '4px' }}
+                        title="Remove this hologram entry"
+                      >
+                        ✕ Remove
+                      </button>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
           </div>
 
           {/* ACTION BUTTONS */}

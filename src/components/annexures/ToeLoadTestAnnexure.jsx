@@ -1,4 +1,5 @@
 import React from "react";
+import AnnexureLayout from "./AnnexureLayout";
 import AnnexureHeader from "./AnnexureHeader";
 import AnnexureFooter from "./AnnexureFooter";
 import AnnexureEmptyState from "./AnnexureEmptyState";
@@ -19,9 +20,9 @@ const ToeLoadTestAnnexure = ({ data, selectedCall }) => {
   }
 
   return (
-    <div className="annexure-template toe-load-test-annexure">
+    <div className="multi-annexure-container toe-load-test-annexure">
       {pages.map((page, pageIdx) => (
-        <div key={pageIdx} className="annexure-page-wrapper">
+        <AnnexureLayout key={pageIdx} className="annexure-page-wrapper">
           <AnnexureHeader
             pageNo={`${pageIdx + 1} of ${pages.length}`}
             preparedBy="KJM"
@@ -102,8 +103,7 @@ const ToeLoadTestAnnexure = ({ data, selectedCall }) => {
             </table>
           </div>
           <AnnexureFooter />
-          {pageIdx < pages.length - 1 && <div className="page-break" />}
-        </div>
+        </AnnexureLayout>
       ))}
     </div>
   );

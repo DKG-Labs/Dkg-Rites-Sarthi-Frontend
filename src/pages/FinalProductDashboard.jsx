@@ -58,6 +58,10 @@ export default function FinalProductDashboard({ onBack, onNavigateToSubModule })
   });
 
   const handleSampleSizeChange = (lotNo, newSize) => {
+    const isConfirmed = window.confirm("You are changing automatic sample size, are you sure?");
+    if (!isConfirmed) {
+      return;
+    }
     setCustomSampleSizes(prev => {
       const next = { ...prev, [lotNo]: newSize };
       const callNo = selectedCall?.call_no;

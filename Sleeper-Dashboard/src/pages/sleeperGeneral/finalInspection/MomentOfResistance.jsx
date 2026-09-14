@@ -172,14 +172,21 @@ const MomentOfResistance = () => {
                 return item?.sleeperType || item?.drawingNo || batchMatch?.sleeperType || batchMatch?.drawingNo || '';
             };
 
-            const extractCastDate = (item, batchMatch) => {
-                if (item?.castingDate && item.castingDate !== 'N/A') return item.castingDate;
-                if (item?.dateOfCasting && item.dateOfCasting !== 'N/A') return item.dateOfCasting;
+            const extractCastDate = (item, batchMatch, declaredMatch) => {
                 if (item?.remarks) {
                     const m = String(item.remarks).match(/\[Cast:\s*([^\]]+)\]/i);
                     if (m && m[1]) return m[1].trim();
                 }
+                if (declaredMatch?.remarks) {
+                    const m = String(declaredMatch.remarks).match(/\[Cast:\s*([^\]]+)\]/i);
+                    if (m && m[1]) return m[1].trim();
+                }
                 if (batchMatch?.castingDate && batchMatch.castingDate !== 'N/A') return batchMatch.castingDate;
+                if (batchMatch?.dateOfCasting && batchMatch.dateOfCasting !== 'N/A') return batchMatch.dateOfCasting;
+                if (declaredMatch?.castingDate && declaredMatch.castingDate !== 'N/A') return declaredMatch.castingDate;
+                if (declaredMatch?.dateOfCasting && declaredMatch.dateOfCasting !== 'N/A') return declaredMatch.dateOfCasting;
+                if (item?.castingDate && item.castingDate !== 'N/A') return item.castingDate;
+                if (item?.dateOfCasting && item.dateOfCasting !== 'N/A') return item.dateOfCasting;
                 return '';
             };
 
@@ -299,7 +306,7 @@ const MomentOfResistance = () => {
                     const bench = item.benchNumber || declaredMatch?.benchNumber || 'N/A';
                     const sleeper = item.sleeperNo || declaredMatch?.sleeperNo || 'N/A';
                     const pId = item.productionDeclarationId || batchMatch?.id || vBatchIdMap.get(bNo);
-                    const actualCastingDate = item.castingDate || declaredMatch?.castingDate || batchMatch?.castingDate || item.dateOfCasting || 'N/A';
+                    const actualCastingDate = extractCastDate(item, batchMatch, declaredMatch) || 'N/A';
                     const actualSleeperType = item.sleeperType || extractDrawingNo(item, batchMatch || declaredMatch);
 
                     return {
@@ -450,12 +457,18 @@ const MomentOfResistance = () => {
             const params = getCommonParams();
             const testResultStatus = results.result; // 'Pass', 'Retest', 'Fail'
 
+            const actualCastDate = (record.castingDate && record.castingDate !== 'N/A')
+                ? record.castingDate
+                : (record.originalData?.castingDate || record.originalData?.dateOfCasting || '');
+            const castTag = actualCastDate ? `[Cast: ${actualCastDate}] ` : '';
+
             const payload = {
                 batchNumber: String(record.batchNo),
                 sleeperType: record.sleeperType,
                 benchNumber: String(record.benchNumber || record.declaredSamples?.[0]?.bench || results.results?.[0]?.bench || ''),
                 sleeperNo: String(record.sleeperNo || record.declaredSamples?.map(s => s.no).join(', ') || results.results?.[0]?.no || ''),
-                castingDate: record.castingDate || params.date,
+                castingDate: actualCastDate || params.date,
+                remarks: `${castTag}MR Test ${testResultStatus}`,
                 testResult: testResultStatus,
                 vendorCode: params.vendorCode,
                 plantId: params.plantId,

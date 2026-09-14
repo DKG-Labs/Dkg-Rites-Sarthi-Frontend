@@ -44,9 +44,9 @@ export const generateRailpadCallLetterPDF = (call, shouldDownload = true) => {
     const tableW = pageW - margin * 2; // 186
     const callTypeUpper = (merged.callType || merged.typeOfCall || (String(callNo).startsWith('RPP') ? 'PROCESS' : 'FINAL')).toUpperCase();
 
-    // Vendor / From details
-    const vendorName = merged.vendorName || merged.companyName || merged.firmDetails || merged.vendor_name || '';
-    const vendorAddress = merged.unitAddress || merged.placeOfInspection || merged.vendorAddress || merged.location || '';
+    // Vendor / From details (prioritize rail_vendor_plant company_name & plant_name)
+    const vendorName = merged.companyName || merged.vendorName || merged.firmDetails || merged.vendor_name || '';
+    const vendorAddress = merged.plantName || merged.placeOfInspection || merged.unitAddress || merged.vendorAddress || merged.location || '';
 
     // RIO To address resolution
     const getRioDetails = (rioCode) => {
@@ -345,7 +345,7 @@ export const generateRailpadCallLetterPDF = (call, shouldDownload = true) => {
     const purchaserDisplay = merged.purchasingAuthority || purchaser || '-';
     const consigneeDisplay = merged.consignee || consigneeVal || '-';
     const bpoDisplay = merged.billPayingOfficer || billPayOfficer || '-';
-    const manufacturerDisplay = merged.manufacturerName || vendorName || '-';
+    const manufacturerDisplay = merged.companyName || merged.manufacturerName || vendorName || '-';
 
     const finalAccQty = merged.finalAcceptedQty ? `${merged.finalAcceptedQty} ${uomText}` : `0 ${uomText}`;
     const rawTotalPoQty = merged.totalPoQty || merged.poQty || merged.poSrQty || effectiveOrderQty;
@@ -354,7 +354,7 @@ export const generateRailpadCallLetterPDF = (call, shouldDownload = true) => {
         : '-';
     const totalPoValDisplay = merged.totalPoValue || merged.poValue || '-';
     const prodSelectedVendor = merged.productSelectedByVendor || merged.ercType || merged.type_of_erc || merged.erc_type || merged.product || merged.productType || merged.railPadType || '-';
-    const placeOfInspectionDisplay = merged.placeOfInspection || merged.plantId || vendorAddress || '-';
+    const placeOfInspectionDisplay = merged.plantName || merged.placeOfInspection || merged.plantId || vendorAddress || '-';
     const offeredInstallmentNoDisplay = merged.offeredInstallmentNo || merged.offeredInstallmentNumber || merged.offeredInstNo || '1';
     const remarks = merged.remarks || merged.remark || '-';
 

@@ -510,7 +510,7 @@ const AttendingCallsDashboard = ({
         <div style={{ position: 'relative', flex: 1, maxWidth: '420px' }}>
           <input
             type="text"
-            placeholder="Search by Request ID, Vendor, or Plant..."
+            placeholder="Search by Call No., PO No., Case No., Vendor..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             style={{
@@ -557,30 +557,20 @@ const AttendingCallsDashboard = ({
             No inspection calls found in this category.
           </div>
         ) : (
-          <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', minWidth: '700px' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', minWidth: '1150px' }}>
             <thead>
               <tr style={{ background: '#f8fafc', borderBottom: '1px solid #e2e8f0' }}>
-                {activeTab === 'completed' ? (
-                  <>
-                    <th style={{ padding: '12px 18px', fontSize: '11px', fontWeight: '700', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em', width: '14%' }}>CALL NO.</th>
-                    <th style={{ padding: '12px 18px', fontSize: '11px', fontWeight: '700', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em', width: '16%' }}>PO NO.</th>
-                    <th style={{ padding: '12px 18px', fontSize: '11px', fontWeight: '700', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em', width: '14%' }}>IBS CASE NUMBER</th>
-                    <th style={{ padding: '12px 18px', fontSize: '11px', fontWeight: '700', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em', width: '20%' }}>VENDOR NAME</th>
-                    <th style={{ padding: '12px 18px', fontSize: '11px', fontWeight: '700', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em', width: '10%' }}>PRODUCT TYPE</th>
-                    <th style={{ padding: '12px 18px', fontSize: '11px', fontWeight: '700', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em', width: '10%' }}>DATE</th>
-                    <th style={{ padding: '12px 18px', fontSize: '11px', fontWeight: '700', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em', width: '8%' }}>STATUS</th>
-                    <th style={{ padding: '12px 18px', fontSize: '11px', fontWeight: '700', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em', width: '8%', textAlign: 'right' }}>ACTIONS</th>
-                  </>
-                ) : (
-                  <>
-                    <th style={{ padding: '12px 18px', fontSize: '11px', fontWeight: '700', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em', width: '18%' }}>CALL NO</th>
-                    <th style={{ padding: '12px 18px', fontSize: '11px', fontWeight: '700', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em', width: '32%' }}>VENDOR NAME</th>
-                    <th style={{ padding: '12px 18px', fontSize: '11px', fontWeight: '700', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em', width: '18%' }}>PLANT ID</th>
-                    <th style={{ padding: '12px 18px', fontSize: '11px', fontWeight: '700', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em', width: '12%' }}>CREATED DATE</th>
-                    <th style={{ padding: '12px 18px', fontSize: '11px', fontWeight: '700', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em', width: '10%' }}>STATUS</th>
-                    <th style={{ padding: '12px 18px', fontSize: '11px', fontWeight: '700', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em', width: '10%', textAlign: 'right' }}>ACTIONS</th>
-                  </>
-                )}
+                <th style={{ padding: '12px 14px', fontSize: '11px', fontWeight: '700', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em', whiteSpace: 'nowrap' }}>CALL NO.</th>
+                <th style={{ padding: '12px 14px', fontSize: '11px', fontWeight: '700', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em', whiteSpace: 'nowrap' }}>PO NO.</th>
+                <th style={{ padding: '12px 14px', fontSize: '11px', fontWeight: '700', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em', whiteSpace: 'nowrap' }}>IBS CASE NUMBER</th>
+                <th style={{ padding: '12px 14px', fontSize: '11px', fontWeight: '700', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em', whiteSpace: 'nowrap' }}>VENDOR NAME</th>
+                <th style={{ padding: '12px 14px', fontSize: '11px', fontWeight: '700', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em', whiteSpace: 'nowrap' }}>RAILPAD TYPE</th>
+                <th style={{ padding: '12px 14px', fontSize: '11px', fontWeight: '700', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em', whiteSpace: 'nowrap' }}>OFFERED QTY</th>
+                <th style={{ padding: '12px 14px', fontSize: '11px', fontWeight: '700', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em', whiteSpace: 'nowrap' }}>CALL DATE</th>
+                <th style={{ padding: '12px 14px', fontSize: '11px', fontWeight: '700', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em', whiteSpace: 'nowrap' }}>DESIRED DATE</th>
+                <th style={{ padding: '12px 14px', fontSize: '11px', fontWeight: '700', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em', whiteSpace: 'nowrap' }}>SCHEDULED DATE</th>
+                <th style={{ padding: '12px 14px', fontSize: '11px', fontWeight: '700', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em', whiteSpace: 'nowrap' }}>STATUS</th>
+                <th style={{ padding: '12px 14px', fontSize: '11px', fontWeight: '700', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em', whiteSpace: 'nowrap', textAlign: 'right' }}>ACTIONS</th>
               </tr>
             </thead>
             <tbody>
@@ -613,7 +603,11 @@ const AttendingCallsDashboard = ({
                       (call.vendorCode?.toLowerCase() || '').includes(q) ||
                       (call.vendorName?.toLowerCase() || '').includes(q) ||
                       (call.plantId?.toLowerCase() || '').includes(q) ||
-                      (call.poNo?.toLowerCase() || '').includes(q)
+                      (call.poNo?.toLowerCase() || '').includes(q) ||
+                      (call.rlyPoSrNo?.toLowerCase() || '').includes(q) ||
+                      (call.caseNo?.toLowerCase() || '').includes(q) ||
+                      (call.ibsCaseNo?.toLowerCase() || '').includes(q) ||
+                      (call.railPadType?.toLowerCase() || '').includes(q)
                     );
                   })
                   .sort((a, b) => new Date(b.createdDate || 0) - new Date(a.createdDate || 0));
@@ -626,19 +620,28 @@ const AttendingCallsDashboard = ({
                   <>
                     {paginatedCalls.map((call, index) => (
                     <tr key={index} style={{ borderBottom: '1px solid #f1f5f9', transition: 'background 0.15s' }} onMouseEnter={e => e.currentTarget.style.background = '#f8fafc'} onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
-                  <td style={{ padding: '14px 18px', fontSize: '13px', fontWeight: '700', color: '#0f172a', whiteSpace: 'nowrap' }}>{call.requestId}</td>
+                  <td style={{ padding: '12px 14px', fontSize: '13px', fontWeight: '700', color: '#0f172a', whiteSpace: 'nowrap' }}>{call.requestId}</td>
                   {activeTab === 'completed' ? (
                     <>
-                      <td style={{ padding: '14px 18px', fontSize: '13px', color: '#334155' }}>
+                      <td style={{ padding: '12px 14px', fontSize: '13px', color: '#334155' }}>
                         {call.rlyPoSrNo && call.rlyPoSrNo !== '-' ? call.rlyPoSrNo : (call.poNo ? `${call.rlyShortName ? call.rlyShortName + ' / ' : ''}${call.poNo} / ${call.poSr || '001'}` : 'N/A')}
                       </td>
-                      <td style={{ padding: '14px 18px', fontSize: '13px', color: '#64748b' }}>
+                      <td style={{ padding: '12px 14px', fontSize: '13px', color: '#64748b' }}>
                         {call.caseNo || call.ibsCaseNo || 'N/A'}
                       </td>
-                      <td style={{ padding: '14px 18px', fontSize: '13px', color: '#334155' }}>{call.vendorName || call.vendorCode}</td>
-                      <td style={{ padding: '14px 18px', fontSize: '13px', color: '#475569' }}>{call.railPadType || call.productType || 'Rail Pad'}</td>
-                      <td style={{ padding: '14px 18px', fontSize: '13px', color: '#64748b', whiteSpace: 'nowrap' }}>
-                        {call.createdDate ? new Date(call.createdDate).toLocaleDateString('en-GB') : 'N/A'}
+                      <td style={{ padding: '12px 14px', fontSize: '13px', color: '#334155' }}>{call.vendorName || call.vendorCode}</td>
+                      <td style={{ padding: '12px 14px', fontSize: '13px', color: '#475569' }}>{call.railPadType || call.productType || 'Rail Pad'}</td>
+                      <td style={{ padding: '12px 14px', fontSize: '13px', color: '#334155', fontWeight: '600' }}>
+                        {call.offeredQty != null ? Number(call.offeredQty).toLocaleString('en-IN') : (call.totalQty != null ? Number(call.totalQty).toLocaleString('en-IN') : '-')}
+                      </td>
+                      <td style={{ padding: '12px 14px', fontSize: '13px', color: '#64748b', whiteSpace: 'nowrap' }}>
+                        {call.callDate ? new Date(call.callDate).toLocaleDateString('en-GB') : (call.createdDate ? new Date(call.createdDate).toLocaleDateString('en-GB') : '-')}
+                      </td>
+                      <td style={{ padding: '12px 14px', fontSize: '13px', color: '#64748b', whiteSpace: 'nowrap' }}>
+                        {call.desiredInspectionDate ? new Date(call.desiredInspectionDate).toLocaleDateString('en-GB') : '-'}
+                      </td>
+                      <td style={{ padding: '12px 14px', fontSize: '13px', color: '#64748b', whiteSpace: 'nowrap' }}>
+                        {call.scheduledDate ? new Date(call.scheduledDate).toLocaleDateString('en-GB') : (call.scheduleDate ? new Date(call.scheduleDate).toLocaleDateString('en-GB') : '-')}
                       </td>
                       <td style={{ padding: '14px 18px' }}>
                         {(() => {
@@ -777,10 +780,31 @@ const AttendingCallsDashboard = ({
                     </>
                   ) : (
                     <>
-                      <td style={{ padding: '14px 18px', fontSize: '13px', color: '#334155' }}>{call.vendorName || call.vendorCode}</td>
-                      <td style={{ padding: '14px 18px', fontSize: '13px', color: '#475569' }}>{call.plantId}</td>
-                      <td style={{ padding: '14px 18px', fontSize: '13px', color: '#64748b', whiteSpace: 'nowrap' }}>
-                        {call.createdDate ? new Date(call.createdDate).toLocaleDateString('en-GB') : 'N/A'}
+                      <td style={{ padding: '12px 14px', fontSize: '13px', color: '#334155' }}>
+                        {call.rlyPoSrNo && call.rlyPoSrNo !== '-' 
+                          ? call.rlyPoSrNo 
+                          : (call.poNo ? `${call.rlyShortName ? call.rlyShortName + ' / ' : ''}${call.poNo} / ${call.poSr || '001'}` : 'N/A')}
+                      </td>
+                      <td style={{ padding: '12px 14px', fontSize: '13px', color: '#64748b' }}>
+                        {call.caseNo || call.ibsCaseNo || 'N/A'}
+                      </td>
+                      <td style={{ padding: '12px 14px', fontSize: '13px', color: '#334155' }}>
+                        {call.vendorName || call.vendorCode || 'N/A'}
+                      </td>
+                      <td style={{ padding: '12px 14px', fontSize: '13px', color: '#475569' }}>
+                        {call.railPadType || call.productType || 'Rail Pad'}
+                      </td>
+                      <td style={{ padding: '12px 14px', fontSize: '13px', color: '#334155', fontWeight: '600' }}>
+                        {call.offeredQty != null ? Number(call.offeredQty).toLocaleString('en-IN') : (call.totalQty != null ? Number(call.totalQty).toLocaleString('en-IN') : '-')}
+                      </td>
+                      <td style={{ padding: '12px 14px', fontSize: '13px', color: '#64748b', whiteSpace: 'nowrap' }}>
+                        {call.callDate ? new Date(call.callDate).toLocaleDateString('en-GB') : (call.createdDate ? new Date(call.createdDate).toLocaleDateString('en-GB') : '-')}
+                      </td>
+                      <td style={{ padding: '12px 14px', fontSize: '13px', color: '#64748b', whiteSpace: 'nowrap' }}>
+                        {call.desiredInspectionDate ? new Date(call.desiredInspectionDate).toLocaleDateString('en-GB') : '-'}
+                      </td>
+                      <td style={{ padding: '12px 14px', fontSize: '13px', color: '#64748b', whiteSpace: 'nowrap' }}>
+                        {call.scheduledDate ? new Date(call.scheduledDate).toLocaleDateString('en-GB') : (call.scheduleDate ? new Date(call.scheduleDate).toLocaleDateString('en-GB') : '-')}
                       </td>
                       <td style={{ padding: '14px 18px' }}>
                         <span style={{

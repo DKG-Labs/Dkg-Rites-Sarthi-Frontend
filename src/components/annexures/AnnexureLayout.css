@@ -1,14 +1,25 @@
 /* AnnexureLayout.css - Base layout styles for all annexures */
 
+.multi-annexure-container {
+  display: flex;
+  flex-direction: column;
+  gap: 32px;
+  width: 100%;
+  align-items: center;
+}
+
 .annexure-layout {
   font-size: 12px;
-  padding: 15px;
+  padding: 24px;
   max-width: 100%;
   width: 1100px;
-  overflow: hidden;
+  overflow: visible;
   box-sizing: border-box;
   background: white;
   margin: 0 auto;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
 }
 
 .annexure-layout.portrait {
@@ -37,29 +48,65 @@
   line-height: 1.4;
 }
 
+/* Status styling */
+.status-badge {
+  display: inline-block;
+  padding: 3px 8px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.status-badge.status-ok {
+  background-color: #dcfce7;
+  color: #15803d;
+  border: 1px solid #bbf7d0;
+}
+
+.status-badge.status-not-ok {
+  background-color: #fee2e2;
+  color: #b91c1c;
+  border: 1px solid #fecaca;
+}
+
 /* Print styles */
 @media print {
   body * {
     visibility: hidden;
   }
 
+  .multi-annexure-container,
   .annexure-layout,
   .annexure-layout * {
     visibility: visible;
   }
 
+  .multi-annexure-container {
+    display: block !important;
+    gap: 0 !important;
+    width: 100% !important;
+  }
+
   .annexure-layout {
-    position: relative;
-    /* Changed from absolute to allow multi-page flow */
-    width: 100%;
-    padding: 0;
-    margin: 0;
-    page-break-inside: avoid;
+    position: relative !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    padding: 0 !important;
+    margin: 0 0 20mm 0 !important;
     page-break-after: always !important;
-    /* Force each annexure onto a new page */
-    transform: scale(0.95);
-    /* Slightly larger scale for better fit */
-    transform-origin: top center;
+    page-break-inside: avoid !important;
+    break-after: page !important;
+    break-inside: avoid !important;
+    border: none !important;
+    box-shadow: none !important;
+    border-radius: 0 !important;
+    background: transparent !important;
+  }
+
+  .annexure-layout:last-child {
+    page-break-after: auto !important;
+    break-after: auto !important;
+    margin-bottom: 0 !important;
   }
 
   @page {
@@ -67,27 +114,21 @@
     margin: 10mm;
   }
 
-  /* Hide navigation and buttons */
+  /* Hide navigation, headers, and buttons */
   .annexure-page__header,
   .annexure-page__back-button,
   .annexure-header-bar,
   .annexure-header-actions,
+  .annexure-view-header,
+  .no-print,
   button,
   nav {
     display: none !important;
   }
 
-  /* Ensure natural width and allowing page breaks */
-  .annexure-layout {
-    width: 1080px !important;
-    max-width: 1080px !important;
-    page-break-after: always !important;
-    page-break-inside: avoid !important;
-  }
-
   .annexure-layout table {
     page-break-inside: auto !important;
-    /* Allow tables to break if they are long */
+    width: 100% !important;
   }
 
   .annexure-layout tr {

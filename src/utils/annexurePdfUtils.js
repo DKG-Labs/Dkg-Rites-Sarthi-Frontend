@@ -40,7 +40,7 @@ const addElementToPdf = async (element, pdf, options) => {
       });
 
       // Select ALL layouts to ensure consistency across pages
-      const layouts = clonedDoc.querySelectorAll('.annexure-layout, .annexure-template, .itp-page');
+      const layouts = clonedDoc.querySelectorAll('.annexure-layout, .annexure-template, .itp-page, .annexure-page-wrapper');
       layouts.forEach(layout => {
         const isLayoutItp = layout.classList.contains('itp-page');
         const isLayoutPortrait = layout.classList.contains('portrait') || isLayoutItp || options.orientation === 'portrait';
@@ -48,10 +48,14 @@ const addElementToPdf = async (element, pdf, options) => {
 
         layout.style.width = `${layoutCaptureWidth}px`;
         layout.style.minWidth = `${layoutCaptureWidth}px`;
+        layout.style.maxWidth = `${layoutCaptureWidth}px`;
         layout.style.padding = isLayoutItp ? '30px 22px' : (isLayoutPortrait ? '20px' : '40px');
-        layout.style.margin = '0';
+        layout.style.margin = '0 auto';
         layout.style.background = '#ffffff';
         layout.style.backgroundColor = '#ffffff';
+        layout.style.boxSizing = 'border-box';
+        layout.style.border = 'none';
+        layout.style.boxShadow = 'none';
 
         // Stabilize Tables within this layout
         const tables = layout.querySelectorAll('table');
@@ -201,7 +205,8 @@ const addElementToPdf = async (element, pdf, options) => {
     const scaledWidth = (canvas.width * pdfHeight) / canvas.height;
     pdf.addImage(imgData, "JPEG", (pdfWidth - scaledWidth) / 2, 0, scaledWidth, pdfHeight, undefined, "FAST");
   } else {
-    pdf.addImage(imgData, "JPEG", 0, (pdfHeight - imgHeight) / 2, imgWidth, imgHeight, undefined, "FAST");
+    const yOffset = Math.max(0, (pdfHeight - imgHeight) / 2);
+    pdf.addImage(imgData, "JPEG", 0, yOffset, imgWidth, imgHeight, undefined, "FAST");
   }
 };
 
@@ -223,8 +228,20 @@ export const captureElementToPdfBlob = async (element, options = {}) => {
   console.log(`[PDF Utility] Executing Smart Multi-Page Capture...`);
 
   try {
-    // Check if we have multiple individual layouts (Multi-Annexure report)
-    const layouts = Array.from(element.querySelectorAll('.annexure-layout, .annexure-template, .itp-page'));
+    // Check if we have multiple individual layouts (Multi-Annexure report or Multi-Page report)
+    let layouts = Array.from(element.querySelectorAll('.annexure-layout, .itp-page'));
+
+    if (layouts.length === 0) {
+      layouts = Array.from(element.querySelectorAll('.annexure-page-wrapper'));
+    }
+
+    if (layouts.length === 0) {
+      layouts = Array.from(element.querySelectorAll('.annexure-template'));
+    }
+
+    if (layouts.length === 0 && (element.classList.contains('annexure-layout') || element.classList.contains('annexure-template') || element.classList.contains('itp-page'))) {
+      layouts = [element];
+    }
 
     let pdf;
 

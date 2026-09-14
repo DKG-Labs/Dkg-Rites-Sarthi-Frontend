@@ -723,6 +723,11 @@ export default function RailpadFinalProductCertificate({ call = {}, onBack, isVi
       return;
     }
 
+    if (!bookSetValidation?.isValid) {
+      showToast("Please Verify the Book No. and Set No. before saving.", "warning");
+      return;
+    }
+
     if (bookNo.trim().length < 4) {
       setBookWarningModal({
         show: true,
@@ -810,6 +815,11 @@ export default function RailpadFinalProductCertificate({ call = {}, onBack, isVi
 
     if (!/^\d{3}$/.test(setNo)) {
       showToast("Set No. must be exactly 3 digits.", "warning");
+      return;
+    }
+
+    if (!bookSetValidation?.isValid) {
+      showToast("Please Verify the Book No. and Set No. before signing.", "warning");
       return;
     }
 

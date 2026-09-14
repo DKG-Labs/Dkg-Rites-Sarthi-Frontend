@@ -71,24 +71,53 @@ const MomentOfResistance = () => {
                     .filter(id => id && id !== 'null' && id !== 'undefined')
             );
 
+            // Normalize helper for dates (handles dd/MM/yyyy and yyyy-MM-dd)
+            const normDate = (d) => {
+                if (!d || d === 'N/A') return '';
+                const s = String(d).trim().split('T')[0];
+                if (s.includes('/')) {
+                    const parts = s.split('/');
+                    if (parts.length === 3) {
+                        const [d1, m1, y1] = parts;
+                        return `${y1}-${m1.padStart(2, '0')}-${d1.padStart(2, '0')}`;
+                    }
+                }
+                return s;
+            };
+
             // Build exhaustive production declaration map for all batches
             const normKey = (s) => String(s || '').replace(/[\s-_]/g, '').trim().toLowerCase();
             const allBatches = [...(Array.isArray(allProdData) ? allProdData : []), ...(Array.isArray(vData) ? vData : [])];
             const vBatchMap = new Map();
             const vBatchIdMap = new Map();
             allBatches.forEach(v => {
-                if (v && v.batchNumber) {
-                    const exact = String(v.batchNumber).trim();
-                    const norm = normKey(v.batchNumber);
-                    if (!vBatchMap.has(exact)) vBatchMap.set(exact, v);
-                    if (!vBatchMap.has(norm)) vBatchMap.set(norm, v);
-                    if (!vBatchIdMap.has(exact)) vBatchIdMap.set(exact, v.id);
-                    if (!vBatchIdMap.has(norm)) vBatchIdMap.set(norm, v.id);
+                if (v) {
+                    if (v.id) {
+                        vBatchMap.set(`id_${v.id}`, v);
+                    }
+                    if (v.batchNumber) {
+                        const exact = String(v.batchNumber).trim();
+                        const norm = normKey(v.batchNumber);
+                        const cDate = normDate(v.castingDate || v.dateOfCasting || v.date);
+                        if (cDate) {
+                            vBatchMap.set(`${exact}__${cDate}`, v);
+                            vBatchMap.set(`${norm}__${cDate}`, v);
+                        }
+                        if (!vBatchMap.has(exact)) vBatchMap.set(exact, v);
+                        if (!vBatchMap.has(norm)) vBatchMap.set(norm, v);
+                        if (!vBatchIdMap.has(exact)) vBatchIdMap.set(exact, v.id);
+                        if (!vBatchIdMap.has(norm)) vBatchIdMap.set(norm, v.id);
+                    }
                 }
             });
 
             const normalizeDwg = (dwg) => String(dwg || '').replace(/[\s-_:()]/g, '').trim().toLowerCase();
-            const makeItemKey = (bNo, dwg) => `${String(bNo || '').trim().toLowerCase()}__${normalizeDwg(dwg)}`;
+            const makeItemKey = (bNo, dwg, castDate) => {
+                const b = String(bNo || '').trim().toLowerCase();
+                const d = normalizeDwg(dwg);
+                const dt = normDate(castDate);
+                return `${b}__${d}${dt ? `__${dt}` : ''}`;
+            };
 
             const isGrade = (val) => /^M\s*[-]?\s*\d+/i.test(String(val || '').trim());
 
@@ -143,16 +172,34 @@ const MomentOfResistance = () => {
                 return item?.sleeperType || item?.drawingNo || batchMatch?.sleeperType || batchMatch?.drawingNo || '';
             };
 
+            const extractCastDate = (item, batchMatch, declaredMatch) => {
+                if (item?.remarks) {
+                    const m = String(item.remarks).match(/\[Cast:\s*([^\]]+)\]/i);
+                    if (m && m[1]) return m[1].trim();
+                }
+                if (declaredMatch?.remarks) {
+                    const m = String(declaredMatch.remarks).match(/\[Cast:\s*([^\]]+)\]/i);
+                    if (m && m[1]) return m[1].trim();
+                }
+                if (batchMatch?.castingDate && batchMatch.castingDate !== 'N/A') return batchMatch.castingDate;
+                if (batchMatch?.dateOfCasting && batchMatch.dateOfCasting !== 'N/A') return batchMatch.dateOfCasting;
+                if (declaredMatch?.castingDate && declaredMatch.castingDate !== 'N/A') return declaredMatch.castingDate;
+                if (declaredMatch?.dateOfCasting && declaredMatch.dateOfCasting !== 'N/A') return declaredMatch.dateOfCasting;
+                if (item?.castingDate && item.castingDate !== 'N/A') return item.castingDate;
+                if (item?.dateOfCasting && item.dateOfCasting !== 'N/A') return item.dateOfCasting;
+                return '';
+            };
+
             // Batches that have completed testing (Pass or Fail) for THIS plant
             const passedItemKeys = new Set(
                 testData
                     .filter(t => isSamePlant(t.plantId, params.plantId) && String(t.testResult).toLowerCase() === 'pass')
-                    .map(t => makeItemKey(t.batchNumber, t.sleeperType))
+                    .map(t => makeItemKey(t.batchNumber, t.sleeperType, extractCastDate(t)))
             );
             const failedItemKeys = new Set(
                 testData
                     .filter(t => isSamePlant(t.plantId, params.plantId) && String(t.testResult).toLowerCase() === 'fail')
-                    .map(t => makeItemKey(t.batchNumber, t.sleeperType))
+                    .map(t => makeItemKey(t.batchNumber, t.sleeperType, extractCastDate(t)))
             );
             const completedItemKeys = new Set([...passedItemKeys, ...failedItemKeys]);
 
@@ -160,7 +207,7 @@ const MomentOfResistance = () => {
             const declaredItemKeys = new Set(
                 mrData
                     .filter(d => isSamePlant(d.plantId, params.plantId) && (!d.testResult || d.testResult === 'Pending'))
-                    .map(d => makeItemKey(d.batchNumber, d.sleeperType))
+                    .map(d => makeItemKey(d.batchNumber, d.sleeperType, extractCastDate(d)))
             );
 
             // Map Verified Batches (Pending Declaration for this plant)
@@ -169,22 +216,27 @@ const MomentOfResistance = () => {
                 .filter(item => isSamePlant(item.plantId, params.plantId))
                 .map(item => {
                     const bNo = String(item.batchNumber).trim();
-                    const batchMatch = vBatchMap.get(bNo) || vBatchMap.get(normKey(bNo));
+                    const cDate = item.castingDate || item.dateOfCasting || item.date || 'N/A';
+                    const cDateNorm = normDate(cDate);
+                    const batchMatch = (item.id ? vBatchMap.get(`id_${item.id}`) : null) || 
+                                       (cDateNorm ? vBatchMap.get(`${bNo}__${cDateNorm}`) : null) ||
+                                       vBatchMap.get(bNo) || vBatchMap.get(normKey(bNo));
                     const actualSleeperType = extractDrawingNo(item, batchMatch);
-                    const itemKey = makeItemKey(bNo, actualSleeperType);
+                    const actualCastingDate = item.castingDate || batchMatch?.castingDate || item.dateOfCasting || 'N/A';
+                    const itemKey = makeItemKey(bNo, actualSleeperType, actualCastingDate);
                     const uniqueKey = item.id ? `id_${item.id}` : itemKey;
-                    return { item, bNo, actualSleeperType, itemKey, uniqueKey, batchMatch };
+                    return { item, bNo, actualSleeperType, actualCastingDate, itemKey, uniqueKey, batchMatch };
                 })
                 .filter(({ bNo, itemKey, uniqueKey }) => {
                     if (!bNo) return false;
-                    // Only filter if THIS specific drawing of the batch is already declared or tested
+                    // Only filter if THIS specific drawing and casting date of the batch is already declared or tested
                     if (declaredItemKeys.has(itemKey) || completedItemKeys.has(itemKey) || seenDeclarationKeys.has(uniqueKey)) {
                         return false;
                     }
                     seenDeclarationKeys.add(uniqueKey);
                     return true;
                 })
-                .map(({ item, bNo, actualSleeperType, batchMatch }) => {
+                .map(({ item, bNo, actualSleeperType, actualCastingDate, batchMatch }) => {
                     const samplesToTest = item.mrSamplesRequired || (item.condition2 ? 2 : 1);
                     const isWaterDone = Boolean(item.waterCubeTestStatus) || (item.id && completedWaterProdDeclIds.has(String(item.id)));
                     return {
@@ -193,7 +245,7 @@ const MomentOfResistance = () => {
                         batchNo: item.batchNumber,
                         sleeperCategory: item.sleeperCategory,
                         sleeperType: actualSleeperType,
-                        castingDate: item.castingDate || batchMatch?.castingDate || item.dateOfCasting || 'N/A',
+                        castingDate: actualCastingDate,
                         waterCubeStatus: isWaterDone ? 'Completed' : 'Not Completed',
                         mrSamplesNeeded: samplesToTest, 
                         mrTestType: 'Fresh',
@@ -206,7 +258,8 @@ const MomentOfResistance = () => {
             const mappedDeclared = mrData
                 .filter(item => isSamePlant(item.plantId, params.plantId))
                 .filter(item => {
-                    const itemKey = makeItemKey(item.batchNumber, item.sleeperType);
+                    const castDate = extractCastDate(item);
+                    const itemKey = makeItemKey(item.batchNumber, item.sleeperType, castDate);
                     return (!item.testResult || item.testResult === 'Pending') && !completedItemKeys.has(itemKey);
                 })
                 .map(item => {
@@ -222,7 +275,7 @@ const MomentOfResistance = () => {
                     const bNo = String(item.batchNumber).trim();
                     const batchMatch = vBatchMap.get(bNo) || vBatchMap.get(normKey(bNo));
                     const pId = item.productionDeclarationId || batchMatch?.id || vBatchIdMap.get(bNo);
-                    const actualCastingDate = batchMatch?.castingDate || item.castingDate || item.dateOfCasting || 'N/A';
+                    const actualCastingDate = extractCastDate(item, batchMatch) || batchMatch?.castingDate || 'N/A';
                     const actualSleeperType = item.sleeperType || extractDrawingNo(item, batchMatch);
 
                     return {
@@ -253,7 +306,7 @@ const MomentOfResistance = () => {
                     const bench = item.benchNumber || declaredMatch?.benchNumber || 'N/A';
                     const sleeper = item.sleeperNo || declaredMatch?.sleeperNo || 'N/A';
                     const pId = item.productionDeclarationId || batchMatch?.id || vBatchIdMap.get(bNo);
-                    const actualCastingDate = batchMatch?.castingDate || declaredMatch?.castingDate || item.castingDate || item.dateOfCasting || 'N/A';
+                    const actualCastingDate = extractCastDate(item, batchMatch, declaredMatch) || 'N/A';
                     const actualSleeperType = item.sleeperType || extractDrawingNo(item, batchMatch || declaredMatch);
 
                     return {
@@ -277,14 +330,15 @@ const MomentOfResistance = () => {
                 .filter(item => isSamePlant(item.plantId, params.plantId))
                 .filter(item => String(item.testResult || '').toLowerCase() === 'retest')
                 .filter(item => {
-                    const itemKey = makeItemKey(item.batchNumber, item.sleeperType);
+                    const castDate = extractCastDate(item);
+                    const itemKey = makeItemKey(item.batchNumber, item.sleeperType, castDate);
                     return !declaredItemKeys.has(itemKey) && !passedItemKeys.has(itemKey);
                 })
                 .map(item => {
                     const bNo = String(item.batchNumber).trim();
                     const batchMatch = vBatchMap.get(bNo) || vBatchMap.get(normKey(bNo));
                     const pId = item.productionDeclarationId || batchMatch?.id || vBatchIdMap.get(bNo);
-                    const actualCastingDate = batchMatch?.castingDate || item.castingDate || item.dateOfCasting || 'N/A';
+                    const actualCastingDate = extractCastDate(item, batchMatch) || batchMatch?.castingDate || 'N/A';
                     const actualSleeperType = item.sleeperType || extractDrawingNo(item, batchMatch);
 
                     return {
@@ -303,10 +357,10 @@ const MomentOfResistance = () => {
                     };
                 });
 
-            // Deduplicate retest batches by (batchNo + sleeperType)
+            // Deduplicate retest batches by (batchNo + sleeperType + castingDate)
             const uniqueRetestMap = new Map();
             retestBatches.forEach(b => {
-                const key = makeItemKey(b.batchNo, b.sleeperType);
+                const key = makeItemKey(b.batchNo, b.sleeperType, b.castingDate);
                 if (!uniqueRetestMap.has(key)) {
                     uniqueRetestMap.set(key, b);
                 }
@@ -342,6 +396,8 @@ const MomentOfResistance = () => {
 
             if (batch.id && batch.status === 'Testing Pending') {
                 // UPDATE if existing record
+                const castTag = batch.castingDate ? `[Cast: ${batch.castingDate}] ` : '';
+                const baseRemarks = batch.remarks && batch.remarks.includes('[Cast:') ? batch.remarks : `${castTag}${batch.remarks || 'Declaration Updated'}`;
                 const payload = {
                     batchNumber: String(batch.batchNumber || batch.batchNo),
                     sleeperType: batch.sleeperType,
@@ -349,7 +405,7 @@ const MomentOfResistance = () => {
                     benchNumber: Array.from(new Set(samples.map(s => s.bench).filter(Boolean))).join(', '),
                     sleeperNo: samples.map(s => s.no).filter(Boolean).join(', '),
                     testResult: batch.testResult || 'Pending',
-                    remarks: batch.remarks || 'Declaration Updated',
+                    remarks: baseRemarks,
                     vendorCode: params.vendorCode,
                     plantId: params.plantId,
                     shift: params.shift,
@@ -362,6 +418,7 @@ const MomentOfResistance = () => {
                 // CREATE ONE entry with combined samples
                 const benchNos = Array.from(new Set(samples.map(s => s.bench).filter(Boolean))).join(', ');
                 const sleeperNos = samples.map(s => s.no).filter(Boolean).join(', ');
+                const castTag = batch.castingDate ? `[Cast: ${batch.castingDate}] ` : '';
                 const payload = {
                     batchNumber: String(batch.batchNo),
                     sleeperType: batch.sleeperType,
@@ -370,7 +427,7 @@ const MomentOfResistance = () => {
                     sleeperNo: sleeperNos,
                     testResult: 'Pending',
                     mrTestType: batch.mrTestType || 'Fresh',
-                    remarks: `Declared for MR ${batch.mrTestType || 'Fresh'} Testing (${samples.length} Sleeper${samples.length > 1 ? 's' : ''})`,
+                    remarks: `${castTag}Declared for MR ${batch.mrTestType || 'Fresh'} Testing (${samples.length} Sleeper${samples.length > 1 ? 's' : ''})`,
                     vendorCode: params.vendorCode,
                     plantId: params.plantId,
                     shift: params.shift,
@@ -400,12 +457,18 @@ const MomentOfResistance = () => {
             const params = getCommonParams();
             const testResultStatus = results.result; // 'Pass', 'Retest', 'Fail'
 
+            const actualCastDate = (record.castingDate && record.castingDate !== 'N/A')
+                ? record.castingDate
+                : (record.originalData?.castingDate || record.originalData?.dateOfCasting || '');
+            const castTag = actualCastDate ? `[Cast: ${actualCastDate}] ` : '';
+
             const payload = {
                 batchNumber: String(record.batchNo),
                 sleeperType: record.sleeperType,
                 benchNumber: String(record.benchNumber || record.declaredSamples?.[0]?.bench || results.results?.[0]?.bench || ''),
                 sleeperNo: String(record.sleeperNo || record.declaredSamples?.map(s => s.no).join(', ') || results.results?.[0]?.no || ''),
-                castingDate: record.castingDate || params.date,
+                castingDate: actualCastDate || params.date,
+                remarks: `${castTag}MR Test ${testResultStatus}`,
                 testResult: testResultStatus,
                 vendorCode: params.vendorCode,
                 plantId: params.plantId,

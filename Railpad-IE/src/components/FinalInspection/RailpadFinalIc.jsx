@@ -1,24 +1,24 @@
 import React from "react";
 
 // Top-level EditableField component to prevent focus loss during typing
-const EditableField = ({ 
-  value, 
-  fieldName, 
-  placeholder = "", 
-  style = {}, 
-  type = "text", 
-  disabled = false, 
+const EditableField = ({
+  value,
+  fieldName,
+  placeholder = "",
+  style = {},
+  type = "text",
+  disabled = false,
   maxLength = undefined,
   customRender = null,
   isEditing = false,
   isViewOnly = false,
   isBusy = false,
-  isBookSetEntered = false,
+  bookSetValidation = null,
   allowedFields = [],
   onFieldChange = () => {}
 }) => {
   const isBookOrSet = fieldName === "bookNo" || fieldName === "setNo";
-  const canEdit = isEditing && allowedFields.includes(fieldName) && (isBookOrSet || isBookSetEntered);
+  const canEdit = isEditing && allowedFields.includes(fieldName) && (isBookOrSet || bookSetValidation?.isValid);
   
   if (canEdit) {
     if (type === "textarea") {
@@ -131,7 +131,7 @@ const RailpadFinalIc = ({ data = {}, isEditing = false, isBusy = false, isViewOn
     isEditing,
     isViewOnly,
     isBusy,
-    isBookSetEntered,
+    bookSetValidation,
     allowedFields,
     onFieldChange
   };

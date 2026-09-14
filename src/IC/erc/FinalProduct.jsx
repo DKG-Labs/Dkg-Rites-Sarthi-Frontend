@@ -615,7 +615,7 @@ export default function FinalProductCertificate({ call = {}, onBack }) {
           return;
       }
       
-      if (data.icType === 'new' && !bookSetValidation.isValid) {
+      if (!bookSetValidation.isValid) {
           console.warn("⚠️ Validation failed: Book No or Set No has not been verified.");
           setNotification({ open: true, message: "Please Verify the Book No. and Set No. before signing.", severity: 'warning' });
           setIsESigning(false);

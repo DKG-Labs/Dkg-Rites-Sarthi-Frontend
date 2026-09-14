@@ -1,7 +1,8 @@
 import React from 'react';
+import AnnexureLayout from './AnnexureLayout';
+import AnnexureHeader from './AnnexureHeader';
 import '../AnnexureTemplate.css';
 import './FinalChemicalAnalysisAnnexure.css';
-import AnnexureHeader from './AnnexureHeader';
 
 /**
  * Final Inspection Report - Chemical Analysis Annexure
@@ -21,13 +22,13 @@ const FinalChemicalAnalysisAnnexure = ({ data = [], selectedCall }) => {
   ];
 
   return (
-    <div className="annexure-template final-chemical-analysis-annexure">
+    <div className="multi-annexure-container final-chemical-analysis-annexure">
       {sampleRows.map((row, index) => (
-        <div key={index} className="annexure-page-wrapper">
+        <AnnexureLayout key={index} className="annexure-page-wrapper">
           {/* HEADER SECTION */}
           <AnnexureHeader
             selectedCall={selectedCall}
-            pageNo="12 of 18"
+            pageNo={`${index + 1} of ${sampleRows.length}`}
             preparedBy="KJM"
             checkedBy="CSR"
             approvedBy="GM(I)/WR"
@@ -115,9 +116,7 @@ const FinalChemicalAnalysisAnnexure = ({ data = [], selectedCall }) => {
               </div>
             </div>
           </div>
-          
-          {index < sampleRows.length - 1 && <div className="page-break" />}
-        </div>
+        </AnnexureLayout>
       ))}
     </div>
   );

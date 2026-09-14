@@ -680,6 +680,11 @@ export default function SleeperFinalProductCertificate() {
       return;
     }
 
+    if (!bookSetValidation?.isValid) {
+      setNotification({ open: true, message: "Please Verify the Book No. and Set No. before signing.", severity: 'warning' });
+      return;
+    }
+
     if (data.bookNo.trim().length < 4) {
       setBookWarningModal({
         show: true,

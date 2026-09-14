@@ -3,6 +3,7 @@ import './FinalInspectionScreen.css';
 import { apiService } from '../../../services/api';
 import { getStoredUser } from '../../../services/authService';
 import ModernSearchableSelect from '../../../components/common/ModernSearchableSelect';
+import CallCancellationModal from '../../../components/CallCancellationModal';
 
 const PoVerificationSkeleton = ({ onBack }) => (
     <div className="verification-modal-page skeleton-screen-wrapper">
@@ -89,7 +90,7 @@ const FinalInspectionSkeleton = ({ onBack }) => (
                     ))}
                 </div>
                 <div style={{ display: 'flex', gap: '14px', marginTop: '20px' }}>
-                    {[1, 2, 3, 4].map(idx => (
+                    {[1, 2, 3].map(idx => (
                         <div key={idx} className="skeleton-line" style={{ flex: 1, height: '44px', borderRadius: '10px' }} />
                     ))}
                 </div>
@@ -103,6 +104,7 @@ const FinalInspectionScreen = ({ call, onBack }) => {
     const [step, setStep] = useState(isVerificationMode ? 'po-verification' : 'inspection-form');
     const [poVerified, setPoVerified] = useState(false);
     const [isLoadingData, setIsLoadingData] = useState(true);
+    const [showCancelModal, setShowCancelModal] = useState(false);
 
     useEffect(() => {
         // Handle Resuming from Pause or previously initiated steps
@@ -403,7 +405,7 @@ const FinalInspectionScreen = ({ call, onBack }) => {
         }
     };
 
-    const [activeActionLoading, setActiveActionLoading] = useState(null); // 'draft' | 'pause' | 'withdraw' | 'finish' | null
+    const [activeActionLoading, setActiveActionLoading] = useState(null); // 'draft' | 'pause' | 'cancel' | 'finish' | null
     const isProcessing = Boolean(activeActionLoading);
     const hasLoadedRef = React.useRef(false);
 
@@ -944,14 +946,14 @@ const FinalInspectionScreen = ({ call, onBack }) => {
         if (isProcessing) return;
         try {
             if (actionName === 'PAUSE') setActiveActionLoading('pause');
-            else if (actionName === 'WITHDRAW') setActiveActionLoading('withdraw');
+            else if (actionName === 'CANCEL') setActiveActionLoading('cancel');
             else if (actionName === 'FINISH') setActiveActionLoading('finish');
 
             const user = getStoredUser();
             const callNo = call.requestId || call.callNo || call.call_no || call.id;
 
-            if (actionName === 'WITHDRAW') {
-                const confirmed = window.confirm("Are you sure you want to withdraw this inspection call?");
+            if (actionName === 'CANCEL') {
+                const confirmed = window.confirm("Are you sure you want to cancel this inspection call?");
                 if (!confirmed) {
                     setActiveActionLoading(null);
                     return;
@@ -964,7 +966,7 @@ const FinalInspectionScreen = ({ call, onBack }) => {
             // 2. Perform Workflow Transition
             let remarks = "Inspection performed from inspection screen";
             if (actionName === 'PAUSE') remarks = "Inspection paused";
-            else if (actionName === 'WITHDRAW') remarks = "Inspection withdrawn";
+            else if (actionName === 'CANCEL') remarks = "Inspection cancelled";
             else if (actionName === 'FINISH') remarks = "Inspection completed";
 
             const transitionPayload = {
@@ -977,8 +979,8 @@ const FinalInspectionScreen = ({ call, onBack }) => {
             };
             await apiService.performTransitionAction(transitionPayload);
 
-            // 3. Clear draft only on finish or withdraw
-            if (actionName === 'FINISH' || actionName === 'WITHDRAW') {
+            // 3. Clear draft only on finish or cancel
+            if (actionName === 'FINISH' || actionName === 'CANCEL') {
                 localStorage.removeItem(`inspection_draft_${callNo}`);
             }
 
@@ -1831,12 +1833,13 @@ const FinalInspectionScreen = ({ call, onBack }) => {
                                 {activeActionLoading === 'pause' ? '⏳ Pausing...' : '⏸️ PAUSE INSPECTION'}
                             </button>
                             <button
-                                className="btn-action-custom btn-withdraw-inspection"
-                                onClick={() => handleWorkflowAction('WITHDRAW')}
+                                type="button"
+                                className="btn-action-custom btn-cancel-inspection"
+                                onClick={() => setShowCancelModal(true)}
                                 disabled={isProcessing}
                                 style={{ opacity: isProcessing ? 0.6 : 1, cursor: isProcessing ? 'not-allowed' : 'pointer' }}
                             >
-                                {activeActionLoading === 'withdraw' ? '⏳ Withdrawing...' : '🚫 WITHDRAW'}
+                                🚫 CANCEL
                             </button>
                             <button
                                 className="btn-action-custom btn-finish-inspection"
@@ -1850,6 +1853,20 @@ const FinalInspectionScreen = ({ call, onBack }) => {
                     </div>
                 </section>
             </main>
+
+            <CallCancellationModal
+                isOpen={showCancelModal}
+                onClose={() => setShowCancelModal(false)}
+                call={call}
+                onSuccess={() => {
+                    const callNo = call?.requestId || call?.callNo || call?.call_no || call?.id;
+                    if (callNo) {
+                        localStorage.removeItem(`inspection_draft_${callNo}`);
+                    }
+                    setShowCancelModal(false);
+                    if (onBack) onBack();
+                }}
+            />
         </div>
     );
 };

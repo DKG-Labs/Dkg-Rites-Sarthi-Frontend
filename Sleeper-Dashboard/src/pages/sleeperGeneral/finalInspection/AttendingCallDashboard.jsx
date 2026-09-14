@@ -3,8 +3,9 @@ import FinalInspectionScreen from './FinalInspectionScreen';
 import PendingCallDetailsModal from '../../../components/PendingCallDetailsModal';
 import ResumeCallModal from '../../../components/ResumeCallModal';
 import './AttendingCallDashboard.css';
-import { apiService } from '../../../services/api';
+import { apiService, API_BASE_URL } from '../../../services/api';
 import { getStoredUser } from '../../../services/authService';
+import { viewSignedCertificate } from '../../../services/certificateService';
 
 const resolveSleeperCaseNo = (rawCaseNo, rio) => {
     if (!rawCaseNo || !String(rawCaseNo).trim()) return '-';
@@ -73,6 +74,7 @@ const AttendingCallDashboard = ({ mode }) => {
     const [isLoading, setIsLoading] = useState(false);
     const [showSchedulePopup, setShowSchedulePopup] = useState(false);
     const [selectedCallForSchedule, setSelectedCallForSchedule] = useState(null);
+    const [downloadingIcId, setDownloadingIcId] = useState(null);
 
     const getModuleName = (id) => {
         const modules = {
@@ -448,6 +450,68 @@ const AttendingCallDashboard = ({ mode }) => {
         setShowDetailsPopup(true);
     };
 
+    const handleDownloadSignedIC = async (call) => {
+        if (!call) return;
+        const icNumber = call.certificateNo || call.icNumber || call.icNo || call.requestId || call.callNo || call.id;
+        if (!icNumber) {
+            alert('Call / IC number not found.');
+            return;
+        }
+
+        const callKey = call.id || call.requestId || icNumber;
+        try {
+            setDownloadingIcId(callKey);
+            const response = await viewSignedCertificate(icNumber);
+            const signedData = response?.signedData || response?.responseData?.signedData;
+            const fileName = response?.fileName || `${String(icNumber).replace(/[/\\?%*:|"<>]/g, '_')}_signed_IC.pdf`;
+
+            if (signedData) {
+                const byteCharacters = atob(signedData);
+                const byteNumbers = new Array(byteCharacters.length);
+                for (let i = 0; i < byteCharacters.length; i++) {
+                    byteNumbers[i] = byteCharacters.charCodeAt(i);
+                }
+                const byteArray = new Uint8Array(byteNumbers);
+                const blob = new Blob([byteArray], { type: 'application/pdf' });
+                const blobUrl = URL.createObjectURL(blob);
+
+                // Open in a new tab for preview
+                window.open(blobUrl, '_blank');
+
+                // Trigger file download
+                const link = document.createElement('a');
+                link.href = blobUrl;
+                link.download = fileName;
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                return;
+            }
+
+            if (response?.url) {
+                window.open(response.url, '_blank');
+                return;
+            }
+
+            throw new Error('No signed PDF data found in storage response.');
+        } catch (err) {
+            console.warn('Error fetching signed certificate, attempting direct view URL:', err);
+            try {
+                const cleanBase = (API_BASE_URL || 'http://localhost:8080/sarthi-backend/api').replace(/\/api\/?$/, '');
+                const directUrl = `${cleanBase}/api/certificate-storage/view/${encodeURIComponent(icNumber)}.pdf`;
+                window.open(directUrl, '_blank');
+            } catch (fallbackErr) {
+                alert('Signed Inspection Certificate is not available: ' + (err.message || 'Not found in storage.'));
+            }
+        } finally {
+            setDownloadingIcId(null);
+        }
+    };
+
+    const handleDownloadAnnexures = (call) => {
+        alert(`Annexure generation and download for call ${call.requestId || call.callNo || call.id} is being prepared.`);
+    };
+
     if (isInspecting && selectedCall) {
         return <FinalInspectionScreen call={selectedCall} onBack={() => {
             setIsInspecting(false);
@@ -757,8 +821,20 @@ const AttendingCallDashboard = ({ mode }) => {
                                                 </td>
                                                 <td>
                                                     <div className="table-actions-modern">
-                                                        <button className="btn-reschedule">Download IC</button>
-                                                        <button className="btn-start" style={{ marginLeft: '8px' }}>Download Annexures</button>
+                                                        <button 
+                                                            className="btn-reschedule"
+                                                            onClick={() => handleDownloadSignedIC(call)}
+                                                            disabled={downloadingIcId === (call.id || call.requestId)}
+                                                        >
+                                                            {downloadingIcId === (call.id || call.requestId) ? 'Downloading...' : 'Download IC'}
+                                                        </button>
+                                                        <button 
+                                                            className="btn-start" 
+                                                            style={{ marginLeft: '8px' }}
+                                                            onClick={() => handleDownloadAnnexures(call)}
+                                                        >
+                                                            Download Annexures
+                                                        </button>
                                                     </div>
                                                 </td>
                                             </tr>
@@ -810,8 +886,19 @@ const AttendingCallDashboard = ({ mode }) => {
                                 </>
                             ) : (
                                 <>
-                                    <button className="download-btn">Download IC</button>
-                                    <button className="download-btn">Download Annexures</button>
+                                    <button 
+                                        className="download-btn"
+                                        onClick={() => handleDownloadSignedIC(popupCall)}
+                                        disabled={downloadingIcId === (popupCall?.id || popupCall?.requestId)}
+                                    >
+                                        {downloadingIcId === (popupCall?.id || popupCall?.requestId) ? 'Downloading...' : 'Download IC'}
+                                    </button>
+                                    <button 
+                                        className="download-btn"
+                                        onClick={() => handleDownloadAnnexures(popupCall)}
+                                    >
+                                        Download Annexures
+                                    </button>
                                 </>
                             )}
                         </div>

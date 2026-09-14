@@ -371,8 +371,9 @@ const NonCriticalDimensionForm = ({ batch, onSave, onCancel, shift }) => {
     };
 
     const targetPercentage = useMemo(() => {
-        const spec = batch?.designSpec || 'T-39';
-        return spec === 'T-39' ? '1%' : '5%';
+        const typeStr = `${batch?.sleeperType || ''} ${batch?.sleeperCategory || ''} ${batch?.designSpec || ''}`.toLowerCase();
+        const isTurnoutOrSpecial = ['turnout', 'pnc', 'point', 'crossing', 't-45', 'special'].some(k => typeStr.includes(k));
+        return isTurnoutOrSpecial ? '5%' : '1%';
     }, [batch]);
 
     const handleSave = async () => {

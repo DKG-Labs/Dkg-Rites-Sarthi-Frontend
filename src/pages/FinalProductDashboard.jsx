@@ -57,11 +57,20 @@ export default function FinalProductDashboard({ onBack, onNavigateToSubModule })
     }
   });
 
-  const handleSampleSizeChange = (lotNo, newSize) => {
-    const isConfirmed = window.confirm("You are changing automatic sample size, are you sure?");
-    if (!isConfirmed) {
-      return;
-    }
+  const [sampleSizeConfirmData, setSampleSizeConfirmData] = useState(null);
+
+  const handleOpenSampleSizeModal = (lotNo, newSize, currentSize) => {
+    if (newSize === currentSize) return;
+    setSampleSizeConfirmData({
+      lotNo,
+      newSize,
+      currentSize
+    });
+  };
+
+  const handleConfirmSampleSize = () => {
+    if (!sampleSizeConfirmData) return;
+    const { lotNo, newSize } = sampleSizeConfirmData;
     setCustomSampleSizes(prev => {
       const next = { ...prev, [lotNo]: newSize };
       const callNo = selectedCall?.call_no;
@@ -70,6 +79,11 @@ export default function FinalProductDashboard({ onBack, onNavigateToSubModule })
       }
       return next;
     });
+    setSampleSizeConfirmData(null);
+  };
+
+  const handleCancelSampleSize = () => {
+    setSampleSizeConfirmData(null);
   };
 
   // Calculate Rejected Counts (R1 + R2) per lot from all submodules
@@ -1968,7 +1982,7 @@ export default function FinalProductDashboard({ onBack, onNavigateToSubModule })
                             display: 'inline-block'
                           }}
                           value={lotRow.sampleSize}
-                          onChange={(e) => handleSampleSizeChange(lotRow.lotNo, parseInt(e.target.value, 10))}
+                          onChange={(e) => handleOpenSampleSizeModal(lotRow.lotNo, parseInt(e.target.value, 10), lotRow.sampleSize)}
                         >
                           {SAMPLE_SIZE_OPTIONS.map((sizeOpt) => (
                             <option key={sizeOpt} value={sizeOpt}>
@@ -2812,6 +2826,173 @@ export default function FinalProductDashboard({ onBack, onNavigateToSubModule })
                 ? 'Please wait while all test results and lot details are being saved.'
                 : 'Please wait while your current inspection progress is being saved.'}
             </p>
+          </div>
+        </div>
+      )}
+
+      {/* SAMPLE SIZE CHANGE CONFIRMATION MODAL */}
+      {sampleSizeConfirmData && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(15, 23, 42, 0.65)',
+            backdropFilter: 'blur(3px)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 10001,
+            padding: '16px'
+          }}
+          onClick={handleCancelSampleSize}
+        >
+          <div
+            style={{
+              background: '#ffffff',
+              borderRadius: '16px',
+              padding: '28px 24px',
+              maxWidth: '440px',
+              width: '100%',
+              boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.2), 0 8px 10px -6px rgba(0, 0, 0, 0.2)',
+              textAlign: 'center',
+              border: '1px solid #e2e8f0',
+              animation: 'fpModalIn 0.2s cubic-bezier(0.16, 1, 0.3, 1)'
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <style>{`
+              @keyframes fpModalIn {
+                from { opacity: 0; transform: scale(0.95) translateY(10px); }
+                to { opacity: 1; transform: scale(1) translateY(0); }
+              }
+            `}</style>
+            
+            {/* Warning Icon Badge */}
+            <div
+              style={{
+                width: '52px',
+                height: '52px',
+                borderRadius: '50%',
+                background: '#fef3c7',
+                color: '#d97706',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontSize: '24px',
+                margin: '0 auto 16px',
+                boxShadow: '0 0 0 8px #fef9c3'
+              }}
+            >
+              ⚠️
+            </div>
+
+            <h3
+              style={{
+                margin: '0 0 8px',
+                fontSize: '19px',
+                fontWeight: '700',
+                color: '#0f172a'
+              }}
+            >
+              Change Sample Size?
+            </h3>
+
+            <p
+              style={{
+                margin: '0 0 20px',
+                fontSize: '14px',
+                color: '#475569',
+                lineHeight: '1.5'
+              }}
+            >
+              You are changing the automatic sample size. Are you sure you want to proceed with this custom value?
+            </p>
+
+            {/* Lot & Value change preview card */}
+            <div
+              style={{
+                background: '#f8fafc',
+                border: '1px solid #e2e8f0',
+                borderRadius: '12px',
+                padding: '12px 16px',
+                marginBottom: '24px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-around'
+              }}
+            >
+              <div style={{ textAlign: 'center' }}>
+                <span style={{ fontSize: '11px', fontWeight: '700', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em', display: 'block', marginBottom: '2px' }}>
+                  Lot No
+                </span>
+                <span style={{ fontSize: '15px', fontWeight: '800', color: '#0f172a' }}>
+                  {sampleSizeConfirmData.lotNo}
+                </span>
+              </div>
+
+              <div style={{ color: '#94a3b8', fontSize: '18px', fontWeight: 'bold' }}>
+                ➔
+              </div>
+
+              <div style={{ textAlign: 'center' }}>
+                <span style={{ fontSize: '11px', fontWeight: '700', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em', display: 'block', marginBottom: '2px' }}>
+                  Sample Size
+                </span>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', justifyContent: 'center' }}>
+                  <span style={{ fontSize: '13px', color: '#94a3b8', textDecoration: 'line-through' }}>
+                    {sampleSizeConfirmData.currentSize}
+                  </span>
+                  <span style={{ fontSize: '16px', fontWeight: '800', color: '#2563eb' }}>
+                    {sampleSizeConfirmData.newSize}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {/* Action buttons */}
+            <div style={{ display: 'flex', gap: '12px' }}>
+              <button
+                type="button"
+                onClick={handleCancelSampleSize}
+                style={{
+                  flex: 1,
+                  padding: '11px 16px',
+                  borderRadius: '10px',
+                  border: '1px solid #cbd5e1',
+                  background: '#ffffff',
+                  color: '#475569',
+                  fontSize: '14px',
+                  fontWeight: '600',
+                  cursor: 'pointer',
+                  transition: 'all 0.15s ease'
+                }}
+                onMouseEnter={(e) => { e.currentTarget.style.background = '#f1f5f9'; }}
+                onMouseLeave={(e) => { e.currentTarget.style.background = '#ffffff'; }}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmSampleSize}
+                style={{
+                  flex: 1,
+                  padding: '11px 16px',
+                  borderRadius: '10px',
+                  border: 'none',
+                  background: '#2563eb',
+                  color: '#ffffff',
+                  fontSize: '14px',
+                  fontWeight: '600',
+                  cursor: 'pointer',
+                  boxShadow: '0 4px 6px -1px rgba(37, 99, 235, 0.3)',
+                  transition: 'all 0.15s ease'
+                }}
+                onMouseEnter={(e) => { e.currentTarget.style.background = '#1d4ed8'; }}
+                onMouseLeave={(e) => { e.currentTarget.style.background = '#2563eb'; }}
+              >
+                Yes, Change
+              </button>
+            </div>
           </div>
         </div>
       )}

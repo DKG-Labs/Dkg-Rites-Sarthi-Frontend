@@ -412,4 +412,10 @@ export const apiService = {
 
     // ================= Sleeper IC =================
     getSleeperIc: (callNo) => api.get(`/sleeper-dashboard/sleeperIc/${callNo}`),
+
+    // ================= Photo Inspection Records =================
+    getInspectionImages: (callNo, typeOfCall = 'SLEEPER') =>
+        api.get(`/images/call/${callNo}`, { params: { typeOfCall } }),
+    saveInspectionImages: (callNo, payload) =>
+        api.post(`/images/call/${callNo}`, payload),
 };

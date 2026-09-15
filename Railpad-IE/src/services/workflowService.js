@@ -21,7 +21,7 @@ export const isPlantIdMatching = (plantA, plantB) => {
   return false;
 };
 
-export const fetchPendingWorkflowTransitions = async (roleName, plantId = '', workflowId = '') => {
+export const fetchPendingWorkflowTransitions = async (roleName, plantId = '', workflowId = '', moduleId = '') => {
   try {
     const formattedPlantId = normalizePlantId(plantId);
     let url = `${getBaseUrl()}${API_ENDPOINTS.RAILPAD_WORKFLOW.ALL_PENDING_TRANSITIONS}?roleName=${encodeURIComponent(roleName)}`;
@@ -30,6 +30,9 @@ export const fetchPendingWorkflowTransitions = async (roleName, plantId = '', wo
     }
     if (workflowId) {
       url += `&workflowId=${encodeURIComponent(workflowId)}`;
+    }
+    if (moduleId !== undefined && moduleId !== null && moduleId !== '') {
+      url += `&moduleId=${encodeURIComponent(moduleId)}`;
     }
     const response = await fetch(url);
     const data = await response.json();
@@ -62,7 +65,7 @@ export const fetchMappedPlantIds = async (userId, ieType = 'ALL') => {
   }
 };
 
-export const fetchCompletedCalls = async (plantId = '', workflowId = '') => {
+export const fetchCompletedCalls = async (plantId = '', workflowId = '', moduleId = '') => {
   try {
     const user = getStoredUser();
     if (!user || !user.userId) {
@@ -74,8 +77,11 @@ export const fetchCompletedCalls = async (plantId = '', workflowId = '') => {
     if (formattedPlantId) {
       url += `&plantId=${encodeURIComponent(formattedPlantId)}`;
     }
-    if (workflowId) {
+    if (workflowId !== undefined && workflowId !== null && workflowId !== '') {
       url += `&workflowId=${encodeURIComponent(workflowId)}`;
+    }
+    if (moduleId !== undefined && moduleId !== null && moduleId !== '') {
+      url += `&moduleId=${encodeURIComponent(moduleId)}`;
     }
     const response = await fetch(url);
     const data = await response.json();

@@ -78,9 +78,24 @@ const PlantDeclarationDashboard = ({ dutyPlantId }) => {
     }
   ];
 
+  const [cachedPendingModules, setCachedPendingModules] = useState({});
+  const [cachedCompletedModules, setCachedCompletedModules] = useState({});
+
   useEffect(() => {
-    loadData();
-  }, [statusTab, dutyPlantId]);
+    if (statusTab === 'PENDING') {
+      if (!cachedPendingModules[selectedModuleId]) {
+        loadPendingData(selectedModuleId);
+      } else {
+        setPendingList(cachedPendingModules[selectedModuleId]);
+      }
+    } else {
+      if (!cachedCompletedModules[selectedModuleId]) {
+        loadCompletedData(selectedModuleId);
+      } else {
+        setCompletedList(cachedCompletedModules[selectedModuleId]);
+      }
+    }
+  }, [statusTab, dutyPlantId, selectedModuleId]);
 
   const formatDateTime = (dateVal) => {
     if (!dateVal) return '—';
@@ -105,73 +120,94 @@ const PlantDeclarationDashboard = ({ dutyPlantId }) => {
     }
   };
 
-  const loadData = async () => {
+  const getEffectiveContext = async () => {
+    const uId = user?.userId || localStorage.getItem('userId');
+    let mappedPlants = [];
+    if (uId) {
+      try {
+        const [mPlants, pPlants] = await Promise.all([
+          fetchMappedPlantIds(uId, 'Main IE').catch(() => []),
+          fetchMappedPlantIds(uId, 'Process IE').catch(() => [])
+        ]);
+        mappedPlants = Array.from(new Set([...(mPlants || []), ...(pPlants || [])]));
+      } catch (e) {}
+    }
+
+    const roleStr = (user?.roleName || localStorage.getItem('roleName') || '').toLowerCase();
+    const isMainIeUser = roleStr.includes('main ie') || mappedPlants.length > 0;
+    const queryPlantId = isMainIeUser ? '' : dutyPlantId;
+    const roleName = user?.roleName || localStorage.getItem('roleName') || (roleStr.includes('main') ? 'Rail Main IE' : 'Rail Process IE');
+
+    return { queryPlantId, mappedPlants, roleName };
+  };
+
+  const filterAndMap = (list, mappedPlants) => {
+    let filtered = list || [];
+    if (mappedPlants && mappedPlants.length > 0) {
+      filtered = filtered.filter(tx => tx.plantId && mappedPlants.some(p => isPlantIdMatching(tx.plantId, p)));
+    } else if (dutyPlantId) {
+      filtered = filtered.filter(tx => tx.plantId && isPlantIdMatching(tx.plantId, dutyPlantId));
+    }
+    return filtered.map((tx) => {
+      let declarationDate = tx.createdDate || tx.createdAt || tx.actionDate || null;
+      return {
+        ...tx,
+        productName: '—',
+        rdsoApprovalLetterNo: '—',
+        declarationDate
+      };
+    });
+  };
+
+  const loadPendingData = async (targetModuleId = selectedModuleId) => {
     setLoading(true);
     try {
-      const uId = user?.userId || localStorage.getItem('userId');
-      let mappedPlants = [];
-      if (uId) {
-        try {
-          const [mPlants, pPlants] = await Promise.all([
-            fetchMappedPlantIds(uId, 'Main IE').catch(() => []),
-            fetchMappedPlantIds(uId, 'Process IE').catch(() => [])
-          ]);
-          mappedPlants = Array.from(new Set([...(mPlants || []), ...(pPlants || [])]));
-        } catch (e) {}
-      }
-
-      const roleStr = (user?.roleName || localStorage.getItem('roleName') || '').toLowerCase();
-      const isMainIeUser = roleStr.includes('main ie') || mappedPlants.length > 0;
-      const queryPlantId = isMainIeUser ? '' : dutyPlantId;
-
-      const filterByDutyPlant = (list) => {
-        if (mappedPlants && mappedPlants.length > 0) {
-          return (list || []).filter(tx => tx.plantId && mappedPlants.some(p => isPlantIdMatching(tx.plantId, p)));
-        }
-        if (dutyPlantId) {
-          return (list || []).filter(tx => tx.plantId && isPlantIdMatching(tx.plantId, dutyPlantId));
-        }
-        return list || [];
-      };
-
-      const mapList = (list) => {
-        return (list || []).map((tx) => {
-          let declarationDate = tx.createdDate || tx.createdAt || tx.actionDate || null;
-          return {
-            ...tx,
-            productName: '—',
-            rdsoApprovalLetterNo: '—',
-            declarationDate
-          };
-        });
-      };
-
-      // Fetch only the data required for the active tab
-      if (statusTab === 'PENDING') {
-        const [mainPendingData, processPendingData] = await Promise.all([
-          fetchPendingWorkflowTransitions('Rail Main IE', queryPlantId, 1).catch(() => []),
-          fetchPendingWorkflowTransitions('Rail Process IE', queryPlantId, 1).catch(() => [])
-        ]);
-        const combined = [...(mainPendingData || []), ...(processPendingData || [])];
-        const uniquePending = Array.from(new Map(combined.map(item => [item.workflowTransitionId, item])).values());
-        setPendingList(mapList(filterByDutyPlant(uniquePending)));
-      } else {
-        const completedData = await fetchCompletedCalls(queryPlantId, 1);
-        setCompletedList(mapList(filterByDutyPlant(completedData)));
-      }
+      const { queryPlantId, mappedPlants, roleName } = await getEffectiveContext();
+      const pendingData = await fetchPendingWorkflowTransitions(roleName, queryPlantId, 1, targetModuleId);
+      const uniquePending = Array.from(new Map((pendingData || []).map(item => [item.workflowTransitionId, item])).values());
+      const mapped = filterAndMap(uniquePending, mappedPlants);
+      setPendingList(mapped);
+      setCachedPendingModules(prev => ({ ...prev, [targetModuleId]: mapped }));
     } catch (err) {
-      console.error('Error fetching transitions:', err);
+      console.error('Error fetching pending transitions:', err);
     } finally {
       setLoading(false);
     }
   };
 
+  const loadCompletedData = async (targetModuleId = selectedModuleId) => {
+    setLoading(true);
+    try {
+      const { queryPlantId, mappedPlants } = await getEffectiveContext();
+      const completedData = await fetchCompletedCalls(queryPlantId, 1, targetModuleId);
+      const mapped = filterAndMap(completedData, mappedPlants);
+      setCompletedList(mapped);
+      setCachedCompletedModules(prev => ({ ...prev, [targetModuleId]: mapped }));
+    } catch (err) {
+      console.error('Error fetching completed calls:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const loadData = async () => {
+    if (statusTab === 'PENDING') {
+      await loadPendingData(selectedModuleId);
+    } else {
+      await loadCompletedData(selectedModuleId);
+    }
+  };
+
   const getPendingCount = (moduleId) => {
-    return pendingList.filter((tx) => tx.moduleId === moduleId).length;
+    if (cachedPendingModules[moduleId]) return cachedPendingModules[moduleId].length;
+    if (selectedModuleId === moduleId && statusTab === 'PENDING') return pendingList.length;
+    return 0;
   };
 
   const getVerifiedCount = (moduleId) => {
-    return completedList.filter((tx) => tx.moduleId === moduleId).length;
+    if (cachedCompletedModules[moduleId]) return cachedCompletedModules[moduleId].length;
+    if (selectedModuleId === moduleId && statusTab === 'COMPLETED') return completedList.length;
+    return 0;
   };
 
   const handleCardClick = (moduleId) => {
@@ -247,6 +283,8 @@ const PlantDeclarationDashboard = ({ dutyPlantId }) => {
         );
         setSelectedTx(null);
         setDetailData(null);
+        setPendingFetched(false);
+        setCompletedFetched(false);
         // Reload list and refresh the transaction count badges
         await loadData();
       } else {

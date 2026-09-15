@@ -4,6 +4,7 @@ import { apiService } from '../../../services/api';
 import { getStoredUser } from '../../../services/authService';
 import ModernSearchableSelect from '../../../components/common/ModernSearchableSelect';
 import CallCancellationModal from '../../../components/CallCancellationModal';
+import ImageCaptureComponent from '../../../components/ImageCaptureComponent';
 
 const PoVerificationSkeleton = ({ onBack }) => (
     <div className="verification-modal-page skeleton-screen-wrapper">
@@ -118,6 +119,7 @@ const FinalInspectionScreen = ({ call, onBack }) => {
 
     // Batch and Sleeper Data
     const [batches, setBatches] = useState([]);
+    const [capturedImages, setCapturedImages] = useState([]);
 
     const [expandedBatches, setExpandedBatches] = useState({});
     const [activeAction, setActiveAction] = useState(null); // 'rejection' or 'et'
@@ -617,6 +619,31 @@ const FinalInspectionScreen = ({ call, onBack }) => {
                 } catch (err) {
                     console.error("Error fetching inspection summary:", err);
                 }
+                // 5. Fetch Photo Inspection Images from Backend / Local Draft
+                try {
+                    const imgRes = await apiService.getInspectionImages(callNo, 'SLEEPER');
+                    const backendImgs = Array.isArray(imgRes) ? imgRes : (imgRes?.responseData || []);
+                    if (backendImgs.length > 0) {
+                        setCapturedImages(backendImgs);
+                    } else if (savedDraft) {
+                        try {
+                            const parsedDraft = JSON.parse(savedDraft);
+                            if (Array.isArray(parsedDraft?.capturedImages) && parsedDraft.capturedImages.length > 0) {
+                                setCapturedImages(parsedDraft.capturedImages);
+                            }
+                        } catch (e) {}
+                    }
+                } catch (imgErr) {
+                    console.warn("Could not fetch backend inspection images:", imgErr);
+                    if (savedDraft) {
+                        try {
+                            const parsedDraft = JSON.parse(savedDraft);
+                            if (Array.isArray(parsedDraft?.capturedImages) && parsedDraft.capturedImages.length > 0) {
+                                setCapturedImages(parsedDraft.capturedImages);
+                            }
+                        } catch (e) {}
+                    }
+                }
             } catch (err) {
                 console.error("Error initializing inspection data:", err);
             } finally {
@@ -627,20 +654,21 @@ const FinalInspectionScreen = ({ call, onBack }) => {
         fetchInspectionData();
     }, [step, poVerified, call?.requestId]);
 
-    // Auto-save local draft whenever batches are updated in memory
+    // Auto-save local draft whenever batches or images are updated in memory
     useEffect(() => {
         const callNo = call?.requestId || call?.callNo || call?.call_no || call?.id;
-        if (callNo && Array.isArray(batches) && batches.length > 0) {
+        if (callNo && (Array.isArray(batches) && batches.length > 0 || (capturedImages && capturedImages.length > 0))) {
             const draft = {
                 batches,
                 summaryData,
+                capturedImages,
                 shift: call?.shift || icForm?.shift,
                 inspectionDate: summaryData?.callDate || icForm?.callDate || new Date().toISOString(),
                 lastUpdated: new Date().toISOString()
             };
             localStorage.setItem(`inspection_draft_${callNo}`, JSON.stringify(draft));
         }
-    }, [batches, summaryData, call?.requestId, call?.shift, icForm?.shift, icForm?.callDate]);
+    }, [batches, summaryData, capturedImages, call?.requestId, call?.shift, icForm?.shift, icForm?.callDate]);
 
     const getSCode = (s) => {
         if (s === null || s === undefined || s === 0 || s === '0') return '';
@@ -917,10 +945,27 @@ const FinalInspectionScreen = ({ call, onBack }) => {
             await apiService.saveMainIeInspectionBatch(batchPayload);
         }
 
-        // 4. Save local draft
+        // 4. Save Inspection Images to Backend
+        if (capturedImages && capturedImages.length > 0) {
+            try {
+                await apiService.saveInspectionImages(callNo, {
+                    callNo: callNo,
+                    typeOfCall: 'SLEEPER',
+                    shift: chosenShift,
+                    dateOfInspection: inspectionDate,
+                    userId: String(user?.userId || ''),
+                    capturedImages: capturedImages
+                });
+            } catch (imgSaveErr) {
+                console.warn("Failed to save inspection images:", imgSaveErr);
+            }
+        }
+
+        // 5. Save local draft
         const draftData = {
             batches,
             summaryData,
+            capturedImages,
             shift: chosenShift,
             inspectionDate,
             lastSaved: new Date().toISOString()
@@ -955,6 +1000,15 @@ const FinalInspectionScreen = ({ call, onBack }) => {
             if (actionName === 'CANCEL') {
                 const confirmed = window.confirm("Are you sure you want to cancel this inspection call?");
                 if (!confirmed) {
+                    setActiveActionLoading(null);
+                    return;
+                }
+            }
+
+            // Enforce minimum 5 inspection photos on FINISH
+            if (actionName === 'FINISH') {
+                if (!capturedImages || capturedImages.length < 5) {
+                    alert(`❌ At least 5 inspection photos are required to finish the inspection (Currently: ${capturedImages?.length || 0})`);
                     setActiveActionLoading(null);
                     return;
                 }
@@ -1002,6 +1056,30 @@ const FinalInspectionScreen = ({ call, onBack }) => {
     const totalRejected = batches.reduce((sum, b) => sum + b.rejectedSleepers.length, 0);
     const totalEt = batches.reduce((sum, b) => sum + b.etSleepers.length, 0);
     const totalAccepted = totalOfferedNow - totalRejected; // ET sleepers are already included in (Offered - Rejected)
+
+    const handleImagesChange = async (newImages) => {
+        setCapturedImages(newImages);
+        const callNo = call?.requestId || call?.callNo || call?.call_no || call?.id;
+        const chosenShift = call?.shift || icForm?.shift || 'Shift A';
+        const rawInspDate = call?.dateOfInspection || call?.inspectionDate || call?.date || summaryData?.callDate || icForm?.callDate || new Date();
+        const inspectionDate = formatDateDMY(rawInspDate);
+        const user = getStoredUser();
+
+        if (callNo && Array.isArray(newImages)) {
+            try {
+                await apiService.saveInspectionImages(callNo, {
+                    callNo: callNo,
+                    typeOfCall: 'SLEEPER',
+                    shift: chosenShift,
+                    dateOfInspection: inspectionDate,
+                    userId: String(user?.userId || ''),
+                    capturedImages: newImages
+                });
+            } catch (err) {
+                console.warn("Background saving inspection images:", err);
+            }
+        }
+    };
 
     const handleAddRejection = () => {
         if (!rejectionEntry.batchNo || !rejectionEntry.sleeperNo || !rejectionEntry.reason) return;
@@ -1619,6 +1697,15 @@ const FinalInspectionScreen = ({ call, onBack }) => {
                             </table>
                         </div>
                     </section>
+
+                    {/* Section: Visual Photo Inspection Capture */}
+                    <ImageCaptureComponent
+                        images={capturedImages}
+                        onImagesChange={handleImagesChange}
+                        minImages={5}
+                        maxImages={10}
+                        required={true}
+                    />
 
                     {/* Section 3: Final Verdict Data Entry */}
                     <section className="section verdict-entry-modern">

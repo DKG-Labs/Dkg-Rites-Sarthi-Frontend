@@ -6,6 +6,7 @@ import './AttendingCallDashboard.css';
 import { apiService, API_BASE_URL } from '../../../services/api';
 import { getStoredUser } from '../../../services/authService';
 import { viewSignedCertificate } from '../../../services/certificateService';
+import { useShift } from '../../../context/ShiftContext';
 
 const resolveSleeperCaseNo = (rawCaseNo, rio) => {
     if (!rawCaseNo || !String(rawCaseNo).trim()) return '-';
@@ -19,7 +20,35 @@ const resolveSleeperCaseNo = (rawCaseNo, rio) => {
     return parts[0] || '-';
 };
 
+const cleanPlantStr = (s) => String(s || '').replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
+
+const isPlantMatching = (callPlantId, allowedPlantList) => {
+    if (!allowedPlantList || allowedPlantList.length === 0) return true;
+    const cleanCall = cleanPlantStr(callPlantId);
+    if (!cleanCall) return false;
+
+    return allowedPlantList.some(target => {
+        const cleanTarget = cleanPlantStr(target);
+        if (!cleanTarget) return false;
+        
+        if (cleanCall === cleanTarget) return true;
+        
+        if (cleanCall.includes(cleanTarget) || cleanTarget.includes(cleanCall)) {
+            const callParts = String(callPlantId).split(/[/:]/).filter(Boolean);
+            const targetParts = String(target).split(/[/:]/).filter(Boolean);
+            if (callParts.length > 1 && targetParts.length > 1) {
+                const callUnit = cleanPlantStr(callParts[callParts.length - 1]);
+                const targetUnit = cleanPlantStr(targetParts[targetParts.length - 1]);
+                return callUnit === targetUnit || callUnit.includes(targetUnit) || targetUnit.includes(callUnit);
+            }
+            return true;
+        }
+        return false;
+    });
+};
+
 const AttendingCallDashboard = ({ mode }) => {
+    const { dutyUnit } = useShift();
     const [internalActiveTab, setInternalActiveTab] = useState(() => {
         return sessionStorage.getItem('attendingCallActiveTab') || 'pending';
     });
@@ -101,8 +130,29 @@ const AttendingCallDashboard = ({ mode }) => {
         setIsLoading(true);
         try {
             const user = getStoredUser();
-            const userId = user?.userId;
-            const plantId = localStorage.getItem('plantId');
+            const userId = user?.userId || localStorage.getItem('userId');
+            const activeDutyUnit = dutyUnit || localStorage.getItem('dutyUnit') || localStorage.getItem('plantId');
+
+            let allowedPlants = [];
+            if (activeDutyUnit) {
+                allowedPlants.push(activeDutyUnit);
+            } else {
+                try {
+                    const mappingRes = await apiService.getCompanyUnitsByUser(userId);
+                    const data = mappingRes?.responseData;
+                    if (Array.isArray(data)) {
+                        data.forEach(comp => {
+                            if (Array.isArray(comp.unitNames)) {
+                                allowedPlants.push(...comp.unitNames);
+                            }
+                        });
+                    } else if (data?.unitNames && Array.isArray(data.unitNames)) {
+                        allowedPlants.push(...data.unitNames);
+                    }
+                } catch (e) {
+                    console.error("Error fetching user company units:", e);
+                }
+            }
 
             const isNonPendingActionOrStatus = (c) => {
                 const action = (c.action || '').toUpperCase();
@@ -139,11 +189,11 @@ const AttendingCallDashboard = ({ mode }) => {
 
             if (tabToLoad === 'pending') {
                 // 1. List of Calls Pending: ONLY trigger pending workflow transitions
-                const res = await apiService.getAllPendingWorkflowTransitions('Main IE', userId, plantId);
+                const res = await apiService.getAllPendingWorkflowTransitions('Main IE', userId, activeDutyUnit);
                 const pendingData = (res && res.responseData) ? res.responseData : [];
 
                 const pendingList = pendingData.filter(item => {
-                    const matchesPlant = !plantId || item.plantId === plantId;
+                    const matchesPlant = allowedPlants.length === 0 || isPlantMatching(item.plantId, allowedPlants);
                     return matchesPlant && !isNonPendingActionOrStatus(item);
                 }).map(item => {
                     let displayStatus = item.jobStatus;
@@ -169,8 +219,8 @@ const AttendingCallDashboard = ({ mode }) => {
             } else {
                 // 2. Issuance of IC & Completed Calls sources
                 const [pendingRes, completedRes] = await Promise.allSettled([
-                    apiService.getAllPendingWorkflowTransitions('Main IE', userId, plantId),
-                    apiService.getCompletedFinalCalls()
+                    apiService.getAllPendingWorkflowTransitions('Main IE', userId, activeDutyUnit),
+                    apiService.getCompletedFinalCalls(activeDutyUnit)
                 ]);
 
                 const pendingData = (pendingRes.status === 'fulfilled' && pendingRes.value?.responseData) ? pendingRes.value.responseData : [];
@@ -219,7 +269,7 @@ const AttendingCallDashboard = ({ mode }) => {
 
                 // Issuance of IC tab
                 const certCalls = dedupedCompleted.filter(c => {
-                    const matchesPlant = !plantId || c.plantId === plantId;
+                    const matchesPlant = allowedPlants.length === 0 || isPlantMatching(c.plantId, allowedPlants);
                     return matchesPlant && !isSignedOrArchived(c);
                 }).map(item => ({
                     ...item,
@@ -231,7 +281,7 @@ const AttendingCallDashboard = ({ mode }) => {
 
                 // Completed Calls tab
                 const finalCompletedCalls = dedupedCompleted.filter(c => {
-                    const matchesPlant = !plantId || c.plantId === plantId;
+                    const matchesPlant = allowedPlants.length === 0 || isPlantMatching(c.plantId, allowedPlants);
                     return matchesPlant && isSignedOrArchived(c);
                 }).map(item => {
                     const action = (item.action || '').toUpperCase();
@@ -268,7 +318,7 @@ const AttendingCallDashboard = ({ mode }) => {
 
     useEffect(() => {
         loadCalls(activeTab);
-    }, [activeTab]); // Track which call has actions shown
+    }, [activeTab, dutyUnit]); // Track which call has actions shown
 
     const toggleCheck = (id) => {
         setPendingCalls(prev => prev.map(call => 

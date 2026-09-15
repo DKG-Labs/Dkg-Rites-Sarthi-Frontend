@@ -165,7 +165,7 @@ const ProductionVerificationDashboard = ({ activeCard, setActiveCard, currentShi
       } else {
         // --- VERIFIED (COMPLETED) CALLS LOGIC ---
         const dutyPlantId = normalizePlantId(currentShift?.unit || currentShift?.plantId || '');
-        let completedUrl = `${getBaseUrl()}${API_ENDPOINTS.RAILPAD_WORKFLOW.ALL_COMPLETED_CALLS}?userId=${user.userId}&workflowId=1`;
+        let completedUrl = `${getBaseUrl()}${API_ENDPOINTS.RAILPAD_WORKFLOW.ALL_COMPLETED_CALLS}?userId=${user.userId}&workflowId=1&moduleId=3`;
         if (dutyPlantId) {
           completedUrl += `&plantId=${encodeURIComponent(dutyPlantId)}`;
         }

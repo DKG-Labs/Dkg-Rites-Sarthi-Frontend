@@ -68,7 +68,7 @@ const PortalHome = ({
   const [isMainIeMapped, setIsMainIeMapped] = useState(false);
   const [isProcessIeMapped, setIsProcessIeMapped] = useState(false);
   const [mappedPlants, setMappedPlants] = useState([]);
-  const [mainCounts, setMainCounts] = useState({ pending: 0, certificates: 0, completed: 0 });
+  const [mainCounts, setMainCounts] = useState({ pending: 0, certificates: 0, completed: 0, plantPending: 0 });
   const [loadingCounts, setLoadingCounts] = useState(false);
   const [selectedMainTab, setSelectedMainTab] = useState('pending'); // 'pending' | 'certificates' | 'completed' | 'plant'
 
@@ -93,6 +93,46 @@ const PortalHome = ({
     }
   }, [defaultShowPlantDeclaration, hasMainAccess]);
 
+  const deduplicateByLatestCall = (list) => {
+    const map = new Map();
+    (list || []).forEach(item => {
+      const key = String(item.requestId || item.callNo || item.id || '').trim();
+      if (key) {
+        if (!map.has(key) || (item.workflowTransitionId && item.workflowTransitionId > (map.get(key).workflowTransitionId || 0))) {
+          map.set(key, item);
+        }
+      }
+    });
+    return Array.from(map.values());
+  };
+
+  const isCallSignedAndCompleted = (c) => {
+    const action = (c.action || c.latestAction || '').toUpperCase();
+    const status = (c.status || c.workflowStatus || '').toUpperCase();
+    const jobStatus = (c.jobStatus || '').toUpperCase();
+    return c.isIcGenerated === true ||
+           action === 'GENERATE_IC' ||
+           action === 'DSC_SIGN_IC' ||
+           action === 'IC_GENERATION' ||
+           action === 'IC_ISSUE' ||
+           action === 'ISSUE_IC' ||
+           status === 'GENERATE_IC' ||
+           status === 'IC_GENERATION' ||
+           status === 'DSC_SIGN_IC' ||
+           status === 'GENERATED' ||
+           status === 'IC_SIGNED' ||
+           status === 'IC_ISSUE' ||
+           jobStatus === 'GENERATE_IC' ||
+           jobStatus === 'DSC_SIGN_IC' ||
+           jobStatus === 'IC_GENERATION' ||
+           jobStatus === 'GENERATED' ||
+           jobStatus === 'IC_SIGNED' ||
+           jobStatus === 'IC_ISSUE' ||
+           status.includes('CANCEL') ||
+           jobStatus.includes('CANCEL') ||
+           action.includes('CANCEL');
+  };
+
   // Check mappings for user
   useEffect(() => {
     const checkMappingsAndCounts = async () => {
@@ -115,51 +155,37 @@ const PortalHome = ({
           setIsProcessIeMapped(true);
         }
 
-        // If Main IE, fetch live counts filtered by mapped plants
+        // If Main IE, fetch live counts filtered strictly by mapped plants
         if (roleLower.includes('main ie') || roleLower.includes('rail main ie') || (mainPlants && mainPlants.length > 0)) {
           setLoadingCounts(true);
-          const [pendingRes, completedRes] = await Promise.all([
+          const [pendingRes, completedRes, plantPendingRes] = await Promise.all([
             fetchPendingWorkflowTransitions('Rail Main IE', '', 2).catch(() => []),
-            fetchCompletedCalls('', 2).catch(() => [])
+            fetchCompletedCalls('', 2).catch(() => []),
+            fetchPendingWorkflowTransitions('Rail Main IE', '', 1).catch(() => [])
           ]);
 
           let rpPending = (pendingRes || []).filter(c => c.requestId);
           let rpCompletedAll = (completedRes || []).filter(c => c.requestId);
+          let rpPlantPending = (plantPendingRes || []).filter(c => c.requestId);
 
           if (mainPlants && mainPlants.length > 0) {
-            rpPending = rpPending.filter(c => !c.plantId || mainPlants.some(p => isPlantIdMatching(c.plantId, p)));
-            rpCompletedAll = rpCompletedAll.filter(c => !c.plantId || mainPlants.some(p => isPlantIdMatching(c.plantId, p)));
+            rpPending = rpPending.filter(c => c.plantId && mainPlants.some(p => isPlantIdMatching(c.plantId, p)));
+            rpCompletedAll = rpCompletedAll.filter(c => c.plantId && mainPlants.some(p => isPlantIdMatching(c.plantId, p)));
+            rpPlantPending = rpPlantPending.filter(c => c.plantId && mainPlants.some(p => isPlantIdMatching(c.plantId, p)));
           }
 
-          const isCallSignedAndCompleted = (c) => {
-            const action = (c.action || '').toUpperCase();
-            const status = (c.status || '').toUpperCase();
-            const jobStatus = (c.jobStatus || '').toUpperCase();
-            return action === 'GENERATE_IC' ||
-                   action === 'DSC_SIGN_IC' ||
-                   action === 'IC_GENERATION' ||
-                   status === 'GENERATE_IC' ||
-                   jobStatus === 'GENERATE_IC' ||
-                   status === 'DSC_SIGN_IC' ||
-                   jobStatus === 'DSC_SIGN_IC' ||
-                   status === 'IC_GENERATION' ||
-                   jobStatus === 'IC_GENERATION' ||
-                   status === 'GENERATED' ||
-                   jobStatus === 'GENERATED' ||
-                   status === 'IC_SIGNED' ||
-                   jobStatus === 'IC_SIGNED' ||
-                   status.includes('CANCEL') ||
-                   jobStatus.includes('CANCEL') ||
-                   action.includes('CANCEL');
-          };
+          const uniquePending = deduplicateByLatestCall(rpPending);
+          const uniqueCompletedAll = deduplicateByLatestCall(rpCompletedAll);
+          const uniquePlantPending = deduplicateByLatestCall(rpPlantPending);
 
-          const certs = rpCompletedAll.filter(c => !isCallSignedAndCompleted(c));
-          const completed = rpCompletedAll.filter(c => isCallSignedAndCompleted(c));
+          const certs = uniqueCompletedAll.filter(c => !isCallSignedAndCompleted(c));
+          const completed = uniqueCompletedAll.filter(c => isCallSignedAndCompleted(c));
 
           setMainCounts({
-            pending: rpPending.length,
+            pending: uniquePending.length,
             certificates: certs.length,
-            completed: completed.length
+            completed: completed.length,
+            plantPending: uniquePlantPending.length
           });
           setLoadingCounts(false);
         }
@@ -667,7 +693,7 @@ const PortalHome = ({
                   <div className="ph-card-title-row">
                     <span className="ph-card-title">Plant Setup &amp; Declaration</span>
                     <span className="ph-badge ph-badge--purple">
-                      {mappedPlants.length > 0 ? `${mappedPlants.length} Plants` : 'Active'}
+                      {loadingCounts ? '...' : (mainCounts.plantPending > 0 ? `${mainCounts.plantPending} Pending` : (mappedPlants.length > 0 ? `${mappedPlants.length} Plants` : 'Active'))}
                     </span>
                   </div>
                   <span className="ph-card-sub">Verify setups, recipes &amp; QAP limits</span>

@@ -97,62 +97,72 @@ const AttendingCallsDashboard = ({
       let rpCompletedAll = completedDataAll.filter(c => c.requestId);
 
       if (mappedPlants && mappedPlants.length > 0) {
-        rpPending = rpPending.filter(c => !c.plantId || mappedPlants.some(p => isPlantIdMatching(c.plantId, p)));
-        rpCompletedAll = rpCompletedAll.filter(c => !c.plantId || mappedPlants.some(p => isPlantIdMatching(c.plantId, p)));
+        rpPending = rpPending.filter(c => c.plantId && mappedPlants.some(p => isPlantIdMatching(c.plantId, p)));
+        rpCompletedAll = rpCompletedAll.filter(c => c.plantId && mappedPlants.some(p => isPlantIdMatching(c.plantId, p)));
       } else if (dutyPlantId) {
-        rpPending = rpPending.filter(c => !c.plantId || isPlantIdMatching(c.plantId, dutyPlantId));
-        rpCompletedAll = rpCompletedAll.filter(c => !c.plantId || isPlantIdMatching(c.plantId, dutyPlantId));
+        rpPending = rpPending.filter(c => c.plantId && isPlantIdMatching(c.plantId, dutyPlantId));
+        rpCompletedAll = rpCompletedAll.filter(c => c.plantId && isPlantIdMatching(c.plantId, dutyPlantId));
       }
 
+      const deduplicateByLatestCall = (list) => {
+        const map = new Map();
+        (list || []).forEach(item => {
+          const key = String(item.requestId || item.callNo || item.id || '').trim();
+          if (key) {
+            if (!map.has(key) || (item.workflowTransitionId && item.workflowTransitionId > (map.get(key).workflowTransitionId || 0))) {
+              map.set(key, item);
+            }
+          }
+        });
+        return Array.from(map.values());
+      };
+
+      const uniquePending = deduplicateByLatestCall(rpPending);
+      const uniqueCompletedAll = deduplicateByLatestCall(rpCompletedAll);
+
       const isCallSignedAndCompleted = (c) => {
-        const action = (c.action || '').toUpperCase();
-        const status = (c.status || '').toUpperCase();
+        const action = (c.action || c.latestAction || '').toUpperCase();
+        const status = (c.status || c.workflowStatus || '').toUpperCase();
         const jobStatus = (c.jobStatus || '').toUpperCase();
-        return action === 'GENERATE_IC' ||
+        return c.isIcGenerated === true ||
+               action === 'GENERATE_IC' ||
                action === 'DSC_SIGN_IC' ||
                action === 'IC_GENERATION' ||
+               action === 'IC_ISSUE' ||
+               action === 'ISSUE_IC' ||
                status === 'GENERATE_IC' ||
-               jobStatus === 'GENERATE_IC' ||
-               status === 'DSC_SIGN_IC' ||
-               jobStatus === 'DSC_SIGN_IC' ||
                status === 'IC_GENERATION' ||
-               jobStatus === 'IC_GENERATION' ||
+               status === 'DSC_SIGN_IC' ||
                status === 'GENERATED' ||
-               jobStatus === 'GENERATED' ||
                status === 'IC_SIGNED' ||
+               status === 'IC_ISSUE' ||
+               jobStatus === 'GENERATE_IC' ||
+               jobStatus === 'DSC_SIGN_IC' ||
+               jobStatus === 'IC_GENERATION' ||
+               jobStatus === 'GENERATED' ||
                jobStatus === 'IC_SIGNED' ||
+               jobStatus === 'IC_ISSUE' ||
                status.includes('CANCEL') ||
                jobStatus.includes('CANCEL') ||
                action.includes('CANCEL');
       };
 
-      let certCalls = rpCompletedAll.filter(c => {
-        if (isCallSignedAndCompleted(c)) return false;
-        const action = (c.action || '').toUpperCase();
-        const status = (c.status || '').toUpperCase();
-        const jobStatus = (c.jobStatus || '').toUpperCase();
-        return (status === 'INSPECTION_DONE' || 
-                status === 'CERTIFICATE_PENDING' || 
-                status === 'COMPLETED' || 
-                jobStatus === 'COMPLETED' || 
-                status === 'ISSUE IC' || 
-                status === 'IC_ISSUE' || 
-                jobStatus === 'ISSUE IC' || 
-                jobStatus === 'IC_ISSUE' ||
-                action === 'IC_ISSUE' ||
-                action === 'ISSUE IC' ||
-                action === 'FINISH');
-      });
-      let finalCompletedCalls = rpCompletedAll.filter(c => isCallSignedAndCompleted(c));
+      let certCalls = uniqueCompletedAll.filter(c => !isCallSignedAndCompleted(c));
+      let finalCompletedCalls = uniqueCompletedAll.filter(c => isCallSignedAndCompleted(c));
 
-      setCounts({
-        pending: rpPending.length,
+      const newCounts = {
+        pending: uniquePending.length,
         certificates: certCalls.length,
         completed: finalCompletedCalls.length
-      });
+      };
+
+      setCounts(newCounts);
+      if (onCountsChange) {
+        onCountsChange(newCounts);
+      }
 
       if (activeTabRef.current === 'pending') {
-        setCalls(rpPending);
+        setCalls(uniquePending);
       } else if (activeTabRef.current === 'certificates') {
         setCalls(certCalls);
       } else if (activeTabRef.current === 'completed') {

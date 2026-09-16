@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 // const isLocal = typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
-//export const API_BASE_URL = "http://localhost:8080/sarthi-backend/api";
+// export const API_BASE_URL = "http://localhost:8080/sarthi-backend/api";
 export const API_BASE_URL = 'https://sarthibackendservice-bfe2eag3byfkbsa6.canadacentral-01.azurewebsites.net/sarthi-backend/api';
 //export const API_BASE_URL = 'https://api.ritesqasarthi.com/sarthi-backend/api';
 const BASE_URL = API_BASE_URL;
@@ -250,8 +250,8 @@ export const apiService = {
     performTransitionAction: (payload) =>
         api.post('/sleeper-workflow/performTransitionAction', payload),
 
-    getCompletedFinalCalls: () =>
-        api.get('/sleeper-workflow/allFInalCallCompletedCalls'),
+    getCompletedFinalCalls: (plantId) =>
+        api.get(`/sleeper-workflow/allFInalCallCompletedCalls${plantId ? `?plantId=${encodeURIComponent(plantId)}` : ''}`),
 
     // ── Module getById APIs (used by IE dashboard to fetch record details) ──
     // moduleId=1  PLANT_PROFILE

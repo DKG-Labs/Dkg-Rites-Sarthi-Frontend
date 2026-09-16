@@ -54,15 +54,20 @@ export async function exportToPdf(element, filename = "certificate.pdf") {
     removeContainer: true,
   });
 
-  const imgData = canvas.toDataURL("image/jpeg", 0.95);
-  const pdf = new jsPDF("p", "mm", "a4");
+  const imgData = canvas.toDataURL("image/jpeg", 0.80);
+  const pdf = new jsPDF({
+    orientation: "p",
+    unit: "mm",
+    format: "a4",
+    compress: true
+  });
 
   // A4 dimensions: 210mm x 297mm
   const pdfWidth = pdf.internal.pageSize.getWidth();
   const pdfHeight = pdf.internal.pageSize.getHeight();
 
   // Render full A4 page (210mm x 297mm) with 45mm top space, 15mm bottom space, 7mm side margins
-  pdf.addImage(imgData, "JPEG", 0, 0, pdfWidth, pdfHeight, undefined, "FAST");
+  pdf.addImage(imgData, "JPEG", 0, 0, pdfWidth, pdfHeight, undefined, "SLOW");
 
   pdf.save(filename);
 }
@@ -117,13 +122,18 @@ export async function generatePdfBase64(element, filename = null) {
     removeContainer: true,
   });
 
-  const imgData = canvas.toDataURL("image/jpeg", 0.95);
-  const pdf = new jsPDF("p", "mm", "a4");
+  const imgData = canvas.toDataURL("image/jpeg", 0.80);
+  const pdf = new jsPDF({
+    orientation: "p",
+    unit: "mm",
+    format: "a4",
+    compress: true
+  });
 
   const pdfWidth = pdf.internal.pageSize.getWidth();
   const pdfHeight = pdf.internal.pageSize.getHeight();
 
-  pdf.addImage(imgData, "JPEG", 0, 0, pdfWidth, pdfHeight, undefined, "FAST");
+  pdf.addImage(imgData, "JPEG", 0, 0, pdfWidth, pdfHeight, undefined, "SLOW");
 
   // If filename is provided, download the PDF
   if (filename) {

@@ -248,8 +248,8 @@ export const apiService = {
     performTransitionAction: (payload) =>
         api.post('/sleeper-workflow/performTransitionAction', payload),
 
-    getCompletedFinalCalls: () =>
-        api.get('/sleeper-workflow/allFInalCallCompletedCalls'),
+    getCompletedFinalCalls: (plantId) =>
+        api.get(`/sleeper-workflow/allFInalCallCompletedCalls${plantId ? `?plantId=${encodeURIComponent(plantId)}` : ''}`),
 
     // ── Module getById APIs (used by IE dashboard to fetch record details) ──
     // moduleId=1  PLANT_PROFILE

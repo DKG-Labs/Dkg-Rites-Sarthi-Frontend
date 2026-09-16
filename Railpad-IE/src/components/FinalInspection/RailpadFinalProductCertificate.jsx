@@ -120,7 +120,7 @@ export default function RailpadFinalProductCertificate({ call = {}, onBack, isVi
   const [isEditing, setIsEditing] = useState(false);
   const [isESigning, setIsESigning] = useState(false);
   const [notification, setNotification] = useState({ show: false, message: '', type: 'info' });
-  const [bookSetValidation, setBookSetValidation] = useState({ isValid: false, message: null, isValidating: false });
+  const [bookSetValidation, setBookSetValidation] = useState({ isValid: null, message: null, isValidating: false });
   const [bookWarningModal, setBookWarningModal] = useState({ show: false, onProceed: null });
 
   const user = getStoredUser();
@@ -515,7 +515,7 @@ export default function RailpadFinalProductCertificate({ call = {}, onBack, isVi
   const handleFieldChange = (fieldName, value) => {
     setData(prev => ({ ...prev, [fieldName]: value }));
     if (fieldName === 'bookNo' || fieldName === 'setNo') {
-      setBookSetValidation({ isValid: false, message: null, isValidating: false });
+      setBookSetValidation({ isValid: null, message: null, isValidating: false });
     }
   };
 
@@ -650,12 +650,17 @@ export default function RailpadFinalProductCertificate({ call = {}, onBack, isVi
         removeContainer: true,
       });
 
-      const imgData = canvas.toDataURL('image/jpeg', 0.95);
-      const pdf = new jsPDF('p', 'mm', 'a4');
+      const imgData = canvas.toDataURL('image/jpeg', 0.80);
+      const pdf = new jsPDF({
+        orientation: 'p',
+        unit: 'mm',
+        format: 'a4',
+        compress: true
+      });
       const pdfWidth = pdf.internal.pageSize.getWidth();
       const pdfHeight = pdf.internal.pageSize.getHeight();
       
-      pdf.addImage(imgData, 'JPEG', 0, 0, pdfWidth, pdfHeight, undefined, 'FAST');
+      pdf.addImage(imgData, 'JPEG', 0, 0, pdfWidth, pdfHeight, undefined, 'SLOW');
       
       const certificateNo = data.certificateNo || "Railpad_IC";
       const sanitizedFilename = certificateNo.replace(/[/\\?%*:|"<>]/g, '-');

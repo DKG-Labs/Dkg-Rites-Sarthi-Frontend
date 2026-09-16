@@ -302,7 +302,7 @@ const RailpadProcessIc = ({
                 >
                   {bookSetValidation?.isValidating ? "Validating..." : "Verify Book & Set"}
                 </button>
-                {bookSetValidation && !bookSetValidation.isValidating && (
+                {bookSetValidation && !bookSetValidation.isValidating && bookSetValidation.isValid !== null && (
                   <span style={{ fontSize: '8.5px', fontWeight: 'bold' }}>
                     {bookSetValidation.isValid ? (
                       <span style={{ color: '#16a34a' }}>✅ Valid</span>

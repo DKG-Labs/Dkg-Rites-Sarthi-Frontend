@@ -263,7 +263,7 @@ export default function FinalProductCertificate({ call = {}, onBack }) {
   const [isEditing, setIsEditing] = useState(false);
   const [isESigning, setIsESigning] = useState(false);
   const [notification, setNotification] = useState({ open: false, message: '', severity: 'info' });
-  const [bookSetValidation, setBookSetValidation] = useState({ isValid: false, message: null, isValidating: false });
+  const [bookSetValidation, setBookSetValidation] = useState({ isValid: null, message: null, isValidating: false });
   const [bookWarningModal, setBookWarningModal] = useState({ show: false, onProceed: null });
 
   useEffect(() => {
@@ -484,7 +484,7 @@ export default function FinalProductCertificate({ call = {}, onBack }) {
       return updated;
     });
     if (fieldName === 'bookNo' || fieldName === 'setNo') {
-      setBookSetValidation({ isValid: false, message: null, isValidating: false });
+      setBookSetValidation({ isValid: null, message: null, isValidating: false });
     }
   };
 

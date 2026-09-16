@@ -25,7 +25,7 @@ export default function ProcessMaterialCertificate({ call = {}, onBack }) {
   const [isEditing, setIsEditing] = useState(false);
   const [editableData, setEditableData] = useState(null);
   const [notification, setNotification] = useState({ open: false, message: '', severity: 'info' });
-  const [bookSetValidation, setBookSetValidation] = useState({ isValid: false, message: null, isValidating: false });
+  const [bookSetValidation, setBookSetValidation] = useState({ isValid: null, message: null, isValidating: false });
   const [bookWarningModal, setBookWarningModal] = useState({ show: false, onProceed: null });
 
   // Upload E-Signed IC Modal state
@@ -168,7 +168,7 @@ export default function ProcessMaterialCertificate({ call = {}, onBack }) {
   const handleDataChange = (field, value) => {
     setEditableData((prev) => ({ ...prev, [field]: value }));
     if (field === 'bookNo' || field === 'setNo') {
-      setBookSetValidation({ isValid: false, message: null, isValidating: false });
+      setBookSetValidation({ isValid: null, message: null, isValidating: false });
     }
   };
   const handleArrayDataChange = (arrayField, index, field, value) => {

@@ -255,7 +255,7 @@ const ErcProcessIC = ({ data = {}, isEditing = false, isBusy = false, onChange =
                   >
                     {bookSetValidation?.isValidating ? "Validating..." : "Verify Book & Set No."}
                   </button>
-                  {bookSetValidation && !bookSetValidation.isValidating && (
+                  {bookSetValidation && !bookSetValidation.isValidating && bookSetValidation.isValid !== null && (
                     <span className="text-[10px] font-bold">
                       {bookSetValidation.isValid ? (
                         <span className="text-green-600" title="Valid Book & Set No">✅ Valid</span>

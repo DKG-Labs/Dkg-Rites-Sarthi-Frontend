@@ -120,7 +120,7 @@ export default function RailpadFinalProductCertificate({ call = {}, onBack, isVi
   const [isEditing, setIsEditing] = useState(false);
   const [isESigning, setIsESigning] = useState(false);
   const [notification, setNotification] = useState({ show: false, message: '', type: 'info' });
-  const [bookSetValidation, setBookSetValidation] = useState({ isValid: false, message: null, isValidating: false });
+  const [bookSetValidation, setBookSetValidation] = useState({ isValid: null, message: null, isValidating: false });
   const [bookWarningModal, setBookWarningModal] = useState({ show: false, onProceed: null });
 
   const user = getStoredUser();
@@ -515,7 +515,7 @@ export default function RailpadFinalProductCertificate({ call = {}, onBack, isVi
   const handleFieldChange = (fieldName, value) => {
     setData(prev => ({ ...prev, [fieldName]: value }));
     if (fieldName === 'bookNo' || fieldName === 'setNo') {
-      setBookSetValidation({ isValid: false, message: null, isValidating: false });
+      setBookSetValidation({ isValid: null, message: null, isValidating: false });
     }
   };
 

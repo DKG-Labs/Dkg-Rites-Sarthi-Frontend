@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import {
     AreaChart, Area, ComposedChart, Bar, Line, BarChart, LineChart,
-    XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend
+    XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer
 } from 'recharts';
 import reportService from '../../services/reportService';
 import './ProductionRejectionTrendModal.css';
@@ -251,7 +251,6 @@ const ProductionRejectionTrendModal = ({
     if (!isOpen) return null;
 
     const isErc = product === 'ERC';
-    const isSleeper = product === 'Sleeper';
     const isRailPad = product === 'Rail Pad';
 
     return (
@@ -831,7 +830,7 @@ const ProductionRejectionTrendModal = ({
 };
 
 // Custom Chart Floating Tooltip
-const CustomTooltip = ({ active, payload, label, metric }) => {
+const CustomTooltip = ({ active, payload, label }) => {
     if (!active || !payload || !payload.length) return null;
     const data = payload[0]?.payload;
     if (!data) return null;

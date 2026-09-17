@@ -84,6 +84,25 @@ const ErcProcessIC = ({ data = {}, isEditing = false, isBusy = false, onChange =
     return str.trim();
   };
 
+  const digitWords = {
+    '0': 'Zero', '1': 'One', '2': 'Two', '3': 'Three', '4': 'Four',
+    '5': 'Five', '6': 'Six', '7': 'Seven', '8': 'Eight', '9': 'Nine'
+  };
+
+  const decimalNumberToWords = (num) => {
+    const str = typeof num === 'number' ? num.toFixed(3) : String(num);
+    const parts = str.split('.');
+    const intPart = parseInt(parts[0], 10) || 0;
+    const intWords = numberToWords(intPart).trim();
+    
+    if (parts.length > 1 && parts[1]) {
+      let decStr = parts[1].slice(0, 3);
+      const decWords = decStr.split('').map(d => digitWords[d] || d).join(' ');
+      return `${intWords} Point ${decWords}`;
+    }
+    return intWords;
+  };
+
   const formatCleanNum = (val) => {
     const n = Number(val || 0);
     if (isNaN(n)) return "0";
@@ -138,30 +157,59 @@ const ErcProcessIC = ({ data = {}, isEditing = false, isBusy = false, onChange =
   };
 
   const isMtUom = (() => {
-    // 1. Check direct UOM properties
-    const directUom = String(data?.uom || data?.unit || data?.poUom || data?.itemUom || data?.poQtyUnit || "").trim().toUpperCase();
-    if (directUom === "MT" || directUom.includes("METRIC TON") || directUom.includes("M.T") || directUom === "TONS" || directUom === "TON") {
+    // 1. Check direct UOM properties and codes
+    const directUom = String(
+      data?.uom || 
+      data?.unit || 
+      data?.poUom || 
+      data?.itemUom || 
+      data?.poQtyUnit || 
+      data?.uomCd ||
+      data?.uom_cd ||
+      data?.poItem?.uom || 
+      data?.poItem?.uomCd ||
+      data?.poItems?.[0]?.uom || 
+      ""
+    ).trim().toUpperCase();
+
+    // Code 15 or MT / MTS / MTS. / M.T. / TON / TONNES
+    if (
+      directUom === "15" ||
+      directUom.startsWith("MT") ||
+      directUom.startsWith("M.T") ||
+      directUom.includes("METRIC") ||
+      directUom.includes("TON")
+    ) {
       return true;
     }
-    if (directUom === "NOS" || directUom === "NOS." || directUom === "NO" || directUom === "NO." || directUom.includes("NUMBER") || directUom.includes("SET")) {
+
+    if (
+      directUom.startsWith("NO") ||
+      directUom.includes("NUMBER") ||
+      directUom.includes("SET") ||
+      directUom.includes("PIECE") ||
+      directUom.includes("EACH") ||
+      directUom === "01"
+    ) {
       return false;
     }
 
-    // 2. Check description for PO Sr. No. unit, e.g. "(PO Sr. No. 003 For 27000 Nos)" or "(PO Sr. No. 003 - 50 MT)"
+    // 2. Check description / contractRef / poDetails for PO Sr. No. unit, e.g. "(PO Sr. No. 003 For 27000 Nos)" or "(PO Sr. No. 003 - 50 MT)"
     const descStr = String(data?.description || "");
     const poMatch = descStr.match(/PO\s+Sr\.?\s*No\.?\s*[^)]*?\b(?:For|Qty|:|-)\s*[\d,.]+\s*([A-Za-z.]+)/i);
     if (poMatch && poMatch[1]) {
       const u = poMatch[1].trim().toUpperCase();
-      if (u === "MT" || u.includes("METRIC") || u.includes("M.T") || u.includes("TON")) {
+      if (u === "15" || u.startsWith("MT") || u.startsWith("M.T") || u.includes("METRIC") || u.includes("TON")) {
         return true;
       }
-      if (u.includes("NO") || u.includes("NUM") || u.includes("SET")) {
+      if (u.startsWith("NO") || u.includes("NUM") || u.includes("SET")) {
         return false;
       }
     }
 
-    // 3. Check general text in description or reference for MT vs Nos
-    if (/\b(?:MT|M\.T\.|METRIC\s+TONS?)\b/i.test(descStr) && !/\b(?:NOS?\.?|NUMBERS?)\b/i.test(descStr)) {
+    // 3. Check general text in description or reference or contractRef for MT vs Nos
+    const allText = `${data?.description || ""} ${data?.contractRef || ""} ${data?.poDetails || ""} ${data?.reference || ""}`;
+    if (/\b(?:MTS?\.?|M\.T\.|METRIC\s+TONNES?|METRIC\s+TONS?|TONNES?|TONS?)\b/i.test(allText) && !/\b(?:NOS?\.?|NUMBERS?)\b/i.test(allText)) {
       return true;
     }
 
@@ -194,8 +242,19 @@ const ErcProcessIC = ({ data = {}, isEditing = false, isBusy = false, onChange =
     if (!reference) return "";
     const acceptedInt = Math.round(numTotalAccepted);
     const words = numberToWords(acceptedInt);
-    if (/^Quantity\s+.*?Nos\./i.test(reference)) {
-      return reference.replace(/^Quantity\s+.*?Nos\./i, `Quantity ${words} Nos.`);
+    
+    if (isMtUom) {
+      const acceptedMt = (Math.round(((acceptedInt * acceptedKFactor) / 1000) * 1000 + Number.EPSILON) / 1000).toFixed(3);
+      const mtWords = decimalNumberToWords(parseFloat(acceptedMt));
+      if (/^Quantity\s+.*?Nos\./i.test(reference)) {
+        return reference.replace(/^Quantity\s+.*?Nos\./i, `Quantity ${mtWords} MT (${words} Nos.)`);
+      } else if (/^Quantity\s+/i.test(reference)) {
+        return reference.replace(/^Quantity\s+.*?(?:cleared|after)/i, `Quantity ${mtWords} MT (${words} Nos.) cleared`);
+      }
+    } else {
+      if (/^Quantity\s+.*?Nos\./i.test(reference)) {
+        return reference.replace(/^Quantity\s+.*?Nos\./i, `Quantity ${words} Nos.`);
+      }
     }
     return reference;
   })();
@@ -271,6 +330,31 @@ const ErcProcessIC = ({ data = {}, isEditing = false, isBusy = false, onChange =
                     ⚠️ Book Number is generally of 4 characters. Please ensure that the correct Book Number has been entered.
                   </div>
                 )}
+
+                {/* UOM Selector / Toggle in Edit Mode (Hidden in PDF) */}
+                <div className="no-print mt-1.5 flex items-center gap-3 bg-blue-50 border border-blue-200 px-3 py-1 rounded text-xs font-bold text-gray-700 shadow-sm">
+                  <span>Unit of Measure:</span>
+                  <label className="flex items-center gap-1 cursor-pointer">
+                    <input
+                      type="radio"
+                      name="ercProcessUom"
+                      value="MT"
+                      checked={isMtUom}
+                      onChange={() => onChange("uom", "MT")}
+                    />
+                    MT
+                  </label>
+                  <label className="flex items-center gap-1 cursor-pointer">
+                    <input
+                      type="radio"
+                      name="ercProcessUom"
+                      value="NOS"
+                      checked={!isMtUom}
+                      onChange={() => onChange("uom", "NOS")}
+                    />
+                    Nos.
+                  </label>
+                </div>
               </div>
             )}
           </div>

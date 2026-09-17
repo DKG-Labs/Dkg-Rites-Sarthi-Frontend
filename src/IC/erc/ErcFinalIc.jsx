@@ -205,30 +205,59 @@ const ErcFinalIc = ({ data = {}, isEditing = false, isBusy = false, onFieldChang
   const kFactor = getErcKFactor(data || rawErcType);
 
   const isMtUom = (() => {
-    // 1. Check direct UOM properties
-    const directUom = String(data?.uom || data?.unit || data?.poUom || data?.itemUom || data?.poQtyUnit || "").trim().toUpperCase();
-    if (directUom === "MT" || directUom.includes("METRIC TON") || directUom.includes("M.T") || directUom === "TONS" || directUom === "TON") {
+    // 1. Check direct UOM properties and codes
+    const directUom = String(
+      data?.uom || 
+      data?.unit || 
+      data?.poUom || 
+      data?.itemUom || 
+      data?.poQtyUnit || 
+      data?.uomCd ||
+      data?.uom_cd ||
+      data?.poItem?.uom || 
+      data?.poItem?.uomCd ||
+      data?.poItems?.[0]?.uom || 
+      ""
+    ).trim().toUpperCase();
+
+    // Code 15 or MT / MTS / MTS. / M.T. / TON / TONNES
+    if (
+      directUom === "15" ||
+      directUom.startsWith("MT") ||
+      directUom.startsWith("M.T") ||
+      directUom.includes("METRIC") ||
+      directUom.includes("TON")
+    ) {
       return true;
     }
-    if (directUom === "NOS" || directUom === "NOS." || directUom === "NO" || directUom === "NO." || directUom.includes("NUMBER") || directUom.includes("SET")) {
+
+    if (
+      directUom.startsWith("NO") ||
+      directUom.includes("NUMBER") ||
+      directUom.includes("SET") ||
+      directUom.includes("PIECE") ||
+      directUom.includes("EACH") ||
+      directUom === "01"
+    ) {
       return false;
     }
 
-    // 2. Check description for PO Sr. No. unit, e.g. "(PO Sr. No. 003 For 27000 Nos)" or "(PO Sr. No. 003 - 50 MT)"
+    // 2. Check description / contractRef / poDetails for PO Sr. No. unit, e.g. "(PO Sr. No. 003 For 27000 Nos)" or "(PO Sr. No. 003 - 50 MT)"
     const descStr = String(data?.description || "");
     const poMatch = descStr.match(/PO\s+Sr\.?\s*No\.?\s*[^)]*?\b(?:For|Qty|:|-)\s*[\d,.]+\s*([A-Za-z.]+)/i);
     if (poMatch && poMatch[1]) {
       const u = poMatch[1].trim().toUpperCase();
-      if (u === "MT" || u.includes("METRIC") || u.includes("M.T") || u.includes("TON")) {
+      if (u === "15" || u.startsWith("MT") || u.startsWith("M.T") || u.includes("METRIC") || u.includes("TON")) {
         return true;
       }
-      if (u.includes("NO") || u.includes("NUM") || u.includes("SET")) {
+      if (u.startsWith("NO") || u.includes("NUM") || u.includes("SET")) {
         return false;
       }
     }
 
-    // 3. Check general text in description or reference for MT vs Nos
-    if (/\b(?:MT|M\.T\.|METRIC\s+TONS?)\b/i.test(descStr) && !/\b(?:NOS?\.?|NUMBERS?)\b/i.test(descStr)) {
+    // 3. Check general text in description or reference or contractRef for MT vs Nos
+    const allText = `${data?.description || ""} ${data?.contractRef || ""} ${data?.poDetails || ""} ${data?.quantityNowPassedText || ""}`;
+    if (/\b(?:MTS?\.?|M\.T\.|METRIC\s+TONNES?|METRIC\s+TONS?|TONNES?|TONS?)\b/i.test(allText) && !/\b(?:NOS?\.?|NUMBERS?)\b/i.test(allText)) {
       return true;
     }
 

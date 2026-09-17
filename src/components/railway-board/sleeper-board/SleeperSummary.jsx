@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import './SleeperSummary.css';
 import reportService from '../../../services/reportService';
+import ProductionRejectionTrendModal from '../ProductionRejectionTrendModal';
 
 let cachedSleeperSummary = null;
 let lastRefreshTick_SleeperSummary = -1;
@@ -26,6 +27,7 @@ const SleeperSummary = ({
     onInspectionCallClick,
     onTotalCallsClick,
     onIcIssuedClick,
+    onTrendCardClick,
     refreshTick,
     filterApplied = false,
     vendor = '',
@@ -38,6 +40,18 @@ const SleeperSummary = ({
     filterData = null,
     isDashboardLoading = false
 }) => {
+    const [localTrendOpen, setLocalTrendOpen] = useState(false);
+    const [localTrendMetric, setLocalTrendMetric] = useState('production');
+
+    const handleTrendClick = (metric) => {
+        if (onTrendCardClick) {
+            onTrendCardClick(metric, 'Sleeper');
+        } else {
+            setLocalTrendMetric(metric);
+            setLocalTrendOpen(true);
+        }
+    };
+
     const [rejectedInProcess, setRejectedInProcess] = useState(0);
     const [rejectionPercentage, setRejectionPercentage] = useState(0);
     const [pendingCalls, setPendingCalls] = useState(0);
@@ -367,7 +381,13 @@ const SleeperSummary = ({
             </div>
             <div className="g4 mb" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '16px' }}>
                 {/* 1. Avg Production Per Day */}
-                <div className="prof-card" style={{ textAlign: 'center', padding: '16px', borderLeft: '4px solid #3b82f6' }}>
+                <div
+                    className="prof-card interactive-trend-card"
+                    style={{ textAlign: 'center', padding: '16px', borderLeft: '4px solid #3b82f6', cursor: 'pointer' }}
+                    onClick={() => handleTrendClick('production')}
+                    title="Click to view Production Trendline"
+                >
+                    <i className="fa-solid fa-chart-line trend-cue-icon"></i>
                     <div style={{ fontSize: '11px', fontWeight: '700', color: '#64748b', textTransform: 'uppercase' }}>Avg Production / Day</div>
                     <div style={{ marginTop: '8px' }}>
                         <div style={{ fontSize: '24px', fontWeight: '800', color: '#1e3a8a' }}>{avgProductionPerDay}</div>
@@ -376,7 +396,13 @@ const SleeperSummary = ({
                 </div>
 
                 {/* 2. Process Rejection */}
-                <div className="prof-card" style={{ textAlign: 'center', padding: '16px', borderLeft: '4px solid #ef4444' }}>
+                <div
+                    className="prof-card interactive-trend-card"
+                    style={{ textAlign: 'center', padding: '16px', borderLeft: '4px solid #ef4444', cursor: 'pointer' }}
+                    onClick={() => handleTrendClick('processRejection')}
+                    title="Click to view Process Rejection Trendline"
+                >
+                    <i className="fa-solid fa-chart-line trend-cue-icon"></i>
                     <div style={{ fontSize: '11px', fontWeight: '700', color: '#64748b', textTransform: 'uppercase' }}>Process Rejection</div>
                     <div style={{ marginTop: '8px', display: 'flex', justifyContent: 'space-around', alignItems: 'center' }}>
                         <div>
@@ -392,7 +418,13 @@ const SleeperSummary = ({
                 </div>
 
                 {/* 3. Final Rejection */}
-                <div className="prof-card" style={{ textAlign: 'center', padding: '16px', borderLeft: '4px solid #f97316' }}>
+                <div
+                    className="prof-card interactive-trend-card"
+                    style={{ textAlign: 'center', padding: '16px', borderLeft: '4px solid #f97316', cursor: 'pointer' }}
+                    onClick={() => handleTrendClick('finalRejection')}
+                    title="Click to view Final Rejection Trendline"
+                >
+                    <i className="fa-solid fa-chart-line trend-cue-icon"></i>
                     <div style={{ fontSize: '11px', fontWeight: '700', color: '#64748b', textTransform: 'uppercase' }}>Final Rejection</div>
                     <div style={{ marginTop: '8px', display: 'flex', justifyContent: 'space-around', alignItems: 'center' }}>
                         <div>
@@ -408,7 +440,13 @@ const SleeperSummary = ({
                 </div>
 
                 {/* 4. Overall Rejection */}
-                <div className="prof-card" style={{ textAlign: 'center', padding: '16px', borderLeft: '4px solid #8b5cf6' }}>
+                <div
+                    className="prof-card interactive-trend-card"
+                    style={{ textAlign: 'center', padding: '16px', borderLeft: '4px solid #8b5cf6', cursor: 'pointer' }}
+                    onClick={() => handleTrendClick('overallRejection')}
+                    title="Click to view Overall Rejection Trendline"
+                >
+                    <i className="fa-solid fa-chart-line trend-cue-icon"></i>
                     <div style={{ fontSize: '11px', fontWeight: '700', color: '#64748b', textTransform: 'uppercase' }}>Overall Rejection</div>
                     <div style={{ marginTop: '8px' }}>
                         <div style={{ fontSize: '24px', fontWeight: '800', color: '#6d28d9' }}>{overallRejectionPercentage}%</div>
@@ -421,6 +459,23 @@ const SleeperSummary = ({
             <div className="sleeper-footer-note" style={{ textAlign: 'center', marginTop: '2rem', color: '#64748b', fontSize: '14px', fontStyle: 'italic' }}>
                 * Data synchronized with IREPS and RITES Inspection systems.
             </div>
+
+            {/* Local Fallback Modal */}
+            {!onTrendCardClick && localTrendOpen && (
+                <ProductionRejectionTrendModal
+                    isOpen={localTrendOpen}
+                    onClose={() => setLocalTrendOpen(false)}
+                    product="Sleeper"
+                    initialMetric={localTrendMetric}
+                    filters={{ vendor, zone, startDate: filterStartDate, endDate: filterEndDate }}
+                    summaryStats={{
+                        avgProduction: avgProductionPerDay,
+                        processRejectionPct: processRejectionPercentage,
+                        finalRejectionPct: finalRejectionPercentage,
+                        overallRejectionPct: overallRejectionPercentage
+                    }}
+                />
+            )}
         </div>
     );
 };

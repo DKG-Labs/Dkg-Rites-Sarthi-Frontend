@@ -50,6 +50,13 @@ const formatCallQty = (qty, stage, callNumber, railPadType) => {
     return `${str} ${isRm ? 'MT' : 'Nos'}`;
 };
 
+const formatIeDetails = (ieName, ieContactNo) => {
+    if (!ieName || ieName === '-' || ieName === 'N/A' || ieName.toLowerCase() === 'not assigned') {
+        return { name: 'Not Assigned', contact: '' };
+    }
+    return { name: ieName, contact: ieContactNo || '' };
+};
+
 const InspectionCallStatusModal = ({ isOpen, onClose, data, title, isLoading }) => {
     const [searchTerm, setSearchTerm] = useState('');
     const [selectedStage, setSelectedStage] = useState('all');
@@ -82,7 +89,9 @@ const InspectionCallStatusModal = ({ isOpen, onClose, data, title, isLoading }) 
             const matchesSearch = 
                    (item.inspectionCallNumber || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
                    (item.vendor || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-                   (item.poSrNo || '').toLowerCase().includes(searchTerm.toLowerCase());
+                   (item.poSrNo || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+                   (item.ieName || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+                   (item.ieContactNo || '').toLowerCase().includes(searchTerm.toLowerCase());
                    
             const matchesStage = selectedStage === 'all' || item.stageOfInspection === selectedStage;
             
@@ -101,16 +110,22 @@ const InspectionCallStatusModal = ({ isOpen, onClose, data, title, isLoading }) 
         { label: 'Call QTY', key: 'callQty' },
         { label: 'PO Sr.No.', key: 'poSrNo' },
         { label: 'DP Date', key: 'dpDate' },
+        { label: 'Name of IE & Number', key: 'ieNameAndNumber' },
         { label: 'Status', key: 'status' }
     ];
 
-    const exportData = filteredData.map((item, index) => ({
-        ...item,
-        slNo: index + 1,
-        callSubmissionDate: formatCallSubmissionDate(item.callSubmissionDateTime),
-        callQty: formatCallQty(item.callQty, item.stageOfInspection, item.inspectionCallNumber, item.railPadType),
-        poSrNo: formatPoSrNo(item.poSrNo)
-    }));
+    const exportData = filteredData.map((item, index) => {
+        const { name, contact } = formatIeDetails(item.ieName, item.ieContactNo);
+        const ieDisplay = name === 'Not Assigned' ? 'Not Assigned' : (contact ? `${name} (${contact})` : name);
+        return {
+            ...item,
+            slNo: index + 1,
+            callSubmissionDate: formatCallSubmissionDate(item.callSubmissionDateTime),
+            callQty: formatCallQty(item.callQty, item.stageOfInspection, item.inspectionCallNumber, item.railPadType),
+            poSrNo: formatPoSrNo(item.poSrNo),
+            ieNameAndNumber: ieDisplay
+        };
+    });
 
     const handlePdfExport = () => {
         const doc = new jsPDF('landscape');
@@ -132,6 +147,7 @@ const InspectionCallStatusModal = ({ isOpen, onClose, data, title, isLoading }) 
             item.callQty,
             item.poSrNo,
             item.dpDate || '-',
+            item.ieNameAndNumber || '-',
             (item.mainStatus && item.subStatus) ? `${item.mainStatus} - ${item.subStatus}` : (item.mainStatus || item.subStatus || '-')
         ]);
         
@@ -151,7 +167,7 @@ const InspectionCallStatusModal = ({ isOpen, onClose, data, title, isLoading }) 
 
     return (
         <div className="modal-overlay" onClick={onClose}>
-            <div className="modal-content-large fade-in" style={{ maxWidth: '1100px' }} onClick={e => e.stopPropagation()}>
+            <div className="modal-content-large fade-in" style={{ maxWidth: '1250px', width: '95%' }} onClick={e => e.stopPropagation()}>
                 <div className="modal-header">
                     <h2>{title} - Call Details</h2>
                     <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
@@ -173,7 +189,7 @@ const InspectionCallStatusModal = ({ isOpen, onClose, data, title, isLoading }) 
                         <i className="fa-solid fa-magnifying-glass"></i>
                         <input
                             type="text"
-                            placeholder="Search calls, vendors, POs..."
+                            placeholder="Search calls, vendors, POs, IE..."
                             value={searchTerm}
                             onChange={(e) => setSearchTerm(e.target.value)}
                             disabled={isLoading}
@@ -218,6 +234,7 @@ const InspectionCallStatusModal = ({ isOpen, onClose, data, title, isLoading }) 
                                 <th>Call QTY</th>
                                 <th>PO Sr.No.</th>
                                 <th>DP Date</th>
+                                <th>Name of IE & Number</th>
                                 <th>Status</th>
                             </tr>
                         </thead>
@@ -228,65 +245,84 @@ const InspectionCallStatusModal = ({ isOpen, onClose, data, title, isLoading }) 
                                     <tr key={i} className="skeleton-row">
                                         <td><div className="skeleton-cell" style={{ width: '20px' }}></div></td>
                                         <td><div className="skeleton-cell" style={{ width: '120px' }}></div></td>
-                                        <td><div className="skeleton-cell" style={{ width: '150px' }}></div></td>
-                                        <td><div className="skeleton-cell" style={{ width: '100px' }}></div></td>
+                                        <td><div className="skeleton-cell" style={{ width: '140px' }}></div></td>
+                                        <td><div className="skeleton-cell" style={{ width: '90px' }}></div></td>
                                         <td><div className="skeleton-cell" style={{ width: '80px', borderRadius: '12px' }}></div></td>
                                         <td><div className="skeleton-cell" style={{ width: '70px' }}></div></td>
                                         <td><div className="skeleton-cell" style={{ width: '100px' }}></div></td>
                                         <td><div className="skeleton-cell" style={{ width: '80px' }}></div></td>
-                                        <td><div className="skeleton-cell" style={{ width: '180px' }}></div></td>
+                                        <td><div className="skeleton-cell" style={{ width: '120px' }}></div></td>
+                                        <td><div className="skeleton-cell" style={{ width: '150px' }}></div></td>
                                     </tr>
                                 ))
                             ) : filteredData.length > 0 ? (
-                                filteredData.map((item, index) => (
-                                    <tr key={index}>
-                                        <td>{index + 1}</td>
-                                        <td style={{ fontWeight: '700', color: '#1e293b' }}>{item.inspectionCallNumber}</td>
-                                        <td>{item.vendor}</td>
-                                        <td>{formatCallSubmissionDate(item.callSubmissionDateTime)}</td>
-                                        <td>
-                                            <span className="prof-badge" style={{
-                                                background: item.stageOfInspection === 'RM Stage' ? '#eff6ff' : item.stageOfInspection === 'Process Stage' ? '#fff7ed' : '#fef2f2',
-                                                color: item.stageOfInspection === 'RM Stage' ? '#2563eb' : item.stageOfInspection === 'Process Stage' ? '#d97706' : '#dc2626',
-                                                fontSize: '11px',
-                                                fontWeight: '700',
-                                                padding: '2px 8px',
-                                                borderRadius: '12px'
-                                            }}>
-                                                {item.stageOfInspection}
-                                            </span>
-                                        </td>
-                                        <td style={{ fontWeight: '600', color: '#1e293b' }}>
-                                            {formatCallQty(item.callQty, item.stageOfInspection, item.inspectionCallNumber, item.railPadType)}
-                                        </td>
-                                        <td style={{ fontSize: '12px', fontFamily: 'monospace' }}>{formatPoSrNo(item.poSrNo)}</td>
-                                        <td>{item.dpDate || '-'}</td>
-                                        <td>
-                                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
-                                                <span style={{
-                                                    color: item.mainStatus === 'Under Inspection' ? '#d97706' : '#dc2626',
-                                                    fontWeight: '800',
-                                                    fontSize: '12px'
+                                filteredData.map((item, index) => {
+                                    const { name, contact } = formatIeDetails(item.ieName, item.ieContactNo);
+                                    return (
+                                        <tr key={index}>
+                                            <td>{index + 1}</td>
+                                            <td style={{ fontWeight: '700', color: '#1e293b' }}>{item.inspectionCallNumber}</td>
+                                            <td>{item.vendor}</td>
+                                            <td>{formatCallSubmissionDate(item.callSubmissionDateTime)}</td>
+                                            <td>
+                                                <span className="prof-badge" style={{
+                                                    background: item.stageOfInspection === 'RM Stage' ? '#eff6ff' : item.stageOfInspection === 'Process Stage' ? '#fff7ed' : '#fef2f2',
+                                                    color: item.stageOfInspection === 'RM Stage' ? '#2563eb' : item.stageOfInspection === 'Process Stage' ? '#d97706' : '#dc2626',
+                                                    fontSize: '11px',
+                                                    fontWeight: '700',
+                                                    padding: '2px 8px',
+                                                    borderRadius: '12px'
                                                 }}>
-                                                    &#9679; {item.mainStatus || ''}
+                                                    {item.stageOfInspection}
                                                 </span>
-                                                {item.mainStatus && item.subStatus && (
-                                                    <span style={{ color: '#94a3b8', fontWeight: 'bold' }}>-</span>
+                                            </td>
+                                            <td style={{ fontWeight: '600', color: '#1e293b' }}>
+                                                {formatCallQty(item.callQty, item.stageOfInspection, item.inspectionCallNumber, item.railPadType)}
+                                            </td>
+                                            <td style={{ fontSize: '12px', fontFamily: 'monospace' }}>{formatPoSrNo(item.poSrNo)}</td>
+                                            <td>{item.dpDate || '-'}</td>
+                                            <td>
+                                                {name === 'Not Assigned' ? (
+                                                    <span style={{ color: '#94a3b8', fontStyle: 'italic', fontSize: '12px' }}>Not Assigned</span>
+                                                ) : (
+                                                    <div>
+                                                        <div style={{ fontWeight: '600', color: '#1e293b', fontSize: '13px' }}>{name}</div>
+                                                        {contact && (
+                                                            <div style={{ fontSize: '11px', color: '#64748b', display: 'flex', alignItems: 'center', gap: '4px', marginTop: '2px' }}>
+                                                                <i className="fa-solid fa-phone" style={{ fontSize: '10px', color: '#3b82f6' }}></i>
+                                                                <span>{contact}</span>
+                                                            </div>
+                                                        )}
+                                                    </div>
                                                 )}
-                                                <span style={{
-                                                    color: '#475569',
-                                                    fontWeight: '600',
-                                                    fontSize: '12px'
-                                                }}>
-                                                    {item.subStatus || ''}
-                                                </span>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                ))
+                                            </td>
+                                            <td>
+                                                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+                                                    <span style={{
+                                                        color: item.mainStatus === 'Under Inspection' ? '#d97706' : '#dc2626',
+                                                        fontWeight: '800',
+                                                        fontSize: '12px'
+                                                    }}>
+                                                        &#9679; {item.mainStatus || ''}
+                                                    </span>
+                                                    {item.mainStatus && item.subStatus && (
+                                                        <span style={{ color: '#94a3b8', fontWeight: 'bold' }}>-</span>
+                                                    )}
+                                                    <span style={{
+                                                        color: '#475569',
+                                                        fontWeight: '600',
+                                                        fontSize: '12px'
+                                                    }}>
+                                                        {item.subStatus || ''}
+                                                    </span>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    );
+                                })
                             ) : (
                                 <tr>
-                                    <td colSpan="9" className="text-center">No active calls found</td>
+                                    <td colSpan="10" className="text-center">No active calls found</td>
                                 </tr>
                             )}
                         </tbody>

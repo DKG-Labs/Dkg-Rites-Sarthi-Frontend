@@ -166,17 +166,51 @@ const generateQuantityRemarks = (c) => {
     }
     
     const isMtUom = (() => {
-        const directUom = String(c?.uom || c?.unit || c?.poUom || c?.itemUom || c?.poQtyUnit || "").trim().toUpperCase();
-        if (directUom === "MT" || directUom.includes("METRIC TON") || directUom.includes("M.T") || directUom === "TONS" || directUom === "TON") return true;
-        if (directUom === "NOS" || directUom === "NOS." || directUom === "NO" || directUom === "NO." || directUom.includes("NUMBER") || directUom.includes("SET")) return false;
+        const directUom = String(
+            c?.uom || 
+            c?.unit || 
+            c?.poUom || 
+            c?.itemUom || 
+            c?.poQtyUnit || 
+            c?.uomCd ||
+            c?.uom_cd ||
+            c?.poItem?.uom || 
+            c?.poItem?.uomCd ||
+            c?.poItems?.[0]?.uom || 
+            ""
+        ).trim().toUpperCase();
+
+        if (
+            directUom === "15" ||
+            directUom.startsWith("MT") ||
+            directUom.startsWith("M.T") ||
+            directUom.includes("METRIC") ||
+            directUom.includes("TON")
+        ) {
+            return true;
+        }
+
+        if (
+            directUom.startsWith("NO") ||
+            directUom.includes("NUMBER") ||
+            directUom.includes("SET") ||
+            directUom.includes("PIECE") ||
+            directUom.includes("EACH") ||
+            directUom === "01"
+        ) {
+            return false;
+        }
+
         const descStr = String(c?.description || "");
         const poMatch = descStr.match(/PO\s+Sr\.?\s*No\.?\s*[^)]*?\b(?:For|Qty|:|-)\s*[\d,.]+\s*([A-Za-z.]+)/i);
         if (poMatch && poMatch[1]) {
             const u = poMatch[1].trim().toUpperCase();
-            if (u === "MT" || u.includes("METRIC") || u.includes("M.T") || u.includes("TON")) return true;
-            if (u.includes("NO") || u.includes("NUM") || u.includes("SET")) return false;
+            if (u === "15" || u.startsWith("MT") || u.startsWith("M.T") || u.includes("METRIC") || u.includes("TON")) return true;
+            if (u.startsWith("NO") || u.includes("NUM") || u.includes("SET")) return false;
         }
-        if (/\b(?:MT|M\.T\.|METRIC\s+TONS?)\b/i.test(descStr) && !/\b(?:NOS?\.?|NUMBERS?)\b/i.test(descStr)) return true;
+
+        const allText = `${c?.description || ""} ${c?.contractRef || ""} ${c?.poDetails || ""}`;
+        if (/\b(?:MTS?\.?|M\.T\.|METRIC\s+TONNES?|METRIC\s+TONS?|TONNES?|TONS?)\b/i.test(allText) && !/\b(?:NOS?\.?|NUMBERS?)\b/i.test(allText)) return true;
         return false;
     })();
 

@@ -41,6 +41,7 @@ import PoIssuedModal from './PoIssuedModal';
 import InspectionCallStatusModal from './InspectionCallStatusModal';
 import SleeperAnomalyDiagnostics from './sleeper-anomaly/SleeperAnomalyDiagnostics';
 import DownloadIcAnnexures from './DownloadIcAnnexures';
+import ProductionRejectionTrendModal from './ProductionRejectionTrendModal';
 
 const { Option } = Select;
 
@@ -236,6 +237,15 @@ const ProfessionalCardSection = ({
     const [localSummaryData, setLocalSummaryData] = useState(null);
     const [localSleeperSummaryData, setLocalSleeperSummaryData] = useState(null);
     const [totalCallsData, setTotalCallsData] = useState(null);
+    const [isTrendModalOpen, setIsTrendModalOpen] = useState(false);
+    const [trendModalMetric, setTrendModalMetric] = useState('production');
+    const [trendModalProduct, setTrendModalProduct] = useState('ERC');
+
+    const handleOpenTrendModal = (metric, prod = selectedProduct) => {
+        setTrendModalMetric(metric);
+        setTrendModalProduct(prod || selectedProduct || 'ERC');
+        setIsTrendModalOpen(true);
+    };
 
     // Initial fetch based on filterMode
     useEffect(() => {
@@ -1175,6 +1185,11 @@ const ProfessionalCardSection = ({
                                             onInspectionCallClick={handleInspectionCallClick}
                                             onTotalCallsClick={handleTotalCallsClick}
                                             onIcIssuedClick={() => setIsIcIssuedModalOpen(true)}
+                                            onTrendCardClick={handleOpenTrendModal}
+                                            vendor={selectedVendorPlant}
+                                            zone={selectedZonalRailway}
+                                            filterStartDate={filterStartDate}
+                                            filterEndDate={filterEndDate}
                                         />
                                     ) : isSleeper ? (
                                         <SleeperSummary
@@ -1187,6 +1202,7 @@ const ProfessionalCardSection = ({
                                             onInspectionCallClick={handleInspectionCallClick}
                                             onTotalCallsClick={handleTotalCallsClick}
                                             onIcIssuedClick={() => setIsIcIssuedModalOpen(true)}
+                                            onTrendCardClick={handleOpenTrendModal}
                                             refreshTick={refreshTick}
                                             filterApplied={isPrimaryFilterApplied}
                                             vendor={selectedVendorPlant}
@@ -1374,22 +1390,46 @@ const ProfessionalCardSection = ({
 
                                                     return (
                                                         <div className="g4">
-                                                            <div className="prof-card card-spring-green" style={{ textAlign: 'center' }}>
+                                                            <div
+                                                                className="prof-card card-spring-green interactive-trend-card"
+                                                                style={{ textAlign: 'center', cursor: 'pointer' }}
+                                                                onClick={() => handleOpenTrendModal('production', 'ERC')}
+                                                                title="Click to view Production Trendline"
+                                                            >
+                                                                <i className="fa-solid fa-chart-line trend-cue-icon"></i>
                                                                 <div className="kpi-lbl">Avg Production/Day</div>
                                                                 <div className="kpi-val">{Math.round(avgProd)}</div>
                                                                 <div className="kpi-sub">Nos.</div>
                                                             </div>
-                                                            <div className="prof-card card-gold" style={{ textAlign: 'center' }}>
+                                                            <div
+                                                                className="prof-card card-gold interactive-trend-card"
+                                                                style={{ textAlign: 'center', cursor: 'pointer' }}
+                                                                onClick={() => handleOpenTrendModal('rmRejection', 'ERC')}
+                                                                title="Click to view RM Rejection Trendline"
+                                                            >
+                                                                <i className="fa-solid fa-chart-line trend-cue-icon"></i>
                                                                 <div className="kpi-lbl">RM Rejection</div>
                                                                 <div className="kpi-val">{formatDecimal(rmRejPct)}%</div>
                                                                 <div className="prof-prog"><div className="prof-prog-f" style={{ width: `${Math.min(100, rmRejPct * 10)}%`, background: '#eab308' }}></div></div>
                                                             </div>
-                                                            <div className="prof-card card-lime" style={{ textAlign: 'center' }}>
+                                                            <div
+                                                                className="prof-card card-lime interactive-trend-card"
+                                                                style={{ textAlign: 'center', cursor: 'pointer' }}
+                                                                onClick={() => handleOpenTrendModal('processRejection', 'ERC')}
+                                                                title="Click to view Process Rejection Trendline"
+                                                            >
+                                                                <i className="fa-solid fa-chart-line trend-cue-icon"></i>
                                                                 <div className="kpi-lbl">Process Rejection</div>
                                                                 <div className="kpi-val">{formatDecimal(pRejPct)}%</div>
                                                                 <div className="prof-prog"><div className="prof-prog-f" style={{ width: `${Math.min(100, pRejPct * 10)}%`, background: '#84cc16' }}></div></div>
                                                             </div>
-                                                            <div className="prof-card card-ruby" style={{ textAlign: 'center' }}>
+                                                            <div
+                                                                className="prof-card card-ruby interactive-trend-card"
+                                                                style={{ textAlign: 'center', cursor: 'pointer' }}
+                                                                onClick={() => handleOpenTrendModal('finalRejection', 'ERC')}
+                                                                title="Click to view Final Rejection Trendline"
+                                                            >
+                                                                <i className="fa-solid fa-chart-line trend-cue-icon"></i>
                                                                 <div className="kpi-lbl">Final Rejection</div>
                                                                 <div className="kpi-val">{formatDecimal(fRejPct)}%</div>
                                                                 <div className="prof-prog"><div className="prof-prog-f" style={{ width: `${Math.min(100, fRejPct * 10)}%`, background: '#e11d48' }}></div></div>
@@ -2440,6 +2480,22 @@ const ProfessionalCardSection = ({
                         </div>
                     </div>
                 </div>
+            )}
+
+            {/* Production & Rejection Trendline Modal */}
+            {isTrendModalOpen && (
+                <ProductionRejectionTrendModal
+                    isOpen={isTrendModalOpen}
+                    onClose={() => setIsTrendModalOpen(false)}
+                    product={trendModalProduct}
+                    initialMetric={trendModalMetric}
+                    filters={{
+                        vendor: selectedVendorPlant,
+                        zone: selectedZonalRailway,
+                        startDate: filterStartDate,
+                        endDate: filterEndDate
+                    }}
+                />
             )}
         </div>
     );

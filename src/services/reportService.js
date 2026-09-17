@@ -604,6 +604,9 @@ const reportService = {
         });
         return handleResponse(response);
     },
+    getProductionRejectionTrend: async (params) => {
+        return reportService.getMonthlyRejectionTrend(params);
+    },
 
     /**
      * Get Manufacture Process Inspection Analysis Data

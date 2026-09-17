@@ -11,6 +11,7 @@ import { Level1Row } from '../components/railway-board/LevelRows';
 import Pagination from '../components/Pagination';
 import DashboardGraph from '../components/railway-board/DashboardGraph';
 import ProfessionalCardSection from '../components/railway-board/ProfessionalCardSection';
+import { exportDashboardScreenToPdf } from '../utils/dashboardPdfExport';
 
 
 const RailwayBoardDashboard = () => {
@@ -96,10 +97,37 @@ const RailwayBoardDashboard = () => {
 
 
     const [refreshTick, setRefreshTick] = useState(0);
+    const [isExportingPdf, setIsExportingPdf] = useState(false);
 
     const handleDataRefresh = () => {
         clearGlobalReportCache();
         setRefreshTick(prev => prev + 1);
+    };
+
+    const handleDownloadDashboardPdf = async () => {
+        if (isExportingPdf) return;
+        setIsExportingPdf(true);
+        try {
+            const captureArea = document.getElementById('dashboard-capture-area') || document.getElementById('prof-content-area');
+            if (!captureArea) {
+                alert('Dashboard content element not found for export.');
+                return;
+            }
+            await exportDashboardScreenToPdf(captureArea, {
+                product: selectedProduct,
+                activeMainCard,
+                activeReport,
+                fromDate: debouncedFromDate,
+                toDate: debouncedToDate,
+                zone: selectedZone,
+                rio: selectedRio
+            });
+        } catch (error) {
+            console.error('Failed to export dashboard PDF:', error);
+            alert('Failed to export dashboard as PDF. Please try again.');
+        } finally {
+            setIsExportingPdf(false);
+        }
     };
 
     // Debounce filters to avoid rapid API calls
@@ -762,7 +790,7 @@ const RailwayBoardDashboard = () => {
                 {/* MAIN */}
                 <div id="prof-main" style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                     {/* GLOBAL PRODUCT SELECTION - Above everything */}
-                    {activeMainCard !== 'cm-module' && (
+                    {activeMainCard !== 'cm-module' ? (
                         <div className="sub-tabs" style={{ padding: '0 24px', marginTop: '24px', marginBottom: '4px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                             <div style={{ display: 'flex', gap: '8px' }}>
                                 <button className={`sub-tab-btn ${selectedProduct === 'ERC' ? 'active' : ''}`} onClick={() => setSelectedProduct('ERC')}>ERC</button>
@@ -773,24 +801,78 @@ const RailwayBoardDashboard = () => {
                                 <button className={`sub-tab-btn ${selectedProduct === 'Rail Pad' ? 'active' : ''}`} onClick={() => setSelectedProduct('Rail Pad')}>Rail Pad</button>
                             </div>
                             
+                            <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+                                <button 
+                                    onClick={handleDataRefresh} 
+                                    style={{ 
+                                        padding: '6px 12px', 
+                                        backgroundColor: '#10b981', 
+                                        color: 'white', 
+                                        border: 'none', 
+                                        borderRadius: '6px', 
+                                        cursor: 'pointer',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: '6px',
+                                        fontSize: '13px',
+                                        fontWeight: '500',
+                                        boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
+                                    }}
+                                    title="Refresh dashboard data"
+                                >
+                                    <i className="fa-solid fa-arrows-rotate"></i> Refresh Data
+                                </button>
+                                <button 
+                                    onClick={handleDownloadDashboardPdf}
+                                    disabled={isExportingPdf}
+                                    style={{ 
+                                        padding: '6px 14px', 
+                                        backgroundColor: '#1e40af', 
+                                        color: 'white', 
+                                        border: 'none', 
+                                        borderRadius: '6px', 
+                                        cursor: isExportingPdf ? 'not-allowed' : 'pointer',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: '6px',
+                                        fontSize: '13px',
+                                        fontWeight: '600',
+                                        boxShadow: '0 2px 4px rgba(0,0,0,0.15)',
+                                        opacity: isExportingPdf ? 0.75 : 1,
+                                        transition: 'all 0.2s ease'
+                                    }}
+                                    title="Download complete dashboard screen as PDF"
+                                >
+                                    <i className={isExportingPdf ? "fa-solid fa-spinner fa-spin" : "fa-solid fa-file-pdf"}></i>
+                                    {isExportingPdf ? "Generating PDF..." : "Download PDF"}
+                                </button>
+                            </div>
+                        </div>
+                    ) : (
+                        <div className="sub-tabs" style={{ padding: '0 24px', marginTop: '16px', marginBottom: '4px', display: 'flex', justifyContent: 'flex-end', alignItems: 'center' }}>
                             <button 
-                                onClick={handleDataRefresh} 
+                                onClick={handleDownloadDashboardPdf}
+                                disabled={isExportingPdf}
                                 style={{ 
-                                    padding: '6px 12px', 
-                                    backgroundColor: '#10b981', 
+                                    padding: '6px 14px', 
+                                    backgroundColor: '#1e40af', 
                                     color: 'white', 
                                     border: 'none', 
                                     borderRadius: '6px', 
-                                    cursor: 'pointer',
+                                    cursor: isExportingPdf ? 'not-allowed' : 'pointer',
                                     display: 'flex',
                                     alignItems: 'center',
                                     gap: '6px',
                                     fontSize: '13px',
-                                    fontWeight: '500',
-                                    boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
+                                    fontWeight: '600',
+                                    boxShadow: '0 2px 4px rgba(0,0,0,0.15)',
+                                    opacity: isExportingPdf ? 0.75 : 1,
+                                    transition: 'all 0.2s ease'
                                 }}
+                                title="Download complete dashboard screen as PDF"
                             >
-                                <i className="fa-solid fa-arrows-rotate"></i> Refresh Data
+                                <i className={isExportingPdf ? "fa-solid fa-spinner fa-spin" : "fa-solid fa-file-pdf"}></i>
+                                {isExportingPdf ? "Generating PDF..." : "Download PDF"}
                             </button>
                         </div>
                     )}

@@ -13,6 +13,7 @@ import { formatDate } from "../../utils/helpers";
 import ErcProcessIc from "./ErcProcessIc";
 import { exportToPdf } from "../../utils/exportUtils";
 import { uploadSignedCertificate, saveProcessIcEditData, getProcessIcEditData, saveProcessIcSaveChanges, getProcessIcSaveChanges, validateBookSetNo } from "../../services/certificateService";
+import { fetchPoDataForSections } from "../../services/poDataService";
 import { performTransitionAction } from "../../services/workflowService";
 import { getCurrentUserId } from "../../services/workflowApiService";
 import { getStoredUser } from "../../services/authService";
@@ -140,6 +141,7 @@ export default function ProcessMaterialCertificate({ call = {}, onBack }) {
               purchasingAuthority: savedEdit.purchasingAuthority || initialData.purchasingAuthority,
               description: savedEdit.description || initialData.description,
               placeOfInspection: savedEdit.placeOfInspection || initialData.placeOfInspection,
+              uom: savedEdit.uom || initialData.uom,
               lots: restoredLots,
             };
           }
@@ -156,6 +158,19 @@ export default function ProcessMaterialCertificate({ call = {}, onBack }) {
                   message: "Could not fetch region details. Defaulting to standard region.", 
                   severity: "warning" 
               });
+          }
+
+          // If UOM is still missing or not explicit MT/Nos, fetch from PO Data API
+          const rawPo = call.poNo || call.po_no || (initialData.poDetails ? initialData.poDetails.split(' ')[0] : '');
+          if (rawPo && (!initialData.uom || initialData.uom === "")) {
+            try {
+              const poData = await fetchPoDataForSections(rawPo, icNumber);
+              if (poData && (poData.unit || poData.uom)) {
+                initialData.uom = poData.unit || poData.uom;
+              }
+            } catch (poErr) {
+              console.warn("Could not fetch PO Data for UOM in Process IC:", poErr);
+            }
           }
         }
         setEditableData(initialData);

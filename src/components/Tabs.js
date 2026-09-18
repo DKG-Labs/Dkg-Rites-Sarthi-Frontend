@@ -17,7 +17,6 @@ const Tabs = ({ tabs, activeTab, onChange }) => {
               className="tab-card-wrapper"
               onMouseEnter={() => setHoveredTab(tab.id)}
               onMouseLeave={() => setHoveredTab(null)}
-              style={{ position: 'relative', display: 'flex', flexDirection: 'column' }}
             >
               <button
                 type="button"
@@ -25,7 +24,7 @@ const Tabs = ({ tabs, activeTab, onChange }) => {
                 onClick={() => onChange(tab.id)}
                 style={tab.style}
               >
-                <div className="tab-card-label" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
+                <div className="tab-card-label">
                   <span>{tab.label}</span>
                   {isBlinking && (
                     <span className="blinking-dot" />

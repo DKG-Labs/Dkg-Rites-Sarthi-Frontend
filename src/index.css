@@ -1366,9 +1366,10 @@ body {
 
 .tabs-header {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
   gap: var(--space-16);
   margin-bottom: var(--space-24);
+  align-items: stretch;
 }
 
 /* Segmented Control / Compact Tabs */
@@ -1428,19 +1429,34 @@ body {
   background: var(--color-charcoal-800);
 }
 
+.tab-card-wrapper {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  width: 100%;
+}
 
 .tab-card {
-  border: 1px solid var(--color-card-border);
+  border: 1.5px solid var(--color-card-border);
   border-radius: var(--radius-lg);
-  padding: var(--space-16);
+  padding: 14px 16px;
   background: var(--color-surface);
   text-align: left;
   color: var(--color-text);
   cursor: pointer;
   transition: box-shadow var(--duration-fast) var(--ease-standard),
     transform var(--duration-fast) var(--ease-standard),
-    border-color var(--duration-fast) var(--ease-standard);
+    border-color var(--duration-fast) var(--ease-standard),
+    background-color var(--duration-fast) var(--ease-standard);
   box-shadow: var(--shadow-sm);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  height: 100%;
+  min-height: 84px;
+  box-sizing: border-box;
+  width: 100%;
 }
 
 .tab-card:hover {
@@ -1458,12 +1474,22 @@ body {
 .tab-card-label {
   font-size: var(--font-size-md);
   font-weight: var(--font-weight-semibold);
-  margin-bottom: var(--space-4);
+  line-height: 1.35;
+  margin-bottom: 6px;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+  color: #0f172a;
+  flex: 1;
 }
 
 .tab-card-desc {
   font-size: var(--font-size-sm);
   color: var(--color-text-secondary);
+  line-height: 1.25;
+  margin-top: auto;
+  padding-top: 4px;
 }
 
 /* Blinking Animation for Completed Calls Card */
@@ -1502,7 +1528,7 @@ body {
 }
 
 .tab-card-blinking {
-  border: 2px solid #b45309 !important;
+  border: 1.5px solid #b45309 !important;
   animation: pulseCompletedCard 1.8s infinite ease-in-out !important;
   position: relative;
 }

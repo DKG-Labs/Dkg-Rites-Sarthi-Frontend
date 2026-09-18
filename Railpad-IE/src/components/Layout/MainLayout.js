@@ -15,11 +15,12 @@ const MainLayout = ({ children, activeItem, onItemClick, onLogout, user, isShift
             const uId = user?.userId || localStorage.getItem('userId');
             if (uId) {
                 try {
-                    const [mainPlants, processPlants] = await Promise.all([
+                    const [mainPlants, processPlants, allPlants] = await Promise.all([
                         fetchMappedPlantIds(uId, 'Main IE').catch(() => []),
-                        fetchMappedPlantIds(uId, 'Process IE').catch(() => [])
+                        fetchMappedPlantIds(uId, 'Process IE').catch(() => []),
+                        fetchMappedPlantIds(uId, 'ALL').catch(() => [])
                     ]);
-                    if (mainPlants && mainPlants.length > 0) {
+                    if ((mainPlants && mainPlants.length > 0) || (allPlants && allPlants.length > 0)) {
                         setIsMainMapped(true);
                     }
                     if (processPlants && processPlants.length > 0) {

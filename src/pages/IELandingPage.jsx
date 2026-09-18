@@ -4,6 +4,7 @@ import { MOCK_INSPECTION_CALLS } from '../data/mockData';
 import Tabs from '../components/Tabs';
 import PendingCallsTab from '../components/PendingCallsTab';
 import CompletedCallsTab from '../components/CompletedCallsTab';
+import ClosedCallsTab from '../components/ClosedCallsTab';
 import IssuanceOfICTab from '../components/IssuanceOfICTab';
 import BillingStageTab from '../components/BillingStageTab';
 import PerformanceDashboard from '../components/PerformanceDashboard';
@@ -14,7 +15,8 @@ import { raiseBill, updateBillingStatus, approvePayment, BILLING_STATUS } from '
 import { getStoredUser } from '../services/authService';
 import { fetchUserPendingCalls, performTransitionAction, clearWorkflowCache, fetchLatestWorkflowTransition } from '../services/workflowService';
 import { markAsScheduled, isCallInitiated, getCallStatusData } from '../services/callStatusService';
-import { fetchCompletedCallsForIC, fetchSignedCallsForIC, getCurrentUserId } from '../services/workflowApiService';
+import { fetchCompletedCallsForIC, fetchSignedCallsForIC, fetchClosedCallsForIC, getCurrentUserId } from '../services/workflowApiService';
+
 // import { fetchRawMaterialCallsByStatus } from '../services/rawMaterial/rawMaterialApiService';
 import ProcessDefectSummaryCard from '../components/ProcessDefectSummaryCard';
 import ProcessIeFeedbackModule from './ProcessIeFeedbackModule/ProcessIeFeedbackModule';
@@ -56,6 +58,10 @@ const IELandingPage = ({ onStartInspection, onStartMultipleInspections, setSelec
   
   // State for signed calls count (for Calls Completed tab)
   const [signedCallsCount, setSignedCallsCount] = useState(0);
+
+  // State for closed calls count (for Closed Calls tab)
+  const [closedCallsCount, setClosedCallsCount] = useState(0);
+
 
   // State for Enter Shift Details modal
   const [showEnterShiftDetailsModal, setShowEnterShiftDetailsModal] = useState(false);
@@ -160,27 +166,40 @@ const IELandingPage = ({ onStartInspection, onStartMultipleInspections, setSelec
     }
   }, [activeTab, completedCallsCache, fetchCompletedCalls]);
 
-  // Fetch signed calls count silently on mount for the tab badge
-  useEffect(() => {
-    const fetchSignedCount = async () => {
-      try {
-        const userId = getCurrentUserId();
-        if (!userId) return;
-        const signed = await fetchSignedCallsForIC(userId);
-        const validSigned = signed.filter(c => 
-          c.status === 'Completed' || 
-          c.status === 'DSC_SIGN_IC' || 
-          c.originalStatus === 'DSC_SIGN_IC' ||
-          (c.status || '').toUpperCase().includes('CANCEL') ||
-          (c.originalStatus || '').toUpperCase().includes('CANCEL')
-        );
-        setSignedCallsCount(validSigned.length);
-      } catch (error) {
-        console.error('Failed to fetch signed calls count:', error);
-      }
-    };
-    fetchSignedCount();
+  // Fetch signed & closed calls count silently on mount for the tab badge
+  const fetchSignedCount = useCallback(async () => {
+    try {
+      const userId = getCurrentUserId();
+      if (!userId) return;
+      const signed = await fetchSignedCallsForIC(userId);
+      const validSigned = signed.filter(c => 
+        c.status === 'Completed' || 
+        c.status === 'DSC_SIGN_IC' || 
+        c.originalStatus === 'DSC_SIGN_IC' ||
+        (c.status || '').toUpperCase().includes('CANCEL') ||
+        (c.originalStatus || '').toUpperCase().includes('CANCEL')
+      );
+      setSignedCallsCount(validSigned.length);
+    } catch (error) {
+      console.error('Failed to fetch signed calls count:', error);
+    }
   }, []);
+
+  const fetchClosedCount = useCallback(async () => {
+    try {
+      const userId = getCurrentUserId();
+      if (!userId) return;
+      const closed = await fetchClosedCallsForIC(userId);
+      setClosedCallsCount(closed.length);
+    } catch (error) {
+      console.error('Failed to fetch closed calls count:', error);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchSignedCount();
+    fetchClosedCount();
+  }, [fetchSignedCount, fetchClosedCount]);
 
   // Use pending calls directly from API (includes Raw Material, Process, and Final)
   // No need to combine with mock data anymore
@@ -235,10 +254,18 @@ const IELandingPage = ({ onStartInspection, onStartMultipleInspections, setSelec
   const tabs = [
     { id: 'pending', label: 'List of Calls Pending', description: `${pendingCount} pending` },
     { id: 'certificates', label: 'Issuance of IC & Annexures', description: `${completedCount} ready for IC` },
-    { id: 'completed', label: 'Calls Completed', description: `${signedCallsCount} completed` },
+    { 
+      id: 'completed', 
+      label: 'Calls Completed', 
+      description: `${signedCallsCount} completed`,
+      highlight: signedCallsCount > 0,
+      tooltip: signedCallsCount > 0 ? 'Kindly send present calls to IBS' : undefined
+    },
+    { id: 'closed', label: 'Closed Calls', description: `${closedCallsCount} closed` },
     ...(showDefectSummary ? [{ id: 'defect-summary', label: 'Process Defect Summary', description: 'Call-wise defect data' }] : []),
     { id: 'feedback-discrepancy', label: 'Process Inspection Feedback module', description: 'Manage discrepancies' },
   ];
+
 
   // Handle schedule button click (first time scheduling)
   const handleSchedule = (call, refreshFn) => {
@@ -1013,13 +1040,28 @@ const IELandingPage = ({ onStartInspection, onStartMultipleInspections, setSelec
           calls={MOCK_INSPECTION_CALLS}
           setSelectedCall={setSelectedCall}
           setCurrentPage={setCurrentPage}
+          onCallSentToIbs={() => {
+            fetchSignedCount();
+            fetchClosedCount();
+            fetchCompletedCalls();
+            fetchPendingData(true);
+          }}
         />
       )}
 
-      {/* 5. Performance - Fifth (Last) */}
+      {/* 5. Closed Calls - Fifth */}
+      {activeTab === 'closed' && (
+        <ClosedCallsTab
+          setSelectedCall={setSelectedCall}
+          setCurrentPage={setCurrentPage}
+        />
+      )}
+
+      {/* 6. Performance */}
       {activeTab === 'performance' && (
         <PerformanceDashboard />
       )}
+
 
       <Modal
         isOpen={showScheduleModal}

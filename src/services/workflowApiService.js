@@ -223,6 +223,67 @@ export const fetchSignedCallsForIC = async (userId) => {
 };
 
 /**
+ * Fetch closed calls (sent to IBS) for a specific user
+ * @param {number} userId - The user ID
+ * @returns {Promise<Array>} Array of closed calls
+ */
+export const fetchClosedCallsForIC = async (userId) => {
+  try {
+    const url = `${API_BASE_URL}/callCloseddata?modifiedBy=${userId}`;
+    console.log('🔍 Fetching closed calls for user:', userId);
+
+    const headers = getAuthHeaders();
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: headers
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(errorText || `Failed to fetch closed calls: ${response.status}`);
+    }
+
+    const data = await response.json();
+    const closedCalls = data.responseData || [];
+
+    const transformedCalls = closedCalls.map(call => ({
+      id: call.workflowTransitionId,
+      call_no: call.requestId,
+      icNo: generateICNumber(call.rio, call.requestId),
+      po_no: call.poNo,
+      ibsCaseNo: call.ibsCaseNo || '-',
+      vendor_name: call.vendorName,
+      product_type: call.productType,
+      requested_date: call.createdDate,
+      stage: call.stage,
+      status: call.status,
+      displayStatus: call.status,
+      originalStatus: call.status,
+      action: call.action,
+      remarks: call.remarks,
+      jobStatus: call.jobStatus,
+      currentRole: call.currentRoleName,
+      nextRole: call.nextRoleName,
+      assignedToUser: call.assignedToUser,
+      createdBy: call.createdBy,
+      modifiedBy: call.modifiedBy,
+      workflowId: call.workflowId,
+      transitionId: call.transitionId,
+      workflowSequence: call.workflowSequence,
+      rio: call.rio,
+      ibsStatus: call.ibsStatus || '-',
+      ibsReason: call.ibsReason || ''
+    }));
+
+    return transformedCalls;
+  } catch (error) {
+    console.error('❌ Error fetching closed calls:', error);
+    throw error;
+  }
+};
+
+
+/**
  * Get current user ID from localStorage
  * The authentication system stores userId directly in localStorage after login
  * @returns {string|null} User ID or null if not found
@@ -310,4 +371,32 @@ export const deleteInspectionCompleteRequest = async (requestId, deletedBy) => {
   }
 };
 
+/**
+ * Rollback / Delete ESign transition and return call to IC Issuance
+ * @param {string} requestId - The call number / request ID (e.g. EF..., ER..., EP...)
+ * @param {number|string} deletedBy - The user ID performing the deletion
+ * @returns {Promise<Object>}
+ */
+export const deleteEsignTransition = async (requestId, deletedBy) => {
+  try {
+    const url = `${API_BASE_URL}/esign/${encodeURIComponent(requestId)}?deletedBy=${encodeURIComponent(deletedBy)}`;
+    console.log('🔄 Sending delete eSign transition request to:', url);
 
+    const response = await fetch(url, {
+      method: 'DELETE',
+      headers: getAuthHeaders()
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('❌ Failed to delete eSign transition:', errorText);
+      throw new Error(errorText || `Failed to revert eSign transition (${response.status})`);
+    }
+
+    const text = await response.text();
+    return { success: true, message: text };
+  } catch (error) {
+    console.error('❌ Error in deleteEsignTransition:', error);
+    throw error;
+  }
+};

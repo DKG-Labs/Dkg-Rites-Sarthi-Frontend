@@ -468,6 +468,10 @@ const CorrectionSlipModal = ({ row, onClose }) => {
         showNotif(`Row ${i + 1}: "Read As" value cannot be empty.`, 'error');
         return false;
       }
+      if (!r.insteadOf.trim()) {
+        showNotif(`Row ${i + 1}: "Instead Of" value cannot be empty.`, 'error');
+        return false;
+      }
     }
     return true;
   };
@@ -590,11 +594,12 @@ const CorrectionSlipModal = ({ row, onClose }) => {
                     <td style={{ ...S.td, padding: '6px 8px', verticalAlign: 'top' }}>
                       <textarea
                         rows={corr.insteadOf && corr.insteadOf.includes('\n') ? Math.min(Math.max(corr.insteadOf.split('\n').length, 2), 8) : 2}
-                        style={{ ...S.inputBase, background: '#f1f5f9', color: '#4b5563', cursor: 'not-allowed', fontStyle: 'italic', border: '1px solid #e5e7eb' }}
-                        readOnly
+                        style={S.inputBase}
+                        placeholder="Enter instead of value"
                         value={corr.insteadOf}
-                        title="Auto-filled from IC data"
-                        placeholder="Auto-filled"
+                        onChange={(e) => updateRow(corr.id, 'insteadOf', e.target.value)}
+                        onFocus={e => { e.target.style.borderColor = '#3b82f6'; }}
+                        onBlur={e => { e.target.style.borderColor = '#d1d5db'; }}
                       />
                     </td>
                     <td style={{ ...S.td, padding: '6px 8px', textAlign: 'center', verticalAlign: 'top' }}>

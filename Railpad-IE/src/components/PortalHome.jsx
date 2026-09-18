@@ -140,54 +140,47 @@ const PortalHome = ({
       if (!uId) return;
 
       try {
-        const [mainPlants, processPlants] = await Promise.all([
+        const [mainPlants, processPlants, allPlantsRes] = await Promise.all([
           fetchMappedPlantIds(uId, 'Main IE').catch(() => []),
-          fetchMappedPlantIds(uId, 'Process IE').catch(() => [])
+          fetchMappedPlantIds(uId, 'Process IE').catch(() => []),
+          fetchMappedPlantIds(uId, 'ALL').catch(() => [])
         ]);
-        const allPlants = Array.from(new Set([...(mainPlants || []), ...(processPlants || [])]));
+        const allPlants = Array.from(new Set([
+          ...(allPlantsRes || []),
+          ...(mainPlants || []),
+          ...(processPlants || [])
+        ]));
         if (allPlants && allPlants.length > 0) {
           setMappedPlants(allPlants);
         }
-        if (mainPlants && mainPlants.length > 0) {
+        if ((mainPlants && mainPlants.length > 0) || (allPlants && allPlants.length > 0)) {
           setIsMainIeMapped(true);
         }
         if (processPlants && processPlants.length > 0) {
           setIsProcessIeMapped(true);
         }
 
-        // If Main IE, fetch live counts filtered strictly by mapped plants
-        if (roleLower.includes('main ie') || roleLower.includes('rail main ie') || (mainPlants && mainPlants.length > 0)) {
+        // Fetch plant declaration pending count (Module 1) filtered by mapped plants
+        if (roleLower.includes('main ie') || roleLower.includes('rail main ie') || (allPlants && allPlants.length > 0)) {
           setLoadingCounts(true);
-          const [pendingRes, completedRes, plantPendingRes] = await Promise.all([
-            fetchPendingWorkflowTransitions('Rail Main IE', '', 2).catch(() => []),
-            fetchCompletedCalls('', 2).catch(() => []),
-            fetchPendingWorkflowTransitions('Rail Main IE', '', 1).catch(() => [])
-          ]);
+          try {
+            const plantPendingRes = await fetchPendingWorkflowTransitions('Rail Main IE', '', 1).catch(() => []);
+            let rpPlantPending = (plantPendingRes || []).filter(c => c.requestId);
 
-          let rpPending = (pendingRes || []).filter(c => c.requestId);
-          let rpCompletedAll = (completedRes || []).filter(c => c.requestId);
-          let rpPlantPending = (plantPendingRes || []).filter(c => c.requestId);
+            const targetPlants = (allPlants && allPlants.length > 0) ? allPlants : (mainPlants || []);
+            if (targetPlants && targetPlants.length > 0) {
+              rpPlantPending = rpPlantPending.filter(c => c.plantId && targetPlants.some(p => isPlantIdMatching(c.plantId, p)));
+            }
 
-          if (mainPlants && mainPlants.length > 0) {
-            rpPending = rpPending.filter(c => c.plantId && mainPlants.some(p => isPlantIdMatching(c.plantId, p)));
-            rpCompletedAll = rpCompletedAll.filter(c => c.plantId && mainPlants.some(p => isPlantIdMatching(c.plantId, p)));
-            rpPlantPending = rpPlantPending.filter(c => c.plantId && mainPlants.some(p => isPlantIdMatching(c.plantId, p)));
+            const uniquePlantPending = deduplicateByLatestCall(rpPlantPending);
+
+            setMainCounts(prev => ({
+              ...prev,
+              plantPending: uniquePlantPending.length
+            }));
+          } finally {
+            setLoadingCounts(false);
           }
-
-          const uniquePending = deduplicateByLatestCall(rpPending);
-          const uniqueCompletedAll = deduplicateByLatestCall(rpCompletedAll);
-          const uniquePlantPending = deduplicateByLatestCall(rpPlantPending);
-
-          const certs = uniqueCompletedAll.filter(c => !isCallSignedAndCompleted(c));
-          const completed = uniqueCompletedAll.filter(c => isCallSignedAndCompleted(c));
-
-          setMainCounts({
-            pending: uniquePending.length,
-            certificates: certs.length,
-            completed: completed.length,
-            plantPending: uniquePlantPending.length
-          });
-          setLoadingCounts(false);
         }
       } catch (err) {
         console.error('Error checking IE mappings & counts:', err);
@@ -692,9 +685,6 @@ const PortalHome = ({
                 <div className="ph-card-text">
                   <div className="ph-card-title-row">
                     <span className="ph-card-title">Plant Setup &amp; Declaration</span>
-                    <span className="ph-badge ph-badge--purple">
-                      {loadingCounts ? '...' : (mainCounts.plantPending > 0 ? `${mainCounts.plantPending} Pending` : (mappedPlants.length > 0 ? `${mappedPlants.length} Plants` : 'Active'))}
-                    </span>
                   </div>
                   <span className="ph-card-sub">Verify setups, recipes &amp; QAP limits</span>
                 </div>
@@ -725,12 +715,17 @@ const PortalHome = ({
                 hideTopHeader={true}
                 hideTopTabs={true}
                 dutyPlantId={dutyPlantId}
+                mappedPlants={mappedPlants}
+                user={user}
                 onStart={onStart}
                 onResume={onResume}
                 onIssueIc={onIssueIc}
                 onCountsChange={(newCounts) => {
                   if (newCounts) {
-                    setMainCounts(newCounts);
+                    setMainCounts(prev => ({
+                      ...prev,
+                      ...newCounts
+                    }));
                   }
                 }}
               />

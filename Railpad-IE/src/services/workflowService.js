@@ -18,6 +18,9 @@ export const isPlantIdMatching = (plantA, plantB) => {
   const baseB = cleanB.split('/')[0].trim();
   if (baseA && baseB && baseA === baseB) return true;
 
+  if (baseA && cleanB && (cleanB.startsWith(baseA) || baseA.startsWith(cleanB))) return true;
+  if (baseB && cleanA && (cleanA.startsWith(baseB) || baseB.startsWith(cleanA))) return true;
+
   return false;
 };
 

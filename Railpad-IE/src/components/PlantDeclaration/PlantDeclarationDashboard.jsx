@@ -125,11 +125,12 @@ const PlantDeclarationDashboard = ({ dutyPlantId }) => {
     let mappedPlants = [];
     if (uId) {
       try {
-        const [mPlants, pPlants] = await Promise.all([
+        const [mPlants, pPlants, aPlants] = await Promise.all([
           fetchMappedPlantIds(uId, 'Main IE').catch(() => []),
-          fetchMappedPlantIds(uId, 'Process IE').catch(() => [])
+          fetchMappedPlantIds(uId, 'Process IE').catch(() => []),
+          fetchMappedPlantIds(uId, 'ALL').catch(() => [])
         ]);
-        mappedPlants = Array.from(new Set([...(mPlants || []), ...(pPlants || [])]));
+        mappedPlants = Array.from(new Set([...(aPlants || []), ...(mPlants || []), ...(pPlants || [])]));
       } catch (e) {}
     }
 

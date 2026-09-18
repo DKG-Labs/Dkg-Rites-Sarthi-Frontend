@@ -1366,9 +1366,10 @@ body {
 
 .tabs-header {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
   gap: var(--space-16);
   margin-bottom: var(--space-24);
+  align-items: stretch;
 }
 
 /* Segmented Control / Compact Tabs */
@@ -1428,19 +1429,34 @@ body {
   background: var(--color-charcoal-800);
 }
 
+.tab-card-wrapper {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  width: 100%;
+}
 
 .tab-card {
-  border: 1px solid var(--color-card-border);
+  border: 1.5px solid var(--color-card-border);
   border-radius: var(--radius-lg);
-  padding: var(--space-16);
+  padding: 14px 16px;
   background: var(--color-surface);
   text-align: left;
   color: var(--color-text);
   cursor: pointer;
   transition: box-shadow var(--duration-fast) var(--ease-standard),
     transform var(--duration-fast) var(--ease-standard),
-    border-color var(--duration-fast) var(--ease-standard);
+    border-color var(--duration-fast) var(--ease-standard),
+    background-color var(--duration-fast) var(--ease-standard);
   box-shadow: var(--shadow-sm);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  height: 100%;
+  min-height: 84px;
+  box-sizing: border-box;
+  width: 100%;
 }
 
 .tab-card:hover {
@@ -1458,12 +1474,126 @@ body {
 .tab-card-label {
   font-size: var(--font-size-md);
   font-weight: var(--font-weight-semibold);
-  margin-bottom: var(--space-4);
+  line-height: 1.35;
+  margin-bottom: 6px;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+  color: #0f172a;
+  flex: 1;
 }
 
 .tab-card-desc {
   font-size: var(--font-size-sm);
   color: var(--color-text-secondary);
+  line-height: 1.25;
+  margin-top: auto;
+  padding-top: 4px;
+}
+
+/* Blinking Animation for Completed Calls Card */
+@keyframes pulseCompletedCard {
+  0% {
+    border-color: #b45309;
+    background-color: rgba(245, 158, 11, 0.06);
+    box-shadow: 0 0 0 0 rgba(180, 83, 9, 0.4), 0 2px 4px rgba(0, 0, 0, 0.08);
+  }
+  50% {
+    border-color: #9a3412;
+    background-color: rgba(245, 158, 11, 0.16);
+    box-shadow: 0 0 0 4px rgba(180, 83, 9, 0.25), 0 4px 16px rgba(154, 52, 18, 0.35);
+  }
+  100% {
+    border-color: #b45309;
+    background-color: rgba(245, 158, 11, 0.06);
+    box-shadow: 0 0 0 0 rgba(180, 83, 9, 0.4), 0 2px 4px rgba(0, 0, 0, 0.08);
+  }
+}
+
+@keyframes pulseBlinkDot {
+  0% {
+    transform: scale(0.85);
+    opacity: 0.85;
+  }
+  50% {
+    transform: scale(1.3);
+    opacity: 1;
+    box-shadow: 0 0 8px #9a3412;
+  }
+  100% {
+    transform: scale(0.85);
+    opacity: 0.85;
+  }
+}
+
+.tab-card-blinking {
+  border: 1.5px solid #b45309 !important;
+  animation: pulseCompletedCard 1.8s infinite ease-in-out !important;
+  position: relative;
+}
+
+.tab-card-blinking:hover {
+  border-color: #9a3412 !important;
+  box-shadow: 0 4px 18px rgba(154, 52, 18, 0.45) !important;
+}
+
+.blinking-dot {
+  width: 9px;
+  height: 9px;
+  background-color: #b45309;
+  border-radius: 50%;
+  display: inline-block;
+  animation: pulseBlinkDot 1.2s infinite ease-in-out;
+  flex-shrink: 0;
+}
+
+/* Custom Sleek Tab Tooltip */
+.custom-tab-tooltip {
+  position: absolute;
+  bottom: calc(100% + 12px);
+  left: 50%;
+  transform: translateX(-50%) translateY(4px);
+  background: #0f172a;
+  color: #ffffff;
+  padding: 8px 14px;
+  border-radius: 8px;
+  font-size: 12.5px;
+  font-weight: 600;
+  white-space: nowrap;
+  pointer-events: none;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.2s cubic-bezier(0.16, 1, 0.3, 1), transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), visibility 0.2s;
+  box-shadow: 0 10px 25px -5px rgba(15, 23, 42, 0.4), 0 4px 10px -2px rgba(15, 23, 42, 0.2);
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+}
+
+.custom-tab-tooltip.visible {
+  opacity: 1;
+  visibility: visible;
+  transform: translateX(-50%) translateY(0);
+}
+
+.tooltip-arrow {
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 0;
+  height: 0;
+  border-left: 6px solid transparent;
+  border-right: 6px solid transparent;
+  border-top: 6px solid #0f172a;
+}
+
+.tooltip-icon {
+  font-size: 14px;
+  line-height: 1;
 }
 
 /* Card Component */

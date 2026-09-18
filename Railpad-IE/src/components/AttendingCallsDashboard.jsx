@@ -19,7 +19,9 @@ const AttendingCallsDashboard = ({
   controlledTab,
   hideTopHeader = true,
   hideTopTabs = true,
-  onCountsChange
+  onCountsChange,
+  mappedPlants: propMappedPlants = [],
+  user: propUser
 }) => {
   const [activeTab, setActiveTab] = useState(() => {
     return controlledTab || localStorage.getItem('railpad_attending_calls_tab') || 'pending';
@@ -49,7 +51,7 @@ const AttendingCallsDashboard = ({
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
   
-  const user = getStoredUser();
+  const user = propUser || getStoredUser();
 
   const activeTabRef = useRef(activeTab);
 
@@ -64,20 +66,27 @@ const AttendingCallsDashboard = ({
     setCurrentPage(1);
   }, [activeTab, searchTerm]);
 
+  const mappedPlantsKey = (propMappedPlants || []).join(',');
+
   useEffect(() => {
     localStorage.setItem('railpad_attending_calls_tab', activeTab);
     activeTabRef.current = activeTab;
     loadCalls();
-  }, [activeTab, dutyPlantId]);
+  }, [activeTab, dutyPlantId, mappedPlantsKey]);
 
   const loadCalls = async () => {
     setLoading(true);
     try {
       const uId = user?.userId || localStorage.getItem('userId');
-      let mappedPlants = [];
-      if (uId) {
+      let mappedPlants = (propMappedPlants && propMappedPlants.length > 0) ? [...propMappedPlants] : [];
+      if (mappedPlants.length === 0 && uId) {
         try {
-          mappedPlants = await fetchMappedPlantIds(uId, 'Main IE');
+          const [mainP, procP, allP] = await Promise.all([
+            fetchMappedPlantIds(uId, 'Main IE').catch(() => []),
+            fetchMappedPlantIds(uId, 'Process IE').catch(() => []),
+            fetchMappedPlantIds(uId, 'ALL').catch(() => [])
+          ]);
+          mappedPlants = Array.from(new Set([...(allP || []), ...(mainP || []), ...(procP || [])]));
         } catch (e) {}
       }
 

@@ -33,17 +33,23 @@ const StatusBadge = ({ status, label, color, bgColor, borderColor, text }) => {
   // If using simple status prop (original pattern)
   if (!status) return null;
 
+  const statusStr = (typeof status === 'object' && status !== null) 
+    ? (status.mainStatus || status.combinedText || status.status || '') 
+    : String(status || '');
+
+  if (!statusStr) return null;
+
   // Convert status to CSS class (handle spaces, underscores and special characters)
-  const getStatusClass = (status) => {
-    return status
+  const getStatusClass = (str) => {
+    return String(str)
       .toLowerCase()
       .replace(/[_\s]+/g, '-')   // Replace spaces/underscores with hyphens
       .replace(/[^a-z0-9-]/g, ''); // Remove other special characters
   };
 
   // Format status text for display (convert underscores to spaces and title case)
-  const formatStatusText = (status) => {
-    return status
+  const formatStatusText = (str) => {
+    return String(str)
       .replace(/_/g, ' ')  // Replace underscores with spaces
       .toLowerCase()
       .split(' ')
@@ -51,8 +57,8 @@ const StatusBadge = ({ status, label, color, bgColor, borderColor, text }) => {
       .join(' ');
   };
 
-  const className = `status-badge ${getStatusClass(status)}`;
-  const displayText = text || formatStatusText(status);
+  const className = `status-badge ${getStatusClass(statusStr)}`;
+  const displayText = text || (typeof status === 'object' && status.combinedText ? status.combinedText : formatStatusText(statusStr));
 
   return <span className={className}>{displayText}</span>;
 };

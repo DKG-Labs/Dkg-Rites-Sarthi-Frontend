@@ -1,9 +1,11 @@
 import axios from 'axios';
 
-// const isLocal = typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
-// export const API_BASE_URL = "http://localhost:8080/sarthi-backend/api";
-export const API_BASE_URL = 'https://sarthibackendservice-bfe2eag3byfkbsa6.canadacentral-01.azurewebsites.net/sarthi-backend/api';
-//export const API_BASE_URL = 'https://api.ritesqasarthi.com/sarthi-backend/api';
+const isLocal = typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
+export const API_BASE_URL = isLocal
+    ? "http://localhost:8080/sarthi-backend/api"
+    : "https://sarthibackendservice-bfe2eag3byfkbsa6.canadacentral-01.azurewebsites.net/sarthi-backend/api";
+//export const API_BASE_URL = 'https://sarthibackendservice-bfe2eag3byfkbsa6.canadacentral-01.azurewebsites.net/sarthi-backend/api';
+
 const BASE_URL = API_BASE_URL;
 
 const api = axios.create({
@@ -250,8 +252,19 @@ export const apiService = {
     performTransitionAction: (payload) =>
         api.post('/sleeper-workflow/performTransitionAction', payload),
 
-    getCompletedFinalCalls: (plantId) =>
-        api.get(`/sleeper-workflow/allFInalCallCompletedCalls${plantId ? `?plantId=${encodeURIComponent(plantId)}` : ''}`),
+    getCompletedFinalCalls: (plantId = '', userId = '') => {
+        const params = [];
+        if (plantId) params.push(`plantId=${encodeURIComponent(plantId)}`);
+        if (userId) {
+            params.push(`assignedTo=${encodeURIComponent(userId)}`);
+            params.push(`userId=${encodeURIComponent(userId)}`);
+        }
+        const query = params.length > 0 ? `?${params.join('&')}` : '';
+        return api.get(`/sleeper-workflow/allFInalCallCompletedCalls${query}`);
+    },
+
+    getClosedFinalCalls: (plantId, userId) =>
+        api.get(`/sleeper-workflow/allClosedCalls?${plantId ? `plantId=${encodeURIComponent(plantId)}&` : ''}${userId ? `userId=${userId}` : ''}`),
 
     // ── Module getById APIs (used by IE dashboard to fetch record details) ──
     // moduleId=1  PLANT_PROFILE
@@ -420,4 +433,8 @@ export const apiService = {
         api.get(`/images/call/${callNo}`, { params: { typeOfCall } }),
     saveInspectionImages: (callNo, payload) =>
         api.post(`/images/call/${callNo}`, payload),
+    revertToInspection: (callNo, deletedBy) =>
+        api.delete(`/sleeper-workflow/back-to-inspection/${encodeURIComponent(callNo)}`, { params: { deletedBy } }),
+    revertToIcIssuance: (callNo, deletedBy) =>
+        api.delete(`/sleeper-workflow/back-to-ic-issuance/${encodeURIComponent(callNo)}`, { params: { deletedBy } }),
 };

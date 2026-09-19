@@ -1,53 +1,15 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
+import { apiService } from '../services/api';
 import {
-  generateFinalProductCertificate,
-  generateRailpadIcDetails,
-  getFinalIcEditData,
-  getProcessIcEditData,
+  getFinalIcEditData
 } from '../services/certificateService';
 import { fetchCorrectionSlip } from '../services/correctionSlipService';
 import { getStoredUser } from '../services/authService';
 import Notification from './Notification';
 import CorrectionSlipPDF, { formatCorrectionText } from './CorrectionSlipPDF';
 
-/* ─── Per-IC-type field maps (sourced from backend DTOs & IC templates) ─── */
-const PROCESS_FIELD_MAP = {
-  certificateNo:          'Certificate No.',
-  certificateDate:        'Certificate Date',
-  bookNo:                 'Book No.',
-  setNo:                  'Set No.',
-  offeredInstNo:          'Offered Instt. No.',
-  passedInstNo:           'Passed Instt. No.',
-  contractor:             'Contractor',
-  manufacturer:           'Manufacturer',
-  placeOfInspection:      'Place of Inspection',
-  contractRef:            'Contract Ref.',
-  billPayingOfficer:      'Bill Paying Officer',
-  consignee:              'Consignee (Railway)',
-  consigneeRailway:       'Consignee (Railway)',
-  consigneeManufacturer: 'Consignee (Manufacturer of finished Product)',
-  purchasingAuthority:    'Purchasing Authority (Railway)',
-  description:            'Description',
-  drgNo:                  'Drg. No.',
-  drawingNo:              'Drg. No.',
-  specNo:                 'Spec. No.',
-  qapNo:                  'QAP No.',
-  typeOfInspection:       'Type of inspection/tests conducted',
-  chpClNo:                'CHP CL. No. Of QAP',
-  lotNo:                  'Lot No.',
-  qtyNowOffered:          'Total Processed Qty (Nos.)',
-  qtyNowPassed:           'Accepted Qty (Nos.)',
-  qtyNowRejected:         'Rejected Qty (Nos.)',
-  quantityNowPassedText:  'Remark',
-  reasonsForRejection:    'Reason of Rejection',
-  dateOfCall:             'Date of call',
-  noOfVisits:             'Total No. of Man-days engaged',
-  datesOfInspection:      'Date of inspection',
-  sealingPattern:         'Pattern of sealing/stamping or identification',
-  inspectingEngineer:     'Inspecting Engineer',
-};
-
-const FINAL_FIELD_MAP = {
+/* ─── Sleeper Final IC (SF) field map ─── */
+const SLEEPER_FIELD_MAP = {
   certificateNo:          'Certificate No.',
   certificateDate:        'Certificate Date',
   bookNo:                 'Book No.',
@@ -56,41 +18,31 @@ const FINAL_FIELD_MAP = {
   passedInstNo:           'Passed Instt. No.',
   contractor:             'Contractor',
   placeOfInspection:      'Place of Inspection',
-  contractRef:            'Contract References',
+  contractRef:            'Contract Reference',
   maNumberAndDate:        'MA Number & Date',
   billPayingOfficer:      'Bill Paying Officer',
   consignee:              'Consignee',
-  consigneeRailway:       'Consignee (Railway)',
   purchasingAuthority:    'Purchasing Authority',
   itemNo:                 'Item No.',
-  description:            'Description of Stores',
-  drawingNo:              'Drawing No.',
-  specNo:                 'Specification No.',
-  qtyOnOrder:             'Quantity on Order',
-  qtyOfferedPreviously:   'Cumulative Qty Offered Previously',
-  qtyPassedPreviously:    'Qty Prev Passed',
-  qtyNowOffered:          'Qty Now Offered',
-  qtyNowPassed:           'Qty Now Passed',
-  qtyNowRejected:         'Qty Now Rejected',
-  qtyStillDue:            'Qty Still Due',
+  description:            'Description of stores',
+  qtyOnOrder:             'Quantity on order',
+  qtyOfferedPreviously:   'Cumulative qty. offered previously',
+  qtyPassedPreviously:    'Quantity previously passed',
+  qtyNowOffered:          'Qty now offered',
+  qtyNowPassed:           'Qty now passed',
+  qtyNowRejected:         'Qty now rejected',
+  qtyStillDue:            'Qty still due',
   quantityNowPassedText:  'Quantity Now Passed (Text)',
-  remarks:                'Remarks',
   noOfItemsChecked:       'No. of items checked',
   dateOfCall:             'Date of call',
   noOfVisits:             'No. of Visits',
-  datesOfInspection:      'Date(s) of inspection',
-  inspectionDates:        'Date(s) of inspection',
+  datesOfInspection:      'Date(s) of Inspection',
   trRecDate:              'TR Rec. dt.',
   sealingPattern:         'Pattern of sealing/stamping & location of seal/stamp/sticker',
   facsimileText:          'Facsimile of seal/stamp/sticker',
   reasonsForRejection:    'Reason of rejection',
   inspectingEngineer:     'Inspecting Engineer',
-  processIcNo:            'Process IC No.',
-};
-
-const getFieldMap = (productType) => {
-  if (productType === 'PROCESS') return PROCESS_FIELD_MAP;
-  return FINAL_FIELD_MAP;
+  remarks:                'Remarks',
 };
 
 const HIDDEN_DROPDOWN_KEYS = [
@@ -98,25 +50,30 @@ const HIDDEN_DROPDOWN_KEYS = [
   'certificateDate',
   'bookNo',
   'setNo',
-  'contractRef',
-  'qtyNowOffered',
-  'qtyNowPassed',
-  'qtyNowRejected',
-  'rmIcNo',
-  'processIcNo'
 ];
 
 const emptyRow = () => ({ columnName: '', readAs: '', insteadOf: '', id: Date.now() + Math.random() });
 
-/* ─── Custom Field Dropdown (Matches ERC) ─── */
+/* ─── Custom Field Dropdown ─── */
 const FieldDropdown = ({ options, hiddenKeys = [], value, onChange, disabled, placeholder = '— Select field —' }) => {
   const [open, setOpen] = useState(false);
+  const [openUpward, setOpenUpward] = useState(false);
   const [search, setSearch] = useState('');
   const ref = useRef(null);
   const searchRef = useRef(null);
 
   const selected = options.find(o => o.key === value);
   const filtered = options.filter(o => !hiddenKeys.includes(o.key) && o.label.toLowerCase().includes(search.toLowerCase()));
+
+  const handleToggle = () => {
+    if (disabled) return;
+    if (!open && ref.current) {
+      const rect = ref.current.getBoundingClientRect();
+      const spaceBelow = window.innerHeight - rect.bottom;
+      setOpenUpward(spaceBelow < 260);
+    }
+    setOpen(v => !v);
+  };
 
   useEffect(() => {
     const handler = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
@@ -133,62 +90,86 @@ const FieldDropdown = ({ options, hiddenKeys = [], value, onChange, disabled, pl
       <button
         type="button"
         disabled={disabled}
-        onClick={() => !disabled && setOpen(v => !v)}
+        onClick={handleToggle}
         style={{
-          width: '100%', height: '32px', padding: '0 28px 0 10px',
-          background: disabled ? '#f9fafb' : '#fff',
-          border: `1.5px solid ${open ? '#3b82f6' : '#d1d5db'}`,
-          borderRadius: '6px', fontSize: '12.5px', fontWeight: '500',
-          color: selected ? '#1f2937' : '#9ca3af',
+          width: '100%', height: '38px', padding: '0 12px',
+          background: disabled ? '#f8fafc' : '#ffffff',
+          border: `1.5px solid ${open ? '#3b82f6' : '#cbd5e1'}`,
+          borderRadius: '8px', fontSize: '13px', fontWeight: '500',
+          color: selected ? '#0f172a' : '#94a3b8',
           cursor: disabled ? 'not-allowed' : 'pointer',
           textAlign: 'left', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
-          boxShadow: open ? '0 0 0 3px rgba(59,130,246,0.15)' : '0 1px 2px rgba(0,0,0,0.05)',
+          boxShadow: open ? '0 0 0 3px rgba(59,130,246,0.15)' : 'none',
           transition: 'border-color 0.15s, box-shadow 0.15s',
-          display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '4px',
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '6px',
         }}
       >
         <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', flex: 1 }}>
           {selected ? selected.label : placeholder}
         </span>
-        <span style={{ fontSize: '9px', color: '#6b7280', flexShrink: 0 }}>▼</span>
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#64748b" strokeWidth="2.5"
+          style={{ flexShrink: 0, transform: open ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s' }}>
+          <polyline points="6 9 12 15 18 9" />
+        </svg>
       </button>
 
       {open && (
-        <div
-          style={{
-            position: 'absolute', top: 'calc(100% + 4px)', left: 0, right: 0,
-            background: '#fff', border: '1px solid #d1d5db', borderRadius: '8px',
-            boxShadow: '0 10px 25px rgba(0,0,0,0.15)', zIndex: 1300, overflow: 'hidden',
-          }}
-        >
-          <div style={{ padding: '6px 8px', borderBottom: '1px solid #f3f4f6', background: '#f9fafb' }}>
+        <div style={{
+          position: 'absolute',
+          top: openUpward ? 'auto' : 'calc(100% + 4px)',
+          bottom: openUpward ? 'calc(100% + 4px)' : 'auto',
+          left: 0,
+          zIndex: 99999,
+          background: '#ffffff',
+          border: '1.5px solid #dbeafe',
+          borderRadius: '8px',
+          boxShadow: '0 12px 30px rgba(0,0,0,0.18)',
+          overflow: 'hidden',
+          maxHeight: '250px',
+          display: 'flex',
+          flexDirection: 'column',
+          width: '100%',
+          minWidth: '240px',
+        }}>
+          <div style={{ padding: '8px', borderBottom: '1px solid #f1f5f9', background: '#f8fafc' }}>
             <input
               ref={searchRef}
               type="text"
-              placeholder="Search field..."
+              placeholder="Search fields..."
               value={search}
               onChange={e => setSearch(e.target.value)}
               style={{
-                width: '100%', padding: '4px 8px', fontSize: '12px',
-                border: '1px solid #d1d5db', borderRadius: '4px', outline: 'none',
-                boxSizing: 'border-box',
+                width: '100%', height: '30px', padding: '0 10px',
+                border: '1px solid #cbd5e1', borderRadius: '6px',
+                fontSize: '12px', outline: 'none', boxSizing: 'border-box', color: '#1e293b',
               }}
             />
           </div>
-          <div style={{ maxHeight: '180px', overflowY: 'auto' }}>
-            {filtered.length === 0 && (
-              <div style={{ padding: '8px 12px', fontSize: '12px', color: '#9ca3af', textAlign: 'center' }}>
-                No fields match
+          <div style={{ overflowY: 'auto', flex: 1, maxHeight: '180px' }}>
+            <div
+              onClick={() => { onChange(''); setSearch(''); setOpen(false); }}
+              style={{
+                padding: '8px 12px', fontSize: '12.5px', color: '#94a3b8',
+                cursor: 'pointer', fontStyle: 'italic',
+                borderBottom: '1px solid #f8fafc',
+              }}
+              onMouseEnter={e => e.currentTarget.style.background = '#f1f5f9'}
+              onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+            >
+              — Select field —
+            </div>
+            {filtered.length === 0 ? (
+              <div style={{ padding: '12px', fontSize: '12px', color: '#94a3b8', textAlign: 'center' }}>
+                No fields found
               </div>
-            )}
-            {filtered.map(opt => (
+            ) : filtered.map(opt => (
               <div
                 key={opt.key}
                 onClick={() => { onChange(opt.key); setSearch(''); setOpen(false); }}
                 style={{
-                  padding: '7px 12px', fontSize: '12.5px',
+                  padding: '8px 12px', fontSize: '12.5px',
                   cursor: 'pointer', fontWeight: value === opt.key ? '600' : '400',
-                  color: value === opt.key ? '#1e40af' : '#374151',
+                  color: value === opt.key ? '#1d4ed8' : '#334155',
                   background: value === opt.key ? '#eff6ff' : 'transparent',
                   borderLeft: value === opt.key ? '3px solid #3b82f6' : '3px solid transparent',
                   transition: 'background 0.1s',
@@ -206,11 +187,11 @@ const FieldDropdown = ({ options, hiddenKeys = [], value, onChange, disabled, pl
   );
 };
 
-/* ─── Styles (Identical to ERC S styles) ─── */
+/* ─── Styles (Identical to Railpad / ERC S styles) ─── */
 const S = {
   overlay: {
     position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.55)',
-    zIndex: 1200, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px',
+    zIndex: 20000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px',
   },
   modal: {
     background: '#fff', borderRadius: '12px', width: '100%', maxWidth: '900px',
@@ -270,64 +251,51 @@ const S = {
   },
 };
 
-/* ─── Main Component ─── */
-const CorrectionSlipModal = ({ row, onClose }) => {
+const CorrectionSlipModal = ({ row = {}, onClose }) => {
+  const callNo = row?.requestId || row?.call_no || row?.callNo || row?.id || '';
   const [icData, setIcData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [icError, setIcError] = useState('');
   const [corrections, setCorrections] = useState([emptyRow()]);
-  const [issuing, setIssuing] = useState(false);
-  const [notification, setNotification] = useState({ message: '', type: 'info' });
   const [showPDF, setShowPDF] = useState(false);
+  const [issuing, setIssuing] = useState(false);
+  const [notif, setNotif] = useState({ msg: '', type: '' });
 
-  const callNo = row?.call_no || row?.requestId || row?.callNo || row?.icNo || '';
   const currentUser = getStoredUser();
 
-  const showNotif = useCallback((message, type = 'info') => {
-    setNotification({ message, type });
-  }, []);
+  const showNotif = (msg, type = 'info') => setNotif({ msg, type });
 
   const formatDateVal = (val) => {
     if (!val) return '';
-    if (typeof val === 'string' && (/^\d{2}\/\d{2}\/\d{4}$/.test(val.trim()) || /^\d{2}\.\d{2}\.\d{4}$/.test(val.trim()))) return val.trim();
+    if (typeof val === 'string' && /^\d{2}\.\d{2}\.\d{4}$/.test(val.trim())) return val.trim();
     try {
       const d = new Date(val);
       if (isNaN(d.getTime())) return String(val);
       const day = String(d.getDate()).padStart(2, '0');
       const month = String(d.getMonth() + 1).padStart(2, '0');
       const year = d.getFullYear();
-      return `${day}/${month}/${year}`;
+      return `${day}.${month}.${year}`;
     } catch {
       return String(val);
     }
   };
 
-  /* Load IC Certificate data */
+  /* Fetch IC data for this call */
   useEffect(() => {
     const load = async () => {
-      setLoading(true);
-      setIcError('');
       try {
-        // 1. Fetch base certificate particulars from backend / mock
-        let certData = null;
+        setLoading(true);
+        setIcError('');
+
+        let icBackend = null;
         try {
-          certData = await generateRailpadIcDetails(callNo);
-        } catch (e) {
-          console.warn('generateRailpadIcDetails fallback:', e);
-        }
+          const res = await apiService.getSleeperIc(callNo);
+          icBackend = res?.data || res?.responseData || res;
+        } catch { /* ignore */ }
 
-        if (!certData || !certData.certificateNo) {
-          try {
-            certData = await generateFinalProductCertificate(callNo);
-          } catch (e2) {
-            console.warn('generateFinalProductCertificate fallback:', e2);
-          }
-        }
-
-        // 2. Fetch saved IC Edit data (railpad_process_ic_edit / railpad_final_ic_edit)
-        const rawCertNo = certData?.certificateNo || certData?.certNo || certData?.icNumber || certData?.icNo;
         const candidateKeys = Array.from(new Set([
-          rawCertNo,
+          icBackend?.certificateNo,
+          icBackend?.icNo,
           callNo,
           row?.certificateNo,
           row?.icNo,
@@ -336,99 +304,73 @@ const CorrectionSlipModal = ({ row, onClose }) => {
           row?.requestId
         ].filter(Boolean)));
 
-        const isProcess = String(callNo || '').toUpperCase().startsWith('RPP') ||
-          String(row?.product_type || row?.productType || row?.railPadType || '').toLowerCase().includes('process');
-
         let editData = null;
 
         for (const key of candidateKeys) {
           try {
-            if (isProcess) {
-              if (!editData) {
-                const eRes = await getProcessIcEditData(key);
-                if (eRes && (eRes.icNumber || eRes.bookNo || eRes.consignee || eRes.contractor || eRes.drgNo || eRes.specNo)) {
-                  editData = eRes;
-                }
-              }
-            } else {
-              if (!editData) {
-                const eRes = await getFinalIcEditData(key);
-                if (eRes && (eRes.icNumber || eRes.bookNo || eRes.consignee || eRes.contractor || eRes.manufacturer)) {
-                  editData = eRes;
-                }
+            if (!editData) {
+              const eRes = await getFinalIcEditData(key);
+              if (eRes && (eRes.icNumber || eRes.bookNo || eRes.consignee || eRes.manufacturer)) {
+                editData = eRes;
               }
             }
           } catch { /* ignore */ }
         }
 
-        // Cross-check fallback if not found with primary type assumption
-        if (!editData) {
-          for (const key of candidateKeys) {
-            try {
-              const eRes = isProcess ? await getFinalIcEditData(key) : await getProcessIcEditData(key);
-              if (eRes && (eRes.icNumber || eRes.bookNo || eRes.consignee || eRes.contractor)) {
-                editData = eRes;
-                break;
-              }
-            } catch { /* ignore */ }
-          }
-        }
-
         const merged = {
           ...(row || {}),
-          ...(certData || {}),
+          ...(icBackend || {}),
           ...(editData || {})
         };
 
-        const certNo = editData?.icNumber || certData?.certificateNo || certData?.certNo || merged.certificateNo || merged.icNumber || merged.icNo || callNo;
-        const certDate = formatDateVal(editData?.certificateDate) || formatDateVal(editData?.createdAt) || formatDateVal(certData?.certificateDate) || formatDateVal(row?.createdDate) || '';
+        const certNo = editData?.icNumber || icBackend?.certificateNo || merged.certificateNo || merged.icNumber || merged.icNo || callNo;
+        const certDate = formatDateVal(editData?.createdAt) || formatDateVal(icBackend?.date) || formatDateVal(merged.certificateDate) || formatDateVal(row?.createdDate);
+
+        let finalDesc = editData?.description || icBackend?.descriptionOfStores || merged.description || 'MANUFACTURE AND SUPPLY OF PRESTRESSED MONO-BLOCK CONCRETE LINE SLEEPERS';
+        if (finalDesc && (finalDesc.includes('/') || /^[A-Z0-9-]+\/\d+/i.test(finalDesc))) {
+          finalDesc = finalDesc
+            .replace(/^CALL NO:\s*[^,]+,\s*PO SR NO:\s*\S+\s*-\s*/i, '')
+            .replace(/^[A-Z0-9-]+\/\d+\s*-\s*/i, '')
+            .replace(/^PO SR NO:?\s*\d+\s*-\s*/i, '')
+            .replace(/^PO SR NO\s+\d+\s*-\s*/i, '');
+          finalDesc = `PO SR NO ${icBackend?.itemNo || '001'} - ${finalDesc}`;
+        }
 
         const normalizedData = {
           ...merged,
           certificateNo: certNo,
           certificateDate: certDate,
-          contractor: editData?.contractor || editData?.manufacturer || certData?.contractor || certData?.contractorName || row?.vendorName || row?.vendorCode || merged.contractor || '',
-          manufacturer: editData?.manufacturer || editData?.contractor || certData?.manufacturer || certData?.contractor || row?.vendorName || merged.manufacturer || '',
-          placeOfInspection: editData?.placeOfInspection || certData?.placeOfInspection || row?.vendorAddress || merged.placeOfInspection || '',
-          contractRef: editData?.contractRef || certData?.contractRef || certData?.contractReferences || row?.poNo || merged.contractRef || '',
-          maNumberAndDate: editData?.maNumberAndDate || certData?.maNumberAndDate || row?.maNumberAndDate || merged.maNumberAndDate || '',
-          billPayingOfficer: editData?.billPayingOfficer || certData?.billPayingOfficer || merged.billPayingOfficer || '',
-          consignee: editData?.consignee || certData?.consignee || certData?.consigneeRailway || merged.consignee || 'Senior Section Engineer (P.Way)',
-          consigneeRailway: editData?.consigneeRailway || editData?.consignee || certData?.consigneeRailway || certData?.consignee || merged.consigneeRailway || merged.consignee || '',
-          consigneeManufacturer: editData?.consigneeManufacturer || certData?.consigneeManufacturer || editData?.contractor || merged.consigneeManufacturer || '',
-          purchasingAuthority: editData?.purchasingAuthority || certData?.purchasingAuthority || merged.purchasingAuthority || 'PCMM/Rly',
-          itemNo: editData?.itemNo || certData?.itemNo || merged.itemNo || '001',
-          description: editData?.description || certData?.description || certData?.descriptionOfStores || row?.productType || row?.railPadType || merged.description || 'Grooved Rubber Sole Plates',
-          drawingNo: editData?.drgNo || editData?.drawingNo || certData?.drawingNo || certData?.drgNo || row?.drawingNo || merged.drawingNo || '',
-          drgNo: editData?.drgNo || editData?.drawingNo || certData?.drawingNo || certData?.drgNo || row?.drawingNo || merged.drgNo || '',
-          specNo: editData?.specNo || certData?.specNo || merged.specNo || 'IRS T-55-2025',
-          qapNo: editData?.qapNo || certData?.qapNo || merged.qapNo || '',
-          typeOfInspection: editData?.typeOfInspection || certData?.typeOfInspection || merged.typeOfInspection || 'Verification of Invoices of Raw materials, weighment of Raw material, witnessing the activities during mixing at Kneader & mixing mill, sheeting/sizing, rheometer test, verification of mould dimensions & surface, monitoring of moulding activities at hydraulic press & finishing as per the frequency specified in PIO detailed under Annexure-A of Rly. Bd. Letter No. 2024/RS(G)/779/12 Dtd.16.10.2025',
-          chpClNo: editData?.chpClNo || certData?.chpClNo || merged.chpClNo || 'Process inspection as per PIO detailed under Annexure-A of Rly. Bd. Letter No. 2024/RS(G)/779/12 Dtd.16.10.2025 & Approved QAP',
-          lotNo: editData?.lotNo || certData?.lotNo || row?.lotNumbers || row?.lotNo || merged.lotNo || '',
-          qtyOnOrder: editData?.qtyOnOrder ?? (certData?.qtyOnOrder ?? certData?.quantityOnOrder ?? row?.orderedQty ?? merged.qtyOnOrder ?? 0),
-          qtyOfferedPreviously: editData?.qtyOfferedPreviously ?? (certData?.qtyOfferedPreviously ?? certData?.cumulativeQtyOfferedPreviously ?? merged.qtyOfferedPreviously ?? 'NIL'),
-          qtyPassedPreviously: editData?.qtyPassedPreviously ?? (certData?.qtyPassedPreviously ?? certData?.qtyPrevPassed ?? merged.qtyPassedPreviously ?? 'NIL'),
-          qtyNowOffered: editData?.qtyNowOffered ?? (certData?.qtyNowOffered ?? row?.totalQty ?? row?.offeredQty ?? merged.qtyNowOffered ?? 0),
-          qtyNowPassed: editData?.qtyNowPassed ?? (certData?.qtyNowPassed ?? row?.acceptedQty ?? row?.passedQty ?? merged.qtyNowPassed ?? 0),
-          qtyNowRejected: editData?.qtyNowRejected ?? (certData?.qtyNowRejected ?? row?.rejectedQty ?? merged.qtyNowRejected ?? 'NIL'),
-          qtyStillDue: editData?.qtyStillDue ?? (certData?.qtyStillDue ?? merged.qtyStillDue ?? 'NIL'),
-          quantityNowPassedText: editData?.quantityNowPassedText || certData?.quantityNowPassedText || certData?.quantityNowPassedInWords || merged.quantityNowPassedText || '',
-          remarks: editData?.remarks || certData?.remarks || merged.remarks || '',
-          noOfItemsChecked: editData?.noOfItemsChecked || certData?.noOfItemsChecked || merged.noOfItemsChecked || 'ONE',
-          dateOfCall: formatDateVal(editData?.dateOfCall) || formatDateVal(certData?.dateOfCall) || formatDateVal(row?.createdDate) || merged.dateOfCall || '',
-          noOfVisits: editData?.noOfVisits || certData?.noOfVisits || merged.noOfVisits || '',
-          datesOfInspection: editData?.datesOfInspection || certData?.datesOfInspection || certData?.dateOfInspection || merged.datesOfInspection || '',
-          inspectionDates: editData?.datesOfInspection || certData?.inspectionDates || certData?.datesOfInspection || certData?.dateOfInspection || merged.inspectionDates || '',
-          trRecDate: editData?.trRecDate || certData?.trRecDate || merged.trRecDate || '',
-          sealingPattern: editData?.sealingPattern || certData?.sealingPattern || merged.sealingPattern || (isProcess ? 'NA' : 'RITES HOLOGRAM SEAL'),
-          facsimileText: editData?.facsimileText || certData?.facsimileText || merged.facsimileText || (isProcess ? 'NA' : 'RITES HOLOGRAM SEAL'),
-          reasonsForRejection: (editData?.reasonsForRejection && editData.reasonsForRejection !== 'Not Applicable') ? editData.reasonsForRejection : (certData?.reasonsForRejection || certData?.reasonOfRejection || merged.reasonsForRejection || 'N/A'),
-          inspectingEngineer: editData?.inspectingEngineer || certData?.inspectingEngineer || currentUser?.userName || merged.inspectingEngineer || 'Inspecting Engineer',
-          bookNo: editData?.bookNo || certData?.bookNo || merged.bookNo || '001',
-          setNo: editData?.setNo || certData?.setNo || merged.setNo || '001',
-          offeredInstNo: editData?.offeredInstNo || editData?.installmentNo || certData?.offeredInstNo || certData?.offeredInsttNo || merged.offeredInstNo || (isProcess ? '' : '1'),
-          passedInstNo: editData?.passedInstNo || certData?.passedInstNo || certData?.passedInsttNo || merged.passedInstNo || (isProcess ? '' : '1ST & FINAL'),
+          bookNo: editData?.bookNo || icBackend?.bookNo || merged.bookNo || '',
+          setNo: editData?.setNo || icBackend?.setNo || merged.setNo || '',
+          offeredInstNo: editData?.offeredInstallmentNo || editData?.offeredInstNo || (icBackend?.offeredInstallmentNumber ? String(icBackend.offeredInstallmentNumber) : (merged.offeredInstNo || '1')),
+          passedInstNo: editData?.passedInstallmentNo || editData?.passedInstNo || (icBackend?.passedInstallmentNumber ? String(icBackend.passedInstallmentNumber) : (merged.passedInstNo || '1ST & FINAL')),
+          contractor: editData?.manufacturer || editData?.contractor || icBackend?.contractor || merged.contractor || row?.vendorName || '',
+          placeOfInspection: editData?.placeOfInspection || editData?.manufacturer || icBackend?.placeOfInspection || merged.placeOfInspection || row?.plantId || '',
+          contractRef: editData?.contractRef || icBackend?.contractRefAndDate || merged.contractRef || row?.poNo || '',
+          maNumberAndDate: editData?.maNumberAndDate || icBackend?.maNumberAndDate || merged.maNumberAndDate || '',
+          billPayingOfficer: editData?.billPayingOfficer || icBackend?.billPayingOffice || merged.billPayingOfficer || '',
+          consignee: editData?.consignee || icBackend?.consignee || merged.consignee || '',
+          purchasingAuthority: editData?.purchasingAuthority || icBackend?.purchasingAuthority || merged.purchasingAuthority || '',
+          itemNo: icBackend?.itemNo || merged.itemNo || '001',
+          description: finalDesc,
+          qtyOnOrder: icBackend?.quantityOnOrder ?? (merged.qtyOnOrder ?? merged.quantityOnOrder ?? row?.orderedQty ?? ''),
+          qtyOfferedPreviously: editData?.cummQtyOfferedPrev || icBackend?.cumulativeQtyOfferedPreviously || (merged.qtyOfferedPreviously ?? 'NIL'),
+          qtyPassedPreviously: editData?.qtyPrevPassed || icBackend?.quantityPreviouslyPassed || (merged.qtyPrevPassed ?? 'NIL'),
+          qtyNowOffered: editData?.qtyNowOffered ?? (icBackend?.qtyNowOffered ?? (merged.qtyNowOffered ?? row?.offeredQty ?? '')),
+          qtyNowPassed: editData?.qtyNowPassed ?? (icBackend?.qtyNowPassed ?? (merged.qtyNowPassed ?? row?.acceptedQty ?? '')),
+          qtyNowRejected: editData?.qtyNowRejected ?? (icBackend?.qtyNowRejected ?? (merged.qtyNowRejected ?? '0')),
+          qtyStillDue: editData?.qtyStillDue || icBackend?.qtyStillDue || (merged.qtyStillDue ?? ''),
+          quantityNowPassedText: editData?.quantityNowPassedText || icBackend?.quantityNowPassedBatchNos || merged.quantityNowPassedText || '',
+          remarks: editData?.remarks || merged.remarks || '',
+          noOfItemsChecked: editData?.noOfItemsChecked || icBackend?.noOfItemsChecked || merged.noOfItemsChecked || '1',
+          dateOfCall: icBackend?.dateOfCall || editData?.dateOfCall || formatDateVal(row?.createdDate) || '',
+          noOfVisits: editData?.noOfVisits || (icBackend?.noOfVisits ? String(icBackend.noOfVisits) : (merged.noOfVisits || '1')),
+          datesOfInspection: editData?.datesOfInspection || formatDateVal(icBackend?.dateOfInspection) || formatDateVal(merged.datesOfInspection) || '',
+          trRecDate: editData?.trRecDate || icBackend?.trRecDate || merged.trRecDate || '',
+          sealingPattern: editData?.sealingPattern || icBackend?.sealingPattern || merged.sealingPattern || 'RITES Stencil marked on the top surface of each PSC sleeper in presence of vendor.',
+          facsimileText: editData?.facsimileText || icBackend?.facsimileText || merged.facsimileText || '',
+          reasonsForRejection: (editData?.reasonsForRejection && editData.reasonsForRejection !== 'Not Applicable') ? editData.reasonsForRejection : (icBackend?.reasonsForRejection || 'Not Applicable'),
+          inspectingEngineer: editData?.inspectingEngineer || icBackend?.inspectingEngineer || currentUser?.userName || 'Inspecting Engineer',
         };
 
         setIcData(normalizedData);
@@ -457,19 +399,10 @@ const CorrectionSlipModal = ({ row, onClose }) => {
     if (callNo) restore();
   }, [callNo]);
 
-  const productType = (() => {
-    const call = String(callNo || row?.requestId || row?.call_no || row?.callNo || '').toUpperCase().trim();
-    const pt = String(row?.product_type || row?.productType || row?.railPadType || icData?.callType || '').toLowerCase().trim();
-    if (call.startsWith('RPP') || call.includes('/RPP') || call.includes('-RPP') || pt.includes('process') || pt.includes('proc')) return 'PROCESS';
-    if (call.startsWith('RPF') || call.includes('/RPF') || call.includes('-RPF') || pt.includes('final') || pt.includes('fp')) return 'FINAL';
-    return call.startsWith('RPP') ? 'PROCESS' : 'FINAL';
-  })();
-
-  /* Build Section 1 key-value pairs (always include installment rows for process even if blank) */
+  /* Build Section 1 key-value pairs */
   const icFields = icData
-    ? Object.entries(getFieldMap(productType))
+    ? Object.entries(SLEEPER_FIELD_MAP)
         .filter(([key]) => {
-          if (productType === 'PROCESS' && (key === 'offeredInstNo' || key === 'passedInstNo')) return true;
           const val = icData[key];
           return val !== undefined && val !== null && val !== '' && !Array.isArray(val);
         })
@@ -567,12 +500,15 @@ const CorrectionSlipModal = ({ row, onClose }) => {
         </div>
 
         {/* Notification */}
-        <Notification
-          message={notification.message}
-          type={notification.type}
-          autoClose={true}
-          onClose={() => setNotification({ message: '', type: 'info' })}
-        />
+        {notif.msg && (
+          <Notification
+            message={notif.msg}
+            type={notif.type}
+            autoClose={true}
+            autoCloseDelay={4000}
+            onClose={() => setNotif({ msg: '', type: '' })}
+          />
+        )}
 
         {/* Body */}
         <div style={S.body}>
@@ -596,7 +532,7 @@ const CorrectionSlipModal = ({ row, onClose }) => {
                   {icFields.map(({ key, label, value }) => (
                     <tr key={key}>
                       <td style={S.td}>{label}</td>
-                      <td style={{ ...S.tdVal, whiteSpace: 'pre-wrap', lineHeight: '1.4' }}>{value}</td>
+                      <td style={{ ...S.tdVal, whiteSpace: 'pre-wrap', lineHeight: '1.4' }}>{formatCorrectionText(value)}</td>
                     </tr>
                   ))}
                 </tbody>

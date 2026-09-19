@@ -137,6 +137,118 @@
     color: #21808d;
 }
 
+/* ── Blinking Animation for Completed Calls Card ── */
+@keyframes pulseCompletedCard {
+  0% {
+    border-color: #b45309;
+    background-color: rgba(245, 158, 11, 0.06);
+    box-shadow: 0 0 0 0 rgba(180, 83, 9, 0.4), 0 2px 4px rgba(0, 0, 0, 0.08);
+  }
+  50% {
+    border-color: #9a3412;
+    background-color: rgba(245, 158, 11, 0.16);
+    box-shadow: 0 0 0 4px rgba(180, 83, 9, 0.25), 0 4px 16px rgba(154, 52, 18, 0.35);
+  }
+  100% {
+    border-color: #b45309;
+    background-color: rgba(245, 158, 11, 0.06);
+    box-shadow: 0 0 0 0 rgba(180, 83, 9, 0.4), 0 2px 4px rgba(0, 0, 0, 0.08);
+  }
+}
+
+@keyframes pulseBlinkDot {
+  0% {
+    transform: scale(0.85);
+    opacity: 0.85;
+  }
+  50% {
+    transform: scale(1.3);
+    opacity: 1;
+    box-shadow: 0 0 8px #9a3412;
+  }
+  100% {
+    transform: scale(0.85);
+    opacity: 0.85;
+  }
+}
+
+.ie-sub-nav-card.tab-card-blinking,
+.ie-sub-nav-card.card-blinking {
+  border: 1.5px solid #b45309 !important;
+  animation: pulseCompletedCard 1.8s infinite ease-in-out !important;
+  position: relative;
+}
+
+.ie-sub-nav-card.tab-card-blinking:hover,
+.ie-sub-nav-card.card-blinking:hover {
+  border-color: #9a3412 !important;
+  box-shadow: 0 6px 20px rgba(154, 52, 18, 0.45) !important;
+}
+
+.blinking-dot {
+  width: 9px;
+  height: 9px;
+  background-color: #b45309;
+  border-radius: 50%;
+  display: inline-block;
+  animation: pulseBlinkDot 1.2s infinite ease-in-out;
+  flex-shrink: 0;
+}
+
+.ie-sub-nav-card-wrapper {
+  position: relative;
+  display: flex;
+}
+
+/* Custom Sleek Tab Tooltip */
+.custom-tab-tooltip {
+  position: absolute;
+  bottom: calc(100% + 12px);
+  left: 50%;
+  transform: translateX(-50%) translateY(4px);
+  background: #0f172a;
+  color: #ffffff;
+  padding: 8px 14px;
+  border-radius: 8px;
+  font-size: 12.5px;
+  font-weight: 600;
+  white-space: nowrap;
+  pointer-events: none;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.2s cubic-bezier(0.16, 1, 0.3, 1), transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), visibility 0.2s;
+  box-shadow: 0 10px 25px -5px rgba(15, 23, 42, 0.4), 0 4px 10px -2px rgba(15, 23, 42, 0.2);
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+}
+
+.custom-tab-tooltip.visible,
+.ie-sub-nav-card-wrapper:hover .custom-tab-tooltip {
+  opacity: 1;
+  visibility: visible;
+  transform: translateX(-50%) translateY(0);
+}
+
+.tooltip-arrow {
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 0;
+  height: 0;
+  border-left: 6px solid transparent;
+  border-right: 6px solid transparent;
+  border-top: 6px solid #0f172a;
+}
+
+.tooltip-icon {
+  font-size: 14px;
+  line-height: 1;
+}
+
 .ie-sub-nav-card:hover .card-icon-wrapper {
     background: #e2f1f2;
     transform: scale(1.1) rotate(-5deg);

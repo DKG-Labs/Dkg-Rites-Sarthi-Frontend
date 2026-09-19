@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useShift } from '../../context/ShiftContext';
 import { getCompanyMappingByUser, getShedsByVendorCode } from '../../services/workflowService';
+import { apiService } from '../../services/api';
 import DutyMetaInfo from '../../features/duty/components/DutyMetaInfo';
 import './MainDashboard.css';
 
@@ -75,10 +76,19 @@ const DASHBOARD_CARDS = [
         id: 'completed-calls',
         iconClass: 'card-icon card-icon--dark',
         icon: <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" /><polyline points="22 4 12 14.01 9 11.01" /></svg>,
-        title: () => 'Completed Calls',
-        desc: () => 'View records of completed sleeper inspection calls.',
+        title: (hasActive, count) => 'Completed Calls',
+        desc: (hasActive, count) => count > 0 ? `${count} completed calls waiting to send to IBS.` : 'View records of completed sleeper inspection calls.',
         target: 'Completed Calls',
         tab: 'completed'
+    },
+    {
+        id: 'closed-calls',
+        iconClass: 'card-icon card-icon--primary',
+        icon: <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" /><polyline points="9 12 11 14 15 10" /></svg>,
+        title: () => 'Closed Calls',
+        desc: () => 'View records of closed sleeper calls sent to IBS.',
+        target: 'Closed Calls',
+        tab: 'closed'
     },
 ];
 
@@ -111,12 +121,93 @@ const MainDashboard = () => {
     const [availableUnitNames, setAvailableUnitNames] = useState([]);
     const [unitVendorMap, setUnitVendorMap] = useState({});
     const [companyUnitMap, setCompanyUnitMap] = useState({});
+    const [completedCallsCount, setCompletedCallsCount] = useState(0);
+    const [hoveredCardId, setHoveredCardId] = useState(null);
     const [formData, setFormData] = useState({
         date: new Date().toISOString().split('T')[0],
         shift: '',
         companyName: '',
         unit: '',
     });
+
+    useEffect(() => {
+        const fetchCompletedCallsCount = async () => {
+            try {
+                const userId = localStorage.getItem('userId');
+                const completedRes = await apiService.getCompletedFinalCalls(null, userId);
+                const completedDataAll = (completedRes && completedRes.responseData) ? completedRes.responseData : (Array.isArray(completedRes) ? completedRes : []);
+
+                const isSignedOrArchived = (c) => {
+                    const action = (c.action || '').toUpperCase();
+                    const status = (c.status || '').toUpperCase();
+                    const jobStatus = (c.jobStatus || '').toUpperCase();
+                    return (
+                        action === 'GENERATE_IC' ||
+                        action === 'IC_GENERATION' ||
+                        action === 'DSC_SIGN_IC' ||
+                        action === 'IC_SIGNED' ||
+                        action === 'COMPLETED' ||
+                        action === 'FINISH' ||
+                        action === 'IC_ISSUE' ||
+                        action === 'ISSUE IC' ||
+                        action.includes('CANCEL') ||
+                        action.includes('WITHDRAW') ||
+                        action.includes('REJECT') ||
+                        jobStatus === 'GENERATE_IC' ||
+                        jobStatus === 'IC_GENERATION' ||
+                        jobStatus === 'GENERATED' ||
+                        jobStatus === 'DSC_SIGN_IC' ||
+                        jobStatus === 'IC_SIGNED' ||
+                        jobStatus === 'COMPLETED' ||
+                        jobStatus === 'FINISH' ||
+                        jobStatus === 'IC_ISSUE' ||
+                        jobStatus === 'ISSUE IC' ||
+                        jobStatus.includes('CANCEL') ||
+                        jobStatus.includes('WITHDRAW') ||
+                        jobStatus.includes('REJECT') ||
+                        status === 'GENERATE_IC' ||
+                        status === 'IC_GENERATION' ||
+                        status === 'GENERATED' ||
+                        status === 'DSC_SIGN_IC' ||
+                        status === 'IC_SIGNED' ||
+                        status === 'COMPLETED' ||
+                        status === 'FINISH' ||
+                        status === 'IC_ISSUE' ||
+                        status === 'ISSUE IC' ||
+                        status.includes('CANCEL') ||
+                        status.includes('WITHDRAW') ||
+                        status.includes('REJECT')
+                    );
+                };
+
+                const isClosedOrSentToIbs = (c) => {
+                    const action = (c.action || '').toUpperCase();
+                    const status = (c.status || '').toUpperCase();
+                    const jobStatus = (c.jobStatus || '').toUpperCase();
+                    return action === 'SEND_CALL_TO_IBS' || action === 'CLOSED' || action === 'SENT_TO_IBS' || action.includes('SEND CALL TO IBS') ||
+                           status === 'SEND_CALL_TO_IBS' || status === 'CLOSED' || status === 'SENT_TO_IBS' ||
+                           jobStatus === 'SEND_CALL_TO_IBS' || jobStatus === 'CLOSED' || jobStatus === 'SENT_TO_IBS';
+                };
+
+                const uniqueCompletedMap = new Map();
+                completedDataAll.forEach(item => {
+                    const reqId = item.requestId || item.callNo;
+                    if (reqId) {
+                        if (!uniqueCompletedMap.has(reqId) || (item.workflowTransitionId > uniqueCompletedMap.get(reqId).workflowTransitionId)) {
+                            uniqueCompletedMap.set(reqId, item);
+                        }
+                    }
+                });
+                const dedupedCompleted = Array.from(uniqueCompletedMap.values());
+                const readyToSend = dedupedCompleted.filter(c => isSignedOrArchived(c) && !isClosedOrSentToIbs(c));
+                setCompletedCallsCount(readyToSend.length);
+            } catch (err) {
+                console.warn('Failed to fetch completed calls count for dashboard:', err);
+            }
+        };
+
+        fetchCompletedCallsCount();
+    }, []);
 
     useEffect(() => {
         const fetchCompanyMapping = async () => {
@@ -291,28 +382,50 @@ const MainDashboard = () => {
             <div className="ie-sub-nav-grid">
                 {DASHBOARD_CARDS.filter(card => {
                     const userRole = localStorage.getItem('roleName');
-                    if (userRole === 'Sleeper Process IE' && (card.id === 'list-of-calls-pending' || card.id === 'issuance-of-ic' || card.id === 'completed-calls')) {
+                    if (userRole === 'Sleeper Process IE' && (card.id === 'list-of-calls-pending' || card.id === 'issuance-of-ic' || card.id === 'completed-calls' || card.id === 'closed-calls')) {
                         return false;
                     }
                     return true;
                 }).map(card => {
                     const isRestricted = !dutyStarted && card.id === 'production-verification';
+                    const isCompletedCard = card.id === 'completed-calls';
+                    const isBlinking = isCompletedCard && completedCallsCount > 0;
+                    const showTooltip = isBlinking && hoveredCardId === card.id;
+
                     return (
                         <div
                             key={card.id}
-                            className={`ie-sub-nav-card ${isRestricted ? 'restricted' : ''} ${card.isUnderDevelopment ? 'under-development' : ''}`}
-                            onClick={() => !isRestricted && handleCardClick(card)}
-                            title={isRestricted ? 'Please start duty first' : card.isUnderDevelopment ? 'Under Development' : ''}
+                            className="ie-sub-nav-card-wrapper"
+                            onMouseEnter={() => setHoveredCardId(card.id)}
+                            onMouseLeave={() => setHoveredCardId(null)}
                         >
-                            <div className="card-icon-wrapper">
-                                <span className="card-icon-symbol-modern">{card.icon}</span>
-                                {isRestricted && <span className="lock-badge">🔒</span>}
-                                {card.isUnderDevelopment && <span className="dev-badge">Under Development</span>}
+                            <div
+                                className={`ie-sub-nav-card ${isRestricted ? 'restricted' : ''} ${card.isUnderDevelopment ? 'under-development' : ''} ${isBlinking ? 'tab-card-blinking card-blinking' : ''}`}
+                                onClick={() => !isRestricted && handleCardClick(card)}
+                                style={{ width: '100%' }}
+                            >
+                                <div className="card-icon-wrapper">
+                                    <span className="card-icon-symbol-modern">{card.icon}</span>
+                                    {isRestricted && <span className="lock-badge">🔒</span>}
+                                    {card.isUnderDevelopment && <span className="dev-badge">Under Development</span>}
+                                </div>
+                                <div className="card-info">
+                                    <h3 className="ie-sub-nav-card-title" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                        {card.title(hasActiveDuty, completedCallsCount)}
+                                        {isBlinking && <span className="blinking-dot" title="Pending IBS dispatch" />}
+                                    </h3>
+                                    <p className="ie-sub-nav-card-desc">{card.desc(hasActiveDuty, completedCallsCount)}</p>
+                                </div>
                             </div>
-                            <div className="card-info">
-                                <h3 className="ie-sub-nav-card-title">{card.title(hasActiveDuty)}</h3>
-                                <p className="ie-sub-nav-card-desc">{card.desc(hasActiveDuty)}</p>
-                            </div>
+
+                            {/* Custom Styled Tooltip same as ERC */}
+                            {isBlinking && (
+                                <div className={`custom-tab-tooltip ${showTooltip ? 'visible' : ''}`}>
+                                    <span className="tooltip-icon">⚠️</span>
+                                    <span>Kindly send present calls to IBS</span>
+                                    <div className="tooltip-arrow" />
+                                </div>
+                            )}
                         </div>
                     );
                 })}

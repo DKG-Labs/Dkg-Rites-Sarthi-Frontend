@@ -96,6 +96,10 @@ const App = () => {
           case 'CompletedCalls':
             setMainView('Completed Calls');
             break;
+          case 'Closed Calls':
+          case 'ClosedCalls':
+            setMainView('Closed Calls');
+            break;
           case 'AttendingCallDashboard':
           case 'Attending the Call Raised':
             setMainView('List of Calls Pending');
@@ -133,6 +137,8 @@ const App = () => {
         return <div className="fade-in"><AttendingCallDashboard mode="issuance" /></div>;
       case 'Completed Calls':
         return <div className="fade-in"><AttendingCallDashboard mode="completed" /></div>;
+      case 'Closed Calls':
+        return <div className="fade-in"><AttendingCallDashboard mode="closed" /></div>;
       case 'Attending the Call Raised':
         return <div className="fade-in"><AttendingCallDashboard mode="pending" /></div>;
       case 'Sleeper Final IC':

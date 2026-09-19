@@ -1,5 +1,15 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { fetchPendingWorkflowTransitions, fetchCompletedCalls, performTransitionAction, isPlantIdMatching, fetchCancellationDetails } from '../services/workflowService';
+import { 
+  fetchPendingWorkflowTransitions, 
+  fetchCompletedCalls, 
+  fetchClosedCalls,
+  fetchMappedPlantIds,
+  performTransitionAction, 
+  isPlantIdMatching, 
+  fetchCancellationDetails,
+  revertToInspection,
+  revertToIcIssuance
+} from '../services/workflowService';
 import { scheduleInspection } from '../services/scheduleService';
 import { viewSignedCertificate } from '../services/certificateService';
 import { getBaseUrl } from '../services/apiConfig';
@@ -9,6 +19,7 @@ import CorrectionSlipModal from './CorrectionSlipModal';
 import PendingCallDetailsModal from './PendingCallDetailsModal';
 import ShiftDutyForm from './ShiftDutyForm';
 import AnnexureLoader from './AnnexureLoader';
+import { generateRailpadCallLetterPDF } from '../utils/generateCallLetterPDF';
 
 const AttendingCallsDashboard = ({ 
   onStart, 
@@ -27,7 +38,7 @@ const AttendingCallsDashboard = ({
     return controlledTab || localStorage.getItem('railpad_attending_calls_tab') || 'pending';
   });
   const [calls, setCalls] = useState([]);
-  const [counts, setCounts] = useState({ pending: 0, certificates: 0, completed: 0 });
+  const [counts, setCounts] = useState({ pending: 0, certificates: 0, completed: 0, closed: 0 });
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCall, setSelectedCall] = useState(null);
@@ -44,8 +55,26 @@ const AttendingCallsDashboard = ({
   const [notification, setNotification] = useState({ message: '', type: 'info' });
   const [showResumeModal, setShowResumeModal] = useState(false);
   const [callToResume, setCallToResume] = useState(null);
-  const [remarks, setRemarks] = useState('');
   const [showCorrectionSlipModal, setShowCorrectionSlipModal] = useState(false);
+  const [correctionSlipRow, setCorrectionSlipRow] = useState(null);
+
+  // Closed Calls & IBS modal states
+  const [sendIbsCallRow, setSendIbsCallRow] = useState(null);
+  const [selectedActionCall, setSelectedActionCall] = useState(null);
+  const [pdfLoading, setPdfLoading] = useState(false);
+  const [isSendingIbs, setIsSendingIbs] = useState(false);
+  const [selectedIbsCall, setSelectedIbsCall] = useState(null);
+  const [confirmDialog, setConfirmDialog] = useState({
+    isOpen: false,
+    title: '',
+    callNo: '',
+    message: '',
+    details: '',
+    confirmText: 'Confirm',
+    cancelText: 'Cancel',
+    type: 'warning',
+    onConfirm: null
+  });
   
   // Pagination states
   const [currentPage, setCurrentPage] = useState(1);
@@ -94,23 +123,28 @@ const AttendingCallsDashboard = ({
       const isMainIeUser = roleStr.includes('main ie') || mappedPlants.length > 0;
       const queryPlantId = isMainIeUser ? '' : dutyPlantId;
 
-      const [pendingDataResponse, completedDataResponse] = await Promise.all([
+      const [pendingDataResponse, completedDataResponse, closedDataResponse] = await Promise.all([
         fetchPendingWorkflowTransitions('Rail Main IE', queryPlantId, 2).catch(() => []),
-        fetchCompletedCalls(queryPlantId, 2).catch(() => [])
+        fetchCompletedCalls(queryPlantId, 2).catch(() => []),
+        fetchClosedCalls(queryPlantId, uId).catch(() => [])
       ]);
 
       const pendingData = pendingDataResponse || [];
       const completedDataAll = completedDataResponse || [];
+      const closedDataAll = closedDataResponse || [];
 
       let rpPending = pendingData.filter(c => c.requestId);
       let rpCompletedAll = completedDataAll.filter(c => c.requestId);
+      let rpClosedAll = closedDataAll.filter(c => c.requestId);
 
       if (mappedPlants && mappedPlants.length > 0) {
         rpPending = rpPending.filter(c => c.plantId && mappedPlants.some(p => isPlantIdMatching(c.plantId, p)));
         rpCompletedAll = rpCompletedAll.filter(c => c.plantId && mappedPlants.some(p => isPlantIdMatching(c.plantId, p)));
+        rpClosedAll = rpClosedAll.filter(c => c.plantId && mappedPlants.some(p => isPlantIdMatching(c.plantId, p)));
       } else if (dutyPlantId) {
         rpPending = rpPending.filter(c => c.plantId && isPlantIdMatching(c.plantId, dutyPlantId));
         rpCompletedAll = rpCompletedAll.filter(c => c.plantId && isPlantIdMatching(c.plantId, dutyPlantId));
+        rpClosedAll = rpClosedAll.filter(c => c.plantId && isPlantIdMatching(c.plantId, dutyPlantId));
       }
 
       const deduplicateByLatestCall = (list) => {
@@ -128,6 +162,7 @@ const AttendingCallsDashboard = ({
 
       const uniquePending = deduplicateByLatestCall(rpPending);
       const uniqueCompletedAll = deduplicateByLatestCall(rpCompletedAll);
+      const uniqueClosed = deduplicateByLatestCall(rpClosedAll);
 
       const isCallSignedAndCompleted = (c) => {
         const action = (c.action || c.latestAction || '').toUpperCase();
@@ -156,13 +191,24 @@ const AttendingCallsDashboard = ({
                action.includes('CANCEL');
       };
 
-      let certCalls = uniqueCompletedAll.filter(c => !isCallSignedAndCompleted(c));
-      let finalCompletedCalls = uniqueCompletedAll.filter(c => isCallSignedAndCompleted(c));
+      const isClosedOrSentToIbs = (c) => {
+        const action = (c.action || c.latestAction || '').toUpperCase();
+        const status = (c.status || c.workflowStatus || '').toUpperCase();
+        const jobStatus = (c.jobStatus || '').toUpperCase();
+        return action.includes('SEND_CALL_TO_IBS') || action.includes('SENT_TO_IBS') || action.includes('CLOSED') ||
+               status.includes('SEND_CALL_TO_IBS') || status.includes('SENT_TO_IBS') || status.includes('CLOSED') ||
+               jobStatus.includes('SEND_CALL_TO_IBS') || jobStatus.includes('SENT_TO_IBS') || jobStatus.includes('CLOSED');
+      };
+
+      let certCalls = uniqueCompletedAll.filter(c => !isCallSignedAndCompleted(c) && !isClosedOrSentToIbs(c));
+      let finalCompletedCalls = uniqueCompletedAll.filter(c => isCallSignedAndCompleted(c) && !isClosedOrSentToIbs(c));
+      let finalClosedCalls = uniqueClosed;
 
       const newCounts = {
         pending: uniquePending.length,
         certificates: certCalls.length,
-        completed: finalCompletedCalls.length
+        completed: finalCompletedCalls.length,
+        closed: finalClosedCalls.length
       };
 
       setCounts(newCounts);
@@ -176,12 +222,105 @@ const AttendingCallsDashboard = ({
         setCalls(certCalls);
       } else if (activeTabRef.current === 'completed') {
         setCalls(finalCompletedCalls);
+      } else if (activeTabRef.current === 'closed') {
+        setCalls(finalClosedCalls);
       }
     } catch (error) {
       console.error('Error loading calls:', error);
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleConfirmSendToIbs = async () => {
+    if (!sendIbsCallRow) return;
+    setIsSendingIbs(true);
+    try {
+      const uId = user?.userId || localStorage.getItem('userId');
+      const payload = {
+        workflowTransitionId: sendIbsCallRow.workflowTransitionId || sendIbsCallRow.id,
+        requestId: sendIbsCallRow.requestId || sendIbsCallRow.callNo,
+        action: 'SEND_CALL_TO_IBS',
+        remarks: 'Send call to IBS confirmed by IE',
+        actionBy: Number(uId || 0)
+      };
+
+      const result = await performTransitionAction(payload);
+      if (result?.responseStatus?.statusCode === 0 || result?.status === 'SUCCESS' || result?.data) {
+        setNotification({
+          message: `Call ${payload.requestId} has been successfully sent to IBS!`,
+          type: 'success'
+        });
+        setSendIbsCallRow(null);
+        loadCalls();
+      } else {
+        setNotification({
+          message: result?.responseStatus?.message || 'Failed to send call to IBS',
+          type: 'error'
+        });
+      }
+    } catch (err) {
+      console.error('Error sending call to IBS:', err);
+      setNotification({
+        message: err.message || 'Failed to send call to IBS. Please try again.',
+        type: 'error'
+      });
+    } finally {
+      setIsSendingIbs(false);
+    }
+  };
+
+  const renderIbsStatusBadge = (call) => {
+    const status = (call.ibsStatus || 'PENDING').toUpperCase();
+    let badgeStyle = {
+      padding: '4px 8px',
+      borderRadius: '6px',
+      fontSize: '11px',
+      fontWeight: '700',
+      display: 'inline-flex',
+      alignItems: 'center',
+      gap: '4px'
+    };
+
+    if (status === 'SUCCESS') {
+      badgeStyle.background = '#dcfce7';
+      badgeStyle.color = '#15803d';
+      badgeStyle.border = '1px solid #86efac';
+    } else if (status === 'FAIL' || status === 'FAILED' || status === 'ERROR') {
+      badgeStyle.background = '#fee2e2';
+      badgeStyle.color = '#b91c1c';
+      badgeStyle.border = '1px solid #fca5a5';
+    } else {
+      badgeStyle.background = '#fef3c7';
+      badgeStyle.color = '#b45309';
+      badgeStyle.border = '1px solid #fde68a';
+    }
+
+    return (
+      <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+        <span style={badgeStyle}>
+          {status === 'SUCCESS' ? '✓ ' : status === 'FAIL' ? '✕ ' : '⏳ '}
+          {status}
+        </span>
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            setSelectedIbsCall(call);
+          }}
+          title="View IBS Details"
+          style={{
+            background: 'none',
+            border: 'none',
+            cursor: 'pointer',
+            fontSize: '13px',
+            padding: '2px',
+            lineHeight: 1
+          }}
+        >
+          ℹ️
+        </button>
+      </div>
+    );
   };
 
   const handleViewDetails = (call) => {
@@ -410,6 +549,171 @@ const AttendingCallsDashboard = ({
     }
   };
 
+  const handleDownloadAnnexures = (call) => {
+    setNotification({ message: `Annexure generation and download for call ${call.requestId || call.callNo || call.id} is being prepared.`, type: 'info' });
+  };
+
+  const handleDownloadLetter = async (call) => {
+    if (!call) return;
+    const callNumber = call.requestId || call.callNo || call.callNumber || call.id;
+    if (!callNumber) {
+      setNotification({ message: 'Call ID not found. Cannot generate PDF.', type: 'error' });
+      return;
+    }
+    setPdfLoading(true);
+    try {
+      const pdfCallData = {
+        ...call,
+        callNumber: callNumber,
+        poNumber: call.rlyPoSrNo || call.po_no || call.poNumber || call.poNo,
+        vendorName: call.vendorName || call.vendor_name || call.vendorCode
+      };
+      
+      const enrichedCall = { 
+        ...pdfCallData, 
+        rio: pdfCallData.rio || pdfCallData.plantRio || user?.rio 
+      };
+      
+      generateRailpadCallLetterPDF(enrichedCall);
+      setNotification({ message: 'Call letter downloaded successfully.', type: 'success' });
+    } catch (err) {
+      console.error('Failed to generate Call Letter PDF:', err);
+      setNotification({ message: 'Failed to generate Call Letter PDF.', type: 'error' });
+    } finally {
+      setPdfLoading(false);
+    }
+  };
+
+  const handleBackToInspection = (call) => {
+    const callNo = call?.requestId || call?.call_no || call?.callNo || call?.id;
+    if (!callNo) return;
+
+    setConfirmDialog({
+      isOpen: true,
+      title: 'Revert to Inspection Stage',
+      callNo: callNo,
+      message: `Are you sure you want to revert call "${callNo}" back to Inspection stage?`,
+      details: 'This will delete the IC Issue / Finish transitions and reset the inspection state so you can perform inspection updates again.',
+      confirmText: 'Yes, Revert to Inspection',
+      cancelText: 'Cancel',
+      type: 'warning',
+      onConfirm: async () => {
+        try {
+          setLoading(true);
+          const user = getStoredUser();
+          const userId = user?.userId || user?.id || 0;
+          await revertToInspection(callNo, userId);
+          localStorage.setItem('railpad_attending_calls_tab', 'pending');
+          setNotification({ message: `Call ${callNo} reverted back to Inspection stage successfully. Refreshing...`, type: 'success' });
+          setTimeout(() => {
+            window.location.reload();
+          }, 500);
+        } catch (err) {
+          console.error('Failed to revert to inspection:', err);
+          setNotification({ message: `Failed to revert call: ${err.message || 'Server error'}`, type: 'error' });
+          setLoading(false);
+          setConfirmDialog(prev => ({ ...prev, isOpen: false }));
+        }
+      }
+    });
+  };
+
+  const handleBackToIcIssuance = (call) => {
+    const callNo = call?.requestId || call?.call_no || call?.callNo || call?.id;
+    if (!callNo) return;
+
+    setConfirmDialog({
+      isOpen: true,
+      title: 'Revert to IC Issuance',
+      callNo: callNo,
+      message: `Are you sure you want to revert call "${callNo}" back to IC Issuance stage?`,
+      details: 'This will delete the Generate IC / DSC Signed transition and certificate storage, allowing you to edit and re-issue the IC.',
+      confirmText: 'Yes, Revert to Issuance',
+      cancelText: 'Cancel',
+      type: 'warning',
+      onConfirm: async () => {
+        try {
+          setLoading(true);
+          const user = getStoredUser();
+          const userId = user?.userId || user?.id || 0;
+          await revertToIcIssuance(callNo, userId);
+          setSelectedActionCall(null);
+          localStorage.setItem('railpad_attending_calls_tab', 'issuance');
+          setNotification({ message: `Call ${callNo} reverted back to IC Issuance stage successfully. Refreshing...`, type: 'success' });
+          setTimeout(() => {
+            window.location.reload();
+          }, 500);
+        } catch (err) {
+          console.error('Failed to revert to IC issuance:', err);
+          setNotification({ message: `Failed to revert call: ${err.message || 'Server error'}`, type: 'error' });
+          setLoading(false);
+          setConfirmDialog(prev => ({ ...prev, isOpen: false }));
+        }
+      }
+    });
+  };
+
+  const downloadPoDoc = async (call) => {
+    if (!call) return;
+    let rawPoNo = call.rlyPoSrNo || call.po_no || call.poNumber || call.poNo || call.rawPoNo;
+    if (!rawPoNo) {
+      setNotification({ message: 'No PO number available for this call.', type: 'error' });
+      return;
+    }
+
+    let barePoNo = String(rawPoNo).trim();
+    if (barePoNo.includes('/')) {
+      const parts = barePoNo.split('/').map((p) => p.trim()).filter(Boolean);
+      const numericPart = parts.find((p) => p.length >= 6 && !isNaN(Number(p.replace(/[^0-9]/g, ''))));
+      if (numericPart) {
+        barePoNo = numericPart;
+      } else {
+        barePoNo = parts[0];
+      }
+    }
+
+    try {
+      const token = localStorage.getItem('authToken');
+      const cleanBase = (getBaseUrl() || 'http://localhost:8080/sarthi-backend/api').replace(/\/api\/?$/, '');
+      const response = await fetch(`${cleanBase}/api/vendor/po-pdf-path?rawPoNo=${encodeURIComponent(barePoNo)}`, {
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token && { 'Authorization': `Bearer ${token}` })
+        }
+      });
+      if (!response.ok) {
+        throw new Error(`Server returned HTTP ${response.status}`);
+      }
+      const data = await response.json();
+      const pdfPath = data?.responseData;
+      if (!pdfPath) {
+        setNotification({ message: `No PO document found for PO ${barePoNo}.`, type: 'info' });
+        return;
+      }
+
+      if (pdfPath.startsWith('http') || pdfPath.includes('ireps.gov.in')) {
+        const proxyUrl = `${cleanBase}/api/vendor/proxy-pdf?url=${encodeURIComponent(pdfPath)}`;
+        const a = document.createElement('a');
+        a.href = proxyUrl;
+        a.download = `PO_${barePoNo}.pdf`;
+        a.target = '_blank';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+      } else {
+        window.open(pdfPath, '_blank');
+      }
+      setNotification({ message: `PO & MA document for ${barePoNo} downloaded.`, type: 'success' });
+    } catch (err) {
+      console.error('Error downloading PO document:', err);
+      setNotification({ message: 'Failed to download PO document.', type: 'error' });
+    }
+  };
+
+  const downloadTCDoc = async (call) => {
+    setNotification({ message: 'TC document download is being prepared.', type: 'info' });
+  };
+
   const getLoaderText = () => {
     switch (activeTab) {
       case 'pending':
@@ -426,6 +730,11 @@ const AttendingCallsDashboard = ({
         return {
           title: 'Loading Completed Calls...',
           subtitle: 'Fetching archive of finalized calls & signed ICs...'
+        };
+      case 'closed':
+        return {
+          title: 'Loading Closed Calls...',
+          subtitle: 'Fetching calls sent to IBS & historical terminal records...'
         };
       default:
         return {
@@ -495,7 +804,8 @@ const AttendingCallsDashboard = ({
           {[
             { id: 'pending', label: 'List of Calls Pending', count: counts.pending, suffix: 'pending' },
             { id: 'certificates', label: 'Issuance of IC & Annexures', count: counts.certificates, suffix: 'ready for IC' },
-            { id: 'completed', label: 'Calls Completed', count: counts.completed, suffix: 'completed' }
+            { id: 'completed', label: 'Calls Completed', count: counts.completed, suffix: 'completed' },
+            { id: 'closed', label: 'Closed Calls', count: counts.closed, suffix: 'closed' }
           ].map(tab => (
             <div
               key={tab.id}
@@ -589,6 +899,9 @@ const AttendingCallsDashboard = ({
                 <th style={{ padding: '12px 14px', fontSize: '11px', fontWeight: '700', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em', whiteSpace: 'nowrap' }}>DESIRED DATE</th>
                 <th style={{ padding: '12px 14px', fontSize: '11px', fontWeight: '700', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em', whiteSpace: 'nowrap' }}>SCHEDULED DATE</th>
                 <th style={{ padding: '12px 14px', fontSize: '11px', fontWeight: '700', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em', whiteSpace: 'nowrap' }}>STATUS</th>
+                {activeTab === 'closed' && (
+                  <th style={{ padding: '12px 14px', fontSize: '11px', fontWeight: '700', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em', whiteSpace: 'nowrap' }}>IBS STATUS</th>
+                )}
                 <th style={{ padding: '12px 14px', fontSize: '11px', fontWeight: '700', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em', whiteSpace: 'nowrap', textAlign: 'right' }}>ACTIONS</th>
               </tr>
             </thead>
@@ -640,7 +953,78 @@ const AttendingCallsDashboard = ({
                     {paginatedCalls.map((call, index) => (
                     <tr key={index} style={{ borderBottom: '1px solid #f1f5f9', transition: 'background 0.15s' }} onMouseEnter={e => e.currentTarget.style.background = '#f8fafc'} onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
                   <td style={{ padding: '12px 14px', fontSize: '13px', fontWeight: '700', color: '#0f172a', whiteSpace: 'nowrap' }}>{call.requestId}</td>
-                  {activeTab === 'completed' ? (
+                  {activeTab === 'closed' ? (
+                    <>
+                      <td style={{ padding: '12px 14px', fontSize: '13px', color: '#334155' }}>
+                        {call.rlyPoSrNo && call.rlyPoSrNo !== '-' ? call.rlyPoSrNo : (call.poNo ? `${call.rlyShortName ? call.rlyShortName + ' / ' : ''}${call.poNo} / ${call.poSr || '001'}` : 'N/A')}
+                      </td>
+                      <td style={{ padding: '12px 14px', fontSize: '13px', color: '#64748b' }}>
+                        {call.caseNo || call.ibsCaseNo || 'N/A'}
+                      </td>
+                      <td style={{ padding: '12px 14px', fontSize: '13px', color: '#334155' }}>{call.vendorName || call.vendorCode}</td>
+                      <td style={{ padding: '12px 14px', fontSize: '13px', color: '#475569' }}>{call.railPadType || call.productType || 'Rail Pad'}</td>
+                      <td style={{ padding: '12px 14px', fontSize: '13px', color: '#334155', fontWeight: '600' }}>
+                        {call.offeredQty != null ? Number(call.offeredQty).toLocaleString('en-IN') : (call.totalQty != null ? Number(call.totalQty).toLocaleString('en-IN') : '-')}
+                      </td>
+                      <td style={{ padding: '12px 14px', fontSize: '13px', color: '#64748b', whiteSpace: 'nowrap' }}>
+                        {call.callDate ? new Date(call.callDate).toLocaleDateString('en-GB') : (call.createdDate ? new Date(call.createdDate).toLocaleDateString('en-GB') : '-')}
+                      </td>
+                      <td style={{ padding: '12px 14px', fontSize: '13px', color: '#64748b', whiteSpace: 'nowrap' }}>
+                        {call.desiredInspectionDate ? new Date(call.desiredInspectionDate).toLocaleDateString('en-GB') : '-'}
+                      </td>
+                      <td style={{ padding: '12px 14px', fontSize: '13px', color: '#64748b', whiteSpace: 'nowrap' }}>
+                        {call.scheduledDate ? new Date(call.scheduledDate).toLocaleDateString('en-GB') : (call.scheduleDate ? new Date(call.scheduleDate).toLocaleDateString('en-GB') : '-')}
+                      </td>
+                      <td style={{ padding: '14px 18px' }}>
+                        <span style={{
+                          padding: '4px 10px',
+                          borderRadius: '9999px',
+                          fontSize: '11px',
+                          fontWeight: '700',
+                          background: '#e0e7ff',
+                          color: '#4338ca',
+                          border: '1px solid #c7d2fe',
+                          display: 'inline-block',
+                          whiteSpace: 'nowrap'
+                        }}>
+                          Closed - Sent to IBS
+                        </span>
+                      </td>
+                      <td style={{ padding: '14px 18px' }}>
+                        {renderIbsStatusBadge(call)}
+                      </td>
+                      <td style={{ padding: '14px 18px', textAlign: 'right' }}>
+                        <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end', flexWrap: 'nowrap' }}>
+                          <button
+                            onClick={() => setSelectedActionCall({ ...call, isClosed: true })}
+                            title="View Call Actions"
+                            style={{
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '6px',
+                              padding: '6px 14px',
+                              borderRadius: '8px',
+                              border: 'none',
+                              background: 'linear-gradient(135deg, #0284c7 0%, #0369a1 100%)',
+                              color: '#ffffff',
+                              fontSize: '12px',
+                              fontWeight: '700',
+                              cursor: 'pointer',
+                              boxShadow: '0 2px 6px rgba(2, 132, 199, 0.25)',
+                              whiteSpace: 'nowrap',
+                              transition: 'all 0.15s ease'
+                            }}
+                          >
+                            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                              <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                              <circle cx="12" cy="12" r="3"></circle>
+                            </svg>
+                            View Actions
+                          </button>
+                        </div>
+                      </td>
+                    </>
+                  ) : activeTab === 'completed' ? (
                     <>
                       <td style={{ padding: '12px 14px', fontSize: '13px', color: '#334155' }}>
                         {call.rlyPoSrNo && call.rlyPoSrNo !== '-' ? call.rlyPoSrNo : (call.poNo ? `${call.rlyShortName ? call.rlyShortName + ' / ' : ''}${call.poNo} / ${call.poSr || '001'}` : 'N/A')}
@@ -728,70 +1112,32 @@ const AttendingCallsDashboard = ({
                               );
                             }
                             return (
-                              <>
-                                <button
-                                  onClick={() => handleViewSignedIC(call)}
-                                  style={{
-                                    padding: '6px 14px',
-                                    borderRadius: '6px',
-                                    border: 'none',
-                                    background: '#2563eb',
-                                    color: '#ffffff',
-                                    fontSize: '11px',
-                                    fontWeight: '700',
-                                    cursor: 'pointer',
-                                    boxShadow: '0 1px 2px rgba(37, 99, 235, 0.2)'
-                                  }}
-                                >
-                                  View IC
-                                </button>
-                                <button
-                                  disabled={true}
-                                  title="Under development"
-                                  style={{
-                                    padding: '6px 14px',
-                                    borderRadius: '6px',
-                                    border: '1px solid #e2e8f0',
-                                    background: '#f8fafc',
-                                    color: '#94a3b8',
-                                    fontSize: '11px',
-                                    fontWeight: '700',
-                                    cursor: 'not-allowed',
-                                    opacity: 0.6
-                                  }}
-                                >
-                                  Annexures
-                                </button>
-                                <button
-                                  onClick={() => {
-                                    setSelectedCall(call);
-                                    setShowCorrectionSlipModal(true);
-                                  }}
-                                  title="Issue Correction Slip"
-                                  style={{
-                                    padding: '6px 14px',
-                                    borderRadius: '6px',
-                                    border: '1px solid #fed7aa',
-                                    background: '#fff7ed',
-                                    color: '#ea580c',
-                                    fontSize: '11px',
-                                    fontWeight: '700',
-                                    cursor: 'pointer',
-                                    boxShadow: '0 1px 2px rgba(234, 88, 12, 0.1)',
-                                    transition: 'all 0.2s ease'
-                                  }}
-                                  onMouseEnter={e => {
-                                    e.currentTarget.style.background = '#ffedd5';
-                                    e.currentTarget.style.borderColor = '#fdba74';
-                                  }}
-                                  onMouseLeave={e => {
-                                    e.currentTarget.style.background = '#fff7ed';
-                                    e.currentTarget.style.borderColor = '#fed7aa';
-                                  }}
-                                >
-                                  Correction Slip
-                                </button>
-                              </>
+                              <button
+                                onClick={() => setSelectedActionCall(call)}
+                                title="View Call Actions"
+                                style={{
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  gap: '6px',
+                                  padding: '6px 14px',
+                                  borderRadius: '8px',
+                                  border: 'none',
+                                  background: 'linear-gradient(135deg, #0284c7 0%, #0369a1 100%)',
+                                  color: '#ffffff',
+                                  fontSize: '12px',
+                                  fontWeight: '700',
+                                  cursor: 'pointer',
+                                  boxShadow: '0 2px 6px rgba(2, 132, 199, 0.25)',
+                                  whiteSpace: 'nowrap',
+                                  transition: 'all 0.15s ease'
+                                }}
+                              >
+                                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                  <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                                  <circle cx="12" cy="12" r="3"></circle>
+                                </svg>
+                                View Actions
+                              </button>
                             );
                           })()}
                         </div>
@@ -878,6 +1224,27 @@ const AttendingCallsDashboard = ({
                                   {(call.action === 'IC_ISSUE' || call.action === 'ISSUE IC' || (call.jobStatus || '').toUpperCase().includes('IC_ISSUE') || (call.status || '').toUpperCase().includes('IC_ISSUE')) ? 'VIEW IC' : 'ISSUE IC'}
                                 </button>
                               )}
+                              <button
+                                onClick={() => handleBackToInspection(call)}
+                                title="Revert call back to Inspection stage"
+                                style={{
+                                  padding: '6px 14px',
+                                  borderRadius: '6px',
+                                  border: '1.5px solid #ffedd5',
+                                  background: '#fff7ed',
+                                  color: '#c2410c',
+                                  fontSize: '11px',
+                                  fontWeight: '700',
+                                  cursor: 'pointer',
+                                  whiteSpace: 'nowrap',
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  gap: '4px'
+                                }}
+                              >
+                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="1 4 1 10 7 10"></polyline><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"></path></svg>
+                                Back to Inspection
+                              </button>
                               {((call.jobStatus || '').toUpperCase() === 'DSC_SIGN_IC' || (call.status || '').toUpperCase() === 'DSC_SIGN_IC' || (call.jobStatus || '').toUpperCase() === 'IC_SIGNED' || (call.status || '').toUpperCase() === 'IC_SIGNED' || (call.jobStatus || '').toUpperCase() === 'SIGNED' || (call.status || '').toUpperCase() === 'SIGNED') && (
                                 <button
                                   onClick={() => onIssueIc && onIssueIc(call, true)}
@@ -1459,10 +1826,11 @@ const AttendingCallsDashboard = ({
       )}
 
       {/* Correction Slip Modal */}
-      {showCorrectionSlipModal && selectedCall && (
+      {(correctionSlipRow || (showCorrectionSlipModal && selectedCall)) && (
         <CorrectionSlipModal
-          row={selectedCall}
+          row={correctionSlipRow || selectedCall}
           onClose={() => {
+            setCorrectionSlipRow(null);
             setShowCorrectionSlipModal(false);
             setSelectedCall(null);
           }}
@@ -1505,6 +1873,774 @@ const AttendingCallsDashboard = ({
           setShowDetailsModal(false);
         }}
       />
+
+      {/* Inspection Call Details & Actions Modal (Same as ERC) */}
+      {selectedActionCall && (
+        <div 
+          className="modal-overlay" 
+          onClick={() => setSelectedActionCall(null)} 
+          style={{ 
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            zIndex: 9999, 
+            backgroundColor: 'rgba(15, 23, 42, 0.6)', 
+            backdropFilter: 'blur(4px)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            animation: 'fadeIn 0.2s ease-out'
+          }}
+        >
+          <div
+            className="action-details-modal-content"
+            onClick={(e) => e.stopPropagation()}
+            style={{ 
+              maxWidth: '1080px', 
+              width: '95%', 
+              borderRadius: '16px', 
+              boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)',
+              overflow: 'hidden',
+              backgroundColor: '#ffffff'
+            }}
+          >
+            <div style={{
+              padding: '16px 24px',
+              background: 'linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%)',
+              borderBottom: '1px solid #e2e8f0',
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center'
+            }}>
+              <h2 style={{ margin: 0, fontSize: '1.25rem', fontWeight: '700', color: '#0f172a', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <span style={{ color: '#0ea5e9' }}>📋</span> Inspection Call Details - <span style={{ color: '#334155' }}>{selectedActionCall.requestId || selectedActionCall.call_no || selectedActionCall.callNo}</span>
+              </h2>
+              <button 
+                onClick={() => setSelectedActionCall(null)}
+                style={{
+                  background: 'white', border: '1px solid #e2e8f0', borderRadius: '50%',
+                  width: '32px', height: '32px', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  cursor: 'pointer', transition: 'all 0.2s ease', color: '#64748b', fontSize: '1.2rem', boxShadow: '0 1px 2px rgba(0,0,0,0.05)'
+                }}
+                onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = '#fee2e2'; e.currentTarget.style.color = '#ef4444'; e.currentTarget.style.borderColor = '#fecaca'; }}
+                onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'white'; e.currentTarget.style.color = '#64748b'; e.currentTarget.style.borderColor = '#e2e8f0'; }}
+              >✕</button>
+            </div>
+
+            <div style={{ maxHeight: '82vh', overflowY: 'auto', padding: '20px 24px' }}>
+              {/* Top Summary Section */}
+              <div style={{ 
+                background: 'linear-gradient(to right, #ffffff, #f8fafc)', 
+                padding: '16px 20px', 
+                borderRadius: '12px', 
+                border: '1px solid #e2e8f0',
+                borderLeft: '4px solid #0ea5e9', 
+                marginBottom: '20px',
+                boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05)'
+              }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(170px, 1fr))', gap: '14px 20px' }}>
+                  <div>
+                    <label style={{ fontSize: '11px', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: '700', marginBottom: '2px', display: 'block' }}>Call Number</label>
+                    <div style={{ fontWeight: '600', fontSize: '15px', color: '#0f172a' }}>{selectedActionCall.requestId || selectedActionCall.call_no || selectedActionCall.callNo || '-'}</div>
+                  </div>
+                  <div>
+                    <label style={{ fontSize: '11px', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: '700', marginBottom: '2px', display: 'block' }}>Vendor Name</label>
+                    <div style={{ fontWeight: '600', fontSize: '15px', color: '#0f172a' }}>{selectedActionCall.vendorName || selectedActionCall.vendor_name || selectedActionCall.vendorCode || '-'}</div>
+                  </div>
+                  <div>
+                    <label style={{ fontSize: '11px', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: '700', marginBottom: '2px', display: 'block' }}>PO Number</label>
+                    <div style={{ fontWeight: '600', fontSize: '15px', color: '#0f172a' }}>{selectedActionCall.rlyPoSrNo || selectedActionCall.po_no || selectedActionCall.poNo || '-'}</div>
+                  </div>
+                  <div>
+                    <label style={{ fontSize: '11px', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: '700', marginBottom: '2px', display: 'block' }}>Product Type</label>
+                    <div style={{ display: 'inline-block', background: '#e0f2fe', color: '#0284c7', padding: '3px 10px', borderRadius: '20px', fontSize: '13px', fontWeight: '600' }}>
+                      Railpad
+                    </div>
+                  </div>
+                  <div>
+                    <label style={{ fontSize: '11px', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: '700', marginBottom: '2px', display: 'block' }}>Status</label>
+                    <div style={{ display: 'inline-block', background: '#f1f5f9', color: '#475569', padding: '3px 10px', borderRadius: '20px', fontSize: '13px', fontWeight: '600' }}>
+                      {selectedActionCall.isClosed || activeTab === 'closed' ? 'Closed - Sent to IBS' : (selectedActionCall.status || 'Completed')}
+                    </div>
+                  </div>
+                  <div>
+                    <label style={{ fontSize: '11px', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: '700', marginBottom: '2px', display: 'block' }}>IBS Status</label>
+                    <div>
+                      {renderIbsStatusBadge(selectedActionCall)}
+                    </div>
+                  </div>
+                  {(selectedActionCall.caseNo || selectedActionCall.ibsCaseNo) && (
+                    <div>
+                      <label style={{ fontSize: '11px', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: '700', marginBottom: '2px', display: 'block' }}>IBS Case Number</label>
+                      <div style={{ fontWeight: '600', fontSize: '15px', color: '#0f172a' }}>
+                        {selectedActionCall.caseNo || selectedActionCall.ibsCaseNo}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <h3 style={{ fontSize: '16px', fontWeight: '700', marginBottom: '14px', color: '#0f172a', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <span style={{ color: '#f59e0b' }}>⚡</span> Actions & Documents
+              </h3>
+              
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '16px' }}>
+                {/* 1. View IC */}
+                <button
+                  onClick={() => {
+                    const row = selectedActionCall;
+                    handleDownloadSignedIC(row);
+                  }}
+                  style={{
+                    display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '8px',
+                    padding: '16px 12px', background: 'linear-gradient(135deg, #ecfeff 0%, #cffafe 100%)',
+                    border: '1px solid #a5f3fc', borderRadius: '14px',
+                    cursor: 'pointer', transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                    color: '#0891b2', width: '100%',
+                    boxShadow: '0 4px 6px -1px rgba(8, 145, 178, 0.1), 0 2px 4px -1px rgba(8, 145, 178, 0.06)'
+                  }}
+                  onMouseEnter={(e) => { 
+                    e.currentTarget.style.transform = 'translateY(-3px)';
+                    e.currentTarget.style.boxShadow = '0 10px 15px -3px rgba(8, 145, 178, 0.2), 0 4px 6px -2px rgba(8, 145, 178, 0.1)'; 
+                  }}
+                  onMouseLeave={(e) => { 
+                    e.currentTarget.style.transform = 'translateY(0)';
+                    e.currentTarget.style.boxShadow = '0 4px 6px -1px rgba(8, 145, 178, 0.1), 0 2px 4px -1px rgba(8, 145, 178, 0.06)'; 
+                  }}
+                >
+                  <div style={{ width: '42px', height: '42px', background: '#ffffff', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 2px 4px rgba(0,0,0,0.05)' }}>
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#0891b2" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+                  </div>
+                  <span style={{ fontWeight: '700', fontSize: '14px' }}>View IC</span>
+                </button>
+
+                {/* 2. Send call to IBS (Completed Calls only) */}
+                {!selectedActionCall.isClosed && activeTab !== 'closed' && (
+                  <button
+                    onClick={() => {
+                      const row = selectedActionCall;
+                      setSelectedActionCall(null);
+                      setSendIbsCallRow(row);
+                    }}
+                    style={{
+                      display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '8px',
+                      padding: '16px 12px', background: 'linear-gradient(135deg, #dcfce7 0%, #bbf7d0 100%)',
+                      border: '1px solid #86efac', borderRadius: '14px',
+                      cursor: 'pointer', transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                      color: '#15803d', width: '100%',
+                      boxShadow: '0 4px 6px -1px rgba(21, 128, 61, 0.1), 0 2px 4px -1px rgba(21, 128, 61, 0.06)'
+                    }}
+                    onMouseEnter={(e) => { 
+                      e.currentTarget.style.transform = 'translateY(-3px)';
+                      e.currentTarget.style.boxShadow = '0 10px 15px -3px rgba(21, 128, 61, 0.2), 0 4px 6px -2px rgba(21, 128, 61, 0.1)'; 
+                    }}
+                    onMouseLeave={(e) => { 
+                      e.currentTarget.style.transform = 'translateY(0)';
+                      e.currentTarget.style.boxShadow = '0 4px 6px -1px rgba(21, 128, 61, 0.1), 0 2px 4px -1px rgba(21, 128, 61, 0.06)'; 
+                    }}
+                  >
+                    <div style={{ width: '42px', height: '42px', background: '#ffffff', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 2px 4px rgba(0,0,0,0.05)' }}>
+                      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#15803d" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+                    </div>
+                    <span style={{ fontWeight: '700', fontSize: '14px' }}>Send call to IBS</span>
+                  </button>
+                )}
+
+                {/* Correction Slip (Closed Calls) */}
+                {(selectedActionCall.isClosed || activeTab === 'closed') && (
+                  <button
+                    onClick={() => {
+                      const row = selectedActionCall;
+                      setSelectedActionCall(null);
+                      setCorrectionSlipRow(row);
+                    }}
+                    style={{
+                      display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '8px',
+                      padding: '16px 12px', background: 'linear-gradient(135deg, #fef3c7 0%, #fde68a 100%)',
+                      border: '1px solid #fcd34d', borderRadius: '14px',
+                      cursor: 'pointer', transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                      color: '#b45309', width: '100%',
+                      boxShadow: '0 4px 6px -1px rgba(180, 83, 9, 0.1), 0 2px 4px -1px rgba(180, 83, 9, 0.06)'
+                    }}
+                    onMouseEnter={(e) => { 
+                      e.currentTarget.style.transform = 'translateY(-3px)';
+                      e.currentTarget.style.boxShadow = '0 10px 15px -3px rgba(180, 83, 9, 0.2), 0 4px 6px -2px rgba(180, 83, 9, 0.1)'; 
+                    }}
+                    onMouseLeave={(e) => { 
+                      e.currentTarget.style.transform = 'translateY(0)';
+                      e.currentTarget.style.boxShadow = '0 4px 6px -1px rgba(180, 83, 9, 0.1), 0 2px 4px -1px rgba(180, 83, 9, 0.06)'; 
+                    }}
+                    title="Issue Correction Slip"
+                  >
+                    <div style={{ width: '42px', height: '42px', background: '#ffffff', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 2px 4px rgba(0,0,0,0.05)' }}>
+                      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#b45309" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                        <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+                      </svg>
+                    </div>
+                    <span style={{ fontWeight: '700', fontSize: '14px' }}>Correction Slip</span>
+                  </button>
+                )}
+
+                {/* 3. Call Letter */}
+                <button
+                  onClick={() => handleDownloadLetter(selectedActionCall)}
+                  disabled={pdfLoading}
+                  style={{
+                    display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '8px',
+                    padding: '16px 12px', background: 'linear-gradient(135deg, #ecfeff 0%, #cffafe 100%)',
+                    border: '1px solid #a5f3fc', borderRadius: '14px',
+                    cursor: pdfLoading ? 'not-allowed' : 'pointer', transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                    color: '#0891b2', width: '100%',
+                    boxShadow: '0 4px 6px -1px rgba(8, 145, 178, 0.1), 0 2px 4px -1px rgba(8, 145, 178, 0.06)'
+                  }}
+                  onMouseEnter={(e) => { 
+                    if(!pdfLoading) { 
+                      e.currentTarget.style.transform = 'translateY(-3px)';
+                      e.currentTarget.style.boxShadow = '0 10px 15px -3px rgba(8, 145, 178, 0.2), 0 4px 6px -2px rgba(8, 145, 178, 0.1)'; 
+                    }
+                  }}
+                  onMouseLeave={(e) => { 
+                    if(!pdfLoading) { 
+                      e.currentTarget.style.transform = 'translateY(0)';
+                      e.currentTarget.style.boxShadow = '0 4px 6px -1px rgba(8, 145, 178, 0.1), 0 2px 4px -1px rgba(8, 145, 178, 0.06)'; 
+                    }
+                  }}
+                >
+                  <div style={{ width: '42px', height: '42px', background: '#ffffff', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 2px 4px rgba(0,0,0,0.05)' }}>
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#0891b2" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                  </div>
+                  <span style={{ fontWeight: '700', fontSize: '14px' }}>{pdfLoading ? 'Generating...' : 'Call Letter'}</span>
+                </button>
+
+                {/* 4. PO & MA */}
+                <button
+                  onClick={() => downloadPoDoc(selectedActionCall)}
+                  style={{
+                    display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '8px',
+                    padding: '16px 12px', background: 'linear-gradient(135deg, #f3e8ff 0%, #e9d5ff 100%)',
+                    border: '1px solid #d8b4fe', borderRadius: '14px',
+                    cursor: 'pointer', transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                    color: '#7e22ce', width: '100%',
+                    boxShadow: '0 4px 6px -1px rgba(126, 34, 206, 0.1), 0 2px 4px -1px rgba(126, 34, 206, 0.06)'
+                  }}
+                  onMouseEnter={(e) => { 
+                    e.currentTarget.style.transform = 'translateY(-3px)';
+                    e.currentTarget.style.boxShadow = '0 10px 15px -3px rgba(126, 34, 206, 0.2), 0 4px 6px -2px rgba(126, 34, 206, 0.1)'; 
+                  }}
+                  onMouseLeave={(e) => { 
+                    e.currentTarget.style.transform = 'translateY(0)';
+                    e.currentTarget.style.boxShadow = '0 4px 6px -1px rgba(126, 34, 206, 0.1), 0 2px 4px -1px rgba(126, 34, 206, 0.06)'; 
+                  }}
+                >
+                  <div style={{ width: '42px', height: '42px', background: '#ffffff', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 2px 4px rgba(0,0,0,0.05)' }}>
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#7e22ce" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+                  </div>
+                  <span style={{ fontWeight: '700', fontSize: '14px' }}>PO & MA</span>
+                </button>
+
+                {/* 5. Back to Issuance of IC */}
+                {!selectedActionCall.isClosed && activeTab !== 'closed' && (
+                  <button
+                    onClick={() => handleBackToIcIssuance(selectedActionCall)}
+                    style={{
+                      display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '8px',
+                      padding: '16px 12px', background: 'linear-gradient(135deg, #fff7ed 0%, #ffedd5 100%)',
+                      border: '1px solid #fed7aa', borderRadius: '14px',
+                      cursor: 'pointer', transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                      color: '#c2410c', width: '100%',
+                      boxShadow: '0 4px 6px -1px rgba(194, 65, 12, 0.1), 0 2px 4px -1px rgba(194, 65, 12, 0.06)'
+                    }}
+                    onMouseEnter={(e) => { 
+                      e.currentTarget.style.transform = 'translateY(-3px)';
+                      e.currentTarget.style.boxShadow = '0 10px 15px -3px rgba(194, 65, 12, 0.2), 0 4px 6px -2px rgba(194, 65, 12, 0.1)'; 
+                    }}
+                    onMouseLeave={(e) => { 
+                      e.currentTarget.style.transform = 'translateY(0)';
+                      e.currentTarget.style.boxShadow = '0 4px 6px -1px rgba(194, 65, 12, 0.1), 0 2px 4px -1px rgba(194, 65, 12, 0.06)'; 
+                    }}
+                    title="Revert call back to IC Issuance stage"
+                  >
+                    <div style={{ width: '42px', height: '42px', background: '#ffffff', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 2px 4px rgba(0,0,0,0.05)' }}>
+                      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#c2410c" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><polyline points="1 4 1 10 7 10"></polyline><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"></path></svg>
+                    </div>
+                    <span style={{ fontWeight: '700', fontSize: '14px' }}>Back to Issuance of IC</span>
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Send to IBS Confirmation Modal */}
+      {sendIbsCallRow && (
+        <div 
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            background: 'rgba(15, 23, 42, 0.65)',
+            backdropFilter: 'blur(6px)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 20000,
+            animation: 'fadeIn 0.2s ease-out'
+          }}
+          onClick={() => !isSendingIbs && setSendIbsCallRow(null)}
+        >
+          <div 
+            onClick={e => e.stopPropagation()} 
+            style={{ 
+              maxWidth: '520px',
+              width: '92%',
+              borderRadius: '20px',
+              background: '#ffffff',
+              padding: '28px',
+              boxShadow: '0 25px 50px -12px rgba(15, 23, 42, 0.25), 0 0 0 1px rgba(226, 232, 240, 0.9)',
+              border: 'none',
+              position: 'relative'
+            }}
+          >
+            {/* Header */}
+            <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: '20px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+                <div style={{
+                  width: '44px',
+                  height: '44px',
+                  borderRadius: '12px',
+                  background: 'linear-gradient(135deg, #e0f2fe 0%, #bae6fd 100%)',
+                  border: '1px solid #7dd3fc',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  color: '#0284c7',
+                  boxShadow: '0 4px 10px rgba(2, 132, 199, 0.15)'
+                }}>
+                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round">
+                    <line x1="22" y1="2" x2="11" y2="13"></line>
+                    <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+                  </svg>
+                </div>
+                <div>
+                  <h3 style={{ margin: 0, fontSize: '19px', fontWeight: '800', color: '#0f172a', letterSpacing: '-0.3px' }}>
+                    Send Call to IBS
+                  </h3>
+                  <p style={{ margin: '3px 0 0 0', fontSize: '12.5px', color: '#64748b', fontWeight: '500' }}>
+                    Finalize & submit inspection records to IBS portal
+                  </p>
+                </div>
+              </div>
+              <button 
+                disabled={isSendingIbs} 
+                onClick={() => setSendIbsCallRow(null)}
+                style={{
+                  width: '32px',
+                  height: '32px',
+                  borderRadius: '8px',
+                  border: '1px solid #e2e8f0',
+                  background: '#f8fafc',
+                  color: '#64748b',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontSize: '16px',
+                  fontWeight: '600',
+                  transition: 'all 0.15s'
+                }}
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Informational Alert Box */}
+            <div style={{
+              background: 'linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%)',
+              border: '1px solid #bae6fd',
+              borderLeft: '4px solid #0284c7',
+              padding: '12px 14px',
+              borderRadius: '10px',
+              marginBottom: '18px',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '10px'
+            }}>
+              <span style={{ fontSize: '16px' }}>ℹ️</span>
+              <span style={{ fontSize: '13px', color: '#0369a1', lineHeight: 1.45, fontWeight: '500' }}>
+                Once submitted, this call will be recorded in IBS and archived under the <strong>Closed Calls</strong> tab.
+              </span>
+            </div>
+
+            {/* Call Details Card Grid */}
+            <div style={{
+              background: '#f8fafc',
+              border: '1px solid #e2e8f0',
+              borderRadius: '14px',
+              padding: '16px',
+              marginBottom: '24px'
+            }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px', marginBottom: '14px' }}>
+                <div style={{ background: '#ffffff', padding: '10px 12px', borderRadius: '10px', border: '1px solid #edf2f7' }}>
+                  <div style={{ fontSize: '10.5px', fontWeight: '700', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '4px' }}>
+                    Call Number
+                  </div>
+                  <div style={{ fontSize: '14px', fontWeight: '800', color: '#0f172a' }}>
+                    {sendIbsCallRow.requestId || sendIbsCallRow.callNo}
+                  </div>
+                </div>
+
+                <div style={{ background: '#ffffff', padding: '10px 12px', borderRadius: '10px', border: '1px solid #edf2f7' }}>
+                  <div style={{ fontSize: '10.5px', fontWeight: '700', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '4px' }}>
+                    IBS Case Number
+                  </div>
+                  <div style={{ fontSize: '14px', fontWeight: '700', color: '#0369a1' }}>
+                    {sendIbsCallRow.caseNo || sendIbsCallRow.ibsCaseNo || 'N/A'}
+                  </div>
+                </div>
+              </div>
+
+              <div style={{ background: '#ffffff', padding: '10px 12px', borderRadius: '10px', border: '1px solid #edf2f7', marginBottom: '14px' }}>
+                <div style={{ fontSize: '10.5px', fontWeight: '700', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '4px' }}>
+                  PO & SR Number
+                </div>
+                <div style={{ fontSize: '13.5px', fontWeight: '600', color: '#1e293b' }}>
+                  {sendIbsCallRow.rlyPoSrNo || sendIbsCallRow.poNo || '-'}
+                </div>
+              </div>
+
+              <div style={{ background: '#ffffff', padding: '10px 12px', borderRadius: '10px', border: '1px solid #edf2f7' }}>
+                <div style={{ fontSize: '10.5px', fontWeight: '700', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '4px' }}>
+                  Vendor
+                </div>
+                <div style={{ fontSize: '13px', fontWeight: '600', color: '#334155', lineHeight: 1.4 }}>
+                  {sendIbsCallRow.vendorName || sendIbsCallRow.vendorCode || '-'}
+                </div>
+              </div>
+            </div>
+
+            {/* Action Buttons */}
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px' }}>
+              <button 
+                disabled={isSendingIbs} 
+                onClick={() => setSendIbsCallRow(null)}
+                style={{
+                  padding: '10px 20px',
+                  borderRadius: '10px',
+                  border: '1.5px solid #cbd5e1',
+                  background: '#ffffff',
+                  color: '#475569',
+                  fontWeight: '700',
+                  fontSize: '13.5px',
+                  cursor: isSendingIbs ? 'not-allowed' : 'pointer',
+                  transition: 'all 0.15s'
+                }}
+              >
+                Cancel
+              </button>
+              <button 
+                disabled={isSendingIbs} 
+                onClick={handleConfirmSendToIbs}
+                style={{
+                  padding: '10px 22px',
+                  borderRadius: '10px',
+                  border: 'none',
+                  background: 'linear-gradient(135deg, #0284c7 0%, #0369a1 100%)',
+                  color: '#ffffff',
+                  fontWeight: '700',
+                  fontSize: '13.5px',
+                  cursor: isSendingIbs ? 'not-allowed' : 'pointer',
+                  boxShadow: '0 4px 14px rgba(2, 132, 199, 0.35)',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  transition: 'all 0.15s'
+                }}
+              >
+                {isSendingIbs ? (
+                  <>
+                    <span style={{ display: 'inline-block', width: '14px', height: '14px', border: '2px solid #ffffff', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }}></span>
+                    Sending to IBS...
+                  </>
+                ) : (
+                  <>
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                      <line x1="22" y1="2" x2="11" y2="13"></line>
+                      <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+                    </svg>
+                    Confirm Send to IBS
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* IBS Status Details Modal */}
+      {selectedIbsCall && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          background: 'rgba(15, 23, 42, 0.6)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 20000,
+          backdropFilter: 'blur(4px)'
+        }}>
+          <div style={{
+            background: '#ffffff',
+            borderRadius: '16px',
+            width: '100%',
+            maxWidth: '520px',
+            boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
+            overflow: 'hidden',
+            border: '1px solid #e2e8f0',
+            animation: 'fadeInUp 0.2s ease-out'
+          }}>
+            <div style={{
+              padding: '20px 24px',
+              borderBottom: '1px solid #f1f5f9',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between'
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <span style={{ fontSize: '20px' }}>ℹ️</span>
+                <div>
+                  <h3 style={{ margin: 0, fontSize: '16px', fontWeight: '800', color: '#0f172a' }}>
+                    IBS Call Status Details
+                  </h3>
+                  <p style={{ margin: '2px 0 0 0', fontSize: '12px', color: '#64748b' }}>
+                    Call No: {selectedIbsCall.requestId}
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setSelectedIbsCall(null)}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  fontSize: '22px',
+                  color: '#94a3b8',
+                  cursor: 'pointer',
+                  padding: '4px'
+                }}
+              >
+                ×
+              </button>
+            </div>
+
+            <div style={{ padding: '24px' }}>
+              <div style={{
+                background: '#f8fafc',
+                borderRadius: '10px',
+                border: '1px solid #e2e8f0',
+                padding: '16px',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '14px',
+                marginBottom: '20px'
+              }}>
+                <div>
+                  <span style={{ fontSize: '11px', fontWeight: '700', color: '#64748b', textTransform: 'uppercase', display: 'block', marginBottom: '4px' }}>IBS Transmission Status</span>
+                  {renderIbsStatusBadge(selectedIbsCall)}
+                </div>
+                <div>
+                  <span style={{ fontSize: '11px', fontWeight: '700', color: '#64748b', textTransform: 'uppercase', display: 'block', marginBottom: '2px' }}>IBS Case Number</span>
+                  <span style={{ fontSize: '13px', fontWeight: '700', color: '#0f172a' }}>{selectedIbsCall.caseNo || selectedIbsCall.ibsCaseNo || 'N/A'}</span>
+                </div>
+                <div>
+                  <span style={{ fontSize: '11px', fontWeight: '700', color: '#64748b', textTransform: 'uppercase', display: 'block', marginBottom: '2px' }}>IBS Response / Remarks</span>
+                  <div style={{
+                    padding: '10px 12px',
+                    background: '#ffffff',
+                    borderRadius: '6px',
+                    border: '1px solid #e2e8f0',
+                    fontSize: '12.5px',
+                    color: '#334155',
+                    lineHeight: '1.4'
+                  }}>
+                    {selectedIbsCall.ibsReason || selectedIbsCall.remarks || 'Call registered and transmitted to IBS.'}
+                  </div>
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+                <button
+                  onClick={() => setSelectedIbsCall(null)}
+                  style={{
+                    padding: '8px 20px',
+                    borderRadius: '8px',
+                    border: 'none',
+                    background: '#0f172a',
+                    color: '#ffffff',
+                    fontSize: '13px',
+                    fontWeight: '700',
+                    cursor: 'pointer'
+                  }}
+                >
+                  Close
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* UI Confirmation Modal for Revert Actions */}
+      {confirmDialog.isOpen && (
+        <div 
+          style={{
+            position: 'fixed',
+            inset: 0,
+            zIndex: 99999,
+            backgroundColor: 'rgba(15, 23, 42, 0.65)',
+            backdropFilter: 'blur(6px)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '16px',
+            animation: 'fadeIn 0.15s ease'
+          }}
+          onClick={() => setConfirmDialog(prev => ({ ...prev, isOpen: false }))}
+        >
+          <div 
+            style={{
+              background: '#ffffff',
+              borderRadius: '16px',
+              width: '100%',
+              maxWidth: '490px',
+              boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
+              overflow: 'hidden',
+              border: '1px solid #e2e8f0',
+              display: 'flex',
+              flexDirection: 'column'
+            }}
+            onClick={e => e.stopPropagation()}
+          >
+            <div style={{
+              padding: '24px 24px 16px',
+              display: 'flex',
+              alignItems: 'flex-start',
+              gap: '16px'
+            }}>
+              <div style={{
+                width: '46px',
+                height: '46px',
+                borderRadius: '12px',
+                backgroundColor: confirmDialog.type === 'danger' ? '#fef2f2' : '#fffbeb',
+                border: confirmDialog.type === 'danger' ? '1px solid #fee2e2' : '1px solid #fef3c7',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                flexShrink: 0
+              }}>
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke={confirmDialog.type === 'danger' ? '#dc2626' : '#d97706'} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z" />
+                  <line x1="12" y1="9" x2="12" y2="13" />
+                  <line x1="12" y1="17" x2="12.01" y2="17" />
+                </svg>
+              </div>
+              <div style={{ flex: 1 }}>
+                <h3 style={{ margin: '0 0 8px', fontSize: '18px', fontWeight: '800', color: '#0f172a' }}>
+                  {confirmDialog.title}
+                </h3>
+                {confirmDialog.callNo && (
+                  <div style={{ marginBottom: '10px' }}>
+                    <span style={{
+                      display: 'inline-block',
+                      padding: '3px 10px',
+                      background: '#f0f9ff',
+                      color: '#0369a1',
+                      border: '1px solid #bae6fd',
+                      borderRadius: '6px',
+                      fontSize: '12px',
+                      fontWeight: '700'
+                    }}>
+                      Call No: {confirmDialog.callNo}
+                    </span>
+                  </div>
+                )}
+                <p style={{ margin: '0 0 12px', fontSize: '13.5px', color: '#334155', lineHeight: '1.5', fontWeight: '500' }}>
+                  {confirmDialog.message}
+                </p>
+                {confirmDialog.details && (
+                  <div style={{
+                    padding: '10px 14px',
+                    background: '#f8fafc',
+                    border: '1px solid #e2e8f0',
+                    borderRadius: '8px',
+                    fontSize: '12px',
+                    color: '#64748b',
+                    lineHeight: '1.45'
+                  }}>
+                    {confirmDialog.details}
+                  </div>
+                )}
+              </div>
+            </div>
+            <div style={{
+              padding: '16px 24px',
+              background: '#f8fafc',
+              borderTop: '1px solid #f1f5f9',
+              display: 'flex',
+              justifyContent: 'flex-end',
+              gap: '10px'
+            }}>
+              <button
+                type="button"
+                onClick={() => setConfirmDialog(prev => ({ ...prev, isOpen: false }))}
+                style={{
+                  padding: '9px 18px',
+                  borderRadius: '8px',
+                  border: '1px solid #cbd5e1',
+                  background: '#ffffff',
+                  color: '#475569',
+                  fontWeight: '600',
+                  fontSize: '13px',
+                  cursor: 'pointer',
+                  transition: 'all 0.15s'
+                }}
+              >
+                {confirmDialog.cancelText || 'Cancel'}
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  if (typeof confirmDialog.onConfirm === 'function') {
+                    confirmDialog.onConfirm();
+                  }
+                }}
+                style={{
+                  padding: '9px 20px',
+                  borderRadius: '8px',
+                  border: 'none',
+                  background: confirmDialog.type === 'danger' 
+                    ? 'linear-gradient(135deg, #dc2626 0%, #b91c1c 100%)' 
+                    : 'linear-gradient(135deg, #ea580c 0%, #c2410c 100%)',
+                  color: '#ffffff',
+                  fontWeight: '700',
+                  fontSize: '13px',
+                  cursor: 'pointer',
+                  boxShadow: '0 2px 6px rgba(234, 88, 12, 0.3)',
+                  transition: 'all 0.15s'
+                }}
+              >
+                {confirmDialog.confirmText || 'Confirm'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

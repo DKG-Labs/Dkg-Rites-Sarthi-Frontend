@@ -68,9 +68,9 @@ const PortalHome = ({
   const [isMainIeMapped, setIsMainIeMapped] = useState(false);
   const [isProcessIeMapped, setIsProcessIeMapped] = useState(false);
   const [mappedPlants, setMappedPlants] = useState([]);
-  const [mainCounts, setMainCounts] = useState({ pending: 0, certificates: 0, completed: 0, plantPending: 0 });
+  const [mainCounts, setMainCounts] = useState({ pending: 0, certificates: 0, completed: 0, closed: 0, plantPending: 0 });
   const [loadingCounts, setLoadingCounts] = useState(false);
-  const [selectedMainTab, setSelectedMainTab] = useState('pending'); // 'pending' | 'certificates' | 'completed' | 'plant'
+  const [selectedMainTab, setSelectedMainTab] = useState('pending'); // 'pending' | 'certificates' | 'completed' | 'closed' | 'plant'
 
   const roleInput = user?.roleName || localStorage.getItem('roleName') || '';
   const roleLower = (Array.isArray(roleInput) ? roleInput.join(' ') : String(roleInput)).toLowerCase();
@@ -312,7 +312,7 @@ const PortalHome = ({
           box-sizing: border-box;
           box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
           transition: all 0.2s ease;
-          overflow: hidden;
+          overflow: visible;
           cursor: pointer;
           user-select: none;
         }
@@ -335,6 +335,7 @@ const PortalHome = ({
           top: 0; left: 0; right: 0;
           height: 3px;
           background: #2563eb;
+          border-radius: 12px 12px 0 0;
         }
 
         .ph-card--active-certificates {
@@ -348,6 +349,7 @@ const PortalHome = ({
           top: 0; left: 0; right: 0;
           height: 3px;
           background: #0d9488;
+          border-radius: 12px 12px 0 0;
         }
 
         .ph-card--active-completed {
@@ -361,6 +363,21 @@ const PortalHome = ({
           top: 0; left: 0; right: 0;
           height: 3px;
           background: #10b981;
+          border-radius: 12px 12px 0 0;
+        }
+
+        .ph-card--active-closed {
+          border-color: #6366f1 !important;
+          background: #eef2ff !important;
+          box-shadow: 0 4px 14px rgba(99, 102, 241, 0.12) !important;
+        }
+        .ph-card--active-closed::before {
+          content: '';
+          position: absolute;
+          top: 0; left: 0; right: 0;
+          height: 3px;
+          background: #6366f1;
+          border-radius: 12px 12px 0 0;
         }
 
         .ph-card--active-plant {
@@ -374,6 +391,84 @@ const PortalHome = ({
           top: 0; left: 0; right: 0;
           height: 3px;
           background: #8b5cf6;
+          border-radius: 12px 12px 0 0;
+        }
+
+        /* ── Blinking Animation & Custom Tooltip ── */
+        @keyframes pulseCompletedCard {
+          0% {
+            box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.45);
+            border-color: #f87171;
+          }
+          70% {
+            box-shadow: 0 0 0 8px rgba(239, 68, 68, 0);
+            border-color: #ef4444;
+          }
+          100% {
+            box-shadow: 0 0 0 0 rgba(239, 68, 68, 0);
+            border-color: #f87171;
+          }
+        }
+
+        @keyframes pulseBlinkDot {
+          0% { transform: scale(0.95); opacity: 0.8; }
+          50% { transform: scale(1.3); opacity: 1; }
+          100% { transform: scale(0.95); opacity: 0.8; }
+        }
+
+        .tab-card-blinking {
+          animation: pulseCompletedCard 2s infinite ease-in-out !important;
+          border-color: #ef4444 !important;
+        }
+
+        .blinking-dot {
+          display: inline-block;
+          width: 8px;
+          height: 8px;
+          background-color: #ef4444;
+          border-radius: 50%;
+          animation: pulseBlinkDot 1.2s infinite ease-in-out;
+          flex-shrink: 0;
+        }
+
+        .custom-tab-tooltip {
+          position: absolute;
+          bottom: calc(100% + 8px);
+          left: 50%;
+          transform: translateX(-50%);
+          background: #0f172a;
+          color: #ffffff;
+          padding: 6px 12px;
+          border-radius: 6px;
+          font-size: 11.5px;
+          font-weight: 600;
+          white-space: nowrap;
+          pointer-events: none;
+          opacity: 0;
+          visibility: hidden;
+          transition: opacity 0.2s ease, transform 0.2s ease;
+          box-shadow: 0 4px 14px rgba(0,0,0,0.3);
+          z-index: 1000;
+          display: flex;
+          align-items: center;
+          gap: 6px;
+        }
+
+        .custom-tab-tooltip::after {
+          content: '';
+          position: absolute;
+          top: 100%;
+          left: 50%;
+          transform: translateX(-50%);
+          border-width: 5px;
+          border-style: solid;
+          border-color: #0f172a transparent transparent transparent;
+        }
+
+        .ph-card:hover .custom-tab-tooltip {
+          opacity: 1 !important;
+          visibility: visible !important;
+          transform: translateX(-50%) translateY(-3px) !important;
         }
 
         .ph-card-text {
@@ -426,6 +521,11 @@ const PortalHome = ({
           color: #15803d;
           border: 1px solid #dcfce7;
         }
+        .ph-badge--indigo {
+          background: #eef2ff;
+          color: #4338ca;
+          border: 1px solid #c7d2fe;
+        }
         .ph-badge--purple {
           background: #faf5ff;
           color: #7e22ce;
@@ -467,6 +567,11 @@ const PortalHome = ({
           background: #f0fdf4;
           color: #16a34a;
           border: 1px solid #dcfce7;
+        }
+        .ph-card-icon--indigo {
+          background: #eef2ff;
+          color: #4f46e5;
+          border: 1px solid #c7d2fe;
         }
         .ph-card-icon--purple {
           background: #faf5ff;
@@ -655,12 +760,22 @@ const PortalHome = ({
 
               {/* Card 3: Completed Calls */}
               <div
-                className={`ph-card ${selectedMainTab === 'completed' ? 'ph-card--active-completed' : ''}`}
+                className={`ph-card ${selectedMainTab === 'completed' ? 'ph-card--active-completed' : ''} ${mainCounts.completed > 0 ? 'tab-card-blinking' : ''}`}
                 onClick={() => setSelectedMainTab('completed')}
+                style={{ position: 'relative' }}
               >
+                {mainCounts.completed > 0 && (
+                  <div className="custom-tab-tooltip">
+                    <span style={{ fontSize: '13px' }}>⚠️</span>
+                    <span>Kindly send present calls to IBS</span>
+                  </div>
+                )}
                 <div className="ph-card-text">
                   <div className="ph-card-title-row">
-                    <span className="ph-card-title">Completed Calls</span>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <span className="ph-card-title">Completed Calls</span>
+                      {mainCounts.completed > 0 && <span className="blinking-dot" title="Action required: Send to IBS"></span>}
+                    </div>
                     <span className="ph-badge ph-badge--green">
                       {loadingCounts ? '...' : `${mainCounts.completed} Issued`}
                     </span>
@@ -677,7 +792,31 @@ const PortalHome = ({
                 </div>
               </div>
 
-              {/* Card 4: Plant Setup & Declaration */}
+              {/* Card 4: Closed Calls */}
+              <div
+                className={`ph-card ${selectedMainTab === 'closed' ? 'ph-card--active-closed' : ''}`}
+                onClick={() => setSelectedMainTab('closed')}
+              >
+                <div className="ph-card-text">
+                  <div className="ph-card-title-row">
+                    <span className="ph-card-title">Closed Calls</span>
+                    <span className="ph-badge ph-badge--indigo">
+                      {loadingCounts ? '...' : `${mainCounts.closed || 0} Closed`}
+                    </span>
+                  </div>
+                  <span className="ph-card-sub">View calls sent to IBS &amp; status</span>
+                </div>
+                <div className="ph-card-icon-wrap">
+                  <div className="ph-card-icon ph-card-icon--indigo">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+                      <polyline points="9 12 11 14 15 10"/>
+                    </svg>
+                  </div>
+                </div>
+              </div>
+
+              {/* Card 5: Plant Setup & Declaration */}
               <div
                 className={`ph-card ${selectedMainTab === 'plant' ? 'ph-card--active-plant' : ''}`}
                 onClick={() => setSelectedMainTab('plant')}

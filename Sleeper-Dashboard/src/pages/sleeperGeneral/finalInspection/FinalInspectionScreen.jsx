@@ -127,6 +127,11 @@ const FinalInspectionScreen = ({ call, onBack }) => {
     const [rejectionEntry, setRejectionEntry] = useState({ batchNo: '', sleeperNo: '', reason: '' });
     const [etEntry, setEtEntry] = useState({ batchNo: '', sleeperNo: '', reason: '' });
 
+    // Set Quantity State for Set/Turnout Sleepers
+    const [offeredSetsQty, setOfferedSetsQty] = useState(0);
+    const [rejectedSetsQty, setRejectedSetsQty] = useState(0);
+    const acceptedSetsQty = Math.max(0, (Number(offeredSetsQty) || 0) - (Number(rejectedSetsQty) || 0));
+
     // Verification Form State
     const [poForm, setPoForm] = useState({
         poNo: '',
@@ -162,6 +167,47 @@ const FinalInspectionScreen = ({ call, onBack }) => {
 
     const verificationLoadedRef = React.useRef(null);
 
+    const isSetUom = (() => {
+        const uomStr = String(
+            icForm?.qtyUnit ||
+            poForm?.poQty ||
+            summaryData?.uom ||
+            summaryData?.unit ||
+            call?.uom ||
+            call?.unit ||
+            call?.callUnit ||
+            ''
+        ).toLowerCase();
+
+        const sleeperTypeStr = String(
+            icForm?.ercType ||
+            summaryData?.sleeperType ||
+            call?.sleeperType ||
+            ''
+        ).toLowerCase();
+
+        return uomStr.includes('set') ||
+               sleeperTypeStr.includes('pnc') ||
+               sleeperTypeStr.includes('turnout') ||
+               sleeperTypeStr.includes('set') ||
+               sleeperTypeStr.includes('rt-9790') ||
+               sleeperTypeStr.includes('rt-4218') ||
+               sleeperTypeStr.includes('rt-4865');
+    })();
+
+    const getEffectiveUom = (sec1, sec2, summary, call) => {
+        if (sec1?.uom && String(sec1.uom).trim()) return String(sec1.uom).trim();
+        if (sec2?.poSrQtyUnit && String(sec2.poSrQtyUnit).trim()) {
+            const parts = String(sec2.poSrQtyUnit).trim().split(/\s+/);
+            if (parts.length > 1) return parts.slice(1).join(' ');
+        }
+        if (summary?.uom && String(summary.uom).trim()) return String(summary.uom).trim();
+        if (summary?.unit && String(summary.unit).trim()) return String(summary.unit).trim();
+        if (call?.uom && String(call.uom).trim()) return String(call.uom).trim();
+        if (call?.unit && String(call.unit).trim()) return String(call.unit).trim();
+        return 'Nos';
+    };
+
     useEffect(() => {
         const callReqId = call?.requestId;
         if (!callReqId || verificationLoadedRef.current === callReqId) return;
@@ -179,12 +225,13 @@ const FinalInspectionScreen = ({ call, onBack }) => {
                 const sec1 = sec1Res.status === 'fulfilled' ? sec1Res.value?.responseData : null;
                 const sec2 = sec2Res.status === 'fulfilled' ? sec2Res.value?.responseData : null;
                 const summary = summaryRes.status === 'fulfilled' ? summaryRes.value?.responseData : null;
+                const currentUom = getEffectiveUom(sec1, sec2, summary, call);
 
                 if (sec1) {
                     setPoForm({
                         poNo: sec1.rlyPoNo || summary?.poNo || callReqId,
                         poDate: sec1.poDate ? sec1.poDate.split('T')[0] : '',
-                        poQty: sec1.poQty ? `${sec1.poQty} Nos` : (summary?.qtyOfferedNow ? `${summary.qtyOfferedNow} Nos` : ''),
+                        poQty: (sec1.poQty != null && sec1.poQty !== '') ? `${sec1.poQty} ${currentUom}` : (summary?.qtyOfferedNow ? `${summary.qtyOfferedNow} ${currentUom}` : ''),
                         vendorName: sec1.vendorName || call?.vendorCode || '',
                         maNo: sec1.maNo || 'N/A',
                         maDate: sec1.maDate ? sec1.maDate.split('T')[0] : 'N/A',
@@ -200,7 +247,7 @@ const FinalInspectionScreen = ({ call, onBack }) => {
                         ...prev,
                         poNo: summary.poNo || callReqId,
                         poDate: summary.callDate || '',
-                        poQty: summary.qtyOfferedNow ? `${summary.qtyOfferedNow} Nos` : '',
+                        poQty: summary.qtyOfferedNow ? `${summary.qtyOfferedNow} ${currentUom}` : '',
                         vendorName: call?.vendorCode || '',
                         billPayingOfficer: summary.billPayingOfficer || summary.billPayOffDesc || ''
                     }));
@@ -215,14 +262,14 @@ const FinalInspectionScreen = ({ call, onBack }) => {
                         itemDesc: sec2.itemDesc || (summary?.itemDescription || ''),
                         productType: sec2.productType || 'Sleeper',
                         ercType: sec2.typeOfErc || summary?.sleeperType || 'PSC Sleeper',
-                        poSrQty: sec2.poSrQtyUnit || (summary?.poQty ? `${summary.poQty} Nos.` : ''),
+                        poSrQty: sec2.poSrQtyUnit || (summary?.poQty ? `${summary.poQty} ${currentUom}` : ''),
                         consignee: sec2.consignee || (summary?.consignee || ''),
                         origDp: sec2.origDp ? sec2.origDp.split('T')[0] : (summary?.deliveryDate ? summary.deliveryDate.split('T')[0] : ''),
                         extDp: sec2.extDp ? sec2.extDp.split('T')[0] : (summary?.extendedDeliveryDate ? summary.extendedDeliveryDate.split('T')[0] : ''),
                         origDpStart: sec2.origDpStart ? sec2.origDpStart.split('T')[0] : '',
                         stage: sec2.stageOfInspection || 'Final',
                         callQty: sec2.callQtyMt ? String(sec2.callQtyMt) : (summary?.qtyOfferedNow ? String(summary.qtyOfferedNow) : ''),
-                        qtyUnit: 'Nos',
+                        qtyUnit: currentUom,
                         place: sec2.placeOfInspection || (summary?.placeOfInspection || ''),
                         processIc: sec2.processIcNumbers || '',
                         remarks: sec2.remarks || ''
@@ -238,14 +285,19 @@ const FinalInspectionScreen = ({ call, onBack }) => {
                         itemDesc: summary.itemDescription || '',
                         productType: 'Sleeper',
                         ercType: summary.sleeperType || 'PSC Sleeper',
-                        poSrQty: summary.poQty ? `${summary.poQty} Nos.` : '',
+                        poSrQty: summary.poQty ? `${summary.poQty} ${currentUom}` : '',
                         consignee: summary.consignee || '',
                         origDp: summary.deliveryDate ? summary.deliveryDate.split('T')[0] : '',
                         extDp: summary.extendedDeliveryDate ? summary.extendedDeliveryDate.split('T')[0] : '',
                         stage: 'Final',
                         callQty: summary.qtyOfferedNow ? String(summary.qtyOfferedNow) : '',
+                        qtyUnit: currentUom,
                         place: summary.placeOfInspection || ''
                     }));
+                }
+                const initialVendorSets = Number(sec2?.callQtyMt || summary?.qtyOfferedNow || call?.callQty || call?.totalOffered || call?.offeredQty || 0) || 0;
+                if (initialVendorSets > 0) {
+                    setOfferedSetsQty(prev => prev || initialVendorSets);
                 }
             } catch (err) {
                 console.error("Error loading verification details:", err);
@@ -429,13 +481,14 @@ const FinalInspectionScreen = ({ call, onBack }) => {
                 ]);
                 const sec1 = sec1Res.status === 'fulfilled' ? sec1Res.value?.responseData : null;
                 const sec2 = sec2Res.status === 'fulfilled' ? sec2Res.value?.responseData : null;
+                const currentUom = getEffectiveUom(sec1, sec2, summaryData, call);
 
                 if (sec1) {
                     setPoForm(prev => ({
                         ...prev,
                         poNo: sec1.rlyPoNo || prev.poNo || callNo,
                         poDate: sec1.poDate ? sec1.poDate.split('T')[0] : prev.poDate,
-                        poQty: sec1.poQty ? `${sec1.poQty} Nos` : prev.poQty,
+                        poQty: (sec1.poQty != null && sec1.poQty !== '') ? `${sec1.poQty} ${currentUom}` : prev.poQty,
                         vendorName: sec1.vendorName || prev.vendorName,
                         maNo: sec1.maNo || prev.maNo || 'N/A',
                         maDate: sec1.maDate ? sec1.maDate.split('T')[0] : (prev.maDate || 'N/A'),
@@ -487,7 +540,7 @@ const FinalInspectionScreen = ({ call, onBack }) => {
                             poNo: sec1?.rlyPoNo || savedHeader.responseData.rlyPoNo || callNo,
                             poDate: sec1?.poDate ? sec1.poDate.split('T')[0] : savedHeader.responseData.poDate,
                             vendorName: sec1?.vendorName || savedHeader.responseData.vendorName,
-                            quantityOnOrder: sec1?.poQty ? `${sec1.poQty} Nos` : savedHeader.responseData.poQty,
+                            quantityOnOrder: (sec1?.poQty != null && sec1.poQty !== '') ? `${sec1.poQty} ${currentUom}` : (savedHeader.responseData.poQty ? `${savedHeader.responseData.poQty}` : ''),
                             maNo: sec1?.maNo || savedHeader.responseData.maNo || 'N/A',
                             maDate: sec1?.maDate ? sec1.maDate.split('T')[0] : (savedHeader.responseData.maDate || 'N/A'),
                             totalAccepted: savedHeader.responseData.acceptedQty,
@@ -542,6 +595,12 @@ const FinalInspectionScreen = ({ call, onBack }) => {
                 if (savedDraft) {
                     try {
                         const draft = JSON.parse(savedDraft);
+                        if (draft.offeredSetsQty !== undefined && draft.offeredSetsQty !== null) {
+                            setOfferedSetsQty(Number(draft.offeredSetsQty));
+                        }
+                        if (draft.rejectedSetsQty !== undefined && draft.rejectedSetsQty !== null) {
+                            setRejectedSetsQty(Number(draft.rejectedSetsQty));
+                        }
                         if (draft && Array.isArray(draft.batches) && draft.batches.length > 0) {
                             const currentType = draft.summaryData?.sleeperType || call?.sleeperType || '';
                             draftBatches = draft.batches.map(b => sanitizeBatchSleepers(b, currentType));
@@ -552,7 +611,7 @@ const FinalInspectionScreen = ({ call, onBack }) => {
                                     poNo: sec1?.rlyPoNo || draft.summaryData.poNo || callNo,
                                     poDate: sec1?.poDate ? sec1.poDate.split('T')[0] : draft.summaryData.poDate,
                                     vendorName: sec1?.vendorName || draft.summaryData.vendorName,
-                                    quantityOnOrder: sec1?.poQty ? `${sec1.poQty} Nos` : draft.summaryData.quantityOnOrder,
+                                    quantityOnOrder: (sec1?.poQty != null && sec1.poQty !== '') ? `${sec1.poQty} ${currentUom}` : draft.summaryData.quantityOnOrder,
                                     maNo: sec1?.maNo || draft.summaryData.maNo || 'N/A',
                                     maDate: sec1?.maDate ? sec1.maDate.split('T')[0] : (draft.summaryData.maDate || 'N/A'),
                                     billPayingOfficer: sec1?.billPayingOfficer || draft.summaryData.billPayingOfficer,
@@ -563,6 +622,22 @@ const FinalInspectionScreen = ({ call, onBack }) => {
                     } catch (e) {
                         console.error("Error parsing saved draft:", e);
                     }
+                }
+
+                // Fetch saved sleeper final result to restore set quantities if available
+                try {
+                    const finalResResp = await apiService.getSleeperFinalResult(callNo);
+                    const finalResData = finalResResp?.responseData || finalResResp;
+                    if (finalResData) {
+                        if (finalResData.offeredSetsQuantity != null && Number(finalResData.offeredSetsQuantity) > 0) {
+                            setOfferedSetsQty(Number(finalResData.offeredSetsQuantity));
+                        }
+                        if (finalResData.rejectedSetsQuantity != null) {
+                            setRejectedSetsQty(Number(finalResData.rejectedSetsQuantity));
+                        }
+                    }
+                } catch (err) {
+                    // Optional final result record
                 }
 
                 // 4. Merge Saved / Draft Overlay on Master Batches so ALL batches are always present
@@ -609,7 +684,7 @@ const FinalInspectionScreen = ({ call, onBack }) => {
                             poNo: sec1?.rlyPoNo || prev?.poNo || summaryResp.responseData.poNo || callNo,
                             poDate: sec1?.poDate ? sec1.poDate.split('T')[0] : (prev?.poDate || summaryResp.responseData.poDate),
                             vendorName: sec1?.vendorName || prev?.vendorName || summaryResp.responseData.vendorName,
-                            quantityOnOrder: sec1?.poQty ? `${sec1.poQty} Nos` : (prev?.quantityOnOrder || summaryResp.responseData.quantityOnOrder),
+                            quantityOnOrder: (sec1?.poQty != null && sec1.poQty !== '') ? `${sec1.poQty} ${currentUom}` : (prev?.quantityOnOrder || summaryResp.responseData.quantityOnOrder),
                             maNo: sec1?.maNo || prev?.maNo || 'N/A',
                             maDate: sec1?.maDate ? sec1.maDate.split('T')[0] : (prev?.maDate || 'N/A'),
                             billPayingOfficer: sec1?.billPayingOfficer || prev?.billPayingOfficer,
@@ -657,18 +732,20 @@ const FinalInspectionScreen = ({ call, onBack }) => {
     // Auto-save local draft whenever batches or images are updated in memory
     useEffect(() => {
         const callNo = call?.requestId || call?.callNo || call?.call_no || call?.id;
-        if (callNo && (Array.isArray(batches) && batches.length > 0 || (capturedImages && capturedImages.length > 0))) {
+        if (callNo && (Array.isArray(batches) && batches.length > 0 || (capturedImages && capturedImages.length > 0) || offeredSetsQty > 0 || rejectedSetsQty > 0)) {
             const draft = {
                 batches,
                 summaryData,
                 capturedImages,
+                offeredSetsQty,
+                rejectedSetsQty,
                 shift: call?.shift || icForm?.shift,
                 inspectionDate: summaryData?.callDate || icForm?.callDate || new Date().toISOString(),
                 lastUpdated: new Date().toISOString()
             };
             localStorage.setItem(`inspection_draft_${callNo}`, JSON.stringify(draft));
         }
-    }, [batches, summaryData, capturedImages, call?.requestId, call?.shift, icForm?.shift, icForm?.callDate]);
+    }, [batches, summaryData, capturedImages, offeredSetsQty, rejectedSetsQty, call?.requestId, call?.shift, icForm?.shift, icForm?.callDate]);
 
     const getSCode = (s) => {
         if (s === null || s === undefined || s === 0 || s === '0') return '';
@@ -831,7 +908,7 @@ const FinalInspectionScreen = ({ call, onBack }) => {
 
     const saveAllInspectionData = async () => {
         const user = getStoredUser();
-        const plantId = localStorage.getItem('plantId');
+        const plantId = localStorage.getItem('plantId') || call?.plantId || icForm?.place || "PLANT-01";
         const callNo = call?.requestId || call?.callNo || call?.call_no || call?.id;
         const chosenShift = call?.shift || icForm?.shift || 'Shift A';
         const rawInspDate = call?.dateOfInspection || call?.inspectionDate || call?.date || summaryData?.callDate || icForm?.callDate || new Date();
@@ -846,6 +923,12 @@ const FinalInspectionScreen = ({ call, onBack }) => {
             const foundNumericPo = segments.find(s => s.length >= 8 && /^\d+$/.test(s));
             if (foundNumericPo) purePo = foundNumericPo;
         }
+
+        if (isSetUom && Number(rejectedSetsQty || 0) > Number(offeredSetsQty || 0)) {
+            alert(`❌ Rejected Set Qty (${rejectedSetsQty}) cannot be more than Offered Sets Qty (${offeredSetsQty}).`);
+            throw new Error(`Rejected Set Qty (${rejectedSetsQty}) cannot be more than Offered Sets Qty (${offeredSetsQty})`);
+        }
+
         const finalResultPayload = {
             callNumber: callNo,
             poNo: purePo,
@@ -856,6 +939,9 @@ const FinalInspectionScreen = ({ call, onBack }) => {
             totalOfferedQuantity: totalOfferedNow,
             totalAccepted: totalAccepted,
             totalRejected: totalRejected,
+            offeredSetsQuantity: isSetUom ? Number(offeredSetsQty || 0) : null,
+            acceptedSetsQuantity: isSetUom ? Number(acceptedSetsQty || 0) : null,
+            rejectedSetsQuantity: isSetUom ? Number(rejectedSetsQty || 0) : null,
             plantId: plantId,
             createdBy: String(user?.userId || ''),
             updatedBy: String(user?.userId || ''),
@@ -966,6 +1052,8 @@ const FinalInspectionScreen = ({ call, onBack }) => {
             batches,
             summaryData,
             capturedImages,
+            offeredSetsQty,
+            rejectedSetsQty,
             shift: chosenShift,
             inspectionDate,
             lastSaved: new Date().toISOString()
@@ -1877,6 +1965,69 @@ const FinalInspectionScreen = ({ call, onBack }) => {
                     </div>
 
                     <div className="final-result-card-body">
+                        {/* If Call UOM is SET or Turnout, show Offered, Rejected & Accepted Sets Qty */}
+                        {isSetUom && (
+                            <div className="set-metrics-container">
+                                <div className="set-metrics-header">
+                                    <span className="set-metrics-title">
+                                        <span>📦</span> Set Inspection Quantities (Turnout Sets)
+                                    </span>
+                                    <span style={{ fontSize: '12px', color: '#0369a1', fontWeight: 600 }}>
+                                        Accepted Sets = Offered Sets - Rejected Sets
+                                    </span>
+                                </div>
+                                <div className="set-metrics-grid">
+                                    <div className="set-kpi-card offered">
+                                        <span className="set-kpi-label">Offered Sets Qty</span>
+                                        <div className="set-kpi-value">
+                                            {offeredSetsQty} <span className="set-kpi-sub">Sets</span>
+                                        </div>
+                                    </div>
+                                    <div className="set-kpi-card rejected">
+                                        <label className="set-kpi-label" htmlFor="rejectedSetsInput">
+                                            Rejected Set Qty <span style={{ color: '#ef4444' }}>*</span>
+                                        </label>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                            <input
+                                                id="rejectedSetsInput"
+                                                type="number"
+                                                min="0"
+                                                max={offeredSetsQty || 0}
+                                                className="set-input-control"
+                                                value={rejectedSetsQty === 0 ? '' : rejectedSetsQty}
+                                                placeholder="0"
+                                                onChange={(e) => {
+                                                    const rawVal = e.target.value;
+                                                    if (rawVal === '') {
+                                                        setRejectedSetsQty(0);
+                                                        return;
+                                                    }
+                                                    const parsed = parseInt(rawVal, 10);
+                                                    if (isNaN(parsed) || parsed < 0) {
+                                                        setRejectedSetsQty(0);
+                                                        return;
+                                                    }
+                                                    const maxLimit = Number(offeredSetsQty) || 0;
+                                                    if (maxLimit > 0 && parsed > maxLimit) {
+                                                        setRejectedSetsQty(maxLimit);
+                                                    } else {
+                                                        setRejectedSetsQty(parsed);
+                                                    }
+                                                }}
+                                            />
+                                            <span className="set-kpi-sub" style={{ fontWeight: 700, color: '#64748b' }}>Sets</span>
+                                        </div>
+                                    </div>
+                                    <div className="set-kpi-card accepted">
+                                        <span className="set-kpi-label">Accepted Sets Qty</span>
+                                        <div className="set-kpi-value" style={{ color: '#15803d' }}>
+                                            {acceptedSetsQty} <span className="set-kpi-sub">Sets</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+
                         {/* Inspection Quantities Metric Cards */}
                         <div className="kpi-metrics-grid-modern">
                             <div className="kpi-box kpi-offered">

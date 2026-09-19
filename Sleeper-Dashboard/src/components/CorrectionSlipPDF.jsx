@@ -430,18 +430,16 @@ const CorrectionSlipPDF = ({ icData = {}, corrections = [], callNo = '', icField
     } catch { return raw; }
   };
   const certDate    = formatIcDate(icData?.icEditDate) || icData?.certificateDate || '—';
-  const isProcess   = String(callNo || '').toUpperCase().startsWith('RPP') ||
-    String(icData?.product_type || icData?.productType || icData?.railPadType || icData?.callType || '').toLowerCase().includes('process');
-  const installment = icData?.passedInstNo     || icData?.offeredInstNo || (isProcess ? '' : '1ST & FINAL');
+  const installment = icData?.passedInstNo || icData?.offeredInstNo || '1ST & FINAL';
   const bookNo      = icData?.bookNo || '—';
   const setNo       = icData?.setNo  || '—';
-  const description = icData?.description || icData?.descriptionOfStores || icData?.itemDescription || '';
-  const contractor  = icData?.contractor  || icData?.contractorName || icData?.vendorName || '—';
-  const loaNo       = icData?.contractRef || icData?.contractReferences || icData?.poNo || icData?.maNumberAndDate || '—';
-  const purchaser   = icData?.purchasingAuthority || '—';
-  const consignee   = icData?.consigneeRailway || icData?.consigneeManufacturer || icData?.consignee || '—';
-  const billOfficer = icData?.billPayingOfficer || '—';
-  const inspEngineer= icData?.inspectingEngineer || '';
+  const description = formatCorrectionText(icData?.description || icData?.descriptionOfStores || icData?.itemDescription || 'PRE-STRESSED MONOBLOCK CONCRETE SLEEPERS');
+  const contractor  = formatCorrectionText(icData?.contractor  || icData?.contractorName || icData?.vendorName || '—');
+  const loaNo       = formatCorrectionText(icData?.contractRef || icData?.contractReferences || icData?.poNo || icData?.rlyPoSrNo || '—');
+  const purchaser   = formatCorrectionText(icData?.purchasingAuthority || '—');
+  const consignee   = formatCorrectionText(icData?.consigneeRailway || icData?.consigneeManufacturer || icData?.consignee || '—');
+  const billOfficer = formatCorrectionText(icData?.billPayingOfficer || '—');
+  const inspEngineer= formatCorrectionText(icData?.inspectingEngineer || '');
 
   return (
     <div style={{ position:'fixed', top:0, left:0, right:0, bottom:0, zIndex:9999, overflowY:'auto', background:'#fff' }}>
@@ -529,18 +527,18 @@ const CorrectionSlipPDF = ({ icData = {}, corrections = [], callNo = '', icField
             <div className="cs-sh">1.&nbsp;&nbsp; <span className="cs-sh-text">Particulars of RITES Inspection Certificate</span></div>
 
             {/* ── Cert / Date / Installment row ── */}
-            <div className="cs-cert-row">
-              <div style={{ display: 'flex', alignItems: 'baseline', minWidth: '52%' }}>
-                <span style={{ whiteSpace: 'nowrap', fontSize: '11pt' }}>Certificate No.</span>
-                <span style={{ fontWeight: 'bold', paddingLeft: '6px', whiteSpace: 'nowrap', fontSize: '11pt' }}>{certNo}</span>
+            <div className="cs-cert-row" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: '10px', width: '100%' }}>
+              <div style={{ display: 'flex', alignItems: 'baseline', flex: '1 1 auto' }}>
+                <span style={{ whiteSpace: 'nowrap', fontSize: '10.5pt' }}>Certificate No.</span>
+                <span style={{ fontWeight: 'bold', paddingLeft: '5px', whiteSpace: 'nowrap', fontSize: '10.5pt' }}>{certNo}</span>
               </div>
-              <div style={{ display: 'flex', alignItems: 'baseline', minWidth: '28%' }}>
-                <span style={{ whiteSpace: 'nowrap', fontSize: '11pt' }}>Date</span>
-                <span style={{ fontWeight: 'bold', paddingLeft: '6px', whiteSpace: 'nowrap', fontSize: '11pt' }}>{certDate}</span>
+              <div style={{ display: 'flex', alignItems: 'baseline', flex: '0 0 auto' }}>
+                <span style={{ whiteSpace: 'nowrap', fontSize: '10.5pt' }}>Date</span>
+                <span style={{ fontWeight: 'bold', paddingLeft: '5px', whiteSpace: 'nowrap', fontSize: '10.5pt' }}>{certDate}</span>
               </div>
-              <div style={{ display: 'flex', alignItems: 'baseline' }}>
-                <span style={{ whiteSpace: 'nowrap', fontSize: '11pt' }}>Installment</span>
-                <span style={{ fontWeight: 'bold', paddingLeft: '6px', whiteSpace: 'nowrap', fontSize: '11pt' }}>{installment}</span>
+              <div style={{ display: 'flex', alignItems: 'baseline', flex: '0 0 auto' }}>
+                <span style={{ whiteSpace: 'nowrap', fontSize: '10.5pt' }}>Installment</span>
+                <span style={{ fontWeight: 'bold', paddingLeft: '5px', whiteSpace: 'nowrap', fontSize: '10.5pt' }}>{installment}</span>
               </div>
             </div>
 

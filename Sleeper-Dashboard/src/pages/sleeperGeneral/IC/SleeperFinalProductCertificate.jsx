@@ -144,6 +144,18 @@ export default function SleeperFinalProductCertificate() {
     const numRejected = parseFloat(qtyNowRejected) || 0;
     const mfCount = parseFloat(c?.mfCount || c?.mfTestingQty || (Array.isArray(c?.mfSleepers) ? c.mfSleepers.length : 0) || ic?.mfCount || 0) || 0;
 
+    const uomStr = String(ic?.unit || ic?.uom || c?.uom || c?.unit || c?.callUnit || c?.qtyUnit || "").toLowerCase();
+    const sleeperTypeStr = String(c?.sleeperType || c?.description || ic?.descriptionOfStores || "").toLowerCase();
+    const isSetUom = uomStr.includes('set') ||
+                     sleeperTypeStr.includes('pnc') ||
+                     sleeperTypeStr.includes('turnout') ||
+                     sleeperTypeStr.includes('set') ||
+                     sleeperTypeStr.includes('rt-9790') ||
+                     sleeperTypeStr.includes('rt-4218') ||
+                     sleeperTypeStr.includes('rt-4865');
+
+    const unitNoun = isSetUom ? "sets" : "numbers";
+
     let batchStr = "";
     if (ic?.quantityNowPassedBatchNos) {
         batchStr = ic.quantityNowPassedBatchNos;
@@ -154,8 +166,8 @@ export default function SleeperFinalProductCertificate() {
     }
 
     const passedWords = numberToWords(numPassed);
-    let defaultQtyPassedText = `Quantity Now Passed- ${passedWords} numbers only`;
-    if (mfCount > 0) {
+    let defaultQtyPassedText = `Quantity Now Passed- ${passedWords} ${unitNoun} only`;
+    if (mfCount > 0 && !isSetUom) {
         const mfWords = numberToWords(mfCount).toLowerCase();
         defaultQtyPassedText += ` including ${mfWords} numbers destroyed during MFT Testing. `;
     } else {
@@ -164,9 +176,9 @@ export default function SleeperFinalProductCertificate() {
 
     if (numRejected > 0) {
         const rejWords = numberToWords(numRejected);
-        defaultQtyPassedText += `${rejWords} numbers rejected during inspection as detailed in Annexure–I to IC attached.`;
+        defaultQtyPassedText += `${rejWords} ${unitNoun} rejected during inspection as detailed in Annexure–I to IC attached.`;
     } else {
-        defaultQtyPassedText += `Nil numbers rejected during inspection.`;
+        defaultQtyPassedText += `Nil ${unitNoun} rejected during inspection.`;
     }
 
     if (batchStr && String(batchStr).trim().length > 0) {
@@ -183,11 +195,11 @@ export default function SleeperFinalProductCertificate() {
     let defaultRejectionReason = "Not Applicable";
     if (numRejected > 0) {
         const rejWords = numberToWords(numRejected);
-        if (mfCount > 0) {
+        if (mfCount > 0 && !isSetUom) {
             const mfWords = numberToWords(mfCount).toLowerCase();
             defaultRejectionReason = `${rejWords} numbers rejected during inspection and ${mfWords} number destroyed during MFT as detailed in Annexure-I to IC attached.`;
         } else {
-            defaultRejectionReason = `${rejWords} numbers rejected during inspection as detailed in Annexure-I to IC attached.`;
+            defaultRejectionReason = `${rejWords} ${unitNoun} rejected during inspection as detailed in Annexure-I to IC attached.`;
         }
     }
 
@@ -242,6 +254,7 @@ export default function SleeperFinalProductCertificate() {
         facsimileText: ic?.facsimileText || c?.facsimileText || "",
         reasonsForRejection: ic?.reasonsForRejection || c?.reasonsForRejection || defaultRejectionReason,
         inspectingEngineer: ic?.inspectingEngineer || c?.inspectingEngineer || "",
+        unit: isSetUom ? 'SETS.' : (ic?.unit || ic?.uom || c?.uom || c?.unit || c?.callUnit || "NOS."),
         region: ic?.region || c?.region || getRegionHeader(ic?.rio || c?.rio || c?.plantRio || (typeof localStorage !== 'undefined' ? (localStorage.getItem('plantRio') || localStorage.getItem('rio')) : ''))
     };
   };

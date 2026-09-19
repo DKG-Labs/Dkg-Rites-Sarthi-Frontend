@@ -98,6 +98,47 @@ export const fetchCompletedCalls = async (plantId = '', workflowId = '', moduleI
   }
 };
 
+export const fetchFinalCompletedCalls = async (plantId = '') => {
+  try {
+    const formattedPlantId = normalizePlantId(plantId);
+    let url = `${getBaseUrl()}${API_ENDPOINTS.RAILPAD_WORKFLOW.ALL_FINAL_COMPLETED_CALLS}`;
+    if (formattedPlantId) {
+      url += `?plantId=${encodeURIComponent(formattedPlantId)}`;
+    }
+    const response = await fetch(url);
+    const data = await response.json();
+    if (data.responseStatus?.statusCode === 0) {
+      return data.responseData || [];
+    }
+    return [];
+  } catch (error) {
+    console.error('Error fetching final completed calls:', error);
+    return [];
+  }
+};
+
+export const fetchClosedCalls = async (plantId = '', userId = '') => {
+  try {
+    const formattedPlantId = normalizePlantId(plantId);
+    let url = `${getBaseUrl()}${API_ENDPOINTS.RAILPAD_WORKFLOW.ALL_CLOSED_CALLS}`;
+    const params = [];
+    if (formattedPlantId) params.push(`plantId=${encodeURIComponent(formattedPlantId)}`);
+    if (userId) params.push(`userId=${encodeURIComponent(userId)}`);
+    if (params.length > 0) {
+      url += `?${params.join('&')}`;
+    }
+    const response = await fetch(url);
+    const data = await response.json();
+    if (data.responseStatus?.statusCode === 0) {
+      return data.responseData || [];
+    }
+    return [];
+  } catch (error) {
+    console.error('Error fetching closed calls:', error);
+    return [];
+  }
+};
+
 export const performTransitionAction = async (actionData) => {
   try {
     let payload = { ...actionData };
@@ -160,4 +201,37 @@ export const fetchCancellationDetails = async (callNo) => {
     return null;
   }
 };
+
+export const revertToInspection = async (callNo, deletedBy) => {
+  try {
+    if (!callNo) throw new Error('Call number is required');
+    const url = `${getBaseUrl()}/railpad-workflow/back-to-inspection/${encodeURIComponent(callNo)}${deletedBy ? `?deletedBy=${encodeURIComponent(deletedBy)}` : ''}`;
+    const response = await fetch(url, { method: 'DELETE' });
+    if (!response.ok) {
+      const errText = await response.text();
+      throw new Error(errText || 'Failed to revert to inspection');
+    }
+    return await response.json();
+  } catch (error) {
+    console.error('Error in revertToInspection:', error);
+    throw error;
+  }
+};
+
+export const revertToIcIssuance = async (callNo, deletedBy) => {
+  try {
+    if (!callNo) throw new Error('Call number is required');
+    const url = `${getBaseUrl()}/railpad-workflow/back-to-ic-issuance/${encodeURIComponent(callNo)}${deletedBy ? `?deletedBy=${encodeURIComponent(deletedBy)}` : ''}`;
+    const response = await fetch(url, { method: 'DELETE' });
+    if (!response.ok) {
+      const errText = await response.text();
+      throw new Error(errText || 'Failed to revert to IC issuance');
+    }
+    return await response.json();
+  } catch (error) {
+    console.error('Error in revertToIcIssuance:', error);
+    throw error;
+  }
+};
+
 

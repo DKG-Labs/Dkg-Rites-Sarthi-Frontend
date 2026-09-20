@@ -103,11 +103,15 @@ const DimensionalTesting = ({ type }) => {
         }
     };
 
+    const isTurnoutOrT45 = (sleeperType, sleeperCategory) => {
+        const combined = `${sleeperType || ''} ${sleeperCategory || ''}`.toLowerCase();
+        return ['turnout', 'pnc', 'point', 'crossing', 't-45', 't45', 'irs-t-45', '1 in 12', '1 in 8.5'].some(k => combined.includes(k));
+    };
+
     const isBatchCompleted = (batch) => {
         if (batch.testingStatus === 'Completed') return true;
         const pct = Number(batch.testedPercentage || 0);
-        const category = (batch.sleeperCategory || '').toLowerCase();
-        const isTurnout = category.includes('turnout');
+        const isTurnout = isTurnoutOrT45(batch.sleeperType, batch.sleeperCategory);
 
         if (type === 'visual') {
             return pct >= 99.5 || pct >= 100;
@@ -121,8 +125,8 @@ const DimensionalTesting = ({ type }) => {
 
     const config = {
         visual: { title: 'Visual Check & Measurement', criteria: '100% Mandatory' },
-        critical: { title: 'Critical Dimensions', criteria: '10% (T-39) / 20% (T-45)' },
-        noncritical: { title: 'Non-Critical Dimensions', criteria: '1% (T-39) / 5% (T-45)' }
+        critical: { title: 'Critical Dimensions', criteria: '10% (IRS-T-39) / 20% (IRS-T-45 Turnout)' },
+        noncritical: { title: 'Non-Critical Dimensions', criteria: '1% (IRS-T-39) / 5% (IRS-T-45 Turnout)' }
     };
 
     const currentConfig = config[type] || config.visual;
@@ -154,12 +158,25 @@ const DimensionalTesting = ({ type }) => {
             render: (val, row) => {
                 const pct = Number(val);
                 const isCompleted = isBatchCompleted(row);
+                const isTurnout = isTurnoutOrT45(row.sleeperType, row.sleeperCategory);
+                let targetLabel = '';
+                if (type === 'critical') targetLabel = isTurnout ? 'Req: 20%' : 'Req: 10%';
+                else if (type === 'noncritical') targetLabel = isTurnout ? 'Req: 5%' : 'Req: 1%';
+                else if (type === 'visual') targetLabel = 'Req: 100%';
+
                 return (
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <div style={{ flex: 1, height: '6px', background: '#e2e8f0', borderRadius: '3px', overflow: 'hidden', minWidth: '60px' }}>
-                            <div style={{ height: '100%', width: `${Math.min(pct, 100)}%`, background: isCompleted ? '#059669' : '#42818c', transition: 'width 0.3s ease' }}></div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <div style={{ flex: 1, height: '6px', background: '#e2e8f0', borderRadius: '3px', overflow: 'hidden', minWidth: '60px' }}>
+                                <div style={{ height: '100%', width: `${Math.min(pct, 100)}%`, background: isCompleted ? '#059669' : '#42818c', transition: 'width 0.3s ease' }}></div>
+                            </div>
+                            <span style={{ fontSize: '11px', fontWeight: '700', whiteSpace: 'nowrap' }}>{pct.toFixed(1)}%</span>
                         </div>
-                        <span style={{ fontSize: '11px', fontWeight: '700', whiteSpace: 'nowrap' }}>{pct.toFixed(1)}%</span>
+                        {targetLabel && (
+                            <span style={{ fontSize: '10px', color: isTurnout ? '#b45309' : '#64748b', fontWeight: isTurnout ? '600' : '400' }}>
+                                {targetLabel} {isTurnout ? '(T-45)' : '(T-39)'}
+                            </span>
+                        )}
                     </div>
                 );
             }

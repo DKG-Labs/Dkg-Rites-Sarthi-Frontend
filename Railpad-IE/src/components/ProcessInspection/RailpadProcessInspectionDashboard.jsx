@@ -680,7 +680,6 @@ const RailpadProcessInspectionDashboard = ({ user, call, currentShift, onBack, o
               batchRejectionReason = originalBatch.verificationRejectedReason;
             }
           }
-
           return {
             declarationBatchId: id,
             batchNo: originalBatch.batchNo || batchData.batchNo,

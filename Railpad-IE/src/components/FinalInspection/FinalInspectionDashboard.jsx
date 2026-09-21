@@ -510,24 +510,6 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
   const [dbDimensionalStatus, setDbDimensionalStatus] = useState(null);
   const [dbDimensionalNotOk, setDbDimensionalNotOk] = useState(null);
 
-  // State for Weight Testing (Double Sampling)
-  const [weightData, setWeightData] = useState({
-    samples1: Array(80).fill(''),
-    samples2: Array(80).fill(''),
-    n1: 80,
-    ac1: 3,
-    re1: 6,
-    n2: 80,
-    ac2: 9,
-    re2: 10,
-    min: 0,
-    max: 445,
-    isSecondActive: false
-  });
-
-  const [showWeightSecond, setShowWeightSecond] = useState(false);
-  const [showWeightPopup, setShowWeightPopup] = useState(false);
-
   const getWeightAQL = (lotSize) => {
     const size = parseInt(lotSize, 10) || 0;
     // Strictly following the IS 2500 Part I - 2000 (General Inspection Level-II) AQL 2.5 table provided
@@ -546,6 +528,27 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
     // Default fallback for very large lots
     return { n1: 125, ac1: 5, re1: 9, n2: 125, ac2: 12, re2: 13, isSingle: false };
   };
+
+  // State for Weight Testing (Double Sampling)
+  const initialLotSize = call?.lots?.[0]?.lotSize || call?.lotSize || call?.quantity || 10000;
+  const initialAql = getWeightAQL(initialLotSize);
+
+  const [weightData, setWeightData] = useState({
+    samples1: Array(initialAql.n1).fill(''),
+    samples2: Array(initialAql.n2).fill(''),
+    n1: initialAql.n1,
+    ac1: initialAql.ac1,
+    re1: initialAql.re1,
+    n2: initialAql.n2,
+    ac2: initialAql.ac2,
+    re2: initialAql.re2,
+    min: 0,
+    max: 445,
+    isSecondActive: false
+  });
+
+  const [showWeightSecond, setShowWeightSecond] = useState(false);
+  const [showWeightPopup, setShowWeightPopup] = useState(false);
 
   const WEIGHT_TOLERANCE = {
     'RDSO/T-3703': { type: '6mm GRSP', max: 161 },

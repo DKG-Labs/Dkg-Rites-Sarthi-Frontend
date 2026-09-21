@@ -474,22 +474,31 @@
 
 import React, { useCallback, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Checkbox, Form, message, Modal, Popconfirm, Table } from "antd";
+import { Form, message, Modal, Pagination, Table, Button, Radio } from "antd";
 import { DeleteOutlined, EditOutlined, PlusOutlined } from "@ant-design/icons";
+import { useSelector } from "react-redux";
 import SubHeader from "../../../../../components/DKG_SubHeader";
 import GeneralInfo from "../../../../../components/DKG_GeneralInfo";
 import IconBtn from "../../../../../components/DKG_IconBtn";
 import FormInputItem from "../../../../../components/DKG_FormInputItem";
+import FormDropdownItem from "../../../../../components/DKG_FormDropdownItem";
 import Btn from "../../../../../components/DKG_Btn";
 import FormContainer from "../../../../../components/DKG_FormContainer";
 import { apiCall, checkAndConvertToFLoat, handleChange } from "../../../../../utils/CommonFunctions";
-import { useSelector } from "react-redux";
-import FormDropdownItem from "../../../../../components/DKG_FormDropdownItem";
-import { Button } from "antd";
 
 const wvDropDown = [
+  { key: "", value: "Select" },
   { key: "Witnessed", value: "Witnessed" },
   { key: "Verified", value: "Verified" },
+];
+
+const booleanQuestions = [
+  { key: "emsFunctioning", label: "Is EMS Functioning?" },
+  { key: "slagDetectorFunctioning", label: "Is Slag Detector cum Slag Arrester Functioning?" },
+  { key: "amlcFunctioning", label: "Is AMLC Functioning?" },
+  { key: "hydrogenMeasurementAutomatic", label: "Is Hydrogen Measurement Automatic?" },
+  { key: "ladleToTundishUsed", label: "Is Shroud (Ladle to Tundish) Used?" },
+  { key: "tundishToMouldUsed", label: "Is Shroud (Tundish to Mould) Used?" },
 ];
 
 const SmsHeatSummary = () => {
@@ -499,6 +508,7 @@ const SmsHeatSummary = () => {
     turnDownTempWv: "",
   });
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [addHeatLoading, setAddHeatLoading] = useState(false);
   const [currentTablePage, setCurrentTablePage] = useState(1);
   const [tablePageSize, setTablePageSize] = useState(5);
 
@@ -508,7 +518,6 @@ const SmsHeatSummary = () => {
   const [form] = Form.useForm();
   const [modalForm] = Form.useForm();
   const [showCalibrationDetails, setShowCalibrationDetails] = useState(false);
-  const [showCheckboxes, setShowCheckboxes] = useState(false);
 
   const navigate = useNavigate();
 
@@ -553,10 +562,28 @@ const SmsHeatSummary = () => {
 
   const deleteHeat = async (heatNo) => {
     try {
-      await apiCall("POST", "/sms/deleteHeat", token, { heatNo, sms: smsGeneralInfo.sms });
+      await apiCall("POST", "/sms/deleteHeat", token, { 
+        heatNo, 
+        sms: smsGeneralInfo?.sms,
+        dutyId: smsGeneralInfo?.dutyId
+      });
       message.success(`Heat ${heatNo} deleted successfully.`);
       populateTableData();
-    } catch (error) {}
+    } catch (error) {
+      message.error(error?.response?.data?.message || "Failed to delete heat.");
+    }
+  };
+
+  const showDeleteConfirm = (heatNo) => {
+    Modal.confirm({
+      title: "Delete Heat",
+      content: `Are you sure you want to delete heat ${heatNo}?`,
+      okText: "Yes",
+      okType: "danger",
+      cancelText: "No",
+      centered: true,
+      onOk: () => deleteHeat(heatNo),
+    });
   };
 
   const columns = [
@@ -564,13 +591,22 @@ const SmsHeatSummary = () => {
       title: "S/No",
       dataIndex: "sNo",
       key: "sNo",
-      render: (_, __, index) => index + 1,
+      width: 65,
+      align: "center",
+      render: (_, __, index) => (currentTablePage - 1) * tablePageSize + index + 1,
     },
-    { title: "Heat No.", dataIndex: "heatNo", key: "heatNo", fixed: "left" },
+    { 
+      title: "Heat No.", 
+      dataIndex: "heatNo", 
+      key: "heatNo", 
+      fixed: "left",
+      width: 110,
+    },
     {
       title: "Sequence No.",
       dataIndex: "sequenceNo",
       key: "sequenceNo",
+      width: 130,
       render: (text, record, index) => {
         const globalIndex = (currentTablePage - 1) * tablePageSize + index;
         const prevRecord = globalIndex > 0 ? formData.heatDtlList[globalIndex - 1] : null;
@@ -579,52 +615,60 @@ const SmsHeatSummary = () => {
         const currentSeq = typeof text === "string" ? text : null;
         const prevSeq = prevRecord && typeof prevRecord.sequenceNo === "string" ? prevRecord.sequenceNo : null;
 
-        if (!currentSeq || !prevSeq) {
-          return <span>{text || "N/A"}</span>;
-        }
+        if (currentSeq && prevSeq) {
+          const currentPrefix = currentSeq.split("/")[0];
+          const prevPrefix = prevSeq.split("/")[0];
 
-        const currentParts = currentSeq.split("/");
-        const prevParts = prevSeq.split("/");
-
-        if (currentParts.length !== 2 || prevParts.length !== 2) {
-          return <span>{text || "N/A"}</span>;
-        }
-
-        const [firstPart, secondPart] = currentParts.map(Number);
-        const [prevFirstPart, prevSecondPart] = prevParts.map(Number);
-
-        const validFirstPart = !isNaN(firstPart) && !isNaN(prevFirstPart);
-        const validSecondPart = !isNaN(secondPart) && !isNaN(prevSecondPart);
-
-        if (validFirstPart && firstPart !== prevFirstPart) {
-          backgroundColor = "#0079ffcf";
-        } else if (validSecondPart && Math.abs(secondPart - prevSecondPart) > 1) {
-          backgroundColor = "yellow";
+          if (currentPrefix !== prevPrefix) {
+            backgroundColor = "#3899ff";
+          }
         }
 
         return (
-          <span style={{ backgroundColor, color: "black", padding: "1rem" }}>
-            {text || ""}
-          </span>
+          <div
+            style={{
+              backgroundColor: backgroundColor,
+              padding: "4px 8px",
+              borderRadius: "4px",
+              fontWeight: backgroundColor !== "transparent" ? "bold" : "normal",
+              color: backgroundColor !== "transparent" ? "#fff" : "inherit",
+              textAlign: "center",
+            }}
+          >
+            {text || "N/A"}
+          </div>
         );
       },
     },
-    { title: "H2", dataIndex: "hydris", key: "h2" },
-    { title: "Stage", dataIndex: "heatStage", key: "stage" },
+    {
+      title: "H2",
+      dataIndex: "hydris",
+      key: "hydris",
+      width: 80,
+      align: "center",
+      render: (text) => {
+        const num = parseFloat(text);
+
+        if (!isNaN(num) && num > 1.6) {
+          return <span className="text-red-600 font-semibold">{text}</span>;
+        }
+
+        return text != null && text !== "" ? text : "-";
+      },
+    },
+    { 
+      title: "Stage", 
+      dataIndex: "heatStage", 
+      key: "heatStage",
+      width: 140,
+    },
     {
       title: "Heat Remark",
       dataIndex: "heatRemark",
       key: "heatRemark",
-      render: (text, record) => {
-        // Show "Diverted" if heat is marked as diverted
-        if (record.isDiverted) {
-          return <span className="text-red-600 font-semibold">Diverted</span>;
-        }
-
-        // Show rejection-related remarks in red
-        if (text && (
-          text.toLowerCase().includes('reject') ||
-          text.toLowerCase().includes('diverted') ||
+      width: 160,
+      render: (text) => {
+        if (text && typeof text === 'string' && (
           text.toLowerCase().includes('nitrogen') ||
           text.toLowerCase().includes('oxygen') ||
           text.toLowerCase().includes('hydrogen')
@@ -638,31 +682,34 @@ const SmsHeatSummary = () => {
     {
       title: "Actions",
       fixed: "right",
+      width: 110,
+      align: "center",
       render: (_, record) => (
-        <div className="flex gap-2">
+        <div className="flex items-center justify-center gap-1.5">
           <IconBtn
             icon={EditOutlined}
+            tooltipTitle="Edit Heat"
             onClick={() => navigate("/sms/sms/heatDtl", { state: { heatNo: record.heatNo } })}
           />
-          <Popconfirm
-            description="Are you sure to delete this heat?"
-            onConfirm={() => deleteHeat(record.heatNo)}
-            okText="Yes"
-            cancelText="No"
-          >
-            <IconBtn danger icon={DeleteOutlined} />
-          </Popconfirm>
+          <IconBtn
+            danger
+            icon={DeleteOutlined}
+            tooltipTitle="Delete Heat"
+            onClick={() => showDeleteConfirm(record.heatNo)}
+          />
         </div>
       ),
     },
   ];
 
   const addNewHeat = async () => {
+    if (addHeatLoading) return;
+    setAddHeatLoading(true);
     const payload = {
       heatNo: String(newHeat.heatNo).padStart(6, "0"),
       turnDownTemp: newHeat.turnDownTemp,
       turnDownTempWv: newHeat?.turnDownTempWv,
-      dutyId: smsGeneralInfo.dutyId,
+      dutyId: smsGeneralInfo?.dutyId,
     };
 
     try {
@@ -677,7 +724,9 @@ const SmsHeatSummary = () => {
       setIsModalOpen(false);
       populateTableData();
     } catch (error) {
-      // message.error("Failed to add new heat.");
+      message.error(error?.response?.data?.message || "Failed to add new heat.");
+    } finally {
+      setAddHeatLoading(false);
     }
   };
 
@@ -766,6 +815,11 @@ const SmsHeatSummary = () => {
     form.setFieldsValue(formData);
   }, [formData]);
 
+  const paginatedHeats = (formData?.heatDtlList || []).slice(
+    (currentTablePage - 1) * tablePageSize,
+    currentTablePage * tablePageSize
+  );
+
   return (
     <FormContainer className="flex flex-col gap-4 md:gap-8">
       <SubHeader title="SMS - Shift Summary" link="/sms/sms/dutyEnd" />
@@ -809,12 +863,13 @@ const SmsHeatSummary = () => {
       )}
 
       <section>
-        <div className="relative">
+        {/* Desktop / Tablet: Full Table View */}
+        <div className="hidden sm:flex flex-col gap-3">
           <Table
             columns={columns}
             dataSource={formData.heatDtlList}
-            scroll={{ x: true }}
             bordered
+            size="middle"
             pagination={{
               current: currentTablePage,
               pageSize: tablePageSize,
@@ -824,102 +879,204 @@ const SmsHeatSummary = () => {
               onShowSizeChange: (current, size) => handlePageSizeChange(size),
             }}
           />
-          <IconBtn
-            icon={PlusOutlined}
-            text="add new heat"
-            className="absolute left-0 bottom-4"
-            onClick={() => setIsModalOpen(true)}
-          />
+          <div className="flex justify-start -mt-2 mb-2">
+            <IconBtn
+              icon={PlusOutlined}
+              text="add new heat"
+              onClick={() => setIsModalOpen(true)}
+            />
+          </div>
         </div>
-      </section>
 
-      <section>
-        <div className="flex items-center mb-2">
-          <Button
-            type="primary"
-            onClick={() => setShowCheckboxes(!showCheckboxes)}
-            className="mr-4"
-          >
-            {showCheckboxes ? "Hide Checkboxes" : "Show Checkboxes"}
-          </Button>
-        </div>
-        <Form form={form} layout="vertical" onFinish={onFinish}>
-          {showCheckboxes && (
-            <div className="flex flex-col gap-2 mb-6">
-              <Checkbox
-                checked={formData.emsFunctioning}
-                onChange={(e) =>
-                  setFormData((prev) => ({ ...prev, emsFunctioning: e.target.checked }))
+        {/* Mobile: Clean Non-Scrollable Responsive Card View */}
+        <div className="flex sm:hidden flex-col gap-3">
+          {paginatedHeats.length > 0 ? (
+            paginatedHeats.map((record, index) => {
+              const globalIndex = (currentTablePage - 1) * tablePageSize + index;
+              const prevRecord = globalIndex > 0 ? formData.heatDtlList[globalIndex - 1] : null;
+
+              let isSequenceChanged = false;
+              if (record.sequenceNo && prevRecord?.sequenceNo) {
+                const currentPrefix = String(record.sequenceNo).split("/")[0];
+                const prevPrefix = String(prevRecord.sequenceNo).split("/")[0];
+                if (currentPrefix !== prevPrefix) {
+                  isSequenceChanged = true;
                 }
-              >
-                Is Ems Functioning?
-              </Checkbox>
-              <Checkbox
-                checked={formData.slagDetectorFunctioning}
-                onChange={(e) =>
-                  setFormData((prev) => ({
-                    ...prev,
-                    slagDetectorFunctioning: e.target.checked,
-                  }))
-                }
-              >
-                Is Slag Detector cum Slag Arrester Functioning ?
-              </Checkbox>
-              <Checkbox
-                checked={formData.amlcFunctioning}
-                onChange={(e) =>
-                  setFormData((prev) => ({ ...prev, amlcFunctioning: e.target.checked }))
-                }
-              >
-                Is AMLC Functioning ?
-              </Checkbox>
-              <Checkbox
-                checked={formData.hydrogenMeasurementAutomatic}
-                onChange={(e) =>
-                  setFormData((prev) => ({
-                    ...prev,
-                    hydrogenMeasurementAutomatic: e.target.checked,
-                  }))
-                }
-              >
-                Is Hydrogen Measurement Automatic ?
-              </Checkbox>
-              <Checkbox
-                checked={formData.ladleToTundishUsed}
-                onChange={(e) =>
-                  setFormData((prev) => ({
-                    ...prev,
-                    ladleToTundishUsed: e.target.checked,
-                  }))
-                }
-              >
-                Is Shroud (Ladle to Tundish) Used ?
-              </Checkbox>
-              <Checkbox
-                checked={formData.tundishToMouldUsed}
-                onChange={(e) =>
-                  setFormData((prev) => ({
-                    ...prev,
-                    tundishToMouldUsed: e.target.checked,
-                  }))
-                }
-              >
-                Is Shroud (Tundish to Mould) Used ?
-              </Checkbox>
+              }
+
+              const h2Num = parseFloat(record.hydris);
+              const isHighH2 = !isNaN(h2Num) && h2Num > 1.6;
+
+              const isRejectedRemark = record.heatRemark && typeof record.heatRemark === 'string' && (
+                record.heatRemark.toLowerCase().includes('nitrogen') ||
+                record.heatRemark.toLowerCase().includes('oxygen') ||
+                record.heatRemark.toLowerCase().includes('hydrogen')
+              );
+
+              return (
+                <div
+                  key={record.heatNo || index}
+                  className="bg-white border border-slate-200 rounded-xl p-3.5 shadow-sm flex flex-col gap-2.5 transition-all"
+                  style={{ borderLeft: '4px solid #21808d' }}
+                >
+                  {/* Header: S/No, Heat No, Stage & Actions */}
+                  <div className="flex items-center justify-between gap-2 border-b border-slate-100 pb-2">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="text-[11px] font-bold text-slate-400 bg-slate-100 px-1.5 py-0.5 rounded">
+                        #{globalIndex + 1}
+                      </span>
+                      <span className="font-bold text-slate-900 text-sm">
+                        Heat {record.heatNo}
+                      </span>
+                      {record.heatStage && (
+                        <span className="text-[11px] font-semibold bg-teal-50 text-teal-700 border border-teal-200 px-2 py-0.5 rounded-full">
+                          {record.heatStage}
+                        </span>
+                      )}
+                    </div>
+
+                    <div className="flex items-center gap-1.5 flex-shrink-0">
+                      <IconBtn
+                        icon={EditOutlined}
+                        tooltipTitle="Edit Heat"
+                        style={{ width: '32px', height: '32px' }}
+                        onClick={() => navigate("/sms/sms/heatDtl", { state: { heatNo: record.heatNo } })}
+                      />
+                      <IconBtn
+                        danger
+                        icon={DeleteOutlined}
+                        tooltipTitle="Delete Heat"
+                        style={{ width: '32px', height: '32px' }}
+                        onClick={() => showDeleteConfirm(record.heatNo)}
+                      />
+                    </div>
+                  </div>
+
+                  {/* Details Grid */}
+                  <div className="grid grid-cols-2 gap-2 text-xs">
+                    <div className="flex flex-col bg-slate-50 p-2 rounded-lg">
+                      <span className="text-gray-500 font-medium text-[11px]">Sequence No</span>
+                      <span
+                        className={`font-semibold mt-0.5 ${
+                          isSequenceChanged ? 'text-blue-600 font-bold' : 'text-slate-800'
+                        }`}
+                      >
+                        {record.sequenceNo || 'N/A'}
+                      </span>
+                    </div>
+
+                    <div className="flex flex-col bg-slate-50 p-2 rounded-lg">
+                      <span className="text-gray-500 font-medium text-[11px]">H2 (Hydris)</span>
+                      <span className={`font-semibold mt-0.5 ${isHighH2 ? 'text-red-600 font-bold' : 'text-slate-800'}`}>
+                        {record.hydris != null && record.hydris !== "" ? record.hydris : '-'}
+                      </span>
+                    </div>
+                  </div>
+
+                  {record.heatRemark && (
+                    <div className="text-xs bg-slate-50 p-2 rounded-lg flex items-center justify-between gap-2">
+                      <span className="text-gray-500 font-medium text-[11px]">Remark:</span>
+                      <span className={`font-semibold ${isRejectedRemark ? 'text-red-600' : 'text-slate-700'}`}>
+                        {record.heatRemark}
+                      </span>
+                    </div>
+                  )}
+                </div>
+              );
+            })
+          ) : (
+            <div className="text-center py-6 text-slate-400 text-xs italic bg-slate-50 rounded-xl border border-dashed border-slate-200">
+              No heats available
             </div>
           )}
 
-          <FormInputItem
-            label="Make of Casting Powder Used"
-            name="makeOfCastingPowder"
-            onChange={(fieldName, value) => handleChange(fieldName, value, setFormData)}
-          />
-          <FormInputItem
-            label="Make of Hydris Probe used"
-            name="makeOfHydrisProbe"
-            onChange={(fieldName, value) => handleChange(fieldName, value, setFormData)}
-          />
-          <div className="text-center">
+          {/* Mobile Footer & Pagination */}
+          <div className="flex items-center justify-between flex-wrap gap-2 pt-1">
+            <IconBtn
+              icon={PlusOutlined}
+              text="add new heat"
+              onClick={() => setIsModalOpen(true)}
+            />
+            <Pagination
+              size="small"
+              current={currentTablePage}
+              pageSize={tablePageSize}
+              total={formData?.heatDtlList?.length || 0}
+              showSizeChanger={false}
+              onChange={(page) => setCurrentTablePage(page)}
+            />
+          </div>
+        </div>
+      </section>
+
+      <section className="mt-2">
+        <Form form={form} layout="vertical" onFinish={onFinish}>
+          <div className="bg-slate-50 border border-slate-200 rounded-xl p-3.5 sm:p-5 mb-5">
+            <h3 className="text-xs font-bold uppercase tracking-wider text-slate-600 mb-3.5 pb-2 border-b border-slate-200 flex items-center justify-between">
+              <span>Equipment & Process Checklist</span>
+              <span className="text-[11px] font-normal lowercase text-slate-400">select yes / no</span>
+            </h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5 sm:gap-3">
+              {booleanQuestions.map(({ key, label }) => {
+                const isChecked = formData[key] === true;
+                return (
+                  <div
+                    key={key}
+                    className={`flex items-center justify-between gap-3 p-3 rounded-xl border transition-all ${
+                      isChecked
+                        ? "bg-teal-50/40 border-teal-200 shadow-sm"
+                        : "bg-white border-slate-200 shadow-sm"
+                    }`}
+                  >
+                    <span className="text-xs sm:text-sm font-semibold text-slate-800 leading-snug flex-1 pr-2">
+                      {label}
+                    </span>
+                    <div className="flex-shrink-0">
+                      <Radio.Group
+                        value={formData[key] ?? false}
+                        onChange={(e) =>
+                          setFormData((prev) => ({ ...prev, [key]: e.target.value }))
+                        }
+                        optionType="button"
+                        buttonStyle="solid"
+                        size="small"
+                      >
+                        <Radio.Button
+                          value={true}
+                          className="!px-3 !font-bold !text-xs !rounded-l-lg"
+                        >
+                          Yes
+                        </Radio.Button>
+                        <Radio.Button
+                          value={false}
+                          className="!px-3 !font-bold !text-xs !rounded-r-lg"
+                        >
+                          No
+                        </Radio.Button>
+                      </Radio.Group>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-x-4">
+            <FormInputItem
+              label="Make of Casting Powder Used"
+              name="makeOfCastingPowder"
+              value={formData.makeOfCastingPowder}
+              onChange={(fieldName, value) => handleChange(fieldName, value, setFormData)}
+            />
+            <FormInputItem
+              label="Make of Hydris Probe used"
+              name="makeOfHydrisProbe"
+              value={formData.makeOfHydrisProbe}
+              onChange={(fieldName, value) => handleChange(fieldName, value, setFormData)}
+            />
+          </div>
+
+          <div className="text-center mt-2">
             <Btn htmlType="submit">Save</Btn>
           </div>
         </Form>
@@ -928,8 +1085,14 @@ const SmsHeatSummary = () => {
       <Modal
         title="Add new heat"
         open={isModalOpen}
-        onCancel={() => setIsModalOpen(false)}
+        centered
+        onCancel={() => {
+          if (!addHeatLoading) {
+            setIsModalOpen(false);
+          }
+        }}
         footer={null}
+        destroyOnClose
       >
         <Form
           form={modalForm}
@@ -945,6 +1108,7 @@ const SmsHeatSummary = () => {
             value={newHeat.heatNo}
             onChange={(_, value) => handleNewHeatValChange("heatNo", value)}
             required
+            disabled={addHeatLoading}
           />
           <FormInputItem
             label="Turn Down Temperature"
@@ -952,6 +1116,7 @@ const SmsHeatSummary = () => {
             name="turnDownTemp"
             value={newHeat.turnDownTemp}
             onChange={(_, value) => handleNewHeatValChange("turnDownTemp", value)}
+            disabled={addHeatLoading}
           />
           <FormDropdownItem
             label="Witnessed / Verified"
@@ -962,8 +1127,25 @@ const SmsHeatSummary = () => {
             valueField="key"
             value={newHeat.turnDownTempWv}
             onChange={(_, value) => handleNewHeatValChange("turnDownTempWv", value)}
+            disabled={addHeatLoading}
           />
-          <Btn htmlType="submit">Add</Btn>
+          <div className="flex justify-end items-center gap-3 mt-6">
+            <Button
+              onClick={() => setIsModalOpen(false)}
+              disabled={addHeatLoading}
+              className="!h-10 !rounded-lg !px-6 flex items-center justify-center font-medium"
+            >
+              Cancel
+            </Button>
+            <Btn
+              htmlType="submit"
+              loading={addHeatLoading}
+              disabled={addHeatLoading}
+              className="!h-10 !rounded-lg !px-6 flex items-center justify-center font-medium"
+            >
+              {addHeatLoading ? "Adding..." : "Add"}
+            </Btn>
+          </div>
         </Form>
       </Modal>
     </FormContainer>

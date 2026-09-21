@@ -152,9 +152,21 @@ const StartDutyForm = () => {
         }
     }, [formData.mill, millDropdownList]);
 
+    const [submitting, setSubmitting] = useState(false);
+
     const handleFormSubmit = async () => {
-        await dispatch(startNdtDuty(formData)).unwrap();
-        navigate('/sms/ndt/home');
+        if (submitting) return;
+        setSubmitting(true);
+        try {
+            await dispatch(startNdtDuty(formData)).unwrap();
+            navigate('/sms/ndt/home');
+        } catch (error) {
+            console.error("Failed to start NDT duty:", error);
+            const errMsg = error?.message || error?.error || (typeof error === "string" ? error : "Failed to start duty.");
+            message.error(errMsg);
+        } finally {
+            setSubmitting(false);
+        }
     };
 
     const populateData = () => {
@@ -171,7 +183,6 @@ const StartDutyForm = () => {
     }, [formData, form]);
 
     if (dutyId) {
-        // message.error("Duty already in progress. Cannot start new duty.");
         return <Navigate to="/sms/ndt/home" />;
     }
 
@@ -198,8 +209,8 @@ const StartDutyForm = () => {
                     <FormDropdownItem label="Rail Section" name='railSection' formField='railSection' dropdownArray={railSectionList} visibleField='value' valueField='key' onChange={(fieldName, value) => handleChange(fieldName, value, setFormData)} required />
                 </div>
 
-                <Btn htmlType="submit" className="flex justify-center mx-auto">
-                    Start Duty
+                <Btn htmlType="submit" className="flex justify-center mx-auto" loading={submitting} disabled={submitting}>
+                    {submitting ? "Starting Duty..." : "Start Duty"}
                 </Btn>
             </Form>
         </FormContainer>

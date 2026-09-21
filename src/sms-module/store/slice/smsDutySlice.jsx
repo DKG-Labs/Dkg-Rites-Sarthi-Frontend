@@ -9,7 +9,9 @@ const initialState = {
     startTime: null,
     shift: null,
     sms: null,
-    railGrade: null
+    railGrade: null,
+    plant: "BSP",
+    organisation: "BSP"
 }
 
 const smsDutySlice = createSlice({
@@ -28,8 +30,10 @@ const smsDutySlice = createSlice({
             state.startTime = payload?.startTime;
             state.shift = payload?.shift;
             state.sms = payload?.sms;
-            state.railGrade = payload?.railGrade
-            state.dutyId = payload?.dutyId
+            state.railGrade = payload?.railGrade;
+            state.dutyId = payload?.dutyId;
+            state.plant = payload?.plant || payload?.organisation || payload?.plantName || (payload?.sms === "SMS 3" ? "BSP" : "BSP");
+            state.organisation = state.plant;
         })
         .addCase(startSmsDuty.rejected, (state, action) => {
             state.loading = false;
@@ -47,6 +51,8 @@ const smsDutySlice = createSlice({
             state.sms = null;
             state.railGrade = null;
             state.dutyId = null;
+            state.plant = null;
+            state.organisation = null;
         })
         .addCase(endSmsDuty.rejected, (state, action) => {
             state.loading = false;
@@ -63,8 +69,10 @@ const smsDutySlice = createSlice({
             state.startTime = payload?.startTime;
             state.shift = payload?.shift;
             state.sms = payload?.sms;
-            state.railGrade = payload?.railGrade
-            state.dutyId = payload?.dutyId
+            state.railGrade = payload?.railGrade;
+            state.dutyId = payload?.dutyId;
+            state.plant = payload?.plant || payload?.organisation || payload?.plantName || (payload?.sms === "SMS 3" ? "BSP" : (state.plant || "BSP"));
+            state.organisation = state.plant;
         })
         .addCase(getOngoingSmsDutyDtls.rejected, (state, action) => {
             state.loading = false;

@@ -4,7 +4,7 @@ import React from 'react';
 const FormContainer = ({ children, className }) => {
   return (
     <div
-      className={`form-section-card max-w-4xl mx-auto ${className || ''}`}
+      className={`form-section-card w-full max-w-6xl mx-auto ${className || ''}`}
     >
       {children}
     </div>

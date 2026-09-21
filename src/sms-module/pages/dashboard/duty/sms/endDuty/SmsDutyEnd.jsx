@@ -35,20 +35,31 @@ const smsDutyEndTabs = [
 
 const SmsDutyEnd = () => {
   const [formData, setFormData] = useState({shiftRemarks: null})
+  const [submitting, setSubmitting] = useState(false);
   const dispatch = useDispatch();
   const navigate = useNavigate();
 
   const handleFormSubmit = async () => {
-    await dispatch(endSmsDuty(formData)).unwrap();
-    // navigate('/sms/dutyEnd', {state: {dutyEnd: true}});
-  }
+    if (submitting) return;
+    setSubmitting(true);
+    try {
+      await dispatch(endSmsDuty(formData)).unwrap();
+      navigate('/');
+    } catch (err) {
+      console.error("Failed to end SMS duty:", err);
+      const errMsg = err?.message || err?.error || (typeof err === "string" ? err : "Failed to end duty.");
+      message.error(errMsg);
+    } finally {
+      setSubmitting(false);
+    }
+  };
 
   const smsGeneralInfo = useSelector(state => ({
-    StartTime: state.smsDuty.startTime,
-    Date: state.smsDuty.date,
-    Shift: state.smsDuty.shift,
-    Sms: state.smsDuty.sms,
-    RailGrade: state.smsDuty.railGrade
+    StartTime: state?.smsDuty?.startTime,
+    Date: state?.smsDuty?.date,
+    Shift: state?.smsDuty?.shift,
+    Sms: state?.smsDuty?.sms,
+    RailGrade: state?.smsDuty?.railGrade
   }));
 
   return (
@@ -65,9 +76,11 @@ const SmsDutyEnd = () => {
           initialValues={formData}
           onFinish={handleFormSubmit}
         >
-          <FormInputItem placeholder='Enter Remarks' onChange={(field, value) => handleChange(field, value, setFormData)} name='shiftRemarks' required/>
+          <FormInputItem placeholder='Enter Remarks' onChange={(field, value) => handleChange(field, value, setFormData)} name='shiftRemarks' required disabled={submitting}/>
             <div className="text-center">
-              <Btn htmlType='submit'>End Duty</Btn>
+              <Btn htmlType='submit' loading={submitting} disabled={submitting}>
+                {submitting ? "Ending Duty..." : "End Duty"}
+              </Btn>
             </div>
         </FormBody>
       </section>

@@ -240,13 +240,13 @@ const VerificationIso = () => {
         date: formData.date,
         shift: formData.shift,
         railGrade: formData.railGrade,
-        sms: formData.sms, // Add SMS field to maintain dropdown selection
-        ladleToTundishUsed: data?.responseData[0]?.isLadleToTundishUsed === true ? "Yes" : "No",
-        tundishToMouldUsed: data?.responseData[0]?.isTundishToMouldUsed === true? "Yes" : "No",
+        sms: formData.sms,
+        ladleToTundishUsed: data?.responseData?.[0]?.isLadleToTundishUsed === true ? "Yes" : "No",
+        tundishToMouldUsed: data?.responseData?.[0]?.isTundishToMouldUsed === true ? "Yes" : "No",
       });
     } 
     catch(error) {
-      // Error handling
+      console.error("Error fetching verification ISO data:", error);
     }
   }
 

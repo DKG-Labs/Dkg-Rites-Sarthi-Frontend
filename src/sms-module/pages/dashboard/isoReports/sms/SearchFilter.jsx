@@ -9,11 +9,11 @@ import FormInputItem from '../../../../components/DKG_FormInputItem'
 const SearchFilter = ({showDate, showShift, showRailGrade, showRailSection, showSms, onFinish, showMill, customRsL, showJn}) => {
     const [form] = Form.useForm()
 
-    const [shiftList, setShiftList] = useState([])
-    const [railGradeList, setRailGradeList] = useState([])
-    const [smsList, setSmsList] = useState([customRsL]);
-    const [millList, setMillList] = useState([customRsL]);
-    const [railSectionList, setRailSectionList] = useState([customRsL]);
+    const [shiftList, setShiftList] = useState(data.shiftList || []);
+    const [railGradeList, setRailGradeList] = useState(data.railGradeList || []);
+    const [smsList, setSmsList] = useState(data.smsList || []);
+    const [millList, setMillList] = useState(data.millList || []);
+    const [railSectionList, setRailSectionList] = useState(customRsL || data.railSectionList || []);
     const [formData, setFormData] = useState({
         date: null,
         shift: null,
@@ -30,18 +30,18 @@ const SearchFilter = ({showDate, showShift, showRailGrade, showRailSection, show
     }
 
     useEffect(() => {
-        setShiftList([...data.shiftList])
-        setRailGradeList([...data.railGradeList])
-        setSmsList([...data.smsList]);
-        setMillList([...data.millList]);
+        setShiftList([...(data.shiftList || [])]);
+        setRailGradeList([...(data.railGradeList || [])]);
+        setSmsList([...(data.smsList || [])]);
+        setMillList([...(data.millList || [])]);
         if(customRsL){
-            setRailSectionList([...customRsL])
+            setRailSectionList([...customRsL]);
         }
         else{
-            setRailSectionList([...data.railSectionList]);
+            setRailSectionList([...(data.railSectionList || [])]);
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [])
+    }, [customRsL])
   return (
     <div>
       <Form form={form} layout="vertical" initialValues={formData} className='grid grid-cols-2 gap-x-2 p-4' onFinish={() => onFinish(formData)}> 

@@ -563,10 +563,82 @@ const items = [
     key: "6",
     icon: <ProfileOutlined />,
     label: "ISO Reports",
-    activeTab: 6,
-    path: "/sms/",
     permission: "iso-reports",
-    underConstruction: true,
+    items: [
+      {
+        key: "6.1",
+        icon: <MessageOutlined />,
+        label: "SMS",
+        items: [
+          {
+            key: "6.1.1",
+            icon: <LineChartOutlined />,
+            label: "Verification ISO",
+            path: "/sms/iso/sms?tab=0",
+          },
+          {
+            key: "6.1.2",
+            icon: <ExperimentOutlined />,
+            label: "Chemical Analysis - 1",
+            path: "/sms/iso/sms?tab=1",
+          },
+          {
+            key: "6.1.3",
+            icon: <ToolOutlined />,
+            label: "Chemical Analysis - 2",
+            path: "/sms/iso/sms?tab=2",
+          },
+        ],
+      },
+      {
+        key: "6.2",
+        icon: <AuditOutlined />,
+        label: "Rolling Stage",
+        underConstruction: true,
+      },
+      {
+        key: "6.3",
+        icon: <EyeOutlined />,
+        label: "Visual Inspection",
+        underConstruction: true,
+      },
+      {
+        key: "6.4",
+        icon: <DeploymentUnitOutlined />,
+        label: "Welding Inspection",
+        underConstruction: true,
+      },
+      {
+        key: "6.5",
+        icon: <CompassOutlined />,
+        label: "Short Rail Inspection",
+        underConstruction: true,
+      },
+      {
+        key: "6.6",
+        icon: <RadarChartOutlined />,
+        label: "NDT",
+        underConstruction: true,
+      },
+      {
+        key: "6.7",
+        icon: <ExperimentOutlined />,
+        label: "Testing",
+        underConstruction: true,
+      },
+      {
+        key: "6.8",
+        icon: <DatabaseOutlined />,
+        label: "QCT",
+        underConstruction: true,
+      },
+      {
+        key: "6.9",
+        icon: <ToolOutlined />,
+        label: "Calibration",
+        underConstruction: true,
+      },
+    ],
   },
   {
     key: "7",
@@ -579,7 +651,7 @@ const items = [
   },
 ];
 
-const SideNav = ({ collapsed, toggleCollapse }) => {
+const SideNav = ({ collapsed, toggleCollapse, isMobile }) => {
   const location = useLocation();
   const currentPath = location.pathname;
   const { setActiveTab, activeTab } = useContext(ActiveTabContext);
@@ -838,6 +910,9 @@ const SideNav = ({ collapsed, toggleCollapse }) => {
             if (isDutyStartPath) {
               handleDutyNavigation(item.path);
             }
+            if (isMobile) {
+              toggleCollapse();
+            }
           }}
           className={`${
             activeTab === item.activeTab ? "ant-menu-item-selected" : ""
@@ -882,36 +957,77 @@ const SideNav = ({ collapsed, toggleCollapse }) => {
   return (
     <Layout
       style={{ flex: 0 }}
-      className={`absolute md:static h-full w-fit bg-offWhite z-10 !flex !flex-col transition-all duration-150 ${
-        collapsed ? "-translate-x-full md:-translate-x-0" : ""
+      className={`${
+        isMobile
+          ? `fixed top-[60px] bottom-0 left-0 z-50 h-[calc(100vh-60px)] w-[270px] max-w-[85vw] shadow-2xl transition-transform duration-300 ease-in-out ${
+              collapsed ? "-translate-x-full" : "translate-x-0"
+            }`
+          : `relative h-full bg-[#fcfdfd] z-10 flex flex-col border-r border-gray-200 transition-all duration-300 ease-in-out`
       }`}
     >
       <Sider
-        width={260}
+        width={250}
+        collapsedWidth={68}
         trigger={null}
         collapsible
-        collapsed={collapsed}
+        collapsed={isMobile ? false : collapsed}
         onCollapse={toggleCollapse}
-        className="overflow-y-auto !bg-offWhite !w-[100vw] !flex-1 custom-sider-css"
+        className="overflow-y-auto !bg-[#fcfdfd] !h-full flex flex-col custom-sider-css"
+        style={{
+          boxShadow: isMobile ? '4px 0 16px rgba(0,0,0,0.15)' : 'none',
+          height: '100%'
+        }}
       >
+        {/* Top Header / Toggle Bar inside Sider */}
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: (collapsed && !isMobile) ? 'center' : 'flex-end',
+            padding: '8px 12px',
+            borderBottom: '1px solid #edf2f7',
+            background: '#ffffff',
+            minHeight: '40px',
+            position: 'sticky',
+            top: 0,
+            zIndex: 10
+          }}
+        >
+          <button
+            onClick={toggleCollapse}
+            aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+            style={{
+              background: '#f8fafc',
+              border: '1px solid #e2e8f0',
+              borderRadius: '6px',
+              width: '28px',
+              height: '28px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              cursor: 'pointer',
+              color: '#475569',
+              fontSize: '14px',
+              fontWeight: 700,
+              transition: 'all 0.2s ease',
+              boxShadow: '0 1px 2px rgba(0,0,0,0.05)'
+            }}
+            onMouseOver={(e) => { e.currentTarget.style.background = '#0F4C81'; e.currentTarget.style.color = '#ffffff'; e.currentTarget.style.borderColor = '#0F4C81'; }}
+            onMouseOut={(e) => { e.currentTarget.style.background = '#f8fafc'; e.currentTarget.style.color = '#475569'; e.currentTarget.style.borderColor = '#e2e8f0'; }}
+          >
+            {isMobile ? '✕' : (collapsed ? '»' : '«')}
+          </button>
+        </div>
+
         <Menu
           mode="inline"
           defaultSelectedKeys={["1"]}
           selectedKeys={selectedKey ? [selectedKey] : []}
-          className="!bg-offWhite"
+          className="!bg-[#fcfdfd] border-r-0 !py-2"
+          inlineCollapsed={!isMobile && collapsed}
         >
           {menuItems}
         </Menu>
-        <div className="mt-auto pb-4 px-2 flex justify-center w-full">
-          <IconBtn
-            text={collapsed ? null : "Logout"}
-            icon={LogoutOutlined}
-            className={`!w-full !border-none !shadow-none !bg-transparent hover:!bg-gray-100 ${
-              collapsed ? "flex justify-center" : "flex justify-start !px-4"
-            }`}
-            onClick={() => dispatch(logout())}
-          />
-        </div>
       </Sider>
     </Layout>
   );

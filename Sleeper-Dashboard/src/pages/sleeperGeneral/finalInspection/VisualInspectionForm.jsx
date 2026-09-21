@@ -245,6 +245,102 @@ const VisualInspectionForm = ({ batch, onSave, onCancel, shift }) => {
         }
     };
 
+    const filteredPassedSleepers = useMemo(() => filteredSleepers.filter(s => s.status === 'passed'), [filteredSleepers]);
+    const allPassedSelected = useMemo(() => {
+        if (filteredPassedSleepers.length === 0) return false;
+        return filteredPassedSleepers.every(s => selectedSleepers.includes(s.id));
+    }, [filteredPassedSleepers, selectedSleepers]);
+
+    const handleSelectAllPassed = async (e) => {
+        const checked = e.target.checked;
+        if (checked) {
+            const idsToAdd = filteredPassedSleepers.map(s => s.id);
+            setSelectedSleepers(prev => [...new Set([...prev, ...idsToAdd])]);
+        } else {
+            const count = filteredPassedSleepers.length;
+            if (count === 0) return;
+
+            const confirmReset = window.confirm(`Deselecting all will reset ${count} VERIFIED / PASSED sleeper(s) to PENDING. Continue?`);
+            if (!confirmReset) return;
+
+            try {
+                setSaving(true);
+                const payload = {
+                    batchId: batch.batchId,
+                    moduleId: 1,
+                    sleeperType: batch.sleeperType,
+                    shift: shift || 'General',
+                    createdBy: parseInt(localStorage.getItem('userId') || '118', 10),
+                    sleepers: filteredPassedSleepers.map(s => ({
+                        sleeperId: s.id,
+                        sleeperNo: s.displayNo,
+                        result: 'PENDING',
+                        rejectionReason: '',
+                        parameters: []
+                    }))
+                };
+                await apiService.updateInspectionSleepers(payload);
+                
+                const resetIds = new Set(filteredPassedSleepers.map(s => s.id));
+                setSleepers(prev => prev.map(s => resetIds.has(s.id) ? { ...s, status: 'pending', moduleId: null } : s));
+                setSelectedSleepers(prev => prev.filter(id => !resetIds.has(id)));
+                toast.success(`${count} verified sleeper(s) reset to PENDING.`);
+            } catch (error) {
+                toast.error('Failed to reset sleepers: ' + error.message);
+            } finally {
+                setSaving(false);
+            }
+        }
+    };
+
+    const filteredRejectedSleepers = useMemo(() => filteredSleepers.filter(s => s.status === 'rejected'), [filteredSleepers]);
+    const allRejectedSelected = useMemo(() => {
+        if (filteredRejectedSleepers.length === 0) return false;
+        return filteredRejectedSleepers.every(s => selectedSleepers.includes(s.id));
+    }, [filteredRejectedSleepers, selectedSleepers]);
+
+    const handleSelectAllRejected = async (e) => {
+        const checked = e.target.checked;
+        if (checked) {
+            const idsToAdd = filteredRejectedSleepers.map(s => s.id);
+            setSelectedSleepers(prev => [...new Set([...prev, ...idsToAdd])]);
+        } else {
+            const count = filteredRejectedSleepers.length;
+            if (count === 0) return;
+
+            const confirmReset = window.confirm(`Deselecting all will reset ${count} REJECTED sleeper(s) to PENDING. Continue?`);
+            if (!confirmReset) return;
+
+            try {
+                setSaving(true);
+                const payload = {
+                    batchId: batch.batchId,
+                    moduleId: 1,
+                    sleeperType: batch.sleeperType,
+                    shift: shift || 'General',
+                    createdBy: parseInt(localStorage.getItem('userId') || '118', 10),
+                    sleepers: filteredRejectedSleepers.map(s => ({
+                        sleeperId: s.id,
+                        sleeperNo: s.displayNo,
+                        result: 'PENDING',
+                        rejectionReason: '',
+                        parameters: []
+                    }))
+                };
+                await apiService.updateInspectionSleepers(payload);
+                
+                const resetIds = new Set(filteredRejectedSleepers.map(s => s.id));
+                setSleepers(prev => prev.map(s => resetIds.has(s.id) ? { ...s, status: 'pending', moduleId: null } : s));
+                setSelectedSleepers(prev => prev.filter(id => !resetIds.has(id)));
+                toast.success(`${count} rejected sleeper(s) reset to PENDING.`);
+            } catch (error) {
+                toast.error('Failed to reset sleepers: ' + error.message);
+            } finally {
+                setSaving(false);
+            }
+        }
+    };
+
     const sections = [
         { id: 'visual', label: 'Visual Checking', section: 'Section 1' },
         { id: 'dimension', label: 'Dimension Checking', section: 'Section 2' },
@@ -442,18 +538,6 @@ const VisualInspectionForm = ({ batch, onSave, onCancel, shift }) => {
                 createdBy: parseInt(localStorage.getItem('userId') || '118', 10),
                 sleepers: sleepers.filter(s => {
                     if (!selectedSleepers.includes(s.id)) return false;
-                    if (s.moduleId && s.moduleId !== 1) return false;
-                    
-                    const currentIsRejected = sections.some(sect => {
-                        const sectState = sectionStates[sect.id];
-                        return sectState.result === 'all-rejected' || sectState.failedSleepers.includes(s.id);
-                    });
-
-                    // PREVENT OVERWRITING REJECTED SLEEPERS TO OK:
-                    // If a sleeper was already rejected and has not been explicitly re-rejected in this session,
-                    // we skip sending it. It will maintain its rejected state and reason in the database.
-                    if (s.status === 'rejected' && !currentIsRejected) return false;
-                    
                     return true;
                 }).map(s => {
                     const currentIsRejected = sections.some(sect => {
@@ -461,11 +545,14 @@ const VisualInspectionForm = ({ batch, onSave, onCancel, shift }) => {
                         return sectState.result === 'all-rejected' || sectState.failedSleepers.includes(s.id);
                     });
 
+                    const isRejected = currentIsRejected || s.status === 'rejected';
+
                     const sleeperParams = sections.map((sect, idx) => {
                         const sectState = sectionStates[sect.id];
                         let paramResult = 'OK';
                         if (sectState.result === 'all-rejected') paramResult = 'REJECTED';
                         else if (sectState.result === 'partial-ok' && sectState.failedSleepers.includes(s.id)) paramResult = 'REJECTED';
+                        else if (s.status === 'rejected' && !currentIsRejected) paramResult = 'REJECTED';
 
                         return {
                             parameterId: idx + 1,
@@ -474,30 +561,34 @@ const VisualInspectionForm = ({ batch, onSave, onCancel, shift }) => {
                     });
 
                     let rejectionReason = '';
-                    sections.forEach(sect => {
-                        const sectState = sectionStates[sect.id];
-                        if (sectState.failedSleepers.includes(s.id)) {
-                            const details = sectState.rejectionDetails[s.id] || {};
-                            let reason = details.reason || (sectState.result === 'all-rejected' ? sectState.globalReason : '');
-                            let subReason = details.subReason || (sectState.result === 'all-rejected' ? sectState.globalSubReason : '');
-                            
-                            if (sect.id === 'ftc') {
-                                reason = 'NFTC';
-                                subReason = '';
-                            }
+                    if (currentIsRejected) {
+                        sections.forEach(sect => {
+                            const sectState = sectionStates[sect.id];
+                            if (sectState.failedSleepers.includes(s.id)) {
+                                const details = sectState.rejectionDetails[s.id] || {};
+                                let reason = details.reason || (sectState.result === 'all-rejected' ? sectState.globalReason : '');
+                                let subReason = details.subReason || (sectState.result === 'all-rejected' ? sectState.globalSubReason : '');
+                                
+                                if (sect.id === 'ftc') {
+                                    reason = 'NFTC';
+                                    subReason = '';
+                                }
 
-                            if (reason) {
-                                rejectionReason += `${sect.label}: ${reason}${subReason ? ' (' + subReason + ')' : ''}; `;
-                            } else {
-                                rejectionReason += `${sect.label}: Rejected; `;
+                                if (reason) {
+                                    rejectionReason += `${sect.label}: ${reason}${subReason ? ' (' + subReason + ')' : ''}; `;
+                                } else {
+                                    rejectionReason += `${sect.label}: Rejected; `;
+                                }
                             }
-                        }
-                    });
+                        });
+                    } else if (s.status === 'rejected') {
+                        rejectionReason = s.rejectionReason || 'Previously Rejected';
+                    }
 
                     return {
                         sleeperId: s.id,
                         sleeperNo: s.displayNo,
-                        result: currentIsRejected ? 'REJECTED' : 'OK',
+                        result: isRejected ? 'REJECTED' : 'OK',
                         rejectionReason: rejectionReason.trim().replace(/;$/, ''),
                         parameters: sleeperParams
                     };
@@ -569,8 +660,17 @@ const VisualInspectionForm = ({ batch, onSave, onCancel, shift }) => {
                         
                         {/* Column 1: Rejected Sleepers */}
                         <div style={{ background: '#fef2f2', padding: '12px', borderRadius: '8px', border: '1px solid #fee2e2', display: 'flex', flexDirection: 'column' }}>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', color: '#b91c1c', fontWeight: '700', fontSize: '11px', marginBottom: '15px', borderBottom: '1px solid #fecaca', paddingBottom: '4px' }}>
-                                <span>REJECTED SLEEPERS</span>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', color: '#b91c1c', fontWeight: '700', fontSize: '11px', marginBottom: '15px', borderBottom: '1px solid #fecaca', paddingBottom: '4px' }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                    <input 
+                                        type="checkbox" 
+                                        checked={allRejectedSelected} 
+                                        onChange={handleSelectAllRejected}
+                                        title={allRejectedSelected ? "Deselect All Rejected" : "Select All Rejected"}
+                                        style={{ cursor: 'pointer', width: '13px', height: '13px' }}
+                                    />
+                                    <span>REJECTED SLEEPERS</span>
+                                </div>
                                 <span>{sleepers.filter(s => s.status === 'rejected').length}</span>
                             </div>
                             <div style={{ height: '300px', overflowY: 'auto', paddingRight: '4px' }} className="custom-scrollbar">
@@ -580,8 +680,17 @@ const VisualInspectionForm = ({ batch, onSave, onCancel, shift }) => {
 
                         {/* Column 2: Verified Sleepers */}
                         <div style={{ background: '#f0fdf4', padding: '12px', borderRadius: '8px', border: '1px solid #dcfce7', display: 'flex', flexDirection: 'column' }}>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', color: '#15803d', fontWeight: '700', fontSize: '11px', marginBottom: '15px', borderBottom: '1px solid #bbf7d0', paddingBottom: '4px' }}>
-                                <span>VERIFIED / PASSED</span>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', color: '#15803d', fontWeight: '700', fontSize: '11px', marginBottom: '15px', borderBottom: '1px solid #bbf7d0', paddingBottom: '4px' }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                    <input 
+                                        type="checkbox" 
+                                        checked={allPassedSelected} 
+                                        onChange={handleSelectAllPassed}
+                                        title={allPassedSelected ? "Deselect All Passed" : "Select All Passed"}
+                                        style={{ cursor: 'pointer', width: '13px', height: '13px' }}
+                                    />
+                                    <span>VERIFIED / PASSED</span>
+                                </div>
                                 <span>{sleepers.filter(s => s.status === 'passed').length}</span>
                             </div>
                             <div style={{ height: '300px', overflowY: 'auto', paddingRight: '4px' }} className="custom-scrollbar">

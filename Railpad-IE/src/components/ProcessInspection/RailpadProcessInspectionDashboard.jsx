@@ -345,7 +345,9 @@ const RailpadProcessInspectionDashboard = ({ user, call, currentShift, onBack, o
       totalAccepted += (!isNaN(acc) && acc > 0 ? acc : 0);
     });
 
-    return { totalManufactured, totalRejected, totalAccepted, hasInvalidQty };
+    const totalOffered = totalAccepted + totalRejected;
+
+    return { totalManufactured, totalRejected, totalAccepted, totalOffered, hasInvalidQty };
   }, [selectedBatches]);
 
   const formatDate = (dateStr) => {
@@ -644,7 +646,7 @@ const RailpadProcessInspectionDashboard = ({ user, call, currentShift, onBack, o
       const payload = {
         callNo: call.requestId || call.callNo,
         callQty: calculatedCallQty,
-        totalManufacturedQty: totals.totalManufactured,
+        totalManufacturedQty: totals.totalOffered,
         totalRejectedQty: totals.totalRejected,
         totalAcceptedQty: totals.totalAccepted,
         reasonForRejection: compiledReason,
@@ -1262,7 +1264,7 @@ const RailpadProcessInspectionDashboard = ({ user, call, currentShift, onBack, o
             <div className="summary-stats">
               <div className="stat-box primary">
                 <label>Qty Offered</label>
-                <div className="stat-val">{totals.totalManufactured}</div>
+                <div className="stat-val">{totals.totalOffered}</div>
               </div>
               <div className="stat-box danger">
                 <label>Qty Rejected</label>

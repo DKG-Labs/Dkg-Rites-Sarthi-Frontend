@@ -41,30 +41,30 @@ const EpoxyTreatedSleepers = ({ onBack, initialShowForm = false }) => {
     const fetchData = async () => {
         setIsLoading(true);
         try {
+            // Do NOT pass plantId/vendorCode to backend — the localStorage values
+            // (e.g. ':41647') don't match the DB column values (e.g. '135').
+            // Instead fetch all and filter on frontend by plant.
             const params = {};
-            if (currentPlant) params.plantId = currentPlant;
-            if (currentVendor) params.vendorCode = currentVendor;
-            if (currentUserId) params.createdBy = currentUserId;
+
+            console.log('[ET] currentPlant:', currentPlant, '| currentVendor:', currentVendor, '| activeTab:', activeTab);
 
             if (activeTab === 'summary') {
                 const res = await apiService.getETBatchSummary(params);
                 let list = res?.responseData || [];
+                console.log('[ET] summary raw list:', list.length, list);
                 if (currentPlant) {
                     list = list.filter(b => isSamePlant(b.plantId || b.location, currentPlant));
                 }
-                if (currentUserId) {
-                    list = list.filter(b => !b.createdBy || String(b.createdBy) === String(currentUserId));
-                }
+                console.log('[ET] summary after filter:', list.length);
                 setBatches(list);
             } else {
                 const res = await apiService.getAllETLogs(params);
                 let list = res?.responseData || [];
+                console.log('[ET] logs raw list:', list.length, list);
                 if (currentPlant) {
                     list = list.filter(l => isSamePlant(l.plantId || l.location, currentPlant));
                 }
-                if (currentUserId) {
-                    list = list.filter(l => !l.createdBy || String(l.createdBy) === String(currentUserId));
-                }
+                console.log('[ET] logs after filter:', list.length);
                 setLogs(list);
             }
         } catch (e) {

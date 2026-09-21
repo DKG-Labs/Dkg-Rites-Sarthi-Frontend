@@ -561,6 +561,18 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
     'RDSO/T-8998': { type: '10mm CGRSP', max: 445 },
   };
 
+  const getWeightTolerance = (drawingNo) => {
+    if (!drawingNo) return { max: 445 };
+    const cleanDwg = String(drawingNo).trim().toUpperCase();
+    for (const [key, val] of Object.entries(WEIGHT_TOLERANCE)) {
+      const cleanKey = key.trim().toUpperCase();
+      if (cleanKey === cleanDwg || cleanKey.replace(/^(RDSO\/)?(T-)?/, '') === cleanDwg.replace(/^(RDSO\/)?(T-)?/, '') || cleanDwg.includes(cleanKey.replace(/^(RDSO\/)?/, ''))) {
+        return val;
+      }
+    }
+    return { max: 445 };
+  };
+
   const getVisualDimSampleSize = (lotOrId) => {
     const lot = (typeof lotOrId === 'object' && lotOrId) ? lotOrId : (lots.find(l => l.id === lotOrId) || { size: 1500, railpadType: '' });
     const type = (lot?.railpadType || activeRailpadType || '').toUpperCase();
@@ -899,7 +911,7 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
               const targetLot = lotExists ? savedLotId : formattedLots[0].id;
               setSelectedLot(targetLot);
               shouldKeepLoading = true;
-              loadLotData(targetLot);
+              loadLotData(targetLot, formattedLots);
             }
             // Notify parent about the full call details (for the header)
             if (onUpdateCall) {
@@ -942,7 +954,7 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
     if (!isDirty) setIsDirty(true);
   };
 
-  const loadLotData = async (lotId) => {
+  const loadLotData = async (lotId, lotsOverride = null) => {
     // In a real app, this would be an API call
     console.log(`Loading data for ${lotId}...`);
     setLoading(true);
@@ -956,6 +968,25 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
     if (currentCallId) {
       localStorage.setItem(`railpad_selected_lot_${currentCallId}`, lotId);
     }
+
+    const currentLots = (Array.isArray(lotsOverride) && lotsOverride.length > 0)
+      ? lotsOverride
+      : (lots && lots.length > 0
+          ? lots
+          : (call?.lots ? call.lots.map(l => ({ id: l.lotNo, size: l.lotSize, drawingNo: call.drawingNo || 'N/A', railpadType: call.railPadType || call?.railpadType || 'GRSP' })) : []));
+
+    const currentCallLot = call?.lots?.find(l => l.lotNo === lotId || String(l.id) === String(lotId) || String(l.lotNo) === String(lotId));
+    const fallbackSize = currentCallLot?.lotSize || call?.lots?.[0]?.lotSize || call?.lotSize || call?.quantity || call?.totalQty || 10000;
+    const fallbackDwg = call?.drawingNo || 'RDSO/T-8528';
+    const fallbackType = call?.railPadType || call?.railpadType || '10.00mm CGRSP';
+
+    const lot = currentLots.find(l => l.id === lotId || String(l.id) === String(lotId) || l.lotNo === lotId) || {
+      id: lotId,
+      size: fallbackSize,
+      drawingNo: fallbackDwg,
+      railpadType: fallbackType
+    };
+
     // Check if there is saved draft in localStorage first!
     const possibleCallIds = Array.from(new Set([
       currentCallId,
@@ -980,8 +1011,11 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
     if (saved) {
       try {
         const draft = JSON.parse(saved);
-        const lotForDraft = lots.find(l => l.id === lotId) || { size: 1500, railpadType: '' };
+        const lotForDraft = lot;
         const calculatedDraftN = getVisualDimSampleSize(lotForDraft);
+        const aql = getWeightAQL(lotForDraft.size);
+        const tolerance = getWeightTolerance(lotForDraft.drawingNo);
+
         if (draft.visualData) {
           setVisualData({
             ...draft.visualData,
@@ -989,7 +1023,53 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
             dimN: (lotForDraft.railpadType || activeRailpadType || '').toUpperCase().includes('NCR') ? calculatedDraftN : (draft.visualData.dimN || calculatedDraftN)
           });
         }
-        if (draft.weightData) setWeightData(draft.weightData);
+
+        if (draft.weightData) {
+          let s1 = Array.isArray(draft.weightData.samples1) ? [...draft.weightData.samples1] : [];
+          let s2 = Array.isArray(draft.weightData.samples2) ? [...draft.weightData.samples2] : [];
+          if (s1.length !== aql.n1) {
+            const newS1 = Array(aql.n1).fill('');
+            for (let i = 0; i < Math.min(s1.length, aql.n1); i++) {
+              newS1[i] = s1[i];
+            }
+            s1 = newS1;
+          }
+          if (s2.length !== aql.n2) {
+            const newS2 = Array(aql.n2).fill('');
+            for (let i = 0; i < Math.min(s2.length, aql.n2); i++) {
+              newS2[i] = s2[i];
+            }
+            s2 = newS2;
+          }
+          setWeightData({
+            ...draft.weightData,
+            samples1: s1,
+            samples2: s2,
+            n1: aql.n1,
+            ac1: aql.ac1,
+            re1: aql.re1,
+            n2: aql.n2,
+            ac2: aql.ac2,
+            re2: aql.re2,
+            min: draft.weightData.min !== undefined && draft.weightData.min !== null ? draft.weightData.min : 0,
+            max: draft.weightData.max !== undefined && draft.weightData.max !== null ? draft.weightData.max : tolerance.max,
+            isSecondActive: draft.weightData.isSecondActive || false
+          });
+        } else {
+          setWeightData({
+            samples1: Array(aql.n1).fill(''),
+            samples2: Array(aql.n2).fill(''),
+            n1: aql.n1,
+            ac1: aql.ac1,
+            re1: aql.re1,
+            n2: aql.n2,
+            ac2: aql.ac2,
+            re2: aql.re2,
+            min: 0,
+            max: tolerance.max,
+            isSecondActive: false
+          });
+        }
 
         let paddedPhys = padPhysicalData(draft.physicalData);
         setPhysicalData(paddedPhys);
@@ -1232,7 +1312,12 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
         : null;
       setDbDimensionalNotOk(finalDbDimensionalNotOk);
 
-      const lot = lots.find(l => l.id === lotId) || { size: 1500, drawingNo: 'RDSO/T-8528' };
+      const lot = currentLots.find(l => l.id === lotId || String(l.id) === String(lotId) || l.lotNo === lotId) || {
+        id: lotId,
+        size: fallbackSize,
+        drawingNo: fallbackDwg,
+        railpadType: fallbackType
+      };
       const calculatedSampleN = getVisualDimSampleSize(lot);
 
       let baseVisual;
@@ -1258,12 +1343,12 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
       setVisualData(baseVisual);
 
       const aql = getWeightAQL(lot.size);
-      const tolerance = WEIGHT_TOLERANCE[lot.drawingNo] || { max: 445 };
+      const tolerance = getWeightTolerance(lot.drawingNo);
 
       let baseWeight;
       if (weightDbData) {
-        const s1 = Array(weightDbData.n1 || aql.n1).fill('');
-        const s2 = Array(weightDbData.n2 || aql.n2).fill('');
+        const s1 = Array(aql.n1).fill('');
+        const s2 = Array(aql.n2).fill('');
         if (weightDbData.samples) {
           weightDbData.samples.forEach(s => {
             if (s.samplingNo === 1 && s.sampleNo >= 1 && s.sampleNo <= s1.length) {
@@ -1276,10 +1361,10 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
         baseWeight = {
           samples1: s1,
           samples2: s2,
-          n1: weightDbData.n1 || aql.n1,
+          n1: aql.n1,
           ac1: weightDbData.ac1 !== null && weightDbData.ac1 !== undefined ? weightDbData.ac1 : aql.ac1,
           re1: weightDbData.re1 !== null && weightDbData.re1 !== undefined ? weightDbData.re1 : aql.re1,
-          n2: weightDbData.n2 || aql.n2,
+          n2: aql.n2,
           ac2: weightDbData.ac2 !== null && weightDbData.ac2 !== undefined ? weightDbData.ac2 : aql.ac2,
           re2: weightDbData.re2 !== null && weightDbData.re2 !== undefined ? weightDbData.re2 : aql.re2,
           min: weightDbData.minWeight !== null && weightDbData.minWeight !== undefined ? weightDbData.minWeight : 0,

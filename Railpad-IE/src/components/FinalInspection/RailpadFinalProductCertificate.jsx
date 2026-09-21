@@ -4,6 +4,7 @@ import { jsPDF } from "jspdf";
 import RailpadFinalIc from "./RailpadFinalIc";
 import RailpadProcessIc from "./RailpadProcessIc";
 import AnnexureLoader from '../annexures/AnnexureLoader';
+import AnnexureUploadModal from '../AnnexureUploadModal';
 import {
   generateRailpadIcDetails,
   saveFinalIcEditData,
@@ -122,6 +123,7 @@ export default function RailpadFinalProductCertificate({ call = {}, onBack, isVi
   const [notification, setNotification] = useState({ show: false, message: '', type: 'info' });
   const [bookSetValidation, setBookSetValidation] = useState({ isValid: null, message: null, isValidating: false });
   const [bookWarningModal, setBookWarningModal] = useState({ show: false, onProceed: null });
+  const [showAnnexureModal, setShowAnnexureModal] = useState(false);
 
   const user = getStoredUser();
   const isProcessCall = call?.callType === 'PROCESS' || call?.requestId?.startsWith('RPP-') || call?.callNo?.startsWith('RPP-');
@@ -1030,6 +1032,27 @@ export default function RailpadFinalProductCertificate({ call = {}, onBack, isVi
                 })()
               )}
 
+              {/* Upload Annexures and other docs Button */}
+              <button
+                onClick={() => setShowAnnexureModal(true)}
+                disabled={isESigning}
+                style={{
+                  padding: '8px 16px',
+                  border: '1px solid #86efac',
+                  borderRadius: '6px',
+                  background: '#f0fdf4',
+                  color: '#166534',
+                  fontWeight: '700',
+                  fontSize: '0.8125rem',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px'
+                }}
+              >
+                📁 Upload Annexures and other docs
+              </button>
+
               {/* Export PDF Button */}
               <button
                 onClick={handleExport}
@@ -1226,6 +1249,15 @@ export default function RailpadFinalProductCertificate({ call = {}, onBack, isVi
         </div>
       )}
 
+      {/* Annexure & Document Upload Modal */}
+      <AnnexureUploadModal
+        isOpen={showAnnexureModal}
+        onClose={() => setShowAnnexureModal(false)}
+        callNo={call.callNo || call.call_no || call.requestId || "RPP_IC"}
+        icNumber={data.certificateNo || data.icNo || data.icNumber || ""}
+        moduleType="RAILPAD"
+        uploadedBy={getStoredUser()?.name || "Inspecting Engineer"}
+      />
     </div>
   );
 }

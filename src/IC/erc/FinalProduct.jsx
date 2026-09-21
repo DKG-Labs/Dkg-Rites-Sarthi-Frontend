@@ -10,6 +10,7 @@ import {
 } from '@mui/material';
 import { formatDate } from "../../utils/helpers";
 import ErcFinalIc from "./ErcFinalIc";
+import AnnexureUploadModal from "../../components/AnnexureUploadModal";
 import { exportToPdf, generatePdfBase64, calculateSignatureCoords } from "../../utils/exportUtils";
 import { uploadSignedCertificate, saveFinalIcEditData, getFinalIcEditData, saveFinalIcSaveChanges, getFinalIcSaveChanges, validateBookSetNo } from "../../services/certificateService";
 import { performTransitionAction } from "../../services/workflowService";
@@ -296,6 +297,7 @@ export default function FinalProductCertificate({ call = {}, onBack }) {
   const printAreaRef = useRef();
   const [isEditing, setIsEditing] = useState(false);
   const [isESigning, setIsESigning] = useState(false);
+  const [showAnnexureModal, setShowAnnexureModal] = useState(false);
   const [notification, setNotification] = useState({ open: false, message: '', severity: 'info' });
   const [bookSetValidation, setBookSetValidation] = useState({ isValid: null, message: null, isValidating: false });
   const [bookWarningModal, setBookWarningModal] = useState({ show: false, onProceed: null });
@@ -850,6 +852,29 @@ export default function FinalProductCertificate({ call = {}, onBack }) {
           >
             {isESigning ? "SIGNING..." : "✒ E SIGN"}
           </Button>
+          <Button
+            variant="outlined"
+            onClick={() => setShowAnnexureModal(true)}
+            sx={{
+              backgroundColor: '#f0fdf4',
+              color: '#166534',
+              borderColor: '#86efac',
+              fontWeight: 700,
+              fontSize: '0.8125rem',
+              px: 2,
+              py: 0.75,
+              borderRadius: '6px',
+              textTransform: 'none',
+              boxShadow: '0 1px 2px rgba(0,0,0,0.05)',
+              '&:hover': {
+                backgroundColor: '#dcfce7',
+                borderColor: '#4ade80',
+                color: '#14532d',
+              }
+            }}
+          >
+            📁 Upload Annexures and other docs
+          </Button>
           <button 
             onClick={handleExport} 
             className="btn btn-primary"
@@ -979,6 +1004,16 @@ export default function FinalProductCertificate({ call = {}, onBack }) {
           </div>
         </div>
       )}
+
+      {/* Annexure & Document Upload Modal */}
+      <AnnexureUploadModal
+        isOpen={showAnnexureModal}
+        onClose={() => setShowAnnexureModal(false)}
+        callNo={call.callNo || call.requestId || call.call_no || "ERC_IC"}
+        icNumber={data.icNo || data.icNumber || ""}
+        moduleType="ERC"
+        uploadedBy={getStoredUser()?.name || "Inspecting Engineer"}
+      />
     </Box>
   );
 }

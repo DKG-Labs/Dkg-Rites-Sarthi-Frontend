@@ -4,6 +4,7 @@ import PendingCallDetailsModal from '../../../components/PendingCallDetailsModal
 import ResumeCallModal from '../../../components/ResumeCallModal';
 import Notification from '../../../components/Notification';
 import CorrectionSlipModal from '../../../components/CorrectionSlipModal';
+import AnnexureUploadModal from '../../../components/AnnexureUploadModal';
 import './AttendingCallDashboard.css';
 import { apiService, API_BASE_URL } from '../../../services/api';
 import { getStoredUser } from '../../../services/authService';
@@ -147,6 +148,7 @@ const AttendingCallDashboard = ({ mode }) => {
     const [isSendingIbs, setIsSendingIbs] = useState(false);
     const [expandedActions, setExpandedActions] = useState({});
     const [notification, setNotification] = useState({ message: '', type: 'info' });
+    const [uploadAnnexureModal, setUploadAnnexureModal] = useState({ isOpen: false, call: null });
 
     const showNotification = (message, type = 'info') => {
         setNotification({ message, type });
@@ -1134,29 +1136,23 @@ const AttendingCallDashboard = ({ mode }) => {
                                                 </td>
                                                 <td>
                                                     <div className="table-actions-modern" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                                                        <button className="btn-start" onClick={() => handleIssueIC(call)}>
-                                                            {((call.jobStatus || call.status || '').toUpperCase() === 'IC_ISSUE') ? 'View IC' : 'IC Issue'}
-                                                        </button>
-                                                        <button 
+                                                        <button
+                                                            className="btn-actions-modern"
+                                                            onClick={() => handleActionClick(call)}
                                                             style={{
-                                                                background: '#fff7ed',
-                                                                color: '#c2410c',
-                                                                border: '1.5px solid #ffedd5',
-                                                                fontWeight: '700',
-                                                                fontSize: '11px',
                                                                 padding: '6px 12px',
-                                                                borderRadius: '8px',
+                                                                borderRadius: '6px',
+                                                                border: 'none',
+                                                                background: '#2563eb',
+                                                                color: '#ffffff',
+                                                                fontSize: '11px',
+                                                                fontWeight: '700',
                                                                 cursor: 'pointer',
-                                                                display: 'inline-flex',
-                                                                alignItems: 'center',
-                                                                gap: '4px',
-                                                                transition: 'all 0.15s'
+                                                                boxShadow: '0 1px 2px rgba(37, 99, 235, 0.2)',
+                                                                whiteSpace: 'nowrap'
                                                             }}
-                                                            onClick={() => handleBackToInspection(call)}
-                                                            title="Revert call back to Inspection stage"
                                                         >
-                                                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="1 4 1 10 7 10"></polyline><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"></path></svg>
-                                                            Back to Inspection
+                                                            VIEW ACTIONS
                                                         </button>
                                                     </div>
                                                 </td>
@@ -1424,8 +1420,22 @@ const AttendingCallDashboard = ({ mode }) => {
                         <div className="modal-actions-horizontal">
                             {activeTab === 'issuance' ? (
                                 <>
-                                    <button className="issue-ic-btn" onClick={() => handleIssueIC(popupCall)}>
+                                    <button className="issue-ic-btn" onClick={() => { setShowDetailsPopup(false); handleIssueIC(popupCall); }}>
                                         {(popupCall?.jobStatus === 'IC_ISSUE' || popupCall?.status === 'IC_ISSUE') ? 'View IC' : 'Issue IC'}
+                                    </button>
+                                    <button 
+                                        className="download-btn"
+                                        style={{ background: '#f0fdf4', color: '#166534', border: '1px solid #86efac', fontWeight: '700' }}
+                                        onClick={() => { setShowDetailsPopup(false); setUploadAnnexureModal({ isOpen: true, call: popupCall }); }}
+                                    >
+                                        📁 Upload Annexures / Docs
+                                    </button>
+                                    <button 
+                                        className="download-btn"
+                                        style={{ background: '#fff7ed', color: '#c2410c', border: '1.5px solid #ffedd5', fontWeight: '700' }}
+                                        onClick={() => { setShowDetailsPopup(false); handleBackToInspection(popupCall); }}
+                                    >
+                                        Back to Inspection
                                     </button>
                                     <button className="download-btn">Download Annexures</button>
                                 </>
@@ -1831,7 +1841,38 @@ const AttendingCallDashboard = ({ mode }) => {
                                     <span style={{ fontWeight: '700', fontSize: '14px' }}>PO & MA</span>
                                 </button>
 
-                                {/* 5. Back to Issuance of IC */}
+                                {/* 5. View Uploaded Annexures and Other Docs */}
+                                <button
+                                    onClick={() => {
+                                        const call = selectedActionCall;
+                                        setSelectedActionCall(null);
+                                        setUploadAnnexureModal({ isOpen: true, call, mode: 'view' });
+                                    }}
+                                    style={{
+                                        display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '8px',
+                                        padding: '16px 12px', background: 'linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%)',
+                                        border: '1px solid #86efac', borderRadius: '14px',
+                                        cursor: 'pointer', transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                                        color: '#166534', width: '100%',
+                                        boxShadow: '0 4px 6px -1px rgba(22, 101, 52, 0.1), 0 2px 4px -1px rgba(22, 101, 52, 0.06)'
+                                    }}
+                                    onMouseEnter={(e) => { 
+                                        e.currentTarget.style.transform = 'translateY(-3px)';
+                                        e.currentTarget.style.boxShadow = '0 10px 15px -3px rgba(22, 101, 52, 0.2), 0 4px 6px -2px rgba(22, 101, 52, 0.1)'; 
+                                    }}
+                                    onMouseLeave={(e) => { 
+                                        e.currentTarget.style.transform = 'translateY(0)';
+                                        e.currentTarget.style.boxShadow = '0 4px 6px -1px rgba(22, 101, 52, 0.1), 0 2px 4px -1px rgba(22, 101, 52, 0.06)'; 
+                                    }}
+                                    title="View uploaded annexures and other documents"
+                                >
+                                    <div style={{ width: '42px', height: '42px', background: '#ffffff', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 2px 4px rgba(0,0,0,0.05)' }}>
+                                        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#16a34a" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                                    </div>
+                                    <span style={{ fontWeight: '700', fontSize: '13.5px', textAlign: 'center', lineHeight: '1.2' }}>View Uploaded Annexures & Docs</span>
+                                </button>
+
+                                {/* 6. Back to Issuance of IC */}
                                 {!selectedActionCall.isClosed && activeTab !== 'closed' && (
                                     <button
                                         onClick={() => handleBackToIcIssuance(selectedActionCall)}
@@ -2354,6 +2395,18 @@ const AttendingCallDashboard = ({ mode }) => {
                         </div>
                     </div>
                 </div>
+            )}
+            {/* Annexure & Document Upload Modal */}
+            {uploadAnnexureModal.isOpen && uploadAnnexureModal.call && (
+                <AnnexureUploadModal
+                    isOpen={uploadAnnexureModal.isOpen}
+                    onClose={() => setUploadAnnexureModal({ isOpen: false, call: null })}
+                    callNo={uploadAnnexureModal.call.requestId || uploadAnnexureModal.call.callNo || uploadAnnexureModal.call.call_no}
+                    icNumber={uploadAnnexureModal.call.icNumber || uploadAnnexureModal.call.icNo || ""}
+                    moduleType="SLEEPER"
+                    uploadedBy={getStoredUser()?.name || "Inspecting Engineer"}
+                    mode={uploadAnnexureModal.mode || "upload"}
+                />
             )}
         </div>
     );

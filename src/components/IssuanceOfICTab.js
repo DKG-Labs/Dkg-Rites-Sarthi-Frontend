@@ -4,6 +4,7 @@ import StatusBadge from './StatusBadge';
 import AnnexureLoader from './annexures/AnnexureLoader';
 import Modal from './Modal';
 import IssuanceCallDetailsModal from './IssuanceCallDetailsModal';
+import AnnexureUploadModal from './AnnexureUploadModal';
 import Notification from './Notification';
 import { getProductTypeDisplayName, formatDate } from '../utils/helpers';
 import { getDetailedStatus } from '../utils/statusMapper';
@@ -24,6 +25,7 @@ const IssuanceOfICTab = ({ calls, setSelectedCall, setCurrentPage, isLoaded }) =
   const [completedCalls, setCompletedCalls] = useState([]);
   const [isLoadingCalls, setIsLoadingCalls] = useState(false);
   const [selectedCallForActions, setSelectedCallForActions] = useState(null);
+  const [uploadAnnexureModal, setUploadAnnexureModal] = useState({ isOpen: false, call: null });
   const [revertModal, setRevertModal] = useState({ isOpen: false, call: null, isProcessing: false });
   const [filters, setFilters] = useState({
     productTypes: [],
@@ -454,6 +456,7 @@ const IssuanceOfICTab = ({ calls, setSelectedCall, setCurrentPage, isLoaded }) =
         call={selectedCallForActions}
         onIssueIC={(call) => handleIssueIC(call)}
         onViewAnnexures={(call) => handleViewAnnexures(call)}
+        onUploadAnnexures={(call) => setUploadAnnexureModal({ isOpen: true, call })}
         onBackToInspection={(call) => handleOpenRevertModal(call)}
         isLoadingCertificate={isLoadingCertificate}
       />
@@ -516,6 +519,19 @@ const IssuanceOfICTab = ({ calls, setSelectedCall, setCurrentPage, isLoaded }) =
           </div>
         </div>
       </Modal>
+
+      {/* Annexure & Document Upload Modal */}
+      {uploadAnnexureModal.isOpen && uploadAnnexureModal.call && (
+        <AnnexureUploadModal
+          isOpen={uploadAnnexureModal.isOpen}
+          onClose={() => setUploadAnnexureModal({ isOpen: false, call: null })}
+          callNo={uploadAnnexureModal.call.call_no || uploadAnnexureModal.call.callNo || uploadAnnexureModal.call.requestId}
+          icNumber={uploadAnnexureModal.call.ic_number || uploadAnnexureModal.call.icNo || ""}
+          moduleType={uploadAnnexureModal.call.product_type || "ERC"}
+          uploadedBy={getCurrentUserId() || "Inspecting Engineer"}
+          mode="upload"
+        />
+      )}
 
     </div>
   );

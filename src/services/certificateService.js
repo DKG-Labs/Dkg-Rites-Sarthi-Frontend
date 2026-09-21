@@ -743,3 +743,87 @@ export const validateBookSetNo = async (empNo, bookNo, setNo, status = "F") => {
     throw error;
   }
 };
+
+/**
+ * Upload Annexure / Document for an Inspection Call (ERC / Sleeper / Railpad)
+ */
+export const uploadAnnexureDocument = async (file, callNo, icNumber, moduleType, uploadedBy) => {
+  const formData = new FormData();
+  formData.append('file', file);
+  formData.append('callNo', callNo);
+  if (icNumber) formData.append('icNumber', icNumber);
+  formData.append('moduleType', moduleType || 'ERC');
+  formData.append('uploadedBy', uploadedBy || 'Inspecting Engineer');
+
+  const headers = {};
+  const token = localStorage.getItem('authToken') || localStorage.getItem('token');
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`;
+  }
+
+  const backendOrigin = API_BASE_URL.replace(/\/api\/.*$/, '').replace(/\/api$/, '');
+  const url = `${backendOrigin}/api/ic-annexures/upload`;
+  const response = await fetch(url, {
+    method: 'POST',
+    headers,
+    body: formData
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.message || `Upload failed with status: ${response.status}`);
+  }
+  return await response.json();
+};
+
+/**
+ * Get list of uploaded Annexure documents for an Inspection Call
+ */
+export const getAnnexureDocuments = async (callNo, moduleType) => {
+  const token = localStorage.getItem('authToken') || localStorage.getItem('token');
+  const headers = {
+    'Content-Type': 'application/json',
+    ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+  };
+  const backendOrigin = API_BASE_URL.replace(/\/api\/.*$/, '').replace(/\/api$/, '');
+  const url = `${backendOrigin}/api/ic-annexures/list?callNo=${encodeURIComponent(callNo)}&moduleType=${encodeURIComponent(moduleType || '')}`;
+  const response = await fetch(url, { method: 'GET', headers });
+  if (!response.ok) throw new Error('Failed to fetch annexures');
+  return await response.json();
+};
+
+/**
+ * Delete an uploaded Annexure document
+ */
+export const deleteAnnexureDocument = async (id, requestedBy) => {
+  const token = localStorage.getItem('authToken') || localStorage.getItem('token');
+  const headers = {
+    'Content-Type': 'application/json',
+    ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+  };
+  const backendOrigin = API_BASE_URL.replace(/\/api\/.*$/, '').replace(/\/api$/, '');
+  const url = `${backendOrigin}/api/ic-annexures/${id}?requestedBy=${encodeURIComponent(requestedBy || '')}`;
+  const response = await fetch(url, { method: 'DELETE', headers });
+  if (!response.ok) throw new Error('Failed to delete annexure');
+  return await response.json();
+};
+
+/**
+ * View / Download decompressed Annexure document
+ */
+export const viewAnnexureDocument = async (id, fileName) => {
+  const token = localStorage.getItem('authToken') || localStorage.getItem('token');
+  const backendOrigin = API_BASE_URL.replace(/\/api\/.*$/, '').replace(/\/api$/, '');
+  const url = `${backendOrigin}/api/ic-annexures/download/${id}`;
+  const response = await fetch(url, {
+    method: 'GET',
+    headers: {
+      ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+    }
+  });
+  if (!response.ok) throw new Error('Failed to download decompressed document');
+  const blob = await response.blob();
+  const pdfBlob = new Blob([blob], { type: 'application/pdf' });
+  const objectUrl = window.URL.createObjectURL(pdfBlob);
+  window.open(objectUrl, '_blank');
+};

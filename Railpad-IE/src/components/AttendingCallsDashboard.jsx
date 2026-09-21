@@ -19,6 +19,7 @@ import CorrectionSlipModal from './CorrectionSlipModal';
 import PendingCallDetailsModal from './PendingCallDetailsModal';
 import ShiftDutyForm from './ShiftDutyForm';
 import AnnexureLoader from './AnnexureLoader';
+import AnnexureUploadModal from './AnnexureUploadModal';
 import { generateRailpadCallLetterPDF } from '../utils/generateCallLetterPDF';
 
 const AttendingCallsDashboard = ({ 
@@ -57,6 +58,8 @@ const AttendingCallsDashboard = ({
   const [callToResume, setCallToResume] = useState(null);
   const [showCorrectionSlipModal, setShowCorrectionSlipModal] = useState(false);
   const [correctionSlipRow, setCorrectionSlipRow] = useState(null);
+  const [uploadAnnexureModal, setUploadAnnexureModal] = useState({ isOpen: false, call: null });
+  const [selectedCertificateCall, setSelectedCertificateCall] = useState(null);
 
   // Closed Calls & IBS modal states
   const [sendIbsCallRow, setSendIbsCallRow] = useState(null);
@@ -1190,80 +1193,26 @@ const AttendingCallsDashboard = ({
                       <td style={{ padding: '14px 18px', textAlign: 'right' }}>
                         <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end', flexWrap: 'nowrap' }}>
                           {activeTab === 'certificates' ? (
-                            <>
-                              {(
-                                (call.jobStatus || '').toUpperCase() === 'INSPECTION_DONE' ||
-                                (call.status || '').toUpperCase() === 'INSPECTION_DONE' ||
-                                (call.jobStatus || '').toUpperCase() === 'CERTIFICATE_PENDING' ||
-                                (call.status || '').toUpperCase() === 'CERTIFICATE_PENDING' ||
-                                (call.jobStatus || '').toUpperCase() === 'COMPLETED' ||
-                                (call.status || '').toUpperCase() === 'COMPLETED' ||
-                                (call.jobStatus || '').toUpperCase() === 'ISSUE IC' ||
-                                (call.status || '').toUpperCase() === 'ISSUE IC' ||
-                                (call.jobStatus || '').toUpperCase() === 'IC_ISSUE' ||
-                                (call.status || '').toUpperCase() === 'IC_ISSUE' ||
-                                (call.jobStatus || '').toUpperCase() === 'IC_GENERATION' ||
-                                (call.status || '').toUpperCase() === 'IC_GENERATION' ||
-                                (call.jobStatus || '').toUpperCase() === 'GENERATED' ||
-                                (call.status || '').toUpperCase() === 'GENERATED'
-                              ) && (
-                                <button
-                                  onClick={() => handleIssueICClick(call)}
-                                  style={{
-                                    padding: '6px 14px',
-                                    borderRadius: '6px',
-                                    border: '1px solid #10b981',
-                                    background: '#ecfdf5',
-                                    color: '#047857',
-                                    fontSize: '11px',
-                                    fontWeight: '700',
-                                    cursor: 'pointer',
-                                    whiteSpace: 'nowrap'
-                                  }}
-                                >
-                                  {(call.action === 'IC_ISSUE' || call.action === 'ISSUE IC' || (call.jobStatus || '').toUpperCase().includes('IC_ISSUE') || (call.status || '').toUpperCase().includes('IC_ISSUE')) ? 'VIEW IC' : 'ISSUE IC'}
-                                </button>
-                              )}
-                              <button
-                                onClick={() => handleBackToInspection(call)}
-                                title="Revert call back to Inspection stage"
-                                style={{
-                                  padding: '6px 14px',
-                                  borderRadius: '6px',
-                                  border: '1.5px solid #ffedd5',
-                                  background: '#fff7ed',
-                                  color: '#c2410c',
-                                  fontSize: '11px',
-                                  fontWeight: '700',
-                                  cursor: 'pointer',
-                                  whiteSpace: 'nowrap',
-                                  display: 'inline-flex',
-                                  alignItems: 'center',
-                                  gap: '4px'
-                                }}
-                              >
-                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="1 4 1 10 7 10"></polyline><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"></path></svg>
-                                Back to Inspection
-                              </button>
-                              {((call.jobStatus || '').toUpperCase() === 'DSC_SIGN_IC' || (call.status || '').toUpperCase() === 'DSC_SIGN_IC' || (call.jobStatus || '').toUpperCase() === 'IC_SIGNED' || (call.status || '').toUpperCase() === 'IC_SIGNED' || (call.jobStatus || '').toUpperCase() === 'SIGNED' || (call.status || '').toUpperCase() === 'SIGNED') && (
-                                <button
-                                  onClick={() => onIssueIc && onIssueIc(call, true)}
-                                  style={{
-                                    padding: '6px 14px',
-                                    borderRadius: '6px',
-                                    border: '1px solid #3b82f6',
-                                    background: '#eff6ff',
-                                    color: '#1d4ed8',
-                                    fontSize: '11px',
-                                    fontWeight: '700',
-                                    cursor: 'pointer',
-                                    whiteSpace: 'nowrap'
-                                  }}
-                                >
-                                  VIEW IC
-                                </button>
-                              )}
-                            </>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setSelectedCertificateCall(call);
+                              }}
+                              style={{
+                                padding: '6px 14px',
+                                borderRadius: '6px',
+                                border: 'none',
+                                background: '#2563eb',
+                                color: '#ffffff',
+                                fontSize: '11px',
+                                fontWeight: '700',
+                                cursor: 'pointer',
+                                boxShadow: '0 1px 2px rgba(37, 99, 235, 0.2)',
+                                whiteSpace: 'nowrap'
+                              }}
+                            >
+                              VIEW ACTIONS
+                            </button>
                           ) : (
                             <button
                               onClick={(e) => {
@@ -2141,7 +2090,38 @@ const AttendingCallsDashboard = ({
                   <span style={{ fontWeight: '700', fontSize: '14px' }}>PO & MA</span>
                 </button>
 
-                {/* 5. Back to Issuance of IC */}
+                {/* 5. View Uploaded Annexures and Other Docs */}
+                <button
+                  onClick={() => {
+                    const call = selectedActionCall;
+                    setSelectedActionCall(null);
+                    setUploadAnnexureModal({ isOpen: true, call, mode: 'view' });
+                  }}
+                  style={{
+                    display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '8px',
+                    padding: '16px 12px', background: 'linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%)',
+                    border: '1px solid #86efac', borderRadius: '14px',
+                    cursor: 'pointer', transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                    color: '#166534', width: '100%',
+                    boxShadow: '0 4px 6px -1px rgba(22, 101, 52, 0.1), 0 2px 4px -1px rgba(22, 101, 52, 0.06)'
+                  }}
+                  onMouseEnter={(e) => { 
+                    e.currentTarget.style.transform = 'translateY(-3px)';
+                    e.currentTarget.style.boxShadow = '0 10px 15px -3px rgba(22, 101, 52, 0.2), 0 4px 6px -2px rgba(22, 101, 52, 0.1)'; 
+                  }}
+                  onMouseLeave={(e) => { 
+                    e.currentTarget.style.transform = 'translateY(0)';
+                    e.currentTarget.style.boxShadow = '0 4px 6px -1px rgba(22, 101, 52, 0.1), 0 2px 4px -1px rgba(22, 101, 52, 0.06)'; 
+                  }}
+                  title="View uploaded annexures and other documents"
+                >
+                  <div style={{ width: '42px', height: '42px', background: '#ffffff', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 2px 4px rgba(0,0,0,0.05)' }}>
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#16a34a" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                  </div>
+                  <span style={{ fontWeight: '700', fontSize: '13.5px', textAlign: 'center', lineHeight: '1.2' }}>View Uploaded Annexures & Docs</span>
+                </button>
+
+                {/* 6. Back to Issuance of IC */}
                 {!selectedActionCall.isClosed && activeTab !== 'closed' && (
                   <button
                     onClick={() => handleBackToIcIssuance(selectedActionCall)}
@@ -2640,6 +2620,194 @@ const AttendingCallsDashboard = ({
             </div>
           </div>
         </div>
+      )}
+
+      {/* Issuance of IC & Annexures Actions Modal */}
+      {selectedCertificateCall && (
+        <div
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: 'rgba(15, 23, 42, 0.65)',
+            backdropFilter: 'blur(4px)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 9999,
+            padding: '16px'
+          }}
+          onClick={() => setSelectedCertificateCall(null)}
+        >
+          <div
+            style={{
+              background: '#ffffff',
+              borderRadius: '16px',
+              maxWidth: '720px',
+              width: '100%',
+              boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
+              border: '1px solid #e2e8f0',
+              overflow: 'hidden',
+              animation: 'fadeIn 0.2s ease-out'
+            }}
+            onClick={e => e.stopPropagation()}
+          >
+            {/* Modal Header */}
+            <div style={{
+              padding: '18px 24px',
+              background: 'linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%)',
+              borderBottom: '1px solid #e2e8f0',
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center'
+            }}>
+              <h2 style={{ margin: 0, fontSize: '1.2rem', fontWeight: '700', color: '#0f172a', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <span style={{ color: '#0ea5e9' }}>📋</span> Available Actions - <span style={{ color: '#334155' }}>{selectedCertificateCall.requestId || selectedCertificateCall.call_no || selectedCertificateCall.callNo}</span>
+              </h2>
+              <button 
+                onClick={() => setSelectedCertificateCall(null)}
+                style={{
+                  background: 'white', border: '1px solid #e2e8f0', borderRadius: '50%',
+                  width: '32px', height: '32px', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  cursor: 'pointer', color: '#64748b', fontSize: '1.2rem'
+                }}
+              >✕</button>
+            </div>
+
+            <div style={{ padding: '22px 24px' }}>
+              {/* Call Summary Grid */}
+              <div style={{ 
+                background: '#f8fafc', 
+                padding: '14px 18px', 
+                borderRadius: '12px', 
+                border: '1px solid #e2e8f0',
+                borderLeft: '4px solid #2563eb', 
+                marginBottom: '20px',
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))',
+                gap: '12px 16px'
+              }}>
+                <div>
+                  <label style={{ fontSize: '11px', color: '#64748b', textTransform: 'uppercase', fontWeight: '700', display: 'block', marginBottom: '2px' }}>Call Number</label>
+                  <div style={{ fontWeight: '700', fontSize: '14px', color: '#0f172a' }}>{selectedCertificateCall.requestId || selectedCertificateCall.call_no || selectedCertificateCall.callNo || '-'}</div>
+                </div>
+                <div>
+                  <label style={{ fontSize: '11px', color: '#64748b', textTransform: 'uppercase', fontWeight: '700', display: 'block', marginBottom: '2px' }}>Vendor</label>
+                  <div style={{ fontWeight: '600', fontSize: '14px', color: '#0f172a' }}>{selectedCertificateCall.vendorName || selectedCertificateCall.vendorCode || '-'}</div>
+                </div>
+                <div>
+                  <label style={{ fontSize: '11px', color: '#64748b', textTransform: 'uppercase', fontWeight: '700', display: 'block', marginBottom: '2px' }}>PO Number</label>
+                  <div style={{ fontWeight: '600', fontSize: '14px', color: '#0f172a' }}>{selectedCertificateCall.rlyPoSrNo || selectedCertificateCall.poNo || selectedCertificateCall.po_no || '-'}</div>
+                </div>
+                <div>
+                  <label style={{ fontSize: '11px', color: '#64748b', textTransform: 'uppercase', fontWeight: '700', display: 'block', marginBottom: '2px' }}>Status</label>
+                  <div style={{ fontWeight: '600', fontSize: '13px', color: '#166534' }}>
+                    {((selectedCertificateCall.jobStatus || selectedCertificateCall.status || '').toUpperCase().includes('IC_ISSUE') || (selectedCertificateCall.jobStatus || selectedCertificateCall.status || '').toUpperCase().includes('ISSUE IC')) ? 'IC ISSUED' : (selectedCertificateCall.jobStatus || selectedCertificateCall.status || 'Inspection Done')}
+                  </div>
+                </div>
+              </div>
+
+              <h3 style={{ fontSize: '15px', fontWeight: '700', marginBottom: '14px', color: '#0f172a', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <span style={{ color: '#2563eb' }}>⚡</span> Available Call Actions
+              </h3>
+
+              {/* Action Cards Grid */}
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '14px' }}>
+                {/* 1. Issue IC / View IC */}
+                <button
+                  onClick={() => {
+                    const call = selectedCertificateCall;
+                    setSelectedCertificateCall(null);
+                    handleIssueICClick(call);
+                  }}
+                  style={{
+                    display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '8px',
+                    padding: '20px 14px', background: 'linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%)',
+                    border: '1px solid #bfdbfe', borderRadius: '14px',
+                    cursor: 'pointer', transition: 'all 0.25s ease',
+                    color: '#1d4ed8', width: '100%',
+                    boxShadow: '0 4px 6px -1px rgba(29, 78, 216, 0.08)'
+                  }}
+                  onMouseEnter={(e) => { e.currentTarget.style.transform = 'translateY(-3px)'; e.currentTarget.style.boxShadow = '0 10px 15px -3px rgba(29, 78, 216, 0.16)'; }}
+                  onMouseLeave={(e) => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = '0 4px 6px -1px rgba(29, 78, 216, 0.08)'; }}
+                >
+                  <div style={{ width: '44px', height: '44px', background: '#ffffff', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 2px 4px rgba(0,0,0,0.06)' }}>
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#2563eb" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+                  </div>
+                  <span style={{ fontWeight: '700', fontSize: '14.5px' }}>
+                    {(selectedCertificateCall.action === 'IC_ISSUE' || selectedCertificateCall.action === 'ISSUE IC' || (selectedCertificateCall.jobStatus || '').toUpperCase().includes('IC_ISSUE') || (selectedCertificateCall.status || '').toUpperCase().includes('IC_ISSUE')) ? 'View IC' : 'Issue IC'}
+                  </span>
+                  <span style={{ fontSize: '11.5px', color: '#64748b' }}>Generate or view certificate</span>
+                </button>
+
+                {/* 2. Upload Annexures & Docs */}
+                <button
+                  onClick={() => {
+                    const call = selectedCertificateCall;
+                    setSelectedCertificateCall(null);
+                    setUploadAnnexureModal({ isOpen: true, call, mode: 'upload' });
+                  }}
+                  style={{
+                    display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '8px',
+                    padding: '20px 14px', background: 'linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%)',
+                    border: '1px solid #86efac', borderRadius: '14px',
+                    cursor: 'pointer', transition: 'all 0.25s ease',
+                    color: '#166534', width: '100%',
+                    boxShadow: '0 4px 6px -1px rgba(22, 101, 52, 0.08)'
+                  }}
+                  onMouseEnter={(e) => { e.currentTarget.style.transform = 'translateY(-3px)'; e.currentTarget.style.boxShadow = '0 10px 15px -3px rgba(22, 101, 52, 0.16)'; }}
+                  onMouseLeave={(e) => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = '0 4px 6px -1px rgba(22, 101, 52, 0.08)'; }}
+                >
+                  <div style={{ width: '44px', height: '44px', background: '#ffffff', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 2px 4px rgba(0,0,0,0.06)' }}>
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#16a34a" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                  </div>
+                  <span style={{ fontWeight: '700', fontSize: '14.5px' }}>Upload Annexures & Docs</span>
+                  <span style={{ fontSize: '11.5px', color: '#64748b' }}>Upload external PDFs and documents</span>
+                </button>
+
+                {/* 3. Back to Inspection */}
+                <button
+                  onClick={() => {
+                    const call = selectedCertificateCall;
+                    setSelectedCertificateCall(null);
+                    handleBackToInspection(call);
+                  }}
+                  style={{
+                    display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '8px',
+                    padding: '20px 14px', background: 'linear-gradient(135deg, #fff1f2 0%, #ffe4e6 100%)',
+                    border: '1px solid #fecdd3', borderRadius: '14px',
+                    cursor: 'pointer', transition: 'all 0.25s ease',
+                    color: '#be123c', width: '100%',
+                    boxShadow: '0 4px 6px -1px rgba(190, 18, 60, 0.08)'
+                  }}
+                  onMouseEnter={(e) => { e.currentTarget.style.transform = 'translateY(-3px)'; e.currentTarget.style.boxShadow = '0 10px 15px -3px rgba(190, 18, 60, 0.16)'; }}
+                  onMouseLeave={(e) => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = '0 4px 6px -1px rgba(190, 18, 60, 0.08)'; }}
+                >
+                  <div style={{ width: '44px', height: '44px', background: '#ffffff', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 2px 4px rgba(0,0,0,0.06)' }}>
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#be123c" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg>
+                  </div>
+                  <span style={{ fontWeight: '700', fontSize: '14.5px' }}>Back to Inspection</span>
+                  <span style={{ fontSize: '11.5px', color: '#64748b' }}>Revert call to testing stage</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Annexure & Document Upload Modal */}
+      {uploadAnnexureModal.isOpen && uploadAnnexureModal.call && (
+        <AnnexureUploadModal
+          isOpen={uploadAnnexureModal.isOpen}
+          onClose={() => setUploadAnnexureModal({ isOpen: false, call: null })}
+          callNo={uploadAnnexureModal.call.requestId || uploadAnnexureModal.call.callNo || uploadAnnexureModal.call.call_no}
+          icNumber={uploadAnnexureModal.call.icNumber || uploadAnnexureModal.call.icNo || ""}
+          moduleType="RAILPAD"
+          uploadedBy={getStoredUser()?.name || "Inspecting Engineer"}
+          mode={uploadAnnexureModal.mode || "upload"}
+        />
       )}
     </div>
   );

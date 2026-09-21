@@ -11,6 +11,108 @@ const DESIRED_VALUES = {
     railSeat: 650
 };
 
+const isGrade = (val) => /^M\s*[-]?\s*\d+/i.test(String(val || '').trim());
+
+const normalizeDwg = (dwg) => String(dwg || '').replace(/[\s-_:()]/g, '').trim().toLowerCase();
+
+const normDate = (d) => {
+    if (!d || d === 'N/A') return '';
+    const s = String(d).trim().split('T')[0];
+    if (s.includes('/')) {
+        const parts = s.split('/');
+        if (parts.length === 3) {
+            const [d1, m1, y1] = parts;
+            return `${y1}-${m1.padStart(2, '0')}-${d1.padStart(2, '0')}`;
+        }
+    }
+    return s;
+};
+
+const normKey = (s) => String(s || '').replace(/[\s-_]/g, '').trim().toLowerCase();
+
+const extractDrawingNo = (item, batchMatch) => {
+    const candidates = [
+        item?.drawingNo,
+        item?.sleeperType,
+        batchMatch?.drawingNo,
+        batchMatch?.sleeperType,
+    ];
+
+    for (const cand of candidates) {
+        if (cand && typeof cand === 'string' && cand.trim() && cand !== 'N/A' && !isGrade(cand)) {
+            return cand.trim();
+        }
+    }
+
+    const checkNested = (target) => {
+        if (!target) return null;
+        if (Array.isArray(target.chambers)) {
+            for (const ch of target.chambers) {
+                if (Array.isArray(ch.benchGroups)) {
+                    for (const bg of ch.benchGroups) {
+                        if (bg.sleeperType && !isGrade(bg.sleeperType)) {
+                            return bg.sleeperType.trim();
+                        }
+                    }
+                }
+            }
+        }
+        if (Array.isArray(target.gangs)) {
+            for (const g of target.gangs) {
+                if (g.sleeperType && !isGrade(g.sleeperType)) {
+                    return g.sleeperType.trim();
+                }
+            }
+        }
+        return null;
+    };
+
+    const nestedFromItem = checkNested(item);
+    if (nestedFromItem) return nestedFromItem;
+
+    const nestedFromMatch = checkNested(batchMatch);
+    if (nestedFromMatch) return nestedFromMatch;
+
+    if (item?.originalData) {
+        const nestedFromOrig = checkNested(item.originalData);
+        if (nestedFromOrig) return nestedFromOrig;
+    }
+
+    return (item?.drawingNo && !isGrade(item.drawingNo) ? item.drawingNo.trim() : '') || 
+           (batchMatch?.drawingNo && !isGrade(batchMatch.drawingNo) ? batchMatch.drawingNo.trim() : '') || 
+           (item?.sleeperType && !isGrade(item.sleeperType) ? item.sleeperType.trim() : '') || 
+           (batchMatch?.sleeperType && !isGrade(batchMatch.sleeperType) ? batchMatch.sleeperType.trim() : '') || '';
+};
+
+const extractCastDate = (item, batchMatch, declaredMatch) => {
+    // 1. Direct casting date on the item itself (if valid)
+    if (item?.castingDate && item.castingDate !== 'N/A') return item.castingDate;
+    if (item?.dateOfCasting && item.dateOfCasting !== 'N/A') return item.dateOfCasting;
+
+    // 2. Remarks on item
+    if (item?.remarks) {
+        const m = String(item.remarks).match(/\[Cast:\s*([^\]]+)\]/i);
+        if (m && m[1]) return m[1].trim();
+    }
+
+    // 3. Direct casting date on declaredMatch
+    if (declaredMatch?.castingDate && declaredMatch.castingDate !== 'N/A') return declaredMatch.castingDate;
+    if (declaredMatch?.dateOfCasting && declaredMatch.dateOfCasting !== 'N/A') return declaredMatch.dateOfCasting;
+
+    // 4. Remarks on declaredMatch
+    if (declaredMatch?.remarks) {
+        const m = String(declaredMatch.remarks).match(/\[Cast:\s*([^\]]+)\]/i);
+        if (m && m[1]) return m[1].trim();
+    }
+
+    // 5. BatchMatch from production declarations
+    if (batchMatch?.castingDate && batchMatch.castingDate !== 'N/A') return batchMatch.castingDate;
+    if (batchMatch?.dateOfCasting && batchMatch.dateOfCasting !== 'N/A') return batchMatch.dateOfCasting;
+    if (batchMatch?.date && batchMatch.date !== 'N/A') return batchMatch.date;
+
+    return '';
+};
+
 const MomentOfResistance = () => {
     const { vendorCode, dutyUnit, selectedShift, dutyDate, userId } = useShift();
     const toast = useToast();
@@ -71,22 +173,7 @@ const MomentOfResistance = () => {
                     .filter(id => id && id !== 'null' && id !== 'undefined')
             );
 
-            // Normalize helper for dates (handles dd/MM/yyyy and yyyy-MM-dd)
-            const normDate = (d) => {
-                if (!d || d === 'N/A') return '';
-                const s = String(d).trim().split('T')[0];
-                if (s.includes('/')) {
-                    const parts = s.split('/');
-                    if (parts.length === 3) {
-                        const [d1, m1, y1] = parts;
-                        return `${y1}-${m1.padStart(2, '0')}-${d1.padStart(2, '0')}`;
-                    }
-                }
-                return s;
-            };
-
             // Build exhaustive production declaration map for all batches
-            const normKey = (s) => String(s || '').replace(/[\s-_]/g, '').trim().toLowerCase();
             const allBatches = [...(Array.isArray(allProdData) ? allProdData : []), ...(Array.isArray(vData) ? vData : [])];
             const vBatchMap = new Map();
             const vBatchIdMap = new Map();
@@ -111,7 +198,17 @@ const MomentOfResistance = () => {
                 }
             });
 
-            const normalizeDwg = (dwg) => String(dwg || '').replace(/[\s-_:()]/g, '').trim().toLowerCase();
+            const findBatchMatch = (bNo, castDate, pId) => {
+                if (pId && vBatchMap.has(`id_${pId}`)) return vBatchMap.get(`id_${pId}`);
+                const b = String(bNo || '').trim();
+                const c = normDate(castDate);
+                if (b && c && vBatchMap.has(`${b}__${c}`)) return vBatchMap.get(`${b}__${c}`);
+                if (b && c && vBatchMap.has(`${normKey(b)}__${c}`)) return vBatchMap.get(`${normKey(b)}__${c}`);
+                if (b && vBatchMap.has(b)) return vBatchMap.get(b);
+                if (b && vBatchMap.has(normKey(b))) return vBatchMap.get(normKey(b));
+                return null;
+            };
+
             const makeItemKey = (bNo, dwg, castDate) => {
                 const b = String(bNo || '').trim().toLowerCase();
                 const d = normalizeDwg(dwg);
@@ -119,87 +216,16 @@ const MomentOfResistance = () => {
                 return `${b}__${d}${dt ? `__${dt}` : ''}`;
             };
 
-            const isGrade = (val) => /^M\s*[-]?\s*\d+/i.test(String(val || '').trim());
-
-            const extractDrawingNo = (item, batchMatch) => {
-                const candidates = [
-                    item?.drawingNo,
-                    item?.sleeperType,
-                    batchMatch?.drawingNo,
-                    batchMatch?.sleeperType,
-                ];
-
-                for (const cand of candidates) {
-                    if (cand && typeof cand === 'string' && cand.trim() && cand !== 'N/A' && !isGrade(cand)) {
-                        return cand.trim();
-                    }
-                }
-
-                const checkNested = (target) => {
-                    if (!target) return null;
-                    if (Array.isArray(target.chambers)) {
-                        for (const ch of target.chambers) {
-                            if (Array.isArray(ch.benchGroups)) {
-                                for (const bg of ch.benchGroups) {
-                                    if (bg.sleeperType && !isGrade(bg.sleeperType)) {
-                                        return bg.sleeperType.trim();
-                                    }
-                                }
-                            }
-                        }
-                    }
-                    if (Array.isArray(target.gangs)) {
-                        for (const g of target.gangs) {
-                            if (g.sleeperType && !isGrade(g.sleeperType)) {
-                                return g.sleeperType.trim();
-                            }
-                        }
-                    }
-                    return null;
-                };
-
-                const nestedFromItem = checkNested(item);
-                if (nestedFromItem) return nestedFromItem;
-
-                const nestedFromMatch = checkNested(batchMatch);
-                if (nestedFromMatch) return nestedFromMatch;
-
-                if (item?.originalData) {
-                    const nestedFromOrig = checkNested(item.originalData);
-                    if (nestedFromOrig) return nestedFromOrig;
-                }
-
-                return item?.sleeperType || item?.drawingNo || batchMatch?.sleeperType || batchMatch?.drawingNo || '';
-            };
-
-            const extractCastDate = (item, batchMatch, declaredMatch) => {
-                if (item?.remarks) {
-                    const m = String(item.remarks).match(/\[Cast:\s*([^\]]+)\]/i);
-                    if (m && m[1]) return m[1].trim();
-                }
-                if (declaredMatch?.remarks) {
-                    const m = String(declaredMatch.remarks).match(/\[Cast:\s*([^\]]+)\]/i);
-                    if (m && m[1]) return m[1].trim();
-                }
-                if (batchMatch?.castingDate && batchMatch.castingDate !== 'N/A') return batchMatch.castingDate;
-                if (batchMatch?.dateOfCasting && batchMatch.dateOfCasting !== 'N/A') return batchMatch.dateOfCasting;
-                if (declaredMatch?.castingDate && declaredMatch.castingDate !== 'N/A') return declaredMatch.castingDate;
-                if (declaredMatch?.dateOfCasting && declaredMatch.dateOfCasting !== 'N/A') return declaredMatch.dateOfCasting;
-                if (item?.castingDate && item.castingDate !== 'N/A') return item.castingDate;
-                if (item?.dateOfCasting && item.dateOfCasting !== 'N/A') return item.dateOfCasting;
-                return '';
-            };
-
             // Batches that have completed testing (Pass or Fail) for THIS plant
             const passedItemKeys = new Set(
                 testData
                     .filter(t => isSamePlant(t.plantId, params.plantId) && String(t.testResult).toLowerCase() === 'pass')
-                    .map(t => makeItemKey(t.batchNumber, t.sleeperType, extractCastDate(t)))
+                    .map(t => makeItemKey(t.batchNumber, extractDrawingNo(t), extractCastDate(t)))
             );
             const failedItemKeys = new Set(
                 testData
                     .filter(t => isSamePlant(t.plantId, params.plantId) && String(t.testResult).toLowerCase() === 'fail')
-                    .map(t => makeItemKey(t.batchNumber, t.sleeperType, extractCastDate(t)))
+                    .map(t => makeItemKey(t.batchNumber, extractDrawingNo(t), extractCastDate(t)))
             );
             const completedItemKeys = new Set([...passedItemKeys, ...failedItemKeys]);
 
@@ -207,7 +233,7 @@ const MomentOfResistance = () => {
             const declaredItemKeys = new Set(
                 mrData
                     .filter(d => isSamePlant(d.plantId, params.plantId) && (!d.testResult || d.testResult === 'Pending'))
-                    .map(d => makeItemKey(d.batchNumber, d.sleeperType, extractCastDate(d)))
+                    .map(d => makeItemKey(d.batchNumber, extractDrawingNo(d), extractCastDate(d)))
             );
 
             // Map Verified Batches (Pending Declaration for this plant)
@@ -217,12 +243,9 @@ const MomentOfResistance = () => {
                 .map(item => {
                     const bNo = String(item.batchNumber).trim();
                     const cDate = item.castingDate || item.dateOfCasting || item.date || 'N/A';
-                    const cDateNorm = normDate(cDate);
-                    const batchMatch = (item.id ? vBatchMap.get(`id_${item.id}`) : null) || 
-                                       (cDateNorm ? vBatchMap.get(`${bNo}__${cDateNorm}`) : null) ||
-                                       vBatchMap.get(bNo) || vBatchMap.get(normKey(bNo));
+                    const batchMatch = findBatchMatch(bNo, cDate, item.id);
                     const actualSleeperType = extractDrawingNo(item, batchMatch);
-                    const actualCastingDate = item.castingDate || batchMatch?.castingDate || item.dateOfCasting || 'N/A';
+                    const actualCastingDate = extractCastDate(item, batchMatch) || 'N/A';
                     const itemKey = makeItemKey(bNo, actualSleeperType, actualCastingDate);
                     const uniqueKey = item.id ? `id_${item.id}` : itemKey;
                     return { item, bNo, actualSleeperType, actualCastingDate, itemKey, uniqueKey, batchMatch };
@@ -259,7 +282,7 @@ const MomentOfResistance = () => {
                 .filter(item => isSamePlant(item.plantId, params.plantId))
                 .filter(item => {
                     const castDate = extractCastDate(item);
-                    const itemKey = makeItemKey(item.batchNumber, item.sleeperType, castDate);
+                    const itemKey = makeItemKey(item.batchNumber, extractDrawingNo(item), castDate);
                     return (!item.testResult || item.testResult === 'Pending') && !completedItemKeys.has(itemKey);
                 })
                 .map(item => {
@@ -273,10 +296,11 @@ const MomentOfResistance = () => {
                         : [{ bench: item.benchNumber || '', no: item.sleeperNo || '' }];
 
                     const bNo = String(item.batchNumber).trim();
-                    const batchMatch = vBatchMap.get(bNo) || vBatchMap.get(normKey(bNo));
+                    const initialCastDate = extractCastDate(item);
+                    const batchMatch = findBatchMatch(bNo, initialCastDate, item.productionDeclarationId);
                     const pId = item.productionDeclarationId || batchMatch?.id || vBatchIdMap.get(bNo);
-                    const actualCastingDate = extractCastDate(item, batchMatch) || batchMatch?.castingDate || 'N/A';
-                    const actualSleeperType = item.sleeperType || extractDrawingNo(item, batchMatch);
+                    const actualCastingDate = extractCastDate(item, batchMatch) || 'N/A';
+                    const actualSleeperType = extractDrawingNo(item, batchMatch);
 
                     return {
                         ...item,
@@ -297,17 +321,18 @@ const MomentOfResistance = () => {
                 .filter(item => isSamePlant(item.plantId, params.plantId))
                 .map(item => {
                     const bNo = String(item.batchNumber).trim();
-                    const batchMatch = vBatchMap.get(bNo) || vBatchMap.get(normKey(bNo));
+                    const initialCastDate = extractCastDate(item);
                     const declaredMatch = mrData.find(d => 
                         String(d.batchNumber).trim() === bNo && 
-                        normalizeDwg(d.sleeperType) === normalizeDwg(item.sleeperType)
+                        (d.id === item.monmentOfResistanceId || normalizeDwg(d.sleeperType) === normalizeDwg(item.sleeperType))
                     ) || mrData.find(d => d.id === item.monmentOfResistanceId);
 
+                    const batchMatch = findBatchMatch(bNo, initialCastDate, item.productionDeclarationId || declaredMatch?.productionDeclarationId);
                     const bench = item.benchNumber || declaredMatch?.benchNumber || 'N/A';
                     const sleeper = item.sleeperNo || declaredMatch?.sleeperNo || 'N/A';
-                    const pId = item.productionDeclarationId || batchMatch?.id || vBatchIdMap.get(bNo);
+                    const pId = item.productionDeclarationId || batchMatch?.id || declaredMatch?.productionDeclarationId || vBatchIdMap.get(bNo);
                     const actualCastingDate = extractCastDate(item, batchMatch, declaredMatch) || 'N/A';
-                    const actualSleeperType = item.sleeperType || extractDrawingNo(item, batchMatch || declaredMatch);
+                    const actualSleeperType = extractDrawingNo(item, batchMatch || declaredMatch);
 
                     return {
                         ...item,
@@ -331,15 +356,16 @@ const MomentOfResistance = () => {
                 .filter(item => String(item.testResult || '').toLowerCase() === 'retest')
                 .filter(item => {
                     const castDate = extractCastDate(item);
-                    const itemKey = makeItemKey(item.batchNumber, item.sleeperType, castDate);
+                    const itemKey = makeItemKey(item.batchNumber, extractDrawingNo(item), castDate);
                     return !declaredItemKeys.has(itemKey) && !passedItemKeys.has(itemKey);
                 })
                 .map(item => {
                     const bNo = String(item.batchNumber).trim();
-                    const batchMatch = vBatchMap.get(bNo) || vBatchMap.get(normKey(bNo));
+                    const initialCastDate = extractCastDate(item);
+                    const batchMatch = findBatchMatch(bNo, initialCastDate, item.productionDeclarationId);
                     const pId = item.productionDeclarationId || batchMatch?.id || vBatchIdMap.get(bNo);
                     const actualCastingDate = extractCastDate(item, batchMatch) || batchMatch?.castingDate || 'N/A';
-                    const actualSleeperType = item.sleeperType || extractDrawingNo(item, batchMatch);
+                    const actualSleeperType = extractDrawingNo(item, batchMatch);
 
                     return {
                         id: pId || item.monmentOfResistanceId || item.id,
@@ -529,7 +555,11 @@ const MomentOfResistance = () => {
 
     const columnsDeclaration = [
         { key: 'batchNo', label: 'Batch Number' },
-        { key: 'sleeperType', label: 'Dwg. no.' },
+        { 
+            key: 'sleeperType', 
+            label: 'Dwg. no.',
+            render: (val, row) => (val && !isGrade(val)) ? val : (extractDrawingNo(row) || val || '-')
+        },
         { key: 'castingDate', label: 'Date of Casting' },
         {
             key: 'waterCubeStatus',
@@ -599,7 +629,11 @@ const MomentOfResistance = () => {
 
     const columnsTesting = [
         { key: 'batchNo', label: 'Batch Number' },
-        { key: 'sleeperType', label: 'Dwg. no.' },
+        { 
+            key: 'sleeperType', 
+            label: 'Dwg. no.',
+            render: (val, row) => (val && !isGrade(val)) ? val : (extractDrawingNo(row) || val || '-')
+        },
         {
             key: 'declaredSamples',
             label: 'Sleeper Number',
@@ -623,7 +657,11 @@ const MomentOfResistance = () => {
 
     const columnsHistorical = [
         { key: 'batchNo', label: 'Batch Number' },
-        { key: 'sleeperType', label: 'Dwg. no.' },
+        { 
+            key: 'sleeperType', 
+            label: 'Dwg. no.',
+            render: (val, row) => (val && !isGrade(val)) ? val : (extractDrawingNo(row) || val || '-')
+        },
         { key: 'sleeperNo', label: 'Sleeper No.' },
         { key: 'castingDate', label: 'Date of Casting' },
         { key: 'dateOfTesting', label: 'Date of Testing' },
@@ -811,6 +849,8 @@ const DeclareSampleModal = ({ batch, onClose, onSave, isEdit }) => {
     const [searchTerm, setSearchTerm] = useState('');
     const [activeDropdownIdx, setActiveDropdownIdx] = useState(null);
 
+    const resolvedDwg = (batch?.sleeperType && !isGrade(batch.sleeperType)) ? batch.sleeperType : (extractDrawingNo(batch) || batch?.sleeperType || '-');
+
     useEffect(() => {
         const fetchSleepers = async () => {
             const batchNo = batch?.batchNo || batch?.batchNumber;
@@ -847,6 +887,18 @@ const DeclareSampleModal = ({ batch, onClose, onSave, isEdit }) => {
                         // Case 2: Long Line (Gangs)
                         if (data?.gangs) {
                             data.gangs.forEach(gang => {
+                                gang.gangGroups?.forEach(group => {
+                                    const sList = group.sleeperList || group.sleepers || [];
+                                    sList.forEach(item => {
+                                        const s = typeof item === 'string' ? item : (item.sleeperNo || item.id);
+                                        if (!s) return;
+                                        list.push({
+                                            bench: String(group.gangNo || group.benchNo || ''),
+                                            no: String(s),
+                                            label: String(s)
+                                        });
+                                    });
+                                });
                                 const sList = gang.sleeperList || gang.sleepers || [];
                                 sList.forEach(item => {
                                     const s = typeof item === 'string' ? item : (item.sleeperNo || item.id);
@@ -867,7 +919,7 @@ const DeclareSampleModal = ({ batch, onClose, onSave, isEdit }) => {
                 // Method 2: Fallback to querying sleepers by batch number and sleeperType
                 if (list.length === 0) {
                     try {
-                        const sleepersRes = await apiService.getAllProductionSleepers(batchNo, null, batch?.sleeperType);
+                        const sleepersRes = await apiService.getAllProductionSleepers(batchNo, null, resolvedDwg !== '-' ? resolvedDwg : null);
                         const sleepersList = sleepersRes?.responseData || sleepersRes || [];
                         if (Array.isArray(sleepersList) && sleepersList.length > 0) {
                             sleepersList.forEach(item => {
@@ -887,7 +939,18 @@ const DeclareSampleModal = ({ batch, onClose, onSave, isEdit }) => {
                     }
                 }
 
-                setAvailableSleepers(list);
+                // Deduplicate list by (bench + no)
+                const seenSleepers = new Set();
+                const uniqueList = [];
+                list.forEach(item => {
+                    const key = `${item.bench}_${item.no}`;
+                    if (!seenSleepers.has(key)) {
+                        seenSleepers.add(key);
+                        uniqueList.push(item);
+                    }
+                });
+
+                setAvailableSleepers(uniqueList);
             } catch (error) {
                 console.error("Error fetching sleepers for declaration:", error);
             } finally {
@@ -895,7 +958,7 @@ const DeclareSampleModal = ({ batch, onClose, onSave, isEdit }) => {
             }
         };
         fetchSleepers();
-    }, [batch]);
+    }, [batch, resolvedDwg]);
 
     const handleUpdate = (idx, sleeperObj) => {
         const updated = [...samples];
@@ -915,8 +978,8 @@ const DeclareSampleModal = ({ batch, onClose, onSave, isEdit }) => {
                 <div className="form-modal-body">
                     <div style={{ background: '#f8fafc', padding: '16px', borderRadius: '12px', border: '1px solid #e2e8f0', marginBottom: '20px' }}>
                         <div className="form-grid">
-                            <div className="input-group"><label>Batch</label><input readOnly value={batch?.batchNo} className="readOnly" /></div>
-                            <div className="input-group"><label>Dwg. no.</label><input readOnly value={batch?.sleeperType} className="readOnly" /></div>
+                            <div className="input-group"><label>Batch</label><input readOnly value={batch?.batchNo || batch?.batchNumber} className="readOnly" /></div>
+                            <div className="input-group"><label>Dwg. no.</label><input readOnly value={resolvedDwg} className="readOnly" /></div>
                         </div>
                     </div>
 
@@ -937,8 +1000,8 @@ const DeclareSampleModal = ({ batch, onClose, onSave, isEdit }) => {
                                         placeholder={isLoadingSleepers ? "Loading sleepers..." : "Type to search sleeper (e.g. 100A)..."}
                                         value={activeDropdownIdx === idx ? searchTerm : (s.no || '')}
                                         onFocus={() => {
-                                            setActiveDropdownIdx(idx);
-                                            setSearchTerm('');
+                                             setActiveDropdownIdx(idx);
+                                             setSearchTerm('');
                                         }}
                                         onChange={(e) => setSearchTerm(e.target.value)}
                                         style={{ 
@@ -950,7 +1013,7 @@ const DeclareSampleModal = ({ batch, onClose, onSave, isEdit }) => {
                                         position: 'absolute', 
                                         right: '12px', 
                                         top: '50%', 
-                                        transform: 'translateY(15%)', // Centering relative to the input, accounting for label space
+                                        transform: 'translateY(15%)',
                                         color: '#64748b',
                                         pointerEvents: 'none'
                                     }}>
@@ -978,7 +1041,7 @@ const DeclareSampleModal = ({ batch, onClose, onSave, isEdit }) => {
                                                 <>
                                                     {availableSleepers
                                                         .filter(item => item.label.toLowerCase().includes(searchTerm.toLowerCase()))
-                                                        .slice(0, 50) // Limit for performance
+                                                        .slice(0, 50)
                                                         .map((item, sIdx) => (
                                                             <div 
                                                                 key={sIdx} 
@@ -1080,6 +1143,8 @@ const TestDetailsModal = ({ batch, onClose, onSave }) => {
     const [isSaving, setIsSaving] = useState(false);
     const [witnessed, setWitnessed] = useState(manualResults.map(r => !!r.isScada));
 
+    const resolvedDwg = (batch?.sleeperType && !isGrade(batch.sleeperType)) ? batch.sleeperType : (extractDrawingNo(batch) || batch?.sleeperType || '-');
+
     const mockScadaData = useMemo(() => {
         return (batch.declaredSamples || [{ bench: batch.benchNumber || '', no: batch.sleeperNo || '' }]).map(() => ({
             ct: Math.floor(460 + Math.random() * 100),
@@ -1117,15 +1182,15 @@ const TestDetailsModal = ({ batch, onClose, onSave }) => {
         <div className="form-modal-overlay" onClick={onClose}>
             <div className="form-modal-container" onClick={e => e.stopPropagation()} style={{ maxWidth: '900px' }}>
                 <div className="form-modal-header">
-                    <span className="form-modal-header-title">Enter MR Test Details - Batch {batch.batchNo}</span>
+                    <span className="form-modal-header-title">Enter MR Test Details - Batch {batch.batchNo || batch.batchNumber}</span>
                     <button className="form-modal-close" onClick={onClose}>×</button>
                 </div>
                 <div className="form-modal-body" style={{ maxHeight: '80vh', overflowY: 'auto' }}>
                     {/* Section 1: Sample Details */}
                     <div style={{ background: '#fff', padding: '16px', borderRadius: '12px', border: '1px solid #e2e8f0', marginBottom: '20px' }}>
                         <div className="form-grid">
-                            <div className="input-group"><label>Batch</label><input readOnly value={batch?.batchNo} className="readOnly" /></div>
-                            <div className="input-group"><label>Dwg. no.</label><input readOnly value={batch?.sleeperType} className="readOnly" /></div>
+                            <div className="input-group"><label>Batch</label><input readOnly value={batch?.batchNo || batch?.batchNumber} className="readOnly" /></div>
+                            <div className="input-group"><label>Dwg. no.</label><input readOnly value={resolvedDwg} className="readOnly" /></div>
                             <div className="input-group"><label>Casting Date</label><input readOnly value={batch?.castingDate} className="readOnly" /></div>
                         </div>
                     </div>
@@ -1239,9 +1304,11 @@ const MRDetailsModal = ({ batch, onClose, onModify, onEnterTest, onDelete }) => 
     const hoursPassed = diffMs / (1000 * 60 * 60);
     const canModifyOrDelete = hoursPassed <= 8;
 
+    const resolvedDwg = (batch.sleeperType && !isGrade(batch.sleeperType)) ? batch.sleeperType : (extractDrawingNo(batch) || batch.sleeperType || '-');
+
     const details = [
-        { label: 'Batch No', value: batch.batchNo },
-        { label: 'Dwg. no.', value: batch.sleeperType },
+        { label: 'Batch No', value: batch.batchNo || batch.batchNumber },
+        { label: 'Dwg. no.', value: resolvedDwg },
         { label: 'Casting Date', value: batch.castingDate },
         { label: 'Sleeper Info', value: batch.isTestRecord ? batch.sleeperNo : batch.declaredSamples?.map(s => s.no).join(', ') },
         { label: 'Log Created', value: `${createdTime.toLocaleDateString('en-GB')} ${createdTime.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}` }

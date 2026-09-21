@@ -264,6 +264,102 @@ const CriticalDimensionForm = ({ batch, onSave, onCancel, shift }) => {
         }
     };
 
+    const filteredPassedSleepers = useMemo(() => filteredSleepers.filter(s => s.currentStatus === 'passed'), [filteredSleepers]);
+    const allPassedSelected = useMemo(() => {
+        if (filteredPassedSleepers.length === 0) return false;
+        return filteredPassedSleepers.every(s => selectedSleepers.includes(s.id));
+    }, [filteredPassedSleepers, selectedSleepers]);
+
+    const handleSelectAllPassed = async (e) => {
+        const checked = e.target.checked;
+        if (checked) {
+            const idsToAdd = filteredPassedSleepers.map(s => s.id);
+            setSelectedSleepers(prev => [...new Set([...prev, ...idsToAdd])]);
+        } else {
+            const count = filteredPassedSleepers.length;
+            if (count === 0) return;
+
+            const confirmReset = window.confirm(`Deselecting all will reset ${count} VERIFIED / PASSED sleeper(s) to PENDING. Continue?`);
+            if (!confirmReset) return;
+
+            try {
+                setSaving(true);
+                const payload = {
+                    batchId: batch.batchId,
+                    moduleId: 2,
+                    sleeperType: batch.sleeperType,
+                    shift: shift || 'General',
+                    createdBy: parseInt(localStorage.getItem('userId') || '118', 10),
+                    sleepers: filteredPassedSleepers.map(s => ({
+                        sleeperId: s.id,
+                        sleeperNo: s.displayNo,
+                        result: 'PENDING',
+                        rejectionReason: '',
+                        parameters: []
+                    }))
+                };
+                await apiService.updateInspectionSleepers(payload);
+                
+                const resetIds = new Set(filteredPassedSleepers.map(s => s.id));
+                setSelectedSleepers(prev => prev.filter(id => !resetIds.has(id)));
+                setDisplaySleepers(prev => prev.map(s => resetIds.has(s.id) ? { ...s, currentStatus: 'pending' } : s));
+                toast.success(`${count} verified sleeper(s) reset to PENDING.`);
+            } catch (error) {
+                toast.error('Failed to reset sleepers: ' + error.message);
+            } finally {
+                setSaving(false);
+            }
+        }
+    };
+
+    const filteredRejectedSleepers = useMemo(() => filteredSleepers.filter(s => s.currentStatus === 'rejected'), [filteredSleepers]);
+    const allRejectedSelected = useMemo(() => {
+        if (filteredRejectedSleepers.length === 0) return false;
+        return filteredRejectedSleepers.every(s => selectedSleepers.includes(s.id));
+    }, [filteredRejectedSleepers, selectedSleepers]);
+
+    const handleSelectAllRejected = async (e) => {
+        const checked = e.target.checked;
+        if (checked) {
+            const idsToAdd = filteredRejectedSleepers.map(s => s.id);
+            setSelectedSleepers(prev => [...new Set([...prev, ...idsToAdd])]);
+        } else {
+            const count = filteredRejectedSleepers.length;
+            if (count === 0) return;
+
+            const confirmReset = window.confirm(`Deselecting all will reset ${count} REJECTED sleeper(s) to PENDING. Continue?`);
+            if (!confirmReset) return;
+
+            try {
+                setSaving(true);
+                const payload = {
+                    batchId: batch.batchId,
+                    moduleId: 2,
+                    sleeperType: batch.sleeperType,
+                    shift: shift || 'General',
+                    createdBy: parseInt(localStorage.getItem('userId') || '118', 10),
+                    sleepers: filteredRejectedSleepers.map(s => ({
+                        sleeperId: s.id,
+                        sleeperNo: s.displayNo,
+                        result: 'PENDING',
+                        rejectionReason: '',
+                        parameters: []
+                    }))
+                };
+                await apiService.updateInspectionSleepers(payload);
+                
+                const resetIds = new Set(filteredRejectedSleepers.map(s => s.id));
+                setSelectedSleepers(prev => prev.filter(id => !resetIds.has(id)));
+                setDisplaySleepers(prev => prev.map(s => resetIds.has(s.id) ? { ...s, currentStatus: 'pending' } : s));
+                toast.success(`${count} rejected sleeper(s) reset to PENDING.`);
+            } catch (error) {
+                toast.error('Failed to reset sleepers: ' + error.message);
+            } finally {
+                setSaving(false);
+            }
+        }
+    };
+
     const parametersToCheck = [
         { id: 7, label: 'Rail Seat' },
         { id: 8, label: 'Toe Gap' },
@@ -408,7 +504,7 @@ const CriticalDimensionForm = ({ batch, onSave, onCancel, shift }) => {
                 sleepers: selectedSleepers
                     .filter(sid => {
                         const s = allSleepersPool.find(x => x.id === sid);
-                        return s && (!s.moduleId || s.moduleId === 2);
+                        return !!s;
                     })
                     .map(sid => {
                     const sleeper = allSleepersPool.find(s => s.id === sid);
@@ -490,8 +586,17 @@ const CriticalDimensionForm = ({ batch, onSave, onCancel, shift }) => {
                         
                         {/* Column 1: Rejected Sleepers */}
                         <div style={{ background: '#fef2f2', padding: '12px', borderRadius: '8px', border: '1px solid #fee2e2', display: 'flex', flexDirection: 'column' }}>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', color: '#b91c1c', fontWeight: '700', fontSize: '11px', marginBottom: '15px', borderBottom: '1px solid #fecaca', paddingBottom: '4px' }}>
-                                <span>REJECTED SLEEPERS</span>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', color: '#b91c1c', fontWeight: '700', fontSize: '11px', marginBottom: '15px', borderBottom: '1px solid #fecaca', paddingBottom: '4px' }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                    <input 
+                                        type="checkbox" 
+                                        checked={allRejectedSelected} 
+                                        onChange={handleSelectAllRejected}
+                                        title={allRejectedSelected ? "Deselect All Rejected" : "Select All Rejected"}
+                                        style={{ cursor: 'pointer', width: '13px', height: '13px' }}
+                                    />
+                                    <span>REJECTED SLEEPERS</span>
+                                </div>
                                 <span>{displaySleepers.filter(s => s.currentStatus === 'rejected').length}</span>
                             </div>
                             <div style={{ height: '300px', overflowY: 'auto', paddingRight: '4px' }} className="custom-scrollbar">
@@ -501,8 +606,17 @@ const CriticalDimensionForm = ({ batch, onSave, onCancel, shift }) => {
 
                         {/* Column 2: Verified Sleepers */}
                         <div style={{ background: '#f0fdf4', padding: '12px', borderRadius: '8px', border: '1px solid #dcfce7', display: 'flex', flexDirection: 'column' }}>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', color: '#15803d', fontWeight: '700', fontSize: '11px', marginBottom: '15px', borderBottom: '1px solid #bbf7d0', paddingBottom: '4px' }}>
-                                <span>VERIFIED / PASSED</span>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', color: '#15803d', fontWeight: '700', fontSize: '11px', marginBottom: '15px', borderBottom: '1px solid #bbf7d0', paddingBottom: '4px' }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                    <input 
+                                        type="checkbox" 
+                                        checked={allPassedSelected} 
+                                        onChange={handleSelectAllPassed}
+                                        title={allPassedSelected ? "Deselect All Passed" : "Select All Passed"}
+                                        style={{ cursor: 'pointer', width: '13px', height: '13px' }}
+                                    />
+                                    <span>VERIFIED / PASSED</span>
+                                </div>
                                 <span>{displaySleepers.filter(s => s.currentStatus === 'passed').length}</span>
                             </div>
                             <div style={{ height: '300px', overflowY: 'auto', paddingRight: '4px' }} className="custom-scrollbar">

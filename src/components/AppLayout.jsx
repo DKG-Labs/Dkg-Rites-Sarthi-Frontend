@@ -503,7 +503,7 @@ const AppLayout = () => {
           <div className="sidebar-overlay" onClick={() => setIsSidebarOpen(false)} aria-hidden="true" />
         )}
 
-        <main className={`main-content ${shouldHideSidebar ? 'full-width-main' : ''}`}>
+        <main className={`main-content ${shouldHideSidebar ? 'full-width-main' : ''} ${isSmsRoute ? 'sms-no-padding' : ''}`}>
           <Outlet />
         </main>
       </div>

@@ -22,31 +22,39 @@ const dateFormat = "DD/MM/YYYY";
 const TestingStartDutyForm = () => {
   const dispatch = useDispatch();
   const {dutyId}  = useSelector(state => state.testingDuty);
-    const [formData, setFormData] = useState({
-        startDate: currentDate.format(dateFormat), shift: ''
-    });
-    const navigate = useNavigate();
+  const [formData, setFormData] = useState({
+      startDate: currentDate.format(dateFormat), shift: ''
+  });
+  const [submitting, setSubmitting] = useState(false);
+  const navigate = useNavigate();
 
-    const handleChange = (fieldName, value) => {
-        setFormData((prev) => {
-          return {
-            ...prev,
-            [fieldName]: value,
-          };
-        });
-    };
+  const handleChange = (fieldName, value) => {
+      setFormData((prev) => {
+        return {
+          ...prev,
+          [fieldName]: value,
+        };
+      });
+  };
 
-    const handleFormSubmit = async () => {
+  const handleFormSubmit = async () => {
+    if (submitting) return;
+    setSubmitting(true);
+    try {
       await dispatch(startTestingDuty(formData)).unwrap();
       navigate('/sms/testing/home');
-      // Success message is already shown in Redux slice
-      // message.error("Internal server error. Please contact support.")
-    };
-
-    if (dutyId) {
-      // message.error("Duty already in progress. Cannot start new duty.");
-      return <Navigate to="/sms/testing/home" />;
+    } catch (err) {
+      console.error("Failed to start testing duty:", err);
+      const errMsg = err?.message || err?.error || (typeof err === "string" ? err : "Failed to start duty.");
+      message.error(errMsg);
+    } finally {
+      setSubmitting(false);
     }
+  };
+
+  if (dutyId) {
+    return <Navigate to="/sms/testing/home" />;
+  }
 
   return (
     <FormContainer>
@@ -57,8 +65,8 @@ const TestingStartDutyForm = () => {
                 <FormDropdownItem label="Shift" name="shift" formField="shift" dropdownArray={shiftList} visibleField="value" valueField="key" onChange={handleChange} required />
             </div>
 
-            <Btn htmlType="submit" className="flex justify-center mx-auto">
-              Start Duty
+            <Btn htmlType="submit" className="flex justify-center mx-auto" loading={submitting} disabled={submitting}>
+              {submitting ? "Starting Duty..." : "Start Duty"}
             </Btn>
         </FormBody>
     </FormContainer>

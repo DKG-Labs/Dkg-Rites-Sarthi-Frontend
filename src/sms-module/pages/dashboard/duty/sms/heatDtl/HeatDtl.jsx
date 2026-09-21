@@ -1,7 +1,7 @@
 /* eslint-disable */
 import React, { useCallback, useEffect, useMemo, useState, useRef } from "react";
-import { Form, message, Divider, Button, Checkbox, Modal } from "antd";
-import { useSelector } from "react-redux";
+import { Form, message, Divider, Button, Checkbox, Modal, Skeleton } from "antd";
+import { useDispatch, useSelector } from "react-redux";
 import { useLocation, useNavigate } from "react-router-dom";
 import FormContainer from "../../../../../components/DKG_FormContainer";
 import FormSearchItem from "../../../../../components/DKG_FormSearchItem";
@@ -11,6 +11,9 @@ import { apiCall, handleChange } from "../../../../../utils/CommonFunctions";
 import IconBtn from "../../../../../components/DKG_IconBtn";
 import { regexMatch } from "../../../../../utils/Constants";
 import Btn from "../../../../../components/DKG_Btn";
+import SubHeader from "../../../../../components/DKG_SubHeader";
+import GeneralInfo from "../../../../../components/DKG_GeneralInfo";
+import { getOngoingSmsDutyDtls } from "../../../../../store/slice/smsDutySlice";
 import { ArrowLeftOutlined } from "@ant-design/icons";
 
 
@@ -38,7 +41,7 @@ const casterNoDropDownSms3 = [
 
 // Witnessed / Verified dropdown options ✅
 const wvDropDown = [
-  { key: "", value: "Select Input" },
+  { key: "", value: "Select" },
   { key: "Witnessed", value: "Witnessed" },
   { key: "Verified", value: "Verified" },
 ];
@@ -59,11 +62,19 @@ const ladleChemDropDown = [
 ];
 
 const HeatDtl = () => {
+  const dispatch = useDispatch();
+  const smsGeneralInfo = useSelector((state) => state.smsDuty);
   const { token } = useSelector((state) => state.auth);
-  const { dutyId, sms } = useSelector((state) => state.smsDuty);
+  const { dutyId, sms, date, shift, railGrade, plant, organisation } = smsGeneralInfo;
   const navigate = useNavigate();
   const { state } = useLocation();
   const heatNo = state?.heatNo || null;
+
+  useEffect(() => {
+    if (!dutyId) {
+      dispatch(getOngoingSmsDutyDtls());
+    }
+  }, [dispatch, dutyId]);
 
   const [divertedHeat, setDivertedHeat] = useState(false);
 
@@ -73,6 +84,7 @@ const HeatDtl = () => {
   const [formData, setFormData] = useState({});
   const [currentStage, setCurrentStage] = useState(1);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [loading, setLoading] = useState(!!heatNo);
 
   // State to track out-of-range fields for red highlighting
   const [outOfRangeFields, setOutOfRangeFields] = useState({});
@@ -237,7 +249,7 @@ const HeatDtl = () => {
   };
 
   const stageValidationRules = useMemo(() => ({
-    1: ["turnDownTemp", "turnDownTempWv"],
+    1: [], // Stage 1 (Converter) is not mandatory
     2: ["degassingVacuum", "degassingVacuumWv", "degassingDuration", "degassingDurationWv"],
     3: ["castingTemp", "castingTemp2", "casterNo", "sequenceNo1", "sequenceNo2", "hydris"],
     4: ["nitrogen", "sentToLadle"],
@@ -260,88 +272,164 @@ const HeatDtl = () => {
 
   console.log("formDta: ", formData)
 
-  // Determine if a stage should be disabled
-  const isFieldDisabled = (stage) => {
-    if(divertedHeat) return false;
-    if (currentStage > stage) return true;
-    const { heatProcurementStageCode, heatSurrenderStageCode } = editableStage;
+  // Helper to check if a value is filled
+  const isFilled = (val) => val !== null && val !== undefined && (typeof val === "number" || val.toString().trim() !== "");
 
-    if (heatProcurementStageCode === null || heatSurrenderStageCode === null) {
-      // If both are null, allow only the current stage to be edited
-      return stage !== currentStage;
+  // Stage state calculators (Empty, Partially Filled, Completed)
+  const getStage1State = (data) => {
+    const hasTurnDown = isFilled(data?.turnDownTemp);
+    const hasWv = isFilled(data?.turnDownTempWv);
+    if (!hasTurnDown && !hasWv) return "Empty";
+    if (hasTurnDown) return "Completed";
+    return "Partially Filled";
+  };
+
+  const getStage2State = (data) => {
+    const hasVac = isFilled(data?.degassingVacuum);
+    const hasDur = isFilled(data?.degassingDuration);
+    const hasVacWv = isFilled(data?.degassingVacuumWv);
+    const hasDurWv = isFilled(data?.degassingDurationWv);
+
+    if (!hasVac && !hasDur && !hasVacWv && !hasDurWv) return "Empty";
+    if (hasVac && hasDur) return "Completed";
+    return "Partially Filled";
+  };
+
+  const getStage3State = (data) => {
+    const hasCast1 = isFilled(data?.castingTemp);
+    const hasCast2 = isFilled(data?.castingTemp2);
+    const hasCaster = isFilled(data?.casterNo);
+    const hasSeq1 = isFilled(data?.sequenceNo1);
+    const hasSeq2 = isFilled(data?.sequenceNo2);
+    const hasHydris = isFilled(data?.hydris);
+    const hasProbe = !!data?.isProbeDipped;
+    const hasHydro = !!data?.isHydrogenBw80And100;
+
+    const anyFilled = hasCast1 || hasCast2 || hasCaster || hasSeq1 || hasSeq2 || hasHydris || hasProbe || hasHydro;
+    if (!anyFilled) return "Empty";
+
+    const allMandatory = hasCast1 && hasCast2 && hasCaster && hasSeq1 && hasSeq2 && hasHydris;
+    if (allMandatory) return "Completed";
+    return "Partially Filled";
+  };
+
+  const getStage4State = (data) => {
+    const hasN2 = isFilled(data?.nitrogen);
+    const hasLadle = isFilled(data?.sentToLadle);
+    const hasO2 = isFilled(data?.oxygen);
+
+    if (!hasN2 && !hasLadle && !hasO2) return "Empty";
+    // Oxygen is optional, only Nitrogen and Ladle Chemistry are mandatory
+    if (hasN2 && hasLadle) return "Completed";
+    return "Partially Filled";
+  };
+
+  const getStage5State = (data) => {
+    const hasPrimeWt = isFilled(data?.weightOfPrimeBlooms);
+    const hasCoWt = isFilled(data?.weightOfCoBlooms);
+    const hasRejWt = isFilled(data?.weightOfRejectedBlooms);
+    const hasTotalWt = isFilled(data?.totalCastWt);
+
+    const hasAnyInput =
+      hasPrimeWt || hasCoWt || hasRejWt || hasTotalWt ||
+      isFilled(data?.noOfPrimeBlooms) || isFilled(data?.primeBloomsLength) || isFilled(data?.primeBloomsTotalLength) ||
+      isFilled(data?.noOfCoBlooms) || isFilled(data?.coBloomsLength) || isFilled(data?.coBloomsTotalLength) ||
+      isFilled(data?.noOfRejectedBlooms) || isFilled(data?.rejectedBloomsLength) || isFilled(data?.rejectedBloomsTotalLength);
+
+    if (!hasAnyInput) return "Empty";
+    if (hasTotalWt && parseFloat(data?.totalCastWt) > 0) return "Completed";
+    if (hasPrimeWt && hasCoWt && hasRejWt) return "Completed";
+    return "Partially Filled";
+  };
+
+  // Compute highest sequentially completed stage status
+  const currentSmsType = sms || smsGeneralInfo?.sms || (plant === "JSPL" ? "SMS 2" : "SMS 3");
+  const isSms2 = currentSmsType === "SMS 2";
+
+  const stage1State = getStage1State(formData);
+  const stage2State = getStage2State(formData);
+  const stage3State = getStage3State(formData);
+  const stage4State = getStage4State(formData);
+  const stage5State = getStage5State(formData);
+
+  const computeOverallStatus = () => {
+    if (formData?.isDiverted || divertedHeat) return "Diverted";
+
+    const s2Done = stage2State === "Completed";
+    const s3Done = stage3State === "Completed";
+    const s4Done = stage4State === "Completed";
+    const s5Done = stage5State === "Completed";
+
+    // Stage 1 is optional and does not control progression
+    // If Stage 2 is not completed:
+    if (!s2Done) {
+      if (stage2State === "Empty" && stage3State === "Empty" && stage4State === "Empty" && stage5State === "Empty") {
+        return "Converter";
+      }
+      return "Degassing";
     }
 
-    return !(stage >= heatProcurementStageCode && stage <= heatSurrenderStageCode);
+    // Once Stage 2 is completed:
+    if (!s3Done) return "Casting";
+    if (!s4Done) return "Chemical Analysis";
+
+    // Once Stages 2, 3, 4 are completed:
+    if (isSms2) {
+      return "Complete";
+    }
+
+    // For BSP-SMS3:
+    if (!s5Done) return "Bloom Details";
+    return "Complete";
   };
+
+  const calculatedStatus = computeOverallStatus();
+
+  // Render badge for stage state
+  const renderStageBadge = (state) => {
+    if (state === "Completed") {
+      return (
+        <span className="px-2.5 py-0.5 text-xs font-semibold rounded-full bg-emerald-100 text-emerald-800 border border-emerald-300 inline-flex items-center gap-1.5 shadow-sm">
+          <span className="w-2 h-2 rounded-full bg-emerald-600"></span>
+          Completed
+        </span>
+      );
+    }
+    if (state === "Partially Filled") {
+      return (
+        <span className="px-2.5 py-0.5 text-xs font-semibold rounded-full bg-amber-100 text-amber-800 border border-amber-300 inline-flex items-center gap-1.5 shadow-sm">
+          <span className="w-2 h-2 rounded-full bg-amber-500"></span>
+          Partially Filled
+        </span>
+      );
+    }
+    return (
+      <span className="px-2.5 py-0.5 text-xs font-medium rounded-full bg-gray-100 text-gray-600 border border-gray-200 inline-flex items-center gap-1.5 shadow-sm">
+        <span className="w-2 h-2 rounded-full bg-gray-400"></span>
+        Empty
+      </span>
+    );
+  };
+
+  // Determine if a stage should be disabled (diverted heats allow all, all stages accessible)
+  const isFieldDisabled = () => false;
 
   const handleSave = async () => {
     setIsSubmitting(true);
     const payload = {
       ...formData,
       dutyId,
-      // sequenceNo: `${formData.sequenceNo1 || ""}/${formData.sequenceNo2 || ""}`,
       sequenceNo: `${formData.sequenceNo1?.trim() || ""}/${formData.sequenceNo2?.trim() || ""}`,
     };
 
-    // try {
-    //   const isStageValid = stageValidationRules[currentStage].every(
-    //     (field) => formData[field] !== undefined && formData[field] !== null && formData[field].toString().trim() !== ""
-    //   );
-
-    //   if (isStageValid && currentStage < 5) {
-    //     await apiCall("POST", "/sms/updateHeatDtls", token, payload);
-    //     message.success(`Stage ${currentStage} data saved successfully.`);
-    //     // setCurrentStage(currentStage + 1);
-    //     setCurrentStage((prev) => prev + 1);
-    //   }
-    //   else {
-    //     message.error(`Please fill all the data for stage ${currentStage}`)
-    //   }
-
-    // } catch (error) {
-    //   message.error("Failed to save stage data.");
-    // }
     try {
-        // ✅ DIVERTED HEAT LOGIC: If heat is marked as diverted, allow saving without stage completion validation
-        const isDivertedHeat = formData.isDiverted || divertedHeat;
-
-        let isStageValid = true;
-
-        if (!isDivertedHeat) {
-            // Normal heat: Validate all required fields for current stage
-            isStageValid = stageValidationRules[currentStage].every((field) => {
-                const value = formData[field];
-                if(formData?.heatRemark === "Reject for hydrogen.") return true
-                if(formData?.heatRemark === "Reject for nitrogen.") return true
-                if(formData?.heatRemark === "Reject for oxygen.") return true
-                if(formData?.heatRemark === "Rejected for chemistry") return true
-                if(currentStage === 4 && field === "oxygen") return true
-                if(currentStage === 4 && field === "nitrogen") return true
-                return  value !== undefined && value !== null && (typeof value === "number" || value.toString().trim() !== "");
-            });
-        } else {
-            // Diverted heat: Allow saving with partial data - no stage validation required
-            console.log("Heat is diverted - skipping stage validation, allowing save with partial data");
-            isStageValid = true;
-        }
-
-        if (isStageValid && currentStage <= 5) {
-            await apiCall("POST", "/sms/updateHeatDtls", token, payload);
-
-            if (isDivertedHeat) {
-                message.success(`Diverted heat data saved successfully at stage ${currentStage}.`);
-            } else {
-                message.success(`Stage ${currentStage} data saved successfully.`);
-                setCurrentStage((prev) => prev + 1);
-            }
-            navigate("/sms/sms/heatSummary")
-        } else {
-            message.error(`Please fill all the data for stage ${currentStage}`);
-        }
+      await apiCall("POST", "/sms/updateHeatDtls", token, payload);
+      message.success("Heat details saved successfully.");
+      navigate("/sms/sms/heatSummary");
     } catch (error) {
-        message.error("Failed to save stage data.");
+      message.error("Failed to save heat data.");
     } finally {
-        setIsSubmitting(false);
+      setIsSubmitting(false);
     }
   };
 
@@ -398,6 +486,28 @@ const HeatDtl = () => {
   const [turDowTempRule, setTurDowTempRule] = useState([])
 
   const handleTurDowTempChange = (fieldName, value) => {
+    // Treat empty input as null (turnDownTemp is optional)
+    if (value === null || value === undefined || (typeof value === 'string' && value.trim() === '')) {
+      setTurDowTempRule([]);
+
+      if (validationTimeouts.current['turnDownTemp']) {
+        clearTimeout(validationTimeouts.current['turnDownTemp']);
+      }
+
+      setFormData((prev) => ({
+        ...prev,
+        [fieldName]: null,
+      }));
+
+      setOutOfRangeFields(prev => {
+        const updated = { ...prev, turnDownTemp: false };
+        const hasAnyOutOfRange = Object.values(updated).some(isOut => isOut === true);
+        setIsOutOfRange(hasAnyOutOfRange);
+        return updated;
+      });
+      return;
+    }
+
     const isInteger = regexMatch.intRegex.test(value);
 
     if (!isInteger) {
@@ -667,6 +777,7 @@ const HeatDtl = () => {
   }
 
   const handleHeatNoSearch = useCallback(async (heatNo = null) => {
+    setLoading(true);
     try {
       const { data } = await apiCall(
         "GET",
@@ -693,6 +804,10 @@ const HeatDtl = () => {
       // ✅ Fix: Correctly determine last saved stage
       let lastSavedStage = 1;
       for (let stage = 1; stage <= 5; stage++) {
+        if (stage === 1) {
+          lastSavedStage = 2;
+          continue;
+        }
         const isStageComplete = stageValidationRules[stage].every(
           (field) => {
             if (field !== "sequenceNo1" && field !== "sequenceNo2") {
@@ -715,6 +830,9 @@ const HeatDtl = () => {
         // Find the highest stage that has complete data (this is where heat was diverted)
         let divertedAtStage = 1;
         for (let stage = 1; stage <= 5; stage++) {
+          if (stage === 1) {
+            continue;
+          }
           const isStageComplete = stageValidationRules[stage].every(
             (field) => {
               if (field !== "sequenceNo1" && field !== "sequenceNo2") {
@@ -751,6 +869,8 @@ const HeatDtl = () => {
       setCurrentStage(lastSavedStage > 5 ? 5 : lastSavedStage);
     } catch (error) {
       message.error("Error fetching heat details.");
+    } finally {
+      setLoading(false);
     }
   }, [token, formData.heatNo, dutyId, stageValidationRules, populateEditableStage]);
 
@@ -1238,15 +1358,18 @@ const HeatDtl = () => {
           }
         `}
       </style>
-      <div className="relative flex items-center justify-center mb-6">
-        <IconBtn
-          icon={ArrowLeftOutlined}
-          onClick={() => navigate("/sms/sms/heatSummary")}
-          className="absolute left-0 top-1/2 -translate-y-1/2 shadow-none bg-inherit"
-        />
-        <h1 className="font-semibold !text-xl text-center mb-0">Heat Detail</h1>
-      </div>
+      <SubHeader title="Heat Detail" link="/sms/sms/heatSummary" />
+      <GeneralInfo
+        data={{
+          date: date || smsGeneralInfo?.date,
+          shift: shift || smsGeneralInfo?.shift,
+          plantName: plant || organisation || smsGeneralInfo?.plant || (sms === "SMS 3" ? "BSP" : "BSP"),
+          smsNumber: sms || smsGeneralInfo?.sms,
+          railGrade: railGrade || smsGeneralInfo?.railGrade,
+        }}
+      />
       <Form
+        className="mt-2"
         layout="vertical"
         initialValues={formData}
         form={form}
@@ -1262,302 +1385,324 @@ const HeatDtl = () => {
           }
         />
 
-        {
-          currentStage >=1 && (
-            <>
-
-<Divider />
-
-<h2 className="font-bold mb-3 underline">Stage 1: Converter</h2>
-
-<div className="grid md:grid-cols-2 gap-8">
-  <FormInputItem
-    label="Turn Down Temp. (&deg;C)"
-    name="turnDownTemp"
-    rules={turDowTempRule}
-    onChange={handleTurDowTempChange}
-    // disabled={isFieldDisabled(1)}
-    className={`${currentStage >= 1 ? "block" : "hidden"} ${getFieldClassName('turnDownTemp')}`}
-  />
-  <FormDropdownItem
-    label="Witnessed / Verified"
-    name="turnDownTempWv"
-    formField="turnDownTempWv"
-    dropdownArray={wvDropDown}
-    visibleField="value"
-    valueField="key"
-    onChange={(fieldName, value) =>
-      handleChange(fieldName, value, setFormData)
-    }
-    // disabled={isFieldDisabled(1)}
-  />
-</div>
-            </>
-          )
-        }
-
-       
-
-        {
-          currentStage >= 2 && (!divertedHeat || currentStage <= 2) && (
-            <>
-              <Divider />
-
-              <h3 className="font-bold mb-3 underline">Stage 2: Degassing</h3>
-              <div className="grid md:grid-cols-2 gap-x-4">
-                <FormInputItem
-                  label="Degassing Vacuum(m bar)"
-                  name="degassingVacuum"
-                  placeholder="2.5"
-                  rules={degVacRule}
-                  onChange={handleDegVacChange}
-                  className={getFieldClassName("degassingVacuum")}
-                  // disabled={isFieldDisabled(2)}
-                />
-                <FormDropdownItem
-                  label=""
-                  name="degassingVacuumWv"
-                  className="mt-14 sm:mt-8"
-                  formField="degassingVacuumWv"
-                  dropdownArray={wvDropDown}
-                  visibleField="value"
-                  valueField="key"
-                  onChange={(fieldName, value) =>
-                    handleChange(fieldName, value, setFormData)
-                  }
-                  // disabled={isFieldDisabled(2)}
-                />
-                <FormInputItem
-                  label="Degassing Duration(min)"
-                  name="degassingDuration"
-                  placeholder="10.0"
-                  rules={degDurRule}
-                  onChange={handleDegDurChange}
-                  className={getFieldClassName("degassingDuration")}
-                  // disabled={isFieldDisabled(2)}
-
-                />
-                <FormDropdownItem
-                  label=""
-                  name="degassingDurationWv"
-                  className="mt-14 sm:mt-8"
-                  formField="degassingDurationWv"
-                  dropdownArray={wvDropDown}
-                  visibleField="value"
-                  valueField="key"
-                  onChange={(fieldName, value) =>
-                    handleChange(fieldName, value, setFormData)
-                  }
-                  // disabled={isFieldDisabled(2)}
-                />
+        {loading ? (
+          <div className="p-6 bg-white border border-slate-200 rounded-xl shadow-sm mt-6 flex flex-col gap-6">
+            <div className="flex flex-col gap-3">
+              <Skeleton.Input active size="small" style={{ width: 160 }} />
+              <div className="grid md:grid-cols-2 gap-4">
+                <Skeleton.Input active block style={{ height: 42 }} />
+                <Skeleton.Input active block style={{ height: 42 }} />
               </div>
-            </>
-          )
-        }
-
-
-        {
-          currentStage >= 3 && (!divertedHeat || currentStage <= 3) && (
-            <>
-              <Divider />
-
-        <h3 className="font-bold mb-3 underline">Stage 3: Casting</h3>
-        <div className="grid md:grid-cols-2 gap-x-4">
-          <FormInputItem
-            label="1st Casting Temp (&deg;C)"
-            name="castingTemp"
-            onChange={handleCastTempChange}
-            rules={castTempRule}
-            className={getFieldClassName("castingTemp")}
-            // disabled={isFieldDisabled(3)}
-          />
-          <FormInputItem
-            label="2nd Casting Temp(&deg;C)"
-            name="castingTemp2"
-            onChange={handleCastTemp2Change}
-            rules={castTemp2Rule}
-            className={getFieldClassName("castingTemp2")}
-            // disabled={isFieldDisabled(3)}
-          />
-          {/* <FormInputItem
-            label="Caster Number "
-            name="casterNo"
-            onChange={(fieldName, value) =>
-              handleChange(fieldName, value, setFormData)
-            }
-            disabled={isFieldDisabled(3)}
-          /> */}
-
-                <FormDropdownItem
-                  label="Caster Number"
-                  name="casterNo"
-                  formField="casterNo"
-                  dropdownArray={
-                    sms === "SMS 2" ? casterNoDropDownSms2 : casterNoDropDownSms3
-                  }
-                  visibleField="value"
-                  valueField="key"
-                  onChange={(fieldName, value) =>
-                    handleChange(fieldName, value, setFormData)
-                  }
-                  // disabled={isFieldDisabled(3)}
-                />
-
+            </div>
+            <Divider />
+            <div className="flex flex-col gap-3">
+              <Skeleton.Input active size="small" style={{ width: 160 }} />
+              <div className="grid md:grid-cols-2 gap-4">
+                <Skeleton.Input active block style={{ height: 42 }} />
+                <Skeleton.Input active block style={{ height: 42 }} />
+                <Skeleton.Input active block style={{ height: 42 }} />
+                <Skeleton.Input active block style={{ height: 42 }} />
+              </div>
+            </div>
+            <Divider />
+            <Skeleton active paragraph={{ rows: 4 }} />
+          </div>
+        ) : (
+          <>
+            {/* Heat Status & Stage Progression Banner */}
+            <div className="my-3 p-3.5 sm:p-4 rounded-xl bg-gradient-to-br from-slate-900 via-slate-800 to-indigo-950 text-white shadow-lg border border-slate-700/80">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 mb-3 border-b border-slate-700/60">
                 <div>
-                  <div className="font-medium mb-1">
-                    Sequence Number
+                  <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">Heat Status</span>
+                  <div className="flex items-center gap-2 mt-0.5">
+                    <span className="text-xl font-bold text-emerald-400 tracking-tight">{calculatedStatus}</span>
+                    <span className="text-[11px] px-2.5 py-0.5 bg-slate-800 border border-slate-600/80 rounded-full text-slate-300 font-medium">
+                      {isSms2 ? "BSP-SMS2 Rule" : "BSP-SMS3 Rule"}
+                    </span>
                   </div>
-                  <div className="flex gap-2">
-
-                    <FormInputItem
-                      // label="Sequence Number 1"
-                      name="sequenceNo1"
-                      onChange={(fieldName, value) =>
-                        handleSequenceNumberChange(fieldName, value)
-                      }
-                      // disabled={isFieldDisabled(3)}
-                    />
-                    <div className="text-4xl font-semibold">
-
-                      /
-                    </div>
-                    <FormInputItem
-                      // label="Sequence Number 2"
-                      name="sequenceNo2"
-                      onChange={(fieldName, value) =>
-                        handleSequenceNumberChange(fieldName, value)
-                      }
-                      // disabled={isFieldDisabled(3)}
-                    />
-                  </div>
-
                 </div>
-                <FormInputItem
-                  label="Hydris"
-                  name="hydris"
-                  rules={hydrisRuleObj}
-                  onChange={handleHydrisChange}
-                  className={getFieldClassName("hydris")}
-                  // disabled={isFieldDisabled(3)}
-                />
+                <div className="text-[11px] text-slate-400">
+                  <span className="hidden sm:inline">Highest sequentially completed stage</span>
+                </div>
               </div>
 
-            </>
-          )
-        }
-
-        <Divider />
-
-        <Checkbox
-          checked={formData.isProbeDipped}
-          onChange={(e) =>
-            setFormData((prev) => ({
-              ...prev,
-              isProbeDipped: e.target.checked,
-            }))
-          }
-        >
-          Is probe dipped below 300mm from slag - metal surface
-        </Checkbox>
-        <Divider />
-        <Checkbox
-          checked={formData.isHydrogenBw80And100}
-          onChange={(e) =>
-            setFormData((prev) => ({
-              ...prev,
-              isHydrogenBw80And100: e.target.checked,
-            }))
-          }
-        >
-          Is measurement of hydrogen between 80-100m of Casting
-        </Checkbox>
-
-
-        {
-          currentStage >= 4 && (!divertedHeat || currentStage <= 4) && (
-            <>
-              <Divider />
-              <h3 className="font-bold mb-3 underline">Stage 4: Chemical Analysis</h3>
-              <div className="grid md:grid-cols-2 gap-x-4">
-                <FormInputItem
-                  label="Nitrogen (%)"
-                  name="nitrogen"
-                  rules={nitrogenRule}
-                  onChange={handleNitrogenChange}
-                  className={getFieldClassName("nitrogen")}
-                  // disabled={isFieldDisabled(4)}
-                />
-                <FormInputItem
-                  label="Oxygen (ppm)"
-                  name="oxygen"
-                  rules={oxygenRule}
-                  onChange={handleOxygenChange}
-                  className={getFieldClassName("oxygen")}
-                  // disabled={isFieldDisabled(4)}
-                />
-
-                <FormDropdownItem
-                  label="Ladle Chemistry"
-                  name="sentToLadle"
-                  formField="sentToLadle"
-                  dropdownArray={ladleChemDropDown}
-                  visibleField="value"
-                  valueField="key"
-                  onChange={handleChemChange}
-                  // disabled={isFieldDisabled(4)}
-                />
-
-                {showLabCheckbox && (
-                  <div className="flex flex-col">
-                    <Checkbox className="">Chemical</Checkbox>
-                    <Checkbox className="">Nitrogen</Checkbox>
-                    <Checkbox className="">Oxygen</Checkbox>
-                  </div>
-                )}
+              <div className={`grid gap-2 ${isSms2 ? 'grid-cols-2 sm:grid-cols-4' : 'grid-cols-2 sm:grid-cols-3 md:grid-cols-5'}`}>
+                {[
+                  { key: 'S1', title: 'S1: Converter', state: stage1State },
+                  { key: 'S2', title: 'S2: Degassing', state: stage2State },
+                  { key: 'S3', title: 'S3: Casting', state: stage3State },
+                  { key: 'S4', title: 'S4: Chemistry', state: stage4State },
+                  ...(!isSms2 ? [{ key: 'S5', title: 'S5: Bloom', state: stage5State }] : [])
+                ].map((stage) => {
+                  const isCompleted = stage.state === 'Completed';
+                  const isPartial = stage.state === 'Partially Filled';
+                  return (
+                    <div
+                      key={stage.key}
+                      className={`flex flex-col items-center justify-center py-2 px-2 rounded-lg border text-center transition-all ${
+                        isCompleted
+                          ? 'bg-emerald-950/50 border-emerald-500/50 text-emerald-200'
+                          : isPartial
+                          ? 'bg-amber-950/50 border-amber-500/50 text-amber-200'
+                          : 'bg-slate-800/50 border-slate-700/70 text-slate-400'
+                      }`}
+                    >
+                      <div className="flex items-center gap-1.5 text-xs font-semibold">
+                        <span
+                          className={`w-2 h-2 rounded-full flex-shrink-0 ${
+                            isCompleted
+                              ? 'bg-emerald-400 shadow-[0_0_6px_rgba(52,211,153,0.9)]'
+                              : isPartial
+                              ? 'bg-amber-400 shadow-[0_0_6px_rgba(251,191,36,0.9)]'
+                              : 'bg-slate-500'
+                          }`}
+                        />
+                        <span className="truncate">{stage.title}</span>
+                      </div>
+                      <span className="text-[10px] font-medium opacity-85 mt-0.5 uppercase tracking-wide">
+                        {stage.state}
+                      </span>
+                    </div>
+                  );
+                })}
               </div>
+            </div>
 
-            </>
-          )
-        }
+            {/* Stage 1: Converter */}
+            <Divider />
+            <div className="flex items-center justify-between mb-3">
+              <h2 className="font-bold text-base underline text-slate-800 m-0">Stage 1: Converter</h2>
+              {renderStageBadge(stage1State)}
+            </div>
+            <div className="grid md:grid-cols-2 gap-8">
+              <FormInputItem
+                label="Turn Down Temp. (&deg;C)"
+                name="turnDownTemp"
+                rules={turDowTempRule}
+                onChange={handleTurDowTempChange}
+                className={getFieldClassName('turnDownTemp')}
+              />
+              <FormDropdownItem
+                label="Witnessed / Verified"
+                name="turnDownTempWv"
+                formField="turnDownTempWv"
+                dropdownArray={wvDropDown}
+                visibleField="value"
+                valueField="key"
+                onChange={(fieldName, value) =>
+                  handleChange(fieldName, value, setFormData)
+                }
+              />
+            </div>
 
+            {/* Stage 2: Degassing */}
+            <Divider />
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="font-bold text-base underline text-slate-800 m-0">Stage 2: Degassing</h3>
+              {renderStageBadge(stage2State)}
+            </div>
+            <div className="grid md:grid-cols-2 gap-x-4">
+              <FormInputItem
+                label="Degassing Vacuum(m bar)"
+                name="degassingVacuum"
+                placeholder="2.5"
+                rules={degVacRule}
+                onChange={handleDegVacChange}
+                className={getFieldClassName("degassingVacuum")}
+              />
+              <FormDropdownItem
+                label=""
+                name="degassingVacuumWv"
+                className="mt-14 sm:mt-8"
+                formField="degassingVacuumWv"
+                dropdownArray={wvDropDown}
+                visibleField="value"
+                valueField="key"
+                onChange={(fieldName, value) =>
+                  handleChange(fieldName, value, setFormData)
+                }
+              />
+              <FormInputItem
+                label="Degassing Duration(min)"
+                name="degassingDuration"
+                placeholder="10.0"
+                rules={degDurRule}
+                onChange={handleDegDurChange}
+                className={getFieldClassName("degassingDuration")}
+              />
+              <FormDropdownItem
+                label=""
+                name="degassingDurationWv"
+                className="mt-14 sm:mt-8"
+                formField="degassingDurationWv"
+                dropdownArray={wvDropDown}
+                visibleField="value"
+                valueField="key"
+                onChange={(fieldName, value) =>
+                  handleChange(fieldName, value, setFormData)
+                }
+              />
+            </div>
 
-        {
-          currentStage >= 5 && (!divertedHeat || currentStage <= 5) && (
-            <>
-              <Divider />
+            {/* Stage 3: Casting */}
+            <Divider />
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="font-bold text-base underline text-slate-800 m-0">Stage 3: Casting</h3>
+              {renderStageBadge(stage3State)}
+            </div>
+            <div className="grid md:grid-cols-2 gap-x-4">
+              <FormInputItem
+                label="1st Casting Temp (&deg;C)"
+                name="castingTemp"
+                onChange={handleCastTempChange}
+                rules={castTempRule}
+                className={getFieldClassName("castingTemp")}
+              />
+              <FormInputItem
+                label="2nd Casting Temp(&deg;C)"
+                name="castingTemp2"
+                onChange={handleCastTemp2Change}
+                rules={castTemp2Rule}
+                className={getFieldClassName("castingTemp2")}
+              />
+              <FormDropdownItem
+                label="Caster Number"
+                name="casterNo"
+                formField="casterNo"
+                dropdownArray={
+                  sms === "SMS 2" ? casterNoDropDownSms2 : casterNoDropDownSms3
+                }
+                visibleField="value"
+                valueField="key"
+                onChange={(fieldName, value) =>
+                  handleChange(fieldName, value, setFormData)
+                }
+              />
+              <div>
+                <div className="font-medium mb-1">
+                  Sequence Number
+                </div>
+                <div className="flex gap-2">
+                  <FormInputItem
+                    name="sequenceNo1"
+                    onChange={(fieldName, value) =>
+                      handleSequenceNumberChange(fieldName, value)
+                    }
+                  />
+                  <div className="text-4xl font-semibold">/</div>
+                  <FormInputItem
+                    name="sequenceNo2"
+                    onChange={(fieldName, value) =>
+                      handleSequenceNumberChange(fieldName, value)
+                    }
+                  />
+                </div>
+              </div>
+              <FormInputItem
+                label="Hydris"
+                name="hydris"
+                rules={hydrisRuleObj}
+                onChange={handleHydrisChange}
+                className={getFieldClassName("hydris")}
+              />
+            </div>
 
-              <h3 className="font-bold mb-3 underline">Stage 5: Bloom Details</h3>
-              <div className="border grid grid-cols-5 divide-x divide-y divide-gray-300">
+            <Divider />
+            <Checkbox
+              checked={formData.isProbeDipped}
+              onChange={(e) =>
+                setFormData((prev) => ({
+                  ...prev,
+                  isProbeDipped: e.target.checked,
+                }))
+              }
+            >
+              Is probe dipped below 300mm from slag - metal surface
+            </Checkbox>
+            <Divider />
+            <Checkbox
+              checked={formData.isHydrogenBw80And100}
+              onChange={(e) =>
+                setFormData((prev) => ({
+                  ...prev,
+                  isHydrogenBw80And100: e.target.checked,
+                }))
+              }
+            >
+              Is measurement of hydrogen between 80-100m of Casting
+            </Checkbox>
+
+            {/* Stage 4: Chemical Analysis */}
+            <Divider />
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="font-bold text-base underline text-slate-800 m-0">Stage 4: Chemical Analysis</h3>
+              {renderStageBadge(stage4State)}
+            </div>
+            <div className="grid md:grid-cols-2 gap-x-4">
+              <FormInputItem
+                label="Nitrogen (%)"
+                name="nitrogen"
+                rules={nitrogenRule}
+                onChange={handleNitrogenChange}
+                className={getFieldClassName("nitrogen")}
+              />
+              <FormInputItem
+                label="Oxygen (ppm)"
+                name="oxygen"
+                rules={oxygenRule}
+                onChange={handleOxygenChange}
+                className={getFieldClassName("oxygen")}
+              />
+              <FormDropdownItem
+                label="Ladle Chemistry"
+                name="sentToLadle"
+                formField="sentToLadle"
+                dropdownArray={ladleChemDropDown}
+                visibleField="value"
+                valueField="key"
+                onChange={handleChemChange}
+              />
+              {showLabCheckbox && (
+                <div className="flex flex-col">
+                  <Checkbox className="">Chemical</Checkbox>
+                  <Checkbox className="">Nitrogen</Checkbox>
+                  <Checkbox className="">Oxygen</Checkbox>
+                </div>
+              )}
+            </div>
+
+            {/* Stage 5: Bloom Details */}
+            <Divider />
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="font-bold text-base underline text-slate-800 m-0">Stage 5: Bloom Details</h3>
+              {renderStageBadge(stage5State)}
+            </div>
+            <div className="overflow-x-auto -mx-2 sm:mx-0 pb-2">
+              <div className="min-w-[480px] border grid grid-cols-5 divide-x divide-y divide-gray-300 rounded-lg overflow-hidden bg-white">
                 <div></div>
-                <h3 className="p-2">Number</h3>
-                <h3 className="p-2">Length (m)</h3>
-                <h3 className="p-2">Tot. Len. (m)</h3>
-                <h3 className="p-2">Weight (MT)</h3>
+                <h3 className="p-2 text-xs font-semibold text-center bg-slate-50 text-slate-700">Number</h3>
+                <h3 className="p-2 text-xs font-semibold text-center bg-slate-50 text-slate-700">Length (m)</h3>
+                <h3 className="p-2 text-xs font-semibold text-center bg-slate-50 text-slate-700">Tot. Len. (m)</h3>
+                <h3 className="p-2 text-xs font-semibold text-center bg-slate-50 text-slate-700">Weight (MT)</h3>
 
-                <h3 className="text-center p-2">Prime</h3>
+                <h3 className="text-center p-2 text-xs font-bold bg-slate-50 text-slate-700 flex items-center justify-center">Prime</h3>
                 <FormInputItem
                   className="no-border"
                   name="noOfPrimeBlooms"
                   onChange={handlePrimeBloomDtlChange}
-                  disabled={
-                    isFieldDisabled(5) || primeBloomsFieldState.noOfPrimeBlooms
-                  }
+                  disabled={primeBloomsFieldState.noOfPrimeBlooms}
                 />
                 <FormInputItem
                   className="no-border"
                   name="primeBloomsLength"
                   onChange={handlePrimeBloomDtlChange}
-                  disabled={
-                    isFieldDisabled(5) || primeBloomsFieldState.primeBloomsLength
-                  }
+                  disabled={primeBloomsFieldState.primeBloomsLength}
                 />
                 <FormInputItem
                   className="no-border"
                   name="primeBloomsTotalLength"
                   onChange={handlePrimeBloomDtlChange}
-                  disabled={
-                    isFieldDisabled(5) || primeBloomsFieldState.primeBloomsTotalLength
-                  }
+                  disabled={primeBloomsFieldState.primeBloomsTotalLength}
                 />
                 <FormInputItem
                   className="no-border"
@@ -1565,26 +1710,24 @@ const HeatDtl = () => {
                   disabled
                 />
 
-                <h3 className="text-center p-2">CO</h3>
+                <h3 className="text-center p-2 text-xs font-bold bg-slate-50 text-slate-700 flex items-center justify-center">CO</h3>
                 <FormInputItem
                   className="no-border"
                   name="noOfCoBlooms"
                   onChange={handleCoBloomDtlChange}
-                  disabled={isFieldDisabled(5) || coBloomsFieldState.noOfCoBlooms}
+                  disabled={coBloomsFieldState.noOfCoBlooms}
                 />
                 <FormInputItem
                   className="no-border"
                   name="coBloomsLength"
                   onChange={handleCoBloomDtlChange}
-                  disabled={isFieldDisabled(5) || coBloomsFieldState.coBloomsLength}
+                  disabled={coBloomsFieldState.coBloomsLength}
                 />
                 <FormInputItem
                   className="no-border"
                   name="coBloomsTotalLength"
                   onChange={handleCoBloomDtlChange}
-                  disabled={
-                    isFieldDisabled(5) || coBloomsFieldState.coBloomsTotalLength
-                  }
+                  disabled={coBloomsFieldState.coBloomsTotalLength}
                 />
                 <FormInputItem
                   className="no-border"
@@ -1592,32 +1735,24 @@ const HeatDtl = () => {
                   disabled
                 />
 
-                <h3 className="text-center p-2">Rejected</h3>
+                <h3 className="text-center p-2 text-xs font-bold bg-slate-50 text-slate-700 flex items-center justify-center">Rejected</h3>
                 <FormInputItem
                   className="no-border"
                   name="noOfRejectedBlooms"
                   onChange={handleRejectedBloomDtlChange}
-                  disabled={
-                    isFieldDisabled(5) || rejectedBloomsFieldState.noOfRejectedBlooms
-                  }
+                  disabled={rejectedBloomsFieldState.noOfRejectedBlooms}
                 />
                 <FormInputItem
                   className="no-border"
                   name="rejectedBloomsLength"
                   onChange={handleRejectedBloomDtlChange}
-                  disabled={
-                    isFieldDisabled(5) ||
-                    rejectedBloomsFieldState.rejectedBloomsLength
-                  }
+                  disabled={rejectedBloomsFieldState.rejectedBloomsLength}
                 />
                 <FormInputItem
                   className="no-border"
                   name="rejectedBloomsTotalLength"
                   onChange={handleRejectedBloomDtlChange}
-                  disabled={
-                    isFieldDisabled(5) ||
-                    rejectedBloomsFieldState.rejectedBloomsTotalLength
-                  }
+                  disabled={rejectedBloomsFieldState.rejectedBloomsTotalLength}
                 />
                 <FormInputItem
                   className="no-border"
@@ -1625,62 +1760,59 @@ const HeatDtl = () => {
                   disabled
                 />
 
-                <h3 className="text-center p-2 col-span-4">Total Cast Weight (MT)</h3>
+                <h3 className="text-center p-2 col-span-4 text-xs font-bold bg-slate-50 text-slate-700">Total Cast Weight (MT)</h3>
                 <FormInputItem className="no-border" name="totalCastWt" disabled />
               </div>
-
-            </>
-          )
-        }
-
-        <Checkbox
-          className="my-4"
-          checked={formData.isDiverted}
-          onChange={(e) =>
-            setFormData((prev) => ({
-              ...prev,
-              isDiverted: e.target.checked,
-              heatRemark: e.target.checked ? "Diverted" : null,
-            }))
-          }
-        >
-          Mark as diverted heat.
-        </Checkbox>
-
-        {divertedHeat && (
-          <div className="bg-yellow-100 border-l-4 border-yellow-500 text-yellow-700 p-4 mb-4">
-            <div className="flex">
-              <div className="flex-shrink-0">
-                <svg className="h-5 w-5 text-yellow-400" viewBox="0 0 20 20" fill="currentColor">
-                  <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
-                </svg>
-              </div>
-              <div className="ml-3">
-                <p className="text-sm">
-                  <strong>Heat is marked as diverted.</strong> Remaining stages are hidden.
-                  Uncheck "Mark as diverted heat" to access remaining stages.
-                </p>
-              </div>
             </div>
-          </div>
-        )}
 
-        <FormInputItem
-          name="heatRemark"
-          placeholder="Heat Remark"
-          disabled={heatRemarkDisabled}
-          value={formData.heatRemark}
-          onChange={(name, value) => handleChange(name, value, setFormData)}
-        />
-        <FormInputItem
-          name="otherRemark"
-          placeholder="Other Remark"
-          // disabled={heatRemarkDisabled}
-          onChange={(name, value) => handleChange(name, value, setFormData)}
-        />
-        <Btn htmlType="submit" className="flex mx-auto" disabled={isSubmitting}>
-          {isSubmitting ? "Saving..." : "Save"}
-        </Btn>
+            <Checkbox
+              className="my-4"
+              checked={formData.isDiverted}
+              onChange={(e) =>
+                setFormData((prev) => ({
+                  ...prev,
+                  isDiverted: e.target.checked,
+                  heatRemark: e.target.checked ? "Diverted" : null,
+                }))
+              }
+            >
+              Mark as diverted heat.
+            </Checkbox>
+
+            {divertedHeat && (
+              <div className="bg-yellow-100 border-l-4 border-yellow-500 text-yellow-700 p-4 mb-4">
+                <div className="flex">
+                  <div className="flex-shrink-0">
+                    <svg className="h-5 w-5 text-yellow-400" viewBox="0 0 20 20" fill="currentColor">
+                      <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                    </svg>
+                  </div>
+                  <div className="ml-3">
+                    <p className="text-sm">
+                      <strong>Heat is marked as diverted.</strong>
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            <FormInputItem
+              name="heatRemark"
+              placeholder="Heat Remark"
+              disabled={heatRemarkDisabled}
+              value={formData.heatRemark}
+              onChange={(name, value) => handleChange(name, value, setFormData)}
+            />
+            <FormInputItem
+              name="otherRemark"
+              placeholder="Other Remark"
+              onChange={(name, value) => handleChange(name, value, setFormData)}
+            />
+            <Btn htmlType="submit" className="flex mx-auto" disabled={isSubmitting}>
+              {isSubmitting ? "Saving..." : "Save"}
+            </Btn>
+          </>
+        )}
       </Form>
     </FormContainer>
   )

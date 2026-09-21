@@ -14,119 +14,144 @@ const GeneralInfo = ({ data, children, minimizable = false, defaultMinimized = f
 
   const toggleMinimize = () => setIsMinimized(!isMinimized);
 
+  const entries = data && typeof data === 'object'
+    ? Object.keys(data).filter(key => !['loading', 'error', 'dutyId'].includes(key) && data[key] !== null && data[key] !== undefined && data[key] !== '')
+    : [];
+
   return (
     <div
-      className="dkg-premium-card"
       style={{
-        padding: '0',
+        background: '#ffffff',
+        border: '1px solid #e2e8f0',
+        borderLeft: '4px solid #21808d',
+        borderRadius: '10px',
+        padding: '8px 14px',
         marginBottom: '1rem',
+        boxShadow: '0 1px 3px rgba(0,0,0,0.03)',
+        width: '100%'
       }}
     >
-      {/* Header */}
-      <div
-        style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          padding: '0.75rem 1.25rem',
-          background: '#ffffff',
-          borderBottom: '1px solid #e2e8f0',
-          cursor: minimizable ? 'pointer' : 'default',
-          borderLeft: `4px solid ${minimizable ? '#21808d' : '#21808d'}`,
-          borderRadius: '12px 12px 0 0',
-          transition: 'all 0.2s ease',
-        }}
-        onMouseEnter={(e) => {
-          if (minimizable) e.currentTarget.style.background = '#f8fafc';
-        }}
-        onMouseLeave={(e) => {
-          if (minimizable) e.currentTarget.style.background = '#ffffff';
-        }}
-        onClick={minimizable ? toggleMinimize : undefined}
-      >
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <div style={{ width: '3px', height: '16px', background: '#21808d', borderRadius: '4px', display: 'none' }} />
+      {/* Desktop / Tablet View: Streamlined Single Line */}
+      <div className="hidden sm:flex items-center justify-between gap-3 min-h-[28px] flex-wrap">
+        <div className="flex items-center gap-2 flex-shrink-0">
           <span
             style={{
-              fontSize: '0.8125rem',
+              fontSize: '11px',
               fontWeight: 800,
-              color: '#13343b',
+              color: '#21808d',
               textTransform: 'uppercase',
               letterSpacing: '0.04em',
+              background: 'rgba(33, 128, 141, 0.08)',
+              padding: '3px 8px',
+              borderRadius: '6px'
             }}
           >
-            Shift & Duty Information
+            Shift Info
           </span>
         </div>
+
+        <div className="flex items-center justify-evenly flex-wrap gap-x-4 gap-y-1 flex-1">
+          {entries.length > 0 ? (
+            entries.map((key) => (
+              <div
+                key={key}
+                className="inline-flex items-center gap-1.5 text-xs whitespace-nowrap"
+              >
+                <span className="text-gray-500 font-semibold uppercase text-[11px]">
+                  {capitalizeCamelCase(key)}:
+                </span>
+                <span className="text-slate-900 font-bold text-xs">
+                  {data[key]?.toString() || '—'}
+                </span>
+              </div>
+            ))
+          ) : (
+            <span className="text-xs text-slate-400 italic">
+              No duty details available
+            </span>
+          )}
+        </div>
+
         {minimizable && (
-          <div style={{ 
-            color: '#21808d', 
-            fontSize: '0.75rem',
-            width: '24px',
-            height: '24px',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            borderRadius: '50%',
-            background: '#21808d10'
-          }}>
+          <div
+            onClick={toggleMinimize}
+            style={{
+              color: '#21808d',
+              fontSize: '0.75rem',
+              width: '22px',
+              height: '22px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              borderRadius: '50%',
+              background: '#21808d10',
+              cursor: 'pointer'
+            }}
+          >
             {isMinimized ? <DownOutlined /> : <UpOutlined />}
           </div>
         )}
       </div>
 
-      {/* Content Area */}
-      {!isMinimized && (
-        <div
-          style={{
-            display: 'flex',
-            flexWrap: 'wrap',
-            gap: '2rem',
-            padding: '1.25rem 1.5rem',
-            backgroundColor: '#ffffff',
-            borderRadius: '0 0 12px 12px',
-          }}
-        >
-          {data && Object.keys(data).length > 0 ? (
-            Object.keys(data)
-              .filter(key => !['loading', 'error'].includes(key))
-              .map((key) => (
+      {/* Mobile View: Clean Structured Grid */}
+      <div className="flex sm:hidden flex-col gap-2">
+        <div className="flex items-center justify-between">
+          <span
+            style={{
+              fontSize: '10.5px',
+              fontWeight: 800,
+              color: '#21808d',
+              textTransform: 'uppercase',
+              letterSpacing: '0.04em',
+              background: 'rgba(33, 128, 141, 0.08)',
+              padding: '2px 8px',
+              borderRadius: '5px'
+            }}
+          >
+            Shift & Duty Information
+          </span>
+
+          {minimizable && (
+            <div
+              onClick={toggleMinimize}
+              style={{
+                color: '#21808d',
+                fontSize: '0.7rem',
+                cursor: 'pointer'
+              }}
+            >
+              {isMinimized ? <DownOutlined /> : <UpOutlined />}
+            </div>
+          )}
+        </div>
+
+        {!isMinimized && (
+          <div className="grid grid-cols-2 gap-2 pt-1 border-t border-gray-100">
+            {entries.length > 0 ? (
+              entries.map((key) => (
                 <div
                   key={key}
-                  style={{
-                    display: 'flex',
-                    flexDirection: 'column',
-                    gap: '6px',
-                    minWidth: '120px',
-                  }}
+                  className="flex flex-col bg-slate-50/80 px-2.5 py-1.5 rounded-lg border border-slate-100"
                 >
-                  <span
-                    style={{
-                      fontSize: '0.7rem',
-                      fontWeight: 700,
-                      textTransform: 'uppercase',
-                      color: '#64748b',
-                      letterSpacing: '0.02em',
-                    }}
-                  >
+                  <span className="text-[10px] text-gray-500 font-semibold uppercase tracking-wider">
                     {capitalizeCamelCase(key)}
                   </span>
-                  <span
-                    style={{
-                      fontSize: '0.9375rem',
-                      fontWeight: 700,
-                      color: '#13343b',
-                    }}
-                  >
+                  <span className="text-[12px] text-slate-900 font-bold leading-tight mt-0.5">
                     {data[key]?.toString() || '—'}
                   </span>
                 </div>
               ))
-          ) : (
-            <div style={{ padding: '1rem', color: '#94a3b8', fontStyle: 'italic' }}>
-              Waiting for duty details...
-            </div>
-          )}
+            ) : (
+              <span className="col-span-2 text-xs text-slate-400 italic py-1">
+                No duty details available
+              </span>
+            )}
+          </div>
+        )}
+      </div>
+
+      {children && !isMinimized && (
+        <div style={{ marginTop: '8px', paddingTop: '8px', borderTop: '1px solid #f1f5f9' }}>
           {children}
         </div>
       )}

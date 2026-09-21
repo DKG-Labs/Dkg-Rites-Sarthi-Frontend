@@ -90,20 +90,18 @@ export const apiCall = async (method, url, token, payload = null, signal = null)
   
 
   export const checkAndConvertToFLoat = (value) => {
-    if( value === null || value === ""){
-      console.log("VALIE NULL")
-      return {number: null, isFLoat: true}
+    if (value === null || value === undefined || value === "") {
+      return { number: null, isFloat: true };
     }
 
-    console.log("VALIE NOT NULL, ", value)
-
-    if (value.trim() === "" || !/^-?\d+(\.\d+)?$/.test(value)) {
+    const strVal = String(value).trim();
+    if (strVal === "" || !/^-?\d+(\.\d+)?$/.test(strVal)) {
       message.error("Invalid number.");
-      return{number: null, isFloat: false};
+      return { number: null, isFloat: false };
     }
 
-    return {number: parseFloat(value), isFloat: true}
-  }
+    return { number: parseFloat(strVal), isFloat: true };
+  };
 
   export const getCurrentDate = () => {
     const dateFormat = "DD/MM/YYYY";

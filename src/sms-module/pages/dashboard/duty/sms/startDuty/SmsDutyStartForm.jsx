@@ -18,6 +18,10 @@ const dateFormat = "DD/MM/YYYY";
 
 const railGradeList = [
   {
+    key: "",
+    value: "Select",
+  },
+  {
     key: "R260",
     value: "R260",
   },
@@ -40,6 +44,10 @@ const railGradeList = [
 ];
 const organisationList = [
   {
+    key: "",
+    value: "Select",
+  },
+  {
     key: "BSP",
     value: "BSP",
   },
@@ -52,16 +60,20 @@ const organisationList = [
 const getSmsListForOrg = (org) => {
   if (org === "BSP") {
     return [
+      { key: "", value: "Select" },
       { key: "SMS 2", value: "SMS 2" },
       { key: "SMS 3", value: "SMS 3" },
     ];
   }
   if (org === "JSPL") {
     return [
+      { key: "", value: "Select" },
       { key: "SMS 2", value: "SMS 2" },
     ];
   }
-  return [];
+  return [
+    { key: "", value: "Select" }
+  ];
 };
 
 const SmsDutyStartForm = () => {
@@ -77,10 +89,14 @@ const SmsDutyStartForm = () => {
   });
   const [shiftList, setShiftList] = useState([]);
 
+  const [submitting, setSubmitting] = useState(false);
   const navigate = useNavigate();
 
   const populateShiftList = useCallback(() => {
-    setShiftList([...data.shiftList]);
+    setShiftList([
+      { key: "", value: "Select" },
+      ...data.shiftList
+    ]);
   }, []);
 
   useEffect(() => {
@@ -109,11 +125,17 @@ const SmsDutyStartForm = () => {
   };
 
   const handleFormSubmit = async () => {
+    if (submitting) return;
+    setSubmitting(true);
     try {
       await dispatch(startSmsDuty(formData)).unwrap();
       navigate("/sms/sms/dutyEnd");
     } catch (err) {
       console.error("Failed to start SMS duty:", err);
+      const errMsg = err?.message || err?.error || (typeof err === "string" ? err : "Failed to start duty.");
+      message.error(errMsg);
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -185,8 +207,8 @@ const SmsDutyStartForm = () => {
           required
         />
         <div className="text-center">
-          <Btn htmlType="submit" className="mx-auto">
-            Start Duty
+          <Btn htmlType="submit" className="mx-auto" loading={submitting} disabled={submitting}>
+            {submitting ? "Starting Duty..." : "Start Duty"}
           </Btn>
         </div>
       </FormBody>

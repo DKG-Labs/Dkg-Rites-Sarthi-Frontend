@@ -139,6 +139,8 @@ const WeldingStartDutyForm = () => {
 
     const [form] = Form.useForm();
 
+    const [submitting, setSubmitting] = useState(false);
+
     useEffect(() => {
         if (sampleData[formData.mill]) {
             const weldingLineDropdownList = sampleData[formData.mill]?.map(weldingLine => ({ key: weldingLine, value: weldingLine }));
@@ -150,10 +152,18 @@ const WeldingStartDutyForm = () => {
     }, [formData.mill, millDropdownList]);
 
     const handleFormSubmit = async () => {
+        if (submitting) return;
+        setSubmitting(true);
         try {
             await dispatch(startWeldingDuty(formData)).unwrap();
             navigate('/sms/welding/home');
-        } catch (error) {}
+        } catch (error) {
+            console.error("Failed to start welding duty:", error);
+            const errMsg = error?.message || error?.error || (typeof error === "string" ? error : "Failed to start duty.");
+            message.error(errMsg);
+        } finally {
+            setSubmitting(false);
+        }
     };
 
     const populateData = () => {
@@ -170,7 +180,6 @@ const WeldingStartDutyForm = () => {
     }, [formData, form]);
 
     if (dutyId) {
-        // message.error("Duty already in progress. Cannot start new duty.");
         return <Navigate to="/sms/welding/home" />;
     }
 
@@ -201,8 +210,8 @@ const WeldingStartDutyForm = () => {
                     <FormDropdownItem label="Rail Section" name='railSection' formField="railSection" dropdownArray={railSectionList} visibleField='value' valueField='key' onChange={(fieldName, value) => handleChange(fieldName, value, setFormData)} required />
                 </div>
 
-                <Btn htmlType="submit" className="flex justify-center mx-auto mt-2">
-                    Start Duty
+                <Btn htmlType="submit" className="flex justify-center mx-auto mt-2" loading={submitting} disabled={submitting}>
+                    {submitting ? "Starting Duty..." : "Start Duty"}
                 </Btn>
             </Form>
         </FormContainer>

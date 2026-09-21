@@ -1359,6 +1359,23 @@ body {
   transition: all var(--duration-normal) var(--ease-standard);
 }
 
+.main-content.sms-no-padding {
+  padding: 0 !important;
+  margin: 0 !important;
+  overflow: hidden !important;
+  display: flex !important;
+  flex-direction: column !important;
+  height: calc(100vh - 70px) !important;
+  min-height: calc(100vh - 70px) !important;
+}
+
+@media (max-width: 768px) {
+  .main-content.sms-no-padding {
+    height: calc(100vh - 60px) !important;
+    min-height: calc(100vh - 60px) !important;
+  }
+}
+
 /* Tab Component */
 .tabs-container {
   margin-bottom: var(--space-24);

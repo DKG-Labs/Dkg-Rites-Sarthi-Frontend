@@ -1,138 +1,122 @@
 /* eslint-disable */
-// import React from 'react'
-
-// const IsoReports = () => {
-//   return (
-//     <div>
-//       ISO Reports
-//     </div>
-//   )
-// }
-
-// export default IsoReports
-
-import React from "react";
-import VerificationIso from "./sms/VerificationIso";
+import React, { useState } from "react";
+import SmsIsoMain from "./sms/SmsIsoMain";
 import {
-  LineChartOutlined,
-  EyeOutlined,
-  ExperimentOutlined,
-  ToolOutlined,
-  DatabaseOutlined,
-  CompassOutlined,
-  DeploymentUnitOutlined,
-  RadarChartOutlined,
-  AuditOutlined,
   MessageOutlined,
+  AuditOutlined,
+  EyeOutlined,
+  DeploymentUnitOutlined,
+  CompassOutlined,
+  RadarChartOutlined,
+  ExperimentOutlined,
+  DatabaseOutlined,
+  ToolOutlined,
 } from "@ant-design/icons";
-import { useNavigate } from "react-router-dom";
+import { message } from "antd";
 import Tab from "../../../components/DKG_Tab";
 
 const IsoReports = () => {
-  const navigate = useNavigate();
+  const [selectedModule, setSelectedModule] = useState("sms");
 
-  const dutyItemTabs = [
+  const isoModules = [
     {
-      id: 1,
+      id: "sms",
       title: "SMS",
       icon: <MessageOutlined />,
-      link: "/iso/sms",
+      isUnderDevelopment: false,
     },
     {
-      id: 2,
+      id: "rolling",
       title: "Rolling Stage",
       icon: <AuditOutlined />,
-      link: '/iso/rolling'
+      isUnderDevelopment: true,
     },
     {
-      id: 3,
+      id: "vi",
       title: "Visual Inspection",
-      icon: <DatabaseOutlined />,
-      link: '/iso/vi'
+      icon: <EyeOutlined />,
+      isUnderDevelopment: true,
     },
     {
-      id: 4,
+      id: "welding",
       title: "Welding",
-      icon: <RadarChartOutlined />,
-      link: '/iso/welding'
+      icon: <DeploymentUnitOutlined />,
+      isUnderDevelopment: true,
     },
     {
-      id: 5,
-      title: "Short Rail Inspection",
-      icon: <ToolOutlined />,
-      link: '/iso/sri'
+      id: "sri",
+      title: "Short Rail",
+      icon: <CompassOutlined />,
+      isUnderDevelopment: true,
     },
-    // {
-    //   id: 3,
-    //   title: "NDT",
-    //   icon: <RadarChartOutlined />,
-    //   link: "/record/ndt",
-    // },
-    // {
-    //   id: 4,
-    //   title: 'Testing',
-    //   icon: <ExperimentOutlined />,
-    //   // link:  '/testing/home'
-    // },
-    // {
-    //   id: 5,
-    //   title: 'Visual Inspection',
-    //   icon: <EyeOutlined />,
-    //   link: '/record/vi'
-    // },
-    // {
-    //   id: 6,
-    //   title: 'Welding Inspection',
-    //   icon: <DeploymentUnitOutlined />,
-    //   link: '/record/welding'
-    // },
-    // {
-    //   id: 7,
-    //   title: 'Short Rail Inspection',
-    //   icon: <CompassOutlined />,
-    //   // link: '/srInspection'
-    // },
-    // {
-    //   id: 8,
-    //   title: 'QCT',
-    //   icon: <DatabaseOutlined />,
-    //   // link: '/qct/sampleList'
-    // },
-    // {
-    //   id: 9,
-    //   title: 'Calibration',
-    //   icon: <ToolOutlined />,
-    //   // link: '/calibration/list'
-    // },
-    // {
-    //   id: 10,
-    //   title: 'Info Record',
-    //   icon: <LineChartOutlined />
-    // },
+    {
+      id: "ndt",
+      title: "NDT",
+      icon: <RadarChartOutlined />,
+      isUnderDevelopment: true,
+    },
+    {
+      id: "testing",
+      title: "Testing",
+      icon: <ExperimentOutlined />,
+      isUnderDevelopment: true,
+    },
+    {
+      id: "qct",
+      title: "QCT",
+      icon: <DatabaseOutlined />,
+      isUnderDevelopment: true,
+    },
+    {
+      id: "calibration",
+      title: "Calibration",
+      icon: <ToolOutlined />,
+      isUnderDevelopment: true,
+    },
   ];
 
-  const renderRecordItemTabs = () =>
-    dutyItemTabs.map((item) => {
-      return (
-        <div key={item.id}>
-          <Tab
-            title={item.title}
-            icon={item.icon}
-            onClick={() => navigate(item.link)}
-          />
-        </div>
-      );
-    });
-  return (
-    // <div>
-    // <VerificationIso />
-    <section>
-    <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-      {renderRecordItemTabs()}
-    </div>
-  </section>
+  const handleModuleClick = (mod) => {
+    if (mod.isUnderDevelopment) {
+      message.warning({
+        content: `🚧 "${mod.title} ISO Report" is currently under development.`,
+        duration: 3,
+        key: 'under-development',
+      });
+      return;
+    }
+    setSelectedModule(mod.id);
+  };
 
-    // </div>
+  return (
+    <div className="w-full">
+      <div className="mb-4">
+        <h2 className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-2">Select ISO Report Module</h2>
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+          {isoModules.map((item) => (
+            <div key={item.id} className="relative">
+              <Tab
+                title={item.title}
+                icon={item.icon}
+                onClick={() => handleModuleClick(item)}
+                isActive={selectedModule === item.id}
+                className={item.isUnderDevelopment ? "opacity-60 cursor-pointer" : ""}
+              />
+              {item.isUnderDevelopment && (
+                <span className="absolute top-1 right-2 text-[10px] bg-amber-100 text-amber-800 px-1.5 py-0.5 rounded font-semibold border border-amber-300">
+                  🚧 Dev
+                </span>
+              )}
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {selectedModule === "sms" && (
+        <div className="mt-4">
+          <SmsIsoMain />
+        </div>
+      )}
+    </div>
   );
 };
 

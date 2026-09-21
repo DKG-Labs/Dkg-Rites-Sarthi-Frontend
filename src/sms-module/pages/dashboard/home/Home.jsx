@@ -186,7 +186,7 @@ const Home = () => {
           border: '1px solid rgba(33,128,141,0.2)',
           borderLeft: '4px solid #21808d',
           borderRadius: '12px',
-          padding: '1.5rem',
+          padding: '1.25rem 1.5rem',
           marginBottom: '1.5rem',
           display: 'flex',
           justifyContent: 'space-between',
@@ -194,6 +194,7 @@ const Home = () => {
           flexWrap: 'wrap',
           gap: '1rem',
         }}
+        className="flex-col sm:flex-row !items-start sm:!items-center"
       >
         <div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.375rem' }}>
@@ -202,6 +203,7 @@ const Home = () => {
                 width: '40px', height: '40px', borderRadius: '50%',
                 background: 'rgba(33,128,141,0.12)',
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
+                flexShrink: 0
               }}
             >
               <UserOutlined style={{ color: '#21808d', fontSize: '18px' }} />
@@ -218,8 +220,8 @@ const Home = () => {
             </div>
           </div>
         </div>
-        <div style={{ textAlign: 'right' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: '#626c71', marginBottom: '0.25rem', justifyContent: 'flex-end' }}>
+        <div className="text-left sm:text-right w-full sm:w-auto pt-2 sm:pt-0 border-t sm:border-t-0 border-teal-100">
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: '#626c71', marginBottom: '0.25rem' }} className="justify-start sm:justify-end">
             <CalendarOutlined style={{ fontSize: '13px' }} />
             <span style={{ fontSize: '0.8rem' }}>{currentDate}</span>
           </div>
@@ -236,7 +238,7 @@ const Home = () => {
           </span>
         </div>
 
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 sm:gap-4">
           {renderDutyItemTabs()}
         </div>
 

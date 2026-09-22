@@ -1841,12 +1841,13 @@ const AttendingCallDashboard = ({ mode }) => {
                                     <span style={{ fontWeight: '700', fontSize: '14px' }}>PO & MA</span>
                                 </button>
 
-                                {/* 5. View Uploaded Annexures and Other Docs */}
+                                {/* 5. Upload / View Annexures and Other Docs */}
                                 <button
                                     onClick={() => {
                                         const call = selectedActionCall;
+                                        const isClosed = call.isClosed || activeTab === 'closed';
                                         setSelectedActionCall(null);
-                                        setUploadAnnexureModal({ isOpen: true, call, mode: 'view' });
+                                        setUploadAnnexureModal({ isOpen: true, call, mode: isClosed ? 'view' : 'upload' });
                                     }}
                                     style={{
                                         display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '8px',
@@ -1864,12 +1865,14 @@ const AttendingCallDashboard = ({ mode }) => {
                                         e.currentTarget.style.transform = 'translateY(0)';
                                         e.currentTarget.style.boxShadow = '0 4px 6px -1px rgba(22, 101, 52, 0.1), 0 2px 4px -1px rgba(22, 101, 52, 0.06)'; 
                                     }}
-                                    title="View uploaded annexures and other documents"
+                                    title={(selectedActionCall.isClosed || activeTab === 'closed') ? "View uploaded annexures and other documents" : "Upload or manage annexures and other documents"}
                                 >
                                     <div style={{ width: '42px', height: '42px', background: '#ffffff', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 2px 4px rgba(0,0,0,0.05)' }}>
                                         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#16a34a" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
                                     </div>
-                                    <span style={{ fontWeight: '700', fontSize: '13.5px', textAlign: 'center', lineHeight: '1.2' }}>View Uploaded Annexures & Docs</span>
+                                    <span style={{ fontWeight: '700', fontSize: '13.5px', textAlign: 'center', lineHeight: '1.2' }}>
+                                        {(selectedActionCall.isClosed || activeTab === 'closed') ? "View Uploaded Annexures & Docs" : "Upload / Manage Annexures & Docs"}
+                                    </span>
                                 </button>
 
                                 {/* 6. Back to Issuance of IC */}

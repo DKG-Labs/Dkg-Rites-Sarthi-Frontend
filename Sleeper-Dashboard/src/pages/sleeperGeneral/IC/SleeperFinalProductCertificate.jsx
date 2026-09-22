@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
 import SleeperFinalIc from "./SleeperFinalIc";
-import AnnexureUploadModal from "../../../components/AnnexureUploadModal";
 import { apiService, API_BASE_URL } from "../../../services/api";
 import { getStoredUser } from '../../../services/authService';
 import { exportToPdf, generatePdfBase64, calculateSignatureCoords } from "../../../utils/exportUtils";
@@ -89,7 +88,6 @@ export default function SleeperFinalProductCertificate() {
   const printAreaRef = useRef();
   const [isEditing, setIsEditing] = useState(false);
   const [isESigning, setIsESigning] = useState(false);
-  const [showAnnexureModal, setShowAnnexureModal] = useState(false);
   const [notification, setNotification] = useState({ open: false, message: '', severity: 'info' });
   const [bookSetValidation, setBookSetValidation] = useState({ isValid: null, message: null, isValidating: false });
   const [bookWarningModal, setBookWarningModal] = useState({ show: false, onProceed: null });
@@ -729,23 +727,6 @@ export default function SleeperFinalProductCertificate() {
         <button onClick={handleBack} className="btn btn-outline" style={{ padding: '8px 16px', borderRadius: '4px', border: '1px solid #ccc', cursor: 'pointer', background: 'white' }}>← Back</button>
         <div style={{ display: "flex", gap: 8, alignItems: 'center' }}>
           <button
-            onClick={() => setShowAnnexureModal(true)}
-            style={{
-              padding: '8px 16px',
-              borderRadius: '4px',
-              border: '1px solid #0284c7',
-              cursor: 'pointer',
-              background: '#f0f9ff',
-              color: '#0369a1',
-              fontWeight: 'bold',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '6px'
-            }}
-          >
-            📁 Upload Annexures and other docs
-          </button>
-          <button
             onClick={isEditing ? handleSaveChanges : () => setIsEditing(true)}
             style={{ 
               padding: '8px 16px', 
@@ -920,15 +901,6 @@ export default function SleeperFinalProductCertificate() {
           </button>
         </div>
       )}
-
-      <AnnexureUploadModal
-        isOpen={showAnnexureModal}
-        onClose={() => setShowAnnexureModal(false)}
-        callNo={call.requestId || call.callNo || call.call_no || "Sleeper_IC"}
-        icNumber={data.certificateNo}
-        moduleType="SLEEPER"
-        uploadedBy={getStoredUser()?.fullName || getStoredUser()?.name || getStoredUser()?.loginId || "Inspecting Engineer"}
-      />
     </div>
   );
 }

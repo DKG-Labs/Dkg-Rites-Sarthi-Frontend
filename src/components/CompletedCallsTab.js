@@ -773,7 +773,7 @@ const CompletedCallsTab = ({ setSelectedCall, setCurrentPage, onCallSentToIbs })
                   <span style={{ fontWeight: '700', fontSize: '15px' }}>{tcPdfLoading ? 'Downloading...' : 'Document (TC)'}</span>
                 </button>
 
-                {/* 8. View Uploaded Annexures and Other Docs */}
+                {/* 8. Upload / Manage Annexures and Other Docs */}
                 <button
                   onClick={() => {
                     const call = selectedActionCall;
@@ -796,12 +796,12 @@ const CompletedCallsTab = ({ setSelectedCall, setCurrentPage, onCallSentToIbs })
                     e.currentTarget.style.transform = 'translateY(0)';
                     e.currentTarget.style.boxShadow = '0 4px 6px -1px rgba(22, 101, 52, 0.1), 0 2px 4px -1px rgba(22, 101, 52, 0.06)'; 
                   }}
-                  title="View uploaded annexures and other documents"
+                  title="Upload or manage annexures and other documents"
                 >
                   <div style={{ width: '48px', height: '48px', background: '#ffffff', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 2px 4px rgba(0,0,0,0.05)' }}>
                     <AttachmentRoundedIcon style={{ fontSize: '26px', color: '#16a34a' }} />
                   </div>
-                  <span style={{ fontWeight: '700', fontSize: '15px', textAlign: 'center', lineHeight: '1.2' }}>View Uploaded Annexures & Docs</span>
+                  <span style={{ fontWeight: '700', fontSize: '15px', textAlign: 'center', lineHeight: '1.2' }}>Upload / Manage Annexures & Docs</span>
                 </button>
 
                 {/* 9. Back to issuance of IC */}
@@ -1050,7 +1050,7 @@ const CompletedCallsTab = ({ setSelectedCall, setCurrentPage, onCallSentToIbs })
           icNumber={uploadAnnexureModal.call.ic_number || uploadAnnexureModal.call.icNo || ""}
           moduleType={uploadAnnexureModal.call.product_type || "ERC"}
           uploadedBy={getCurrentUserId() || "Inspecting Engineer"}
-          mode="view"
+          mode="upload"
         />
       )}
     </div>

@@ -18,6 +18,8 @@ const AnnexureUploadModal = ({
   const [errorMessage, setErrorMessage] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
   const [isDragOver, setIsDragOver] = useState(false);
+  const [deleteConfirmDoc, setDeleteConfirmDoc] = useState(null);
+  const [deleting, setDeleting] = useState(false);
   const fileInputRef = useRef(null);
 
   const normalizedModule = (moduleType || 'ERC').toUpperCase();
@@ -51,6 +53,7 @@ const AnnexureUploadModal = ({
       setDocuments([]);
       setErrorMessage('');
       setSuccessMessage('');
+      setDeleteConfirmDoc(null);
       loadDocuments();
     }
   }, [isOpen, callNo, loadDocuments]);
@@ -77,10 +80,8 @@ const AnnexureUploadModal = ({
       const res = await uploadAnnexureDocument(file, callNo, icNumber, normalizedModule, uploadedBy);
       if (res && res.success) {
         setSuccessMessage(`"${file.name}" uploaded successfully.`);
+        await loadDocuments();
         if (onUploadSuccess) onUploadSuccess();
-        setTimeout(() => {
-          onClose();
-        }, 800);
       } else {
         setErrorMessage(res.message || 'Failed to upload document');
       }
@@ -93,13 +94,15 @@ const AnnexureUploadModal = ({
     }
   };
 
-  const handleDelete = async (docId, fileName) => {
-    if (!window.confirm(`Are you sure you want to delete "${fileName}"?`)) return;
+  const confirmDelete = async () => {
+    if (!deleteConfirmDoc) return;
     try {
+      setDeleting(true);
       setLoading(true);
-      const res = await deleteAnnexureDocument(docId, uploadedBy);
+      const res = await deleteAnnexureDocument(deleteConfirmDoc.id, uploadedBy);
       if (res && res.success) {
         setSuccessMessage(`Document deleted successfully.`);
+        setDeleteConfirmDoc(null);
         await loadDocuments();
         if (onUploadSuccess) onUploadSuccess();
       } else {
@@ -109,6 +112,7 @@ const AnnexureUploadModal = ({
       console.error('Delete error:', err);
       setErrorMessage(err.message || 'Failed to delete document');
     } finally {
+      setDeleting(false);
       setLoading(false);
     }
   };
@@ -417,7 +421,7 @@ const AnnexureUploadModal = ({
                       {/* Delete button is ONLY available in upload mode */}
                       {!isViewMode && (
                         <button
-                          onClick={() => handleDelete(doc.id, doc.originalFileName)}
+                          onClick={() => setDeleteConfirmDoc({ id: doc.id, fileName: doc.originalFileName })}
                           style={{
                             padding: '6px 10px',
                             fontSize: '11px',
@@ -466,11 +470,108 @@ const AnnexureUploadModal = ({
           </button>
         </div>
 
+        {/* Custom UI Delete Confirmation Dialog */}
+        {deleteConfirmDoc && (
+          <div style={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: 'rgba(15, 23, 42, 0.72)',
+            backdropFilter: 'blur(3px)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 1000,
+            padding: '20px'
+          }}>
+            <div style={{
+              background: '#ffffff',
+              borderRadius: '16px',
+              padding: '24px',
+              maxWidth: '400px',
+              width: '100%',
+              boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.35)',
+              textAlign: 'center',
+              animation: 'fadeInScale 0.18s cubic-bezier(0.16, 1, 0.3, 1)'
+            }}>
+              <div style={{
+                width: '52px',
+                height: '52px',
+                borderRadius: '50%',
+                background: '#fee2e2',
+                color: '#dc2626',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontSize: '26px',
+                margin: '0 auto 16px'
+              }}>
+                🗑️
+              </div>
+              <h3 style={{ margin: '0 0 8px', fontSize: '18px', fontWeight: '700', color: '#0f172a' }}>
+                Delete Document?
+              </h3>
+              <p style={{ margin: '0 0 20px', fontSize: '13px', color: '#64748b', lineHeight: '1.5', wordBreak: 'break-word' }}>
+                Are you sure you want to delete <b style={{ color: '#1e293b' }}>"{deleteConfirmDoc.fileName}"</b>? This action cannot be undone.
+              </p>
+              <div style={{ display: 'flex', gap: '10px', justifyContent: 'center' }}>
+                <button
+                  onClick={() => setDeleteConfirmDoc(null)}
+                  disabled={deleting}
+                  style={{
+                    flex: 1,
+                    padding: '10px 16px',
+                    borderRadius: '8px',
+                    border: '1px solid #cbd5e1',
+                    background: '#ffffff',
+                    color: '#475569',
+                    fontSize: '13px',
+                    fontWeight: '600',
+                    cursor: 'pointer',
+                    transition: 'all 0.15s'
+                  }}
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={confirmDelete}
+                  disabled={deleting}
+                  style={{
+                    flex: 1,
+                    padding: '10px 16px',
+                    borderRadius: '8px',
+                    border: 'none',
+                    background: '#dc2626',
+                    color: '#ffffff',
+                    fontSize: '13px',
+                    fontWeight: '700',
+                    cursor: deleting ? 'wait' : 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '6px',
+                    boxShadow: '0 2px 4px rgba(220, 38, 38, 0.25)',
+                    transition: 'all 0.15s'
+                  }}
+                >
+                  {deleting ? 'Deleting...' : 'Yes, Delete'}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Global animation style for spinners */}
         <style>{`
           @keyframes spin {
             0% { transform: rotate(0deg); }
             100% { transform: rotate(360deg); }
+          }
+          @keyframes fadeInScale {
+            0% { opacity: 0; transform: scale(0.92); }
+            100% { opacity: 1; transform: scale(1); }
           }
         `}</style>
       </div>

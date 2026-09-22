@@ -1,7 +1,6 @@
 import React from 'react';
 import DescriptionRoundedIcon from '@mui/icons-material/DescriptionRounded';
 import AttachmentRoundedIcon from '@mui/icons-material/AttachmentRounded';
-import CloudUploadRoundedIcon from '@mui/icons-material/CloudUploadRounded';
 import UndoRoundedIcon from '@mui/icons-material/UndoRounded';
 import StatusBadge from './StatusBadge';
 import { getDetailedStatus } from '../utils/statusMapper';
@@ -13,7 +12,6 @@ const IssuanceCallDetailsModal = ({
   call,
   onIssueIC,
   onViewAnnexures,
-  onUploadAnnexures,
   onBackToInspection,
   isLoadingCertificate = false
 }) => {
@@ -424,58 +422,7 @@ const IssuanceCallDetailsModal = ({
               <span style={{ fontSize: '12px', color: '#64748b' }}>View test records & inspection sheets</span>
             </button>
 
-            {/* 3. Upload Annexures & Other Docs Action */}
-            {onUploadAnnexures && (
-              <button
-                onClick={() => {
-                  onClose();
-                  onUploadAnnexures(call);
-                }}
-                style={{
-                  display: 'flex',
-                  flexDirection: 'column',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: '10px',
-                  padding: '22px 16px',
-                  background: 'linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%)',
-                  border: '1px solid #86efac',
-                  borderRadius: '16px',
-                  cursor: 'pointer',
-                  transition: 'all 0.25s ease',
-                  color: '#166534',
-                  width: '100%',
-                  boxShadow: '0 4px 6px -1px rgba(22, 101, 52, 0.08)'
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.transform = 'translateY(-3px)';
-                  e.currentTarget.style.boxShadow = '0 10px 15px -3px rgba(22, 101, 52, 0.16)';
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.transform = 'translateY(0)';
-                  e.currentTarget.style.boxShadow = '0 4px 6px -1px rgba(22, 101, 52, 0.08)';
-                }}
-              >
-                <div
-                  style={{
-                    width: '46px',
-                    height: '46px',
-                    background: '#ffffff',
-                    borderRadius: '50%',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    boxShadow: '0 2px 4px rgba(0,0,0,0.06)'
-                  }}
-                >
-                  <CloudUploadRoundedIcon style={{ fontSize: '25px', color: '#16a34a' }} />
-                </div>
-                <span style={{ fontWeight: '700', fontSize: '15px' }}>Upload Annexures & Docs</span>
-                <span style={{ fontSize: '12px', color: '#64748b' }}>Upload external PDFs and documents</span>
-              </button>
-            )}
-
-            {/* 4. Back to Inspection Action */}
+            {/* 3. Back to Inspection Action */}
             <button
               onClick={() => {
                 onClose();

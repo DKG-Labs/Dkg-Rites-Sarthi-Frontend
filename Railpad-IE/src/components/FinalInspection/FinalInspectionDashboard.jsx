@@ -47,6 +47,12 @@ const HardnessCell = ({ value, onChange, min, max }) => {
     return isNaN(v) || v < min || v > max;
   });
 
+  const numValues = subValues.map(s => parseFloat(s)).filter(v => !isNaN(v));
+  const median = numValues.length >= 3 ? (() => {
+    const sorted = [...numValues].sort((a, b) => a - b);
+    const mid = Math.floor(sorted.length / 2);
+    return sorted.length % 2 !== 0 ? sorted[mid] : ((sorted[mid - 1] + sorted[mid]) / 2);
+  })() : null;
 
   const cellStyle = {
     width: '100%',
@@ -100,6 +106,11 @@ const HardnessCell = ({ value, onChange, min, max }) => {
           );
         })}
       </div>
+      {median !== null && (
+        <div style={{ fontSize: '10px', color: '#64748b', fontWeight: '600', marginTop: '2px' }}>
+          Median: <span style={{ color: (median < min || median > max) ? '#ef4444' : '#047857', fontWeight: '800' }}>{median}</span>
+        </div>
+      )}
       {value === '' && <span style={{ color: '#94a3b8', fontWeight: '400', fontSize: '11px' }}>H1,H2,H3,H4,H5</span>}
     </div>
   );
@@ -564,6 +575,14 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
   const getWeightTolerance = (drawingNo) => {
     if (!drawingNo) return { max: 445 };
     const cleanDwg = String(drawingNo).trim().toUpperCase();
+
+    if (cleanDwg.includes('3703')) return { type: '6mm GRSP', max: 161 };
+    if (cleanDwg.includes('3711')) return { type: '6mm GRSP', max: 174 };
+    if (cleanDwg.includes('6618')) return { type: '6.2mm CGRSP', max: 167 };
+    if (cleanDwg.includes('8327')) return { type: '6.2mm CGRSP', max: 154 };
+    if (cleanDwg.includes('8528') || cleanDwg.includes('8694') || cleanDwg.includes('8998')) return { type: '10mm CGRSP', max: 445 };
+    if (cleanDwg.includes('8747')) return { type: '10mm CGRSP', max: 425 };
+
     for (const [key, val] of Object.entries(WEIGHT_TOLERANCE)) {
       const cleanKey = key.trim().toUpperCase();
       if (cleanKey === cleanDwg || cleanKey.replace(/^(RDSO\/)?(T-)?/, '') === cleanDwg.replace(/^(RDSO\/)?(T-)?/, '') || cleanDwg.includes(cleanKey.replace(/^(RDSO\/)?/, ''))) {
@@ -586,46 +605,118 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
 
   const getHardnessTolerance = (lotId) => {
     const lot = lots.find(l => l.id === lotId) || { drawingNo: '', railpadType: '' };
-    const type = lot.railpadType || activeRailpadType || '';
+    const rawType = (lot.railpadType || activeRailpadType || '').toLowerCase().trim();
 
-    if (type.includes('NCRGRSP') || type.includes('NCR')) return { a: { min: 75, max: 85 }, b: { min: 75, max: 85 } };
-    if (type === '6mm GRSP') return { a: { min: 75, max: 85 }, b: { min: 75, max: 85 } };
-    if (type === '10mm GRSP') return { a: { min: 70, max: 80 }, b: { min: 70, max: 80 } };
-    if (type.includes('CGRSP')) return { a: { min: 75, max: 85 }, b: { min: 60, max: 70 } };
-    return { a: { min: 75, max: 85 }, b: { min: 60, max: 70 } };
+    // 1. NCRGRSP (6mm and 10mm both have 75 - 85)
+    if (rawType.includes('ncr') || rawType.includes('ncrgrsp') || rawType.includes('ncrnrsgp')) {
+      return { a: { min: 75, max: 85 }, b: { min: 75, max: 85 } };
+    }
+
+    // 2. CGRSP (6.2mm and 10mm Composite: Compound A: 75 - 85, Compound B: 60 - 70)
+    if (rawType.includes('cgrsp') || rawType.includes('composite')) {
+      return { a: { min: 75, max: 85 }, b: { min: 60, max: 70 } };
+    }
+
+    // 3. 10mm Plain GRSP: 70 - 80
+    if ((rawType.includes('10') || rawType.includes('10mm') || rawType.includes('10.00mm') || rawType.includes('10.0mm')) && !rawType.includes('cgrsp') && !rawType.includes('ncr')) {
+      return { a: { min: 70, max: 80 }, b: { min: 70, max: 80 } };
+    }
+
+    // 4. 6mm Plain GRSP: 75 - 85
+    if (rawType.includes('6') || rawType.includes('6mm') || rawType.includes('6.00mm') || rawType.includes('6.0mm')) {
+      return { a: { min: 75, max: 85 }, b: { min: 75, max: 85 } };
+    }
+
+    // Default fallback: 75 - 85
+    return { a: { min: 75, max: 85 }, b: { min: 75, max: 85 } };
   };
 
   const getTensileTolerance = (lotId) => {
     const lot = lots.find(l => l.id === lotId) || { drawingNo: '', railpadType: '' };
-    const type = lot.railpadType || '';
+    const rawType = (lot.railpadType || activeRailpadType || '').toLowerCase().trim();
 
-    if (type === '6mm GRSP') return { before: 120, after: 100, retention: 80 };
-    if (type === '10mm GRSP') return { before: 120, after: 100, retention: 70 };
-    if (type === '6.2mm CGRSP') return { before: 120, after: 100, retention: 80 };
-    if (type === '10mm CGRSP') return { before: 125, after: 110, retention: 80 };
-    if (type.includes('NCRGRSP')) return { before: 120, after: 100, retention: 80 };
+    // 1. 10mm CGRSP (Before: 125, After: 110, Retention: 80%)
+    if ((rawType.includes('10') || rawType.includes('10mm') || rawType.includes('10.00mm')) && (rawType.includes('cgrsp') || rawType.includes('composite'))) {
+      return { before: 125, after: 110, retention: 80 };
+    }
+
+    // 2. 6.2mm CGRSP (Before: 120, After: 100, Retention: 80%)
+    if (rawType.includes('cgrsp') || rawType.includes('composite')) {
+      return { before: 120, after: 100, retention: 80 };
+    }
+
+    // 3. 10mm Plain GRSP (Before: 120, After: 100, Retention: 70%)
+    if ((rawType.includes('10') || rawType.includes('10mm') || rawType.includes('10.00mm')) && !rawType.includes('ncr')) {
+      return { before: 120, after: 100, retention: 70 };
+    }
+
+    // 4. 6mm Plain GRSP (Before: 120, After: 100, Retention: 80%)
+    if (rawType.includes('6') || rawType.includes('6mm') || rawType.includes('6.00mm')) {
+      return { before: 120, after: 100, retention: 80 };
+    }
+
+    // 5. 6mm & 10mm NCRGRSP (Before: 120, After: 100, Retention: 80%)
+    if (rawType.includes('ncr') || rawType.includes('ncrgrsp') || rawType.includes('ncrnrsgp')) {
+      return { before: 120, after: 100, retention: 80 };
+    }
+
+    // Default fallback: Before: 120, After: 100, Retention: 80%
     return { before: 120, after: 100, retention: 80 };
   };
 
   const getElongationTolerance = (lotId) => {
     const lot = lots.find(l => l.id === lotId) || { drawingNo: '', railpadType: '' };
-    const type = lot.railpadType || '';
+    const rawType = (lot.railpadType || activeRailpadType || '').toLowerCase().trim();
 
-    if (type === '6mm GRSP') return { before: 200, after: 150, retention: 65 };
-    if (type === '10mm GRSP') return { before: 200, after: 150, retention: 60 };
-    if (type.includes('CGRSP')) return { before: 50, after: 180, retention: 60 };
-    if (type.includes('NCRGRSP')) return { before: 200, after: 150, retention: 65 };
+    // 1. 6.2mm & 10mm CGRSP (Before: 250, After: 180, Retention: 60%)
+    if (rawType.includes('cgrsp') || rawType.includes('composite')) {
+      return { before: 250, after: 180, retention: 60 };
+    }
+
+    // 2. 6mm & 10mm NCR GRSP (Before: 200, After: 150, Retention: 65%)
+    if (rawType.includes('ncr') || rawType.includes('ncrgrsp') || rawType.includes('ncrnrsgp')) {
+      return { before: 200, after: 150, retention: 65 };
+    }
+
+    // 3. 10mm Plain GRSP (Before: 200, After: 150, Retention: 60%)
+    if (rawType.includes('10') || rawType.includes('10mm') || rawType.includes('10.00mm')) {
+      return { before: 200, after: 150, retention: 60 };
+    }
+
+    // 4. 6mm Plain GRSP (Before: 200, After: 150, Retention: 65%)
+    if (rawType.includes('6') || rawType.includes('6mm') || rawType.includes('6.00mm')) {
+      return { before: 200, after: 150, retention: 65 };
+    }
+
+    // Default fallback: Before: 200, After: 150, Retention: 65%
     return { before: 200, after: 150, retention: 65 };
   };
 
   const getModulusTolerance = (lotId) => {
     const lot = lots.find(l => l.id === lotId) || { drawingNo: '', railpadType: '' };
-    const type = lot.railpadType || '';
+    const rawType = (lot.railpadType || activeRailpadType || '').toLowerCase().trim();
 
-    if (type === '6mm GRSP') return { min: 45, max: 60, changePos: 30, changeNeg: 10 };
-    if (type === '10mm GRSP') return { min: 50, max: 75, changePos: 40, changeNeg: 10 };
-    if (type.includes('CGRSP')) return { min: 25, max: 45, changePos: 30, changeNeg: 10 };
-    if (type.includes('NCRGRSP')) return { min: 45, max: 60, changePos: 30, changeNeg: 10 };
+    // 1. 6.2mm & 10mm CGRSP (Before: 25-45 kg/cm², % change: -10% to +30%)
+    if (rawType.includes('cgrsp') || rawType.includes('composite')) {
+      return { min: 25, max: 45, changePos: 30, changeNeg: 10 };
+    }
+
+    // 2. 6mm & 10mm NCR GRSP (Before: 45-60 kg/cm², % change: -10% to +30%)
+    if (rawType.includes('ncr') || rawType.includes('ncrgrsp') || rawType.includes('ncrnrsgp')) {
+      return { min: 45, max: 60, changePos: 30, changeNeg: 10 };
+    }
+
+    // 3. 10mm Plain GRSP (Before: 50-75 kg/cm², % change: -10% to +40% [or -40% to +40%])
+    if (rawType.includes('10') || rawType.includes('10mm') || rawType.includes('10.00mm')) {
+      return { min: 50, max: 75, changePos: 40, changeNeg: 10 };
+    }
+
+    // 4. 6mm Plain GRSP (Before: 45-60 kg/cm², % change: -10% to +30%)
+    if (rawType.includes('6') || rawType.includes('6mm') || rawType.includes('6.00mm')) {
+      return { min: 45, max: 60, changePos: 30, changeNeg: 10 };
+    }
+
+    // Default fallback: 45 - 60 kg/cm², -10% to +30%
     return { min: 45, max: 60, changePos: 30, changeNeg: 10 };
   };
 
@@ -662,18 +753,38 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
 
   const getSGTolerance = (lotId) => {
     const lot = lots.find(l => l.id === lotId) || { railpadType: '' };
-    const type = lot.railpadType || '';
-    if (type.includes('CGRSP')) return { a: 1.27, b: 1.17, variation: 0.03 };
-    if (type.includes('NCRGRSP')) return { a: 1.27, b: 1.27, variation: 0.03 };
-    return { a: 1.27, variation: 0.03 }; // Default for GRSP
+    const rawType = (lot.railpadType || activeRailpadType || '').toLowerCase().trim();
+
+    // 1. CGRSP (6.2mm & 10mm: Compound A < 1.27, Compound B < 1.17, ASG ± 0.03)
+    if (rawType.includes('cgrsp') || rawType.includes('composite')) {
+      return { a: 1.27, b: 1.17, asgVariation: 0.03, variation: 0.02 };
+    }
+
+    // 2. NCRGRSP (6mm & 10mm: Product < 1.27, Test Slab < 1.27, ASG ± 0.03, Variation <= 0.02)
+    if (rawType.includes('ncr') || rawType.includes('ncrgrsp') || rawType.includes('ncrnrsgp')) {
+      return { a: 1.27, b: 1.27, asgVariation: 0.03, variation: 0.02 };
+    }
+
+    // 3. Plain GRSP (6mm & 10mm: < 1.27, ASG ± 0.03)
+    return { a: 1.27, b: 1.27, asgVariation: 0.03, variation: 0.02 };
   };
 
   const getAshTolerance = (lotId) => {
     const lot = lots.find(l => l.id === lotId) || { railpadType: '' };
-    const type = lot.railpadType || '';
-    if (type.includes('CGRSP')) return { a: 27, b: 20, variation: 5 };
-    if (type.includes('NCRGRSP')) return { a: 27, b: 27, variation: 5 };
-    return { a: 27, variation: 5 };
+    const rawType = (lot.railpadType || activeRailpadType || '').toLowerCase().trim();
+
+    // 1. CGRSP (6.2mm & 10mm: Compound A <= 27%, Compound B <= 20%, AAC ± 5%)
+    if (rawType.includes('cgrsp') || rawType.includes('composite')) {
+      return { a: 27, b: 20, aacVariation: 5, variation: 5 };
+    }
+
+    // 2. NCRGRSP (6mm & 10mm: Product <= 27%, Test Slab <= 27%, AAC ± 5%, Variation <= 5%)
+    if (rawType.includes('ncr') || rawType.includes('ncrgrsp') || rawType.includes('ncrnrsgp')) {
+      return { a: 27, b: 27, aacVariation: 5, variation: 5 };
+    }
+
+    // 3. Plain GRSP (6mm & 10mm: <= 27%, AAC ± 5%)
+    return { a: 27, b: 27, aacVariation: 5, variation: 5 };
   };
 
   const getSecantTolerance = (lotId) => {

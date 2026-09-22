@@ -216,7 +216,7 @@ const FieldDropdown = ({ options, hiddenKeys = [], value, onChange, disabled, pl
 const S = {
   overlay: {
     position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.55)',
-    zIndex: 1200, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px',
+    zIndex: 20000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px',
   },
   modal: {
     background: '#fff', borderRadius: '12px', width: '100%', maxWidth: '900px',
@@ -287,6 +287,9 @@ const CorrectionSlipModal = ({ row, onClose, viewOnly = false, isViewOnly = fals
   const [notification, setNotification] = useState({ message: '', type: 'info' });
   const [showPDF, setShowPDF] = useState(false);
   const [storedDoc, setStoredDoc] = useState(null);
+  const [hasExistingSlip, setHasExistingSlip] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   const callNo = row?.call_no || row?.requestId || row?.callNo || row?.icNo || '';
   const currentUser = getStoredUser();

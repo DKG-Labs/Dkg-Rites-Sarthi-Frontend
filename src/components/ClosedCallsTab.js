@@ -11,6 +11,7 @@ import AnnexureLoader from './annexures/AnnexureLoader';
 import AnnexureUploadModal from './AnnexureUploadModal';
 import CorrectionSlipModal from './CorrectionSlipModal';
 import Modal from './Modal';
+import { fetchCorrectionSlipDocument, getViewCorrectionSlipPdfUrl } from '../services/correctionSlipService';
 import axios from 'axios';
 import { getAuthHeaders, getStoredUser } from '../services/authService';
 import { API_BASE_URL } from '../services/apiConfig';
@@ -589,8 +590,22 @@ const ClosedCallsTab = ({ setSelectedCall, setCurrentPage }) => {
 
                 {/* 2. Correction Slip */}
                 <button
-                  onClick={() => {
-                    setShowCorrectionSlipModal(true);
+                  onClick={async () => {
+                    const row = selectedActionCall;
+                    const callNo = row?.call_no || row?.callNo || row?.requestId;
+                    setSelectedActionCall(null);
+                    try {
+                      const doc = await fetchCorrectionSlipDocument(callNo);
+                      if (doc && doc.exists) {
+                        window.open(getViewCorrectionSlipPdfUrl(callNo), '_blank');
+                      } else {
+                        setNotificationMessage(`Correction slip not found for ${callNo}`);
+                        setNotificationType('warning');
+                      }
+                    } catch (err) {
+                      setNotificationMessage(`Correction slip not found for ${callNo}`);
+                      setNotificationType('warning');
+                    }
                   }}
                   style={{
                     display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '12px',
@@ -608,6 +623,7 @@ const ClosedCallsTab = ({ setSelectedCall, setCurrentPage }) => {
                     e.currentTarget.style.transform = 'translateY(0)';
                     e.currentTarget.style.boxShadow = '0 4px 6px -1px rgba(234, 88, 12, 0.1), 0 2px 4px -1px rgba(234, 88, 12, 0.06)'; 
                   }}
+                  title="View Correction Slip"
                 >
                   <div style={{ width: '48px', height: '48px', background: '#ffffff', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 2px 4px rgba(0,0,0,0.05)' }}>
                     <EditNoteRoundedIcon style={{ fontSize: '26px', color: '#ea580c' }} />

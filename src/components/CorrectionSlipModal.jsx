@@ -278,7 +278,7 @@ const FieldDropdown = ({ options, hiddenKeys = [], value, onChange, disabled, pl
 const S = {
   overlay: {
     position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.55)',
-    zIndex: 1200, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px',
+    zIndex: 20000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px',
   },
   modal: {
     background: '#fff', borderRadius: '12px', width: '100%', maxWidth: '900px',

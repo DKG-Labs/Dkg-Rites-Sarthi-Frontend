@@ -21,6 +21,7 @@ import ShiftDutyForm from './ShiftDutyForm';
 import AnnexureLoader from './AnnexureLoader';
 import AnnexureUploadModal from './AnnexureUploadModal';
 import { generateRailpadCallLetterPDF } from '../utils/generateCallLetterPDF';
+import { fetchCorrectionSlipDocument, getViewCorrectionSlipPdfUrl } from '../services/correctionSlipService';
 
 const AttendingCallsDashboard = ({ 
   onStart, 
@@ -1998,41 +1999,63 @@ const AttendingCallsDashboard = ({
                   </button>
                 )}
 
-                {/* Correction Slip (Closed Calls) */}
-                {(selectedActionCall.isClosed || activeTab === 'closed') && (
-                  <button
-                    onClick={() => {
-                      const row = selectedActionCall;
-                      setSelectedActionCall(null);
+                {/* Correction Slip (Completed and Closed Calls) */}
+                <button
+                  onClick={async () => {
+                    const row = selectedActionCall;
+                    const isClosed = row?.isClosed || activeTab === 'closed';
+                    const callNo = row?.call_no || row?.callNo || row?.requestId;
+                    setSelectedActionCall(null);
+
+                    if (isClosed) {
+                      try {
+                        const doc = await fetchCorrectionSlipDocument(callNo);
+                        if (doc && doc.exists) {
+                          window.open(getViewCorrectionSlipPdfUrl(callNo), '_blank');
+                        } else {
+                          setNotification({
+                            message: `Correction slip not found for ${callNo}`,
+                            type: 'warning'
+                          });
+                        }
+                      } catch (err) {
+                        setNotification({
+                          message: `Correction slip not found for ${callNo}`,
+                          type: 'warning'
+                        });
+                      }
+                    } else {
                       setCorrectionSlipRow(row);
-                    }}
-                    style={{
-                      display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '8px',
-                      padding: '16px 12px', background: 'linear-gradient(135deg, #fef3c7 0%, #fde68a 100%)',
-                      border: '1px solid #fcd34d', borderRadius: '14px',
-                      cursor: 'pointer', transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-                      color: '#b45309', width: '100%',
-                      boxShadow: '0 4px 6px -1px rgba(180, 83, 9, 0.1), 0 2px 4px -1px rgba(180, 83, 9, 0.06)'
-                    }}
-                    onMouseEnter={(e) => { 
-                      e.currentTarget.style.transform = 'translateY(-3px)';
-                      e.currentTarget.style.boxShadow = '0 10px 15px -3px rgba(180, 83, 9, 0.2), 0 4px 6px -2px rgba(180, 83, 9, 0.1)'; 
-                    }}
-                    onMouseLeave={(e) => { 
-                      e.currentTarget.style.transform = 'translateY(0)';
-                      e.currentTarget.style.boxShadow = '0 4px 6px -1px rgba(180, 83, 9, 0.1), 0 2px 4px -1px rgba(180, 83, 9, 0.06)'; 
-                    }}
-                    title="Issue Correction Slip"
-                  >
-                    <div style={{ width: '42px', height: '42px', background: '#ffffff', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 2px 4px rgba(0,0,0,0.05)' }}>
-                      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#b45309" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                        <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
-                        <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
-                      </svg>
-                    </div>
-                    <span style={{ fontWeight: '700', fontSize: '14px' }}>Correction Slip</span>
-                  </button>
-                )}
+                    }
+                  }}
+                  style={{
+                    display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '8px',
+                    padding: '16px 12px', background: 'linear-gradient(135deg, #fef3c7 0%, #fde68a 100%)',
+                    border: '1px solid #fcd34d', borderRadius: '14px',
+                    cursor: 'pointer', transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                    color: '#b45309', width: '100%',
+                    boxShadow: '0 4px 6px -1px rgba(180, 83, 9, 0.1), 0 2px 4px -1px rgba(180, 83, 9, 0.06)'
+                  }}
+                  onMouseEnter={(e) => { 
+                    e.currentTarget.style.transform = 'translateY(-3px)';
+                    e.currentTarget.style.boxShadow = '0 10px 15px -3px rgba(180, 83, 9, 0.2), 0 4px 6px -2px rgba(180, 83, 9, 0.1)'; 
+                  }}
+                  onMouseLeave={(e) => { 
+                    e.currentTarget.style.transform = 'translateY(0)';
+                    e.currentTarget.style.boxShadow = '0 4px 6px -1px rgba(180, 83, 9, 0.1), 0 2px 4px -1px rgba(180, 83, 9, 0.06)'; 
+                  }}
+                  title={selectedActionCall.isClosed || activeTab === 'closed' ? "View Correction Slip" : "Issue Correction Slip"}
+                >
+                  <div style={{ width: '42px', height: '42px', background: '#ffffff', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 2px 4px rgba(0,0,0,0.05)' }}>
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#b45309" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                      <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+                    </svg>
+                  </div>
+                  <span style={{ fontWeight: '700', fontSize: '14px', textAlign: 'center', lineHeight: '1.2' }}>
+                    {selectedActionCall.isClosed || activeTab === 'closed' ? "View Correction Slip" : "Correction Slip"}
+                  </span>
+                </button>
 
                 {/* 3. Call Letter */}
                 <button

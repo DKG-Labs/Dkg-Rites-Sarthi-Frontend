@@ -1783,6 +1783,7 @@ const AttendingCallsDashboard = ({
             setShowCorrectionSlipModal(false);
             setSelectedCall(null);
           }}
+          viewOnly={((correctionSlipRow || selectedCall)?.isClosed || activeTab === 'closed')}
         />
       )}
 

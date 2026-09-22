@@ -1,6 +1,6 @@
 import React, { useRef, useState, useEffect } from 'react';
 
-import { generatePdfBase64, downloadBase64Pdf } from '../utils/exportUtils';
+import { generatePdfBase64 } from '../utils/exportUtils';
 import { saveCorrectionSlip, compressAndStoreCorrectionSlip } from '../services/correctionSlipService';
 
 /* ─── print / screen styles ─── */

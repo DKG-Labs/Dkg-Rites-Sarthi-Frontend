@@ -612,7 +612,7 @@ const ClosedCallsTab = ({ setSelectedCall, setCurrentPage }) => {
                   <div style={{ width: '48px', height: '48px', background: '#ffffff', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 2px 4px rgba(0,0,0,0.05)' }}>
                     <EditNoteRoundedIcon style={{ fontSize: '26px', color: '#ea580c' }} />
                   </div>
-                  <span style={{ fontWeight: '700', fontSize: '15px' }}>Correction Slip</span>
+                  <span style={{ fontWeight: '700', fontSize: '15px', textAlign: 'center', lineHeight: '1.2' }}>View Correction Slip</span>
                 </button>
 
                 {/* 3. Annexures */}
@@ -777,6 +777,7 @@ const ClosedCallsTab = ({ setSelectedCall, setCurrentPage }) => {
           onClose={() => setShowCorrectionSlipModal(false)}
           callNumber={selectedActionCall.call_no || selectedActionCall.callNumber || selectedActionCall.icNumber}
           row={selectedActionCall}
+          viewOnly={true}
         />
       )}
 

@@ -1772,7 +1772,7 @@ const AttendingCallDashboard = ({ mode }) => {
                                             e.currentTarget.style.transform = 'translateY(0)';
                                             e.currentTarget.style.boxShadow = '0 4px 6px -1px rgba(180, 83, 9, 0.1), 0 2px 4px -1px rgba(180, 83, 9, 0.06)'; 
                                         }}
-                                        title="Issue Correction Slip"
+                                        title="View Correction Slip"
                                     >
                                         <div style={{ width: '42px', height: '42px', background: '#ffffff', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 2px 4px rgba(0,0,0,0.05)' }}>
                                             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#b45309" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
@@ -1780,7 +1780,7 @@ const AttendingCallDashboard = ({ mode }) => {
                                                 <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
                                             </svg>
                                         </div>
-                                        <span style={{ fontWeight: '700', fontSize: '14px' }}>Correction Slip</span>
+                                        <span style={{ fontWeight: '700', fontSize: '14px', textAlign: 'center', lineHeight: '1.2' }}>View Correction Slip</span>
                                     </button>
                                 )}
 
@@ -2251,6 +2251,7 @@ const AttendingCallDashboard = ({ mode }) => {
                 <CorrectionSlipModal
                     row={correctionSlipRow}
                     onClose={() => setCorrectionSlipRow(null)}
+                    viewOnly={correctionSlipRow.isClosed || activeTab === 'closed'}
                 />
             )}
 

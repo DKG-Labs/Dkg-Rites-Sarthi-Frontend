@@ -164,6 +164,32 @@ export const getDownloadCorrectionSlipPdfUrl = (callNo) => {
 };
 
 /**
+ * Delete Correction Slip for a call number from backend and Azure.
+ * @param {string} callNo
+ * @returns {Promise<Object>}
+ */
+export const deleteCorrectionSlip = async (callNo) => {
+  if (!callNo) {
+    throw new Error('Call number is required to delete correction slip.');
+  }
+
+  // Clear local storage cache
+  clearCorrectionSlipCache(callNo);
+
+  const response = await fetch(`${endpoint}?callNo=${encodeURIComponent(callNo)}`, {
+    method: 'DELETE',
+    headers: getAuthHeaders(),
+  });
+
+  if (!response.ok) {
+    const errData = await response.json().catch(() => ({}));
+    throw new Error(errData.error || errData.message || `Failed to delete correction slip (HTTP ${response.status})`);
+  }
+
+  return await response.json();
+};
+
+/**
  * Clear localStorage cache for a call number (call after successful save + PDF).
  * @param {string} callNo
  */

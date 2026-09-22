@@ -5,7 +5,13 @@ import {
   getFinalIcEditData,
   getProcessIcEditData,
 } from '../services/certificateService';
-import { fetchCorrectionSlip, fetchCorrectionSlipDocument, getViewCorrectionSlipPdfUrl } from '../services/correctionSlipService';
+import {
+  fetchCorrectionSlip,
+  fetchCorrectionSlipDocument,
+  getViewCorrectionSlipPdfUrl,
+  getDownloadCorrectionSlipPdfUrl,
+  deleteCorrectionSlip
+} from '../services/correctionSlipService';
 import { getStoredUser } from '../services/authService';
 import Notification from './Notification';
 import CorrectionSlipPDF, { formatCorrectionText } from './CorrectionSlipPDF';
@@ -271,7 +277,8 @@ const S = {
 };
 
 /* ─── Main Component ─── */
-const CorrectionSlipModal = ({ row, onClose }) => {
+const CorrectionSlipModal = ({ row, onClose, viewOnly = false, isViewOnly = false }) => {
+  const isViewMode = viewOnly || isViewOnly || row?.isClosed || row?.status === 'Closed' || row?.activeTab === 'closed';
   const [icData, setIcData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [icError, setIcError] = useState('');
@@ -445,10 +452,14 @@ const CorrectionSlipModal = ({ row, onClose }) => {
   /* Restore saved corrections and check stored document */
   useEffect(() => {
     const restore = async () => {
+      let docFound = null;
       try {
         const doc = await fetchCorrectionSlipDocument(callNo);
         if (doc && doc.exists) {
+          docFound = doc;
           setStoredDoc(doc);
+        } else {
+          setStoredDoc(null);
         }
       } catch (e) {
         console.warn('Error checking stored correction slip document:', e);
@@ -456,16 +467,26 @@ const CorrectionSlipModal = ({ row, onClose }) => {
 
       const saved = await fetchCorrectionSlip(callNo);
       if (saved && saved.length > 0) {
+        setHasExistingSlip(true);
         setCorrections(saved.map(s => ({
           id: Date.now() + Math.random(),
           columnName: s.columnName || s.column_name || '',
           readAs: formatCorrectionText(s.readAs || s.read_as || ''),
           insteadOf: formatCorrectionText(s.insteadOf || s.instead_of || ''),
         })));
+      } else if (docFound) {
+        setHasExistingSlip(true);
+      } else {
+        setHasExistingSlip(false);
+        if (isViewMode) {
+          setCorrections([]);
+        } else {
+          setCorrections([emptyRow()]);
+        }
       }
     };
     if (callNo) restore();
-  }, [callNo]);
+  }, [callNo, isViewMode]);
 
   const productType = (() => {
     const call = String(callNo || row?.requestId || row?.call_no || row?.callNo || '').toUpperCase().trim();
@@ -479,11 +500,17 @@ const CorrectionSlipModal = ({ row, onClose }) => {
   const icFields = icData
     ? Object.entries(getFieldMap(productType))
         .filter(([key]) => {
-          if (productType === 'PROCESS' && (key === 'offeredInstNo' || key === 'passedInstNo')) return true;
+          if (productType === 'PROCESS' && (key === 'offeredInstNo' || key === 'passedInstNo')) {
+            return true;
+          }
           const val = icData[key];
           return val !== undefined && val !== null && val !== '' && !Array.isArray(val);
         })
-        .map(([key, label]) => ({ key, label, value: icData[key] !== undefined && icData[key] !== null ? String(icData[key]) : '' }))
+        .map(([key, label]) => ({
+          key,
+          label,
+          value: icData[key] !== undefined && icData[key] !== null ? String(icData[key]) : (productType === 'PROCESS' && (key === 'offeredInstNo' || key === 'passedInstNo') ? '' : '')
+        }))
     : [];
 
   /* ── Row helpers ── */
@@ -493,7 +520,7 @@ const CorrectionSlipModal = ({ row, onClose }) => {
       const updated = { ...r, [field]: value };
       if (field === 'columnName') {
         const found = icFields.find(f => f.key === value);
-        const val = found ? found.value : (icData && icData[value] ? String(icData[value]) : '—');
+        const val = found ? found.value : '';
         const formattedVal = formatCorrectionText(val);
         updated.insteadOf = formattedVal;
         if (!updated.readAs || updated.readAs.trim() === '') {
@@ -505,7 +532,6 @@ const CorrectionSlipModal = ({ row, onClose }) => {
   };
 
   const addRow = () => setCorrections(prev => [...prev, emptyRow()]);
-
   const removeRow = (id) => {
     if (corrections.length === 1) {
       showNotif('At least one correction row is required.', 'warning');
@@ -517,16 +543,16 @@ const CorrectionSlipModal = ({ row, onClose }) => {
   /* ── Validation ── */
   const validate = () => {
     for (let i = 0; i < corrections.length; i++) {
-      const r = corrections[i];
-      if (!r.columnName) {
+      const row = corrections[i];
+      if (!row.columnName) {
         showNotif(`Row ${i + 1}: Please select a column name.`, 'error');
         return false;
       }
-      if (!r.readAs.trim()) {
+      if (!row.readAs.trim()) {
         showNotif(`Row ${i + 1}: "Read As" value cannot be empty.`, 'error');
         return false;
       }
-      if (!r.insteadOf.trim()) {
+      if (!row.insteadOf.trim()) {
         showNotif(`Row ${i + 1}: "Instead Of" value cannot be empty.`, 'error');
         return false;
       }
@@ -534,10 +560,29 @@ const CorrectionSlipModal = ({ row, onClose }) => {
     return true;
   };
 
+  /* ── Issue correction slip (no DB save here, save happens in CorrectionSlipPDF after eSign) ── */
   const handleIssueCorrectionSlip = async () => {
     if (!validate()) return;
     setIssuing(true);
     setShowPDF(true);
+  };
+
+  /* ── Delete existing correction slip ── */
+  const handleDeleteCorrectionSlip = async () => {
+    try {
+      setDeleting(true);
+      await deleteCorrectionSlip(callNo);
+      setStoredDoc(null);
+      setHasExistingSlip(false);
+      setCorrections([emptyRow()]);
+      setShowDeleteConfirm(false);
+      showNotif('Correction slip deleted successfully. You can now issue a new one.', 'success');
+    } catch (err) {
+      console.error('Error deleting correction slip:', err);
+      showNotif('Failed to delete correction slip: ' + (err.message || 'Unknown error'), 'error');
+    } finally {
+      setDeleting(false);
+    }
   };
 
   if (showPDF) {
@@ -547,12 +592,14 @@ const CorrectionSlipModal = ({ row, onClose }) => {
         corrections={corrections}
         callNo={callNo}
         icFields={icFields}
-        createdBy={currentUser?.userId || currentUser?.userName || 'Inspecting Engineer'}
+        createdBy={currentUser?.userId || currentUser?.empCode || 'unknown'}
         onBack={() => { setShowPDF(false); setIssuing(false); }}
         onClose={onClose}
       />
     );
   }
+
+  const isExistingOrView = hasExistingSlip || isViewMode;
 
   return (
     <div style={S.overlay} onClick={(e) => e.target === e.currentTarget && onClose()}>
@@ -560,43 +607,69 @@ const CorrectionSlipModal = ({ row, onClose }) => {
         {/* Header */}
         <div style={S.header}>
           <div>
-            <div style={{ fontSize: '17px', fontWeight: '700', color: '#111827' }}>Issue Correction Slip</div>
+            <div style={{ fontSize: '17px', fontWeight: '700', color: '#111827' }}>
+              {hasExistingSlip ? 'Correction Slip Details' : (isViewMode ? 'View Correction Slip' : 'Issue Correction Slip')}
+            </div>
             <div style={{ fontSize: '12px', color: '#6b7280', marginTop: '2px' }}>
               Call No: <span style={{ color: '#2563eb', fontWeight: 600 }}>{callNo}</span>
+              {hasExistingSlip && (
+                <span style={{ marginLeft: '10px', background: '#fef3c7', color: '#92400e', padding: '2px 8px', borderRadius: '4px', fontSize: '11px', fontWeight: 600 }}>
+                  Issued (1 Slip Limit)
+                </span>
+              )}
+              {isViewMode && !hasExistingSlip && (
+                <span style={{ marginLeft: '10px', background: '#e0f2fe', color: '#0369a1', padding: '2px 8px', borderRadius: '4px', fontSize: '11px', fontWeight: 600 }}>
+                  Closed Call View
+                </span>
+              )}
             </div>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
             {storedDoc && (
-              <button
-                type="button"
-                onClick={() => window.open(getViewCorrectionSlipPdfUrl(callNo), '_blank')}
-                style={{
-                  padding: '6px 12px',
-                  background: '#ecfdf5',
-                  color: '#047857',
-                  border: '1px solid #a7f3d0',
-                  borderRadius: '6px',
-                  fontSize: '12.5px',
-                  fontWeight: '600',
-                  cursor: 'pointer',
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '6px'
-                }}
-                title="View stored correction slip PDF in Azure"
-              >
-                📄 View Stored PDF
-              </button>
+              <>
+                <button
+                  type="button"
+                  onClick={() => window.open(getViewCorrectionSlipPdfUrl(callNo), '_blank')}
+                  style={{
+                    padding: '6px 12px',
+                    background: '#ecfdf5',
+                    color: '#047857',
+                    border: '1px solid #a7f3d0',
+                    borderRadius: '6px',
+                    fontSize: '12.5px',
+                    fontWeight: '600',
+                    cursor: 'pointer',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '6px'
+                  }}
+                  title="View stored correction slip PDF in Azure"
+                >
+                  📄 View PDF
+                </button>
+                <button
+                  type="button"
+                  onClick={() => window.open(getDownloadCorrectionSlipPdfUrl(callNo), '_blank')}
+                  style={{
+                    padding: '6px 12px',
+                    background: '#f0f9ff',
+                    color: '#0369a1',
+                    border: '1px solid #bae6fd',
+                    borderRadius: '6px',
+                    fontSize: '12.5px',
+                    fontWeight: '600',
+                    cursor: 'pointer',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '6px'
+                  }}
+                  title="Download stored correction slip PDF"
+                >
+                  ⬇️ Download
+                </button>
+              </>
             )}
-            <button
-              onClick={onClose}
-              style={{
-                background: 'none', border: 'none', color: '#9ca3af',
-                fontSize: '20px', cursor: 'pointer', lineHeight: 1, borderRadius: '6px', padding: '4px 8px'
-              }}
-            >
-              ✕
-            </button>
+            <button onClick={onClose} style={{ background: 'none', border: 'none', color: '#9ca3af', fontSize: '20px', cursor: 'pointer', lineHeight: 1, borderRadius: '6px', padding: '4px 8px' }}>✕</button>
           </div>
         </div>
 
@@ -605,11 +678,56 @@ const CorrectionSlipModal = ({ row, onClose }) => {
           message={notification.message}
           type={notification.type}
           autoClose={true}
+          autoCloseDelay={4000}
           onClose={() => setNotification({ message: '', type: 'info' })}
         />
 
         {/* Body */}
         <div style={S.body}>
+          {/* Top Banner if already issued and in Completed Calls */}
+          {hasExistingSlip && !isViewMode && (
+            <div style={{
+              background: '#fffbeb', border: '1px solid #fde68a', borderRadius: '10px',
+              padding: '14px 18px', marginBottom: '20px', display: 'flex',
+              alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '12px'
+            }}>
+              <div>
+                <div style={{ fontWeight: 700, color: '#92400e', fontSize: '14px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <span>⚠️</span> Correction Slip Already Issued
+                </div>
+                <div style={{ fontSize: '12.5px', color: '#78350f', marginTop: '2px' }}>
+                  Only one correction slip can be added per call. You can view the stored PDF or delete this slip to create a new one.
+                </div>
+              </div>
+              <div style={{ display: 'flex', gap: '8px' }}>
+                {storedDoc && (
+                  <button
+                    type="button"
+                    onClick={() => window.open(getViewCorrectionSlipPdfUrl(callNo), '_blank')}
+                    style={{
+                      padding: '7px 14px', background: '#0284c7', color: '#ffffff',
+                      border: 'none', borderRadius: '6px', fontWeight: '600', fontSize: '12.5px',
+                      cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '6px'
+                    }}
+                  >
+                    📄 View PDF
+                  </button>
+                )}
+                <button
+                  type="button"
+                  onClick={() => setShowDeleteConfirm(true)}
+                  style={{
+                    padding: '7px 14px', background: '#fee2e2', color: '#dc2626',
+                    border: '1px solid #fca5a5', borderRadius: '6px', fontWeight: '600', fontSize: '12.5px',
+                    cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '6px'
+                  }}
+                >
+                  🗑️ Delete Slip
+                </button>
+              </div>
+            </div>
+          )}
+
           {/* Section 1 – IC Data */}
           <div>
             <div style={S.sectionTitle}>Section 1 – IC Data</div>
@@ -641,72 +759,184 @@ const CorrectionSlipModal = ({ row, onClose }) => {
           {/* Section 2 – Correction Details */}
           <div>
             <div style={S.sectionTitle}>Section 2 – Correction Details</div>
-            <table style={{ ...S.table, marginBottom: '12px' }}>
-              <thead>
-                <tr>
-                  <th style={{ ...S.th, width: '30%' }}>Column Name</th>
-                  <th style={{ ...S.th, width: '32%' }}>Read As</th>
-                  <th style={{ ...S.th, width: '32%' }}>Instead Of</th>
-                  <th style={{ ...S.th, width: '6%' }}>✕</th>
-                </tr>
-              </thead>
-              <tbody>
-                {corrections.map((corr) => (
-                  <tr key={corr.id}>
-                    <td style={{ ...S.td, padding: '6px 8px', verticalAlign: 'top' }}>
-                      <FieldDropdown
-                        options={icFields}
-                        hiddenKeys={HIDDEN_DROPDOWN_KEYS}
-                        value={corr.columnName}
-                        onChange={(val) => updateRow(corr.id, 'columnName', val)}
-                        disabled={loading || !!icError}
-                      />
-                    </td>
-                    <td style={{ ...S.td, padding: '6px 8px', verticalAlign: 'top' }}>
-                      <textarea
-                        rows={corr.readAs && corr.readAs.includes('\n') ? Math.min(Math.max(corr.readAs.split('\n').length, 2), 8) : 2}
-                        style={S.inputBase}
-                        placeholder="Enter corrected value"
-                        value={corr.readAs}
-                        onChange={(e) => updateRow(corr.id, 'readAs', e.target.value)}
-                        onFocus={e => { e.target.style.borderColor = '#3b82f6'; }}
-                        onBlur={e => { e.target.style.borderColor = '#d1d5db'; }}
-                      />
-                    </td>
-                    <td style={{ ...S.td, padding: '6px 8px', verticalAlign: 'top' }}>
-                      <textarea
-                        rows={corr.insteadOf && corr.insteadOf.includes('\n') ? Math.min(Math.max(corr.insteadOf.split('\n').length, 2), 8) : 2}
-                        style={S.inputBase}
-                        placeholder="Enter instead of value"
-                        value={corr.insteadOf}
-                        onChange={(e) => updateRow(corr.id, 'insteadOf', e.target.value)}
-                        onFocus={e => { e.target.style.borderColor = '#3b82f6'; }}
-                        onBlur={e => { e.target.style.borderColor = '#d1d5db'; }}
-                      />
-                    </td>
-                    <td style={{ ...S.td, padding: '6px 8px', textAlign: 'center', verticalAlign: 'top' }}>
-                      <button style={S.btnDanger} onClick={() => removeRow(corr.id)} title="Remove row">✕</button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-            <button style={S.addRowBtn} onClick={addRow}>+ Add Correction Row</button>
+            {isExistingOrView && corrections.length === 0 ? (
+              <div style={{ padding: '24px', background: '#f8fafc', borderRadius: '8px', border: '1px dashed #cbd5e1', textAlign: 'center', color: '#64748b' }}>
+                No correction slip details found for this call.
+              </div>
+            ) : (
+              <>
+                <table style={{ ...S.table, marginBottom: '12px' }}>
+                  <thead>
+                    <tr>
+                      <th style={{ ...S.th, width: isExistingOrView ? '34%' : '30%' }}>Column Name</th>
+                      <th style={{ ...S.th, width: isExistingOrView ? '33%' : '32%' }}>Read As</th>
+                      <th style={{ ...S.th, width: isExistingOrView ? '33%' : '32%' }}>Instead Of</th>
+                      {!isExistingOrView && <th style={{ ...S.th, width: '6%' }}>✕</th>}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {corrections.map((corr) => (
+                      <tr key={corr.id}>
+                        <td style={{ ...S.td, padding: '6px 8px', verticalAlign: 'top' }}>
+                          {isExistingOrView ? (
+                            <div style={{ fontWeight: 600, color: '#1e293b', fontSize: '13px' }}>
+                              {icFields.find(f => f.key === corr.columnName)?.label || corr.columnName || '-'}
+                            </div>
+                          ) : (
+                            <FieldDropdown
+                              options={icFields}
+                              hiddenKeys={HIDDEN_DROPDOWN_KEYS}
+                              value={corr.columnName}
+                              onChange={(val) => updateRow(corr.id, 'columnName', val)}
+                              disabled={loading || !!icError}
+                            />
+                          )}
+                        </td>
+                        <td style={{ ...S.td, padding: '6px 8px', verticalAlign: 'top' }}>
+                          {isExistingOrView ? (
+                            <div style={{ padding: '6px 10px', background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '6px', fontSize: '13px', whiteSpace: 'pre-wrap', color: '#0f172a' }}>
+                              {corr.readAs || '-'}
+                            </div>
+                          ) : (
+                            <textarea
+                              rows={corr.readAs && corr.readAs.includes('\n') ? Math.min(Math.max(corr.readAs.split('\n').length, 2), 8) : 2}
+                              style={S.inputBase}
+                              placeholder="Enter corrected value"
+                              value={corr.readAs}
+                              onChange={(e) => updateRow(corr.id, 'readAs', e.target.value)}
+                              onFocus={e => { e.target.style.borderColor = '#3b82f6'; }}
+                              onBlur={e => { e.target.style.borderColor = '#d1d5db'; }}
+                            />
+                          )}
+                        </td>
+                        <td style={{ ...S.td, padding: '6px 8px', verticalAlign: 'top' }}>
+                          {isExistingOrView ? (
+                            <div style={{ padding: '6px 10px', background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '6px', fontSize: '13px', whiteSpace: 'pre-wrap', color: '#0f172a' }}>
+                              {corr.insteadOf || '-'}
+                            </div>
+                          ) : (
+                            <textarea
+                              rows={corr.insteadOf && corr.insteadOf.includes('\n') ? Math.min(Math.max(corr.insteadOf.split('\n').length, 2), 8) : 2}
+                              style={S.inputBase}
+                              placeholder="Enter instead of value"
+                              value={corr.insteadOf}
+                              onChange={(e) => updateRow(corr.id, 'insteadOf', e.target.value)}
+                              onFocus={e => { e.target.style.borderColor = '#3b82f6'; }}
+                              onBlur={e => { e.target.style.borderColor = '#d1d5db'; }}
+                            />
+                          )}
+                        </td>
+                        {!isExistingOrView && (
+                          <td style={{ ...S.td, padding: '6px 8px', textAlign: 'center', verticalAlign: 'top' }}>
+                            <button style={S.btnDanger} onClick={() => removeRow(corr.id)} title="Remove row">✕</button>
+                          </td>
+                        )}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+                {!isExistingOrView && (
+                  <button style={S.addRowBtn} onClick={addRow}>+ Add Correction Row</button>
+                )}
+              </>
+            )}
           </div>
         </div>
 
         {/* Footer */}
         <div style={S.footer}>
-          <button style={S.btnOutline} onClick={onClose}>Cancel</button>
-          <button
-            style={{ ...S.btnSuccess, opacity: issuing ? 0.7 : 1 }}
-            onClick={handleIssueCorrectionSlip}
-            disabled={issuing || loading || !!icError}
-          >
-            {issuing ? 'Generating...' : 'Issue Correction Slip'}
+          <button style={S.btnOutline} onClick={onClose}>
+            {isExistingOrView ? 'Close' : 'Cancel'}
           </button>
+          {isExistingOrView ? (
+            <div style={{ display: 'flex', gap: '10px' }}>
+              {hasExistingSlip && !isViewMode && (
+                <button
+                  style={{ ...S.btnDanger, padding: '8px 16px', fontSize: '13px', background: '#dc2626', color: '#ffffff', borderRadius: '6px' }}
+                  onClick={() => setShowDeleteConfirm(true)}
+                  disabled={deleting}
+                >
+                  {deleting ? 'Deleting...' : '🗑️ Delete Slip'}
+                </button>
+              )}
+              {storedDoc && (
+                <button
+                  style={{ ...S.btnSuccess, background: '#059669' }}
+                  onClick={() => window.open(getViewCorrectionSlipPdfUrl(callNo), '_blank')}
+                >
+                  📄 View Stored PDF
+                </button>
+              )}
+            </div>
+          ) : (
+            <button
+              style={{ ...S.btnSuccess, opacity: issuing ? 0.7 : 1 }}
+              onClick={handleIssueCorrectionSlip}
+              disabled={issuing || loading || !!icError}
+            >
+              {issuing ? 'Generating...' : 'Issue Correction Slip'}
+            </button>
+          )}
         </div>
       </div>
+
+      {/* Delete Confirmation Modal */}
+      {showDeleteConfirm && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(15, 23, 42, 0.65)',
+            backdropFilter: 'blur(4px)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 10001
+          }}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <div style={{
+            background: '#ffffff',
+            borderRadius: '12px',
+            padding: '24px',
+            maxWidth: '440px',
+            width: '90%',
+            boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)'
+          }}>
+            <h3 style={{ margin: '0 0 10px 0', fontSize: '17px', color: '#111827', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <span style={{ color: '#dc2626' }}>🗑️</span> Delete Correction Slip?
+            </h3>
+            <p style={{ margin: '0 0 16px 0', fontSize: '13.5px', color: '#4b5563', lineHeight: 1.5 }}>
+              Are you sure you want to delete the Correction Slip for Call No. <strong>{callNo}</strong>?
+              This will remove the saved corrections and the stored PDF document from Azure. You will then be able to issue a new correction slip.
+            </p>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
+              <button
+                style={{
+                  padding: '8px 14px', background: '#f3f4f6', color: '#374151',
+                  border: '1px solid #d1d5db', borderRadius: '6px', fontSize: '13px',
+                  fontWeight: 600, cursor: 'pointer'
+                }}
+                onClick={() => setShowDeleteConfirm(false)}
+                disabled={deleting}
+              >
+                Cancel
+              </button>
+              <button
+                style={{
+                  padding: '8px 16px', background: '#dc2626', color: '#ffffff',
+                  border: 'none', borderRadius: '6px', fontSize: '13px',
+                  fontWeight: 600, cursor: 'pointer'
+                }}
+                onClick={handleDeleteCorrectionSlip}
+                disabled={deleting}
+              >
+                {deleting ? 'Deleting...' : 'Yes, Delete Slip'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

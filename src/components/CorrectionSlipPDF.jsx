@@ -1,7 +1,7 @@
 import React, { useRef, useState, useEffect } from 'react';
 
 import { generatePdfBase64 } from '../utils/exportUtils';
-import { saveCorrectionSlip } from '../services/correctionSlipService';
+import { saveCorrectionSlip, compressAndStoreCorrectionSlip } from '../services/correctionSlipService';
 
 /* ─── print / screen styles ─── */
 const styles = `
@@ -311,17 +311,26 @@ const CorrectionSlipPDF = ({ icData = {}, corrections = [], callNo = '', icField
   useEffect(() => {
     const handlePkiStatus = async (event) => {
       const { status, message, signedData } = event.detail;
-      // Replace IC-specific terminology with Correction Slip terminology
       const displayMsg = (message || '').replace(/certificate/gi, 'Correction Slip');
       setNotif({ msg: displayMsg, type: status });
 
       if (status === 'success' && signedData) {
         try {
-          setNotif({ msg: 'Saving correction slip data...', type: 'info' });
-          await saveCorrectionSlip(callNo, corrections, createdBy);
-          setNotif({ msg: 'Correction slip saved successfully! Downloading PDF...', type: 'success' });
+          setNotif({ msg: 'Uploading signed correction slip to Azure storage...', type: 'info' });
+          await compressAndStoreCorrectionSlip({
+            callNo: callNo,
+            icNumber: icData?.certificateNo || callNo,
+            moduleType: icData?.product_type || icData?.productType || 'ERC',
+            pdfBase64: signedData,
+            fileName: `Correction_Slip_${callNo || 'Report'}.pdf`,
+            uploadedBy: createdBy,
+            stage: 'SIGNED'
+          });
 
-          // Download the PDF after successful save
+          await saveCorrectionSlip(callNo, corrections, createdBy);
+          setNotif({ msg: 'Correction slip stored & saved successfully! Downloading PDF...', type: 'success' });
+
+          // Download the signed PDF
           const fileName2 = `Correction_Slip_${callNo || 'Report'}.pdf`;
           await generatePdfBase64(printRef.current, fileName2);
         } catch (err) {
@@ -333,7 +342,7 @@ const CorrectionSlipPDF = ({ icData = {}, corrections = [], callNo = '', icField
     };
     window.addEventListener('pki-status', handlePkiStatus);
     return () => window.removeEventListener('pki-status', handlePkiStatus);
-  }, [callNo, corrections, createdBy]);
+  }, [callNo, corrections, createdBy, icData]);
 
   // Build a key→label lookup from icFields passed from the modal
   const keyToLabel = {};
@@ -347,7 +356,7 @@ const CorrectionSlipPDF = ({ icData = {}, corrections = [], callNo = '', icField
 
     try {
       setIsESigning(true);
-      setNotif({ msg: 'Generating PDF snapshot for signing...', type: 'info' });
+      setNotif({ msg: 'Generating and compressing PDF snapshot for signing...', type: 'info' });
 
       // 1. Generate PDF base64 from the DOM
       const base64Pdf = await generatePdfBase64(element);
@@ -355,12 +364,33 @@ const CorrectionSlipPDF = ({ icData = {}, corrections = [], callNo = '', icField
         throw new Error('Failed to generate PDF snapshot from UI.');
       }
 
-      // 2. Build Capricorn XML (STRICT pkiNetworkSign SCHEMA)
+      const fileName = `Correction_Slip_${callNo || 'Report'}.pdf`;
+
+      // 2. Compress & store in ic-correctionslip before eSign
+      let pdfToSign = base64Pdf;
+      try {
+        const storeRes = await compressAndStoreCorrectionSlip({
+          callNo: callNo,
+          icNumber: icData?.certificateNo || callNo,
+          moduleType: icData?.product_type || icData?.productType || 'ERC',
+          pdfBase64: base64Pdf,
+          fileName: fileName,
+          uploadedBy: createdBy,
+          stage: 'PRE_SIGN'
+        });
+        if (storeRes?.compressedBase64) {
+          pdfToSign = storeRes.compressedBase64;
+          console.log(`✅ Compressed pre-sign PDF: ${storeRes.originalSize} -> ${storeRes.compressedSize} bytes`);
+        }
+      } catch (storeErr) {
+        console.warn('Pre-sign compression store warning:', storeErr);
+      }
+
+      // 3. Build Capricorn XML (STRICT pkiNetworkSign SCHEMA)
       const now = new Date();
       const pad = (n) => n.toString().padStart(2, '0');
       const timestamp = `${now.getFullYear()}-${pad(now.getMonth()+1)}-${pad(now.getDate())}T${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}+05:30`;
       const txn = Math.random().toString(16).slice(2, 10).toUpperCase();
-      const fileName = `Correction_Slip_${callNo || 'Report'}.pdf`;
 
       const xmlRequest = `
         <request>
@@ -386,11 +416,11 @@ const CorrectionSlipPDF = ({ icData = {}, corrections = [], callNo = '', icField
             <cood>375,190</cood>
             <size>150,45</size>
           </pdf>
-          <data>${base64Pdf}</data>
+          <data>${pdfToSign}</data>
         </request>
       `.replace(/>\s+</g, '><').trim();
 
-      // 3. Trigger local Capricorn bridge
+      // 4. Trigger local Capricorn bridge
       if (typeof window.abc === 'function') {
         setNotif({ msg: 'Please complete the digital signature in the Capricorn bridge...', type: 'info' });
         window.abc(xmlRequest, callNo || 'CorrectionSlip', fileName);
@@ -411,7 +441,24 @@ const CorrectionSlipPDF = ({ icData = {}, corrections = [], callNo = '', icField
 
     try {
       setIsESigning(true);
-      setNotif({ msg: 'Saving correction slip and generating PDF...', type: 'info' });
+      setNotif({ msg: 'Compressing, storing in Azure and downloading PDF...', type: 'info' });
+
+      const fileName = `Correction_Slip_${callNo || 'Report'}.pdf`;
+      const base64Pdf = await generatePdfBase64(element);
+
+      try {
+        await compressAndStoreCorrectionSlip({
+          callNo: callNo,
+          icNumber: icData?.certificateNo || callNo,
+          moduleType: icData?.product_type || icData?.productType || 'ERC',
+          pdfBase64: base64Pdf,
+          fileName: fileName,
+          uploadedBy: createdBy,
+          stage: 'ISSUED'
+        });
+      } catch (storeErr) {
+        console.warn('Direct issue compression store warning:', storeErr);
+      }
 
       try {
         await saveCorrectionSlip(callNo, corrections, createdBy);
@@ -419,10 +466,9 @@ const CorrectionSlipPDF = ({ icData = {}, corrections = [], callNo = '', icField
         console.warn('Correction slip save warning:', err);
       }
 
-      const fileName = `Correction_Slip_${callNo || 'Report'}.pdf`;
       await generatePdfBase64(element, fileName);
 
-      setNotif({ msg: 'Correction slip issued & PDF downloaded successfully!', type: 'success' });
+      setNotif({ msg: 'Correction slip stored in Azure & PDF downloaded successfully!', type: 'success' });
     } catch (error) {
       console.error('Download IC Error:', error);
       setNotif({ msg: error.message || 'Failed to download PDF.', type: 'error' });

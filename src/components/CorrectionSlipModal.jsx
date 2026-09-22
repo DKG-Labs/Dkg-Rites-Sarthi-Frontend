@@ -7,7 +7,7 @@ import {
   getProcessIcEditData,
   getFinalIcEditData,
 } from '../services/certificateService';
-import { fetchCorrectionSlip } from '../services/correctionSlipService';
+import { fetchCorrectionSlip, fetchCorrectionSlipDocument, getViewCorrectionSlipPdfUrl } from '../services/correctionSlipService';
 import { getStoredUser } from '../services/authService';
 
 import Notification from './Notification';
@@ -370,6 +370,7 @@ const CorrectionSlipModal = ({ row, onClose }) => {
   const [issuing, setIssuing] = useState(false);
   const [notification, setNotification] = useState({ message: '', type: 'info' });
   const [showPDF, setShowPDF] = useState(false);
+  const [storedDoc, setStoredDoc] = useState(null);
 
   const callNo = row?.call_no || '';
   // Backend expects the raw call number (e.g. ER-06170001), NOT the formatted IC number (W/ER-06170001/Visma)
@@ -476,9 +477,18 @@ const CorrectionSlipModal = ({ row, onClose }) => {
     if (icNumber) load();
   }, [icNumber, productType]);
 
-  /* restore saved corrections */
+  /* restore saved corrections and check stored document */
   useEffect(() => {
     const restore = async () => {
+      try {
+        const doc = await fetchCorrectionSlipDocument(callNo);
+        if (doc && doc.exists) {
+          setStoredDoc(doc);
+        }
+      } catch (e) {
+        console.warn('Error checking stored correction slip document:', e);
+      }
+
       const saved = await fetchCorrectionSlip(callNo);
       if (saved && saved.length > 0) {
         setCorrections(saved.map(s => ({
@@ -585,7 +595,31 @@ const CorrectionSlipModal = ({ row, onClose }) => {
             <div style={{ fontSize: '17px', fontWeight: '700', color: '#111827' }}>Issue Correction Slip</div>
             <div style={{ fontSize: '12px', color: '#6b7280', marginTop: '2px' }}>Call No: <span style={{ color: '#2563eb', fontWeight: 600 }}>{callNo}</span></div>
           </div>
-          <button onClick={onClose} style={{ background: 'none', border: 'none', color: '#9ca3af', fontSize: '20px', cursor: 'pointer', lineHeight: 1, borderRadius: '6px', padding: '4px 8px' }}>✕</button>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            {storedDoc && (
+              <button
+                type="button"
+                onClick={() => window.open(getViewCorrectionSlipPdfUrl(callNo), '_blank')}
+                style={{
+                  padding: '6px 12px',
+                  background: '#ecfdf5',
+                  color: '#047857',
+                  border: '1px solid #a7f3d0',
+                  borderRadius: '6px',
+                  fontSize: '12.5px',
+                  fontWeight: '600',
+                  cursor: 'pointer',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '6px'
+                }}
+                title="View stored correction slip PDF in Azure"
+              >
+                📄 View Stored PDF
+              </button>
+            )}
+            <button onClick={onClose} style={{ background: 'none', border: 'none', color: '#9ca3af', fontSize: '20px', cursor: 'pointer', lineHeight: 1, borderRadius: '6px', padding: '4px 8px' }}>✕</button>
+          </div>
         </div>
 
         {/* Notification */}

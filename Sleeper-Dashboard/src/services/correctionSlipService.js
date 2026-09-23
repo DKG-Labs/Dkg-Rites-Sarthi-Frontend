@@ -1,7 +1,7 @@
 /**
- * Correction Slip Service for Sleeper-Dashboard
- * Handles save / fetch of Correction to Inspection Certificate data.
- * Falls back to localStorage for offline persistence.
+ * Correction Slip Service (Sleeper)
+ * Handles save / fetch / compression / upload of Correction to Inspection Certificate data and PDF.
+ * Stores PDFs in Azure container 'ic-correctionslip'.
  */
 
 import { API_BASE_URL } from './api';
@@ -9,28 +9,22 @@ import { API_BASE_URL } from './api';
 const LS_KEY_PREFIX = 'correctionSlip_';
 
 const getAuthHeaders = () => {
-  const token = localStorage.getItem('authToken') || localStorage.getItem('token');
+  const token = localStorage.getItem('authToken');
   return {
     'Content-Type': 'application/json',
     Authorization: token ? `Bearer ${token}` : '',
   };
 };
 
-const getEndpoint = () => `${API_BASE_URL.replace(/\/api\/?$/, '')}/api/correction-slip`;
+const getEndpoint = () => {
+  const base = (API_BASE_URL || '').replace(/\/api\/?$/, '');
+  return `${base}/api/correction-slip`;
+};
 
-/**
- * Save corrections for a call number.
- * Persists to localStorage immediately; also POSTs to backend.
- * @param {string} callNo
- * @param {Array<{columnName: string, readAs: string, insteadOf: string}>} rows
- * @param {string} createdBy  - username / userId
- * @returns {Promise<void>}
- */
 export const saveCorrectionSlip = async (callNo, rows, createdBy) => {
   if (!callNo) throw new Error('Call number is required.');
   if (!rows || rows.length === 0) throw new Error('At least one correction row is required.');
 
-  // Validate rows
   rows.forEach((row, idx) => {
     if (!row.columnName?.trim()) throw new Error(`Row ${idx + 1}: Column name is required.`);
     if (!row.readAs?.trim()) throw new Error(`Row ${idx + 1}: "Read As" value is required.`);
@@ -38,7 +32,7 @@ export const saveCorrectionSlip = async (callNo, rows, createdBy) => {
 
   const payload = {
     callNo,
-    createdBy: createdBy || localStorage.getItem('userId') || 'unknown',
+    createdBy: createdBy || 'unknown',
     rows: rows.map(r => ({
       columnName: r.columnName.trim(),
       readAs: r.readAs.trim(),
@@ -46,7 +40,6 @@ export const saveCorrectionSlip = async (callNo, rows, createdBy) => {
     })),
   };
 
-  // 1. Persist to localStorage immediately (survives refresh / logout)
   const stored = getLocalSlips(callNo);
   const merged = [...stored.filter(s => !rows.some(r => r.columnName === s.columnName)), ...payload.rows.map(r => ({
     ...r,
@@ -55,7 +48,6 @@ export const saveCorrectionSlip = async (callNo, rows, createdBy) => {
   }))];
   localStorage.setItem(`${LS_KEY_PREFIX}${callNo}`, JSON.stringify(merged));
 
-  // 2. Attempt backend save
   try {
     const response = await fetch(getEndpoint(), {
       method: 'POST',
@@ -74,12 +66,6 @@ export const saveCorrectionSlip = async (callNo, rows, createdBy) => {
   }
 };
 
-/**
- * Fetch corrections for a call number.
- * Prefers backend; falls back to localStorage.
- * @param {string} callNo
- * @returns {Promise<Array>}
- */
 export const fetchCorrectionSlip = async (callNo) => {
   if (!callNo) return [];
 
@@ -108,10 +94,71 @@ export const fetchCorrectionSlip = async (callNo) => {
   }
 };
 
+export const compressAndStoreCorrectionSlip = async (payload) => {
+  if (!payload?.callNo || !payload?.pdfBase64) {
+    throw new Error('Call number and PDF data are required for storing correction slip.');
+  }
+
+  const response = await fetch(`${getEndpoint()}/compress-and-store`, {
+    method: 'POST',
+    headers: getAuthHeaders(),
+    body: JSON.stringify(payload),
+  });
+
+  if (!response.ok) {
+    const errData = await response.json().catch(() => ({}));
+    throw new Error(errData.error || errData.message || `Failed to store correction slip (HTTP ${response.status})`);
+  }
+
+  return await response.json();
+};
+
+export const fetchCorrectionSlipDocument = async (callNo) => {
+  if (!callNo) return { exists: false };
+
+  try {
+    const response = await fetch(`${getEndpoint()}/document?callNo=${encodeURIComponent(callNo)}`, {
+      method: 'GET',
+      headers: getAuthHeaders(),
+    });
+
+    if (!response.ok) return { exists: false };
+    return await response.json();
+  } catch (e) {
+    console.warn('Could not fetch correction slip document:', e.message);
+    return { exists: false };
+  }
+};
+
+export const getViewCorrectionSlipPdfUrl = (callNo) => {
+  return `${getEndpoint()}/view-pdf/${encodeURIComponent(callNo)}`;
+};
+
+export const getDownloadCorrectionSlipPdfUrl = (callNo) => {
+  return `${getEndpoint()}/download-pdf/${encodeURIComponent(callNo)}`;
+};
+
 /**
- * Clear localStorage cache for a call number.
+ * Delete Correction Slip for a call number from backend and Azure.
  * @param {string} callNo
+ * @returns {Promise<Object>}
  */
+export const deleteCorrectionSlip = async (callNo) => {
+  if (!callNo) {
+    throw new Error('Call number is required to delete correction slip.');
+  }
+  clearCorrectionSlipCache(callNo);
+  const response = await fetch(`${getEndpoint()}?callNo=${encodeURIComponent(callNo)}`, {
+    method: 'DELETE',
+    headers: getAuthHeaders(),
+  });
+  if (!response.ok) {
+    const errData = await response.json().catch(() => ({}));
+    throw new Error(errData.error || errData.message || `Failed to delete correction slip (HTTP ${response.status})`);
+  }
+  return await response.json();
+};
+
 export const clearCorrectionSlipCache = (callNo) => {
   if (callNo) localStorage.removeItem(`${LS_KEY_PREFIX}${callNo}`);
 };

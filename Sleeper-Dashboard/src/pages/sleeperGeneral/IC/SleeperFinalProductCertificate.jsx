@@ -632,7 +632,7 @@ export default function SleeperFinalProductCertificate() {
       const timestamp = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}T${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}+05:30`;
       const txn = Math.random().toString(16).slice(2, 10).toUpperCase();
 
-      const sigCoords = calculateSignatureCoords(element, "395,160", "170,36");
+      const sigCoords = calculateSignatureCoords(element, "400,185", "180,50");
 
       const xmlRequest = `
         <request>
@@ -725,7 +725,7 @@ export default function SleeperFinalProductCertificate() {
       </style>
       <div className="no-print" style={{ display: "flex", justifyContent: "space-between", marginBottom: 12 }}>
         <button onClick={handleBack} className="btn btn-outline" style={{ padding: '8px 16px', borderRadius: '4px', border: '1px solid #ccc', cursor: 'pointer', background: 'white' }}>← Back</button>
-        <div style={{ display: "flex", gap: 8 }}>
+        <div style={{ display: "flex", gap: 8, alignItems: 'center' }}>
           <button
             onClick={isEditing ? handleSaveChanges : () => setIsEditing(true)}
             style={{ 

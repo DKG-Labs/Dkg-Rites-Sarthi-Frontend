@@ -8,8 +8,10 @@ import { getDetailedStatus } from '../utils/statusMapper';
 import { viewSignedCertificate } from '../services/certificateService';
 import { fetchClosedCallsForIC, getCurrentUserId } from '../services/workflowApiService';
 import AnnexureLoader from './annexures/AnnexureLoader';
+import AnnexureUploadModal from './AnnexureUploadModal';
 import CorrectionSlipModal from './CorrectionSlipModal';
 import Modal from './Modal';
+import { fetchCorrectionSlipDocument, getViewCorrectionSlipPdfUrl } from '../services/correctionSlipService';
 import axios from 'axios';
 import { getAuthHeaders, getStoredUser } from '../services/authService';
 import { API_BASE_URL } from '../services/apiConfig';
@@ -28,6 +30,7 @@ const ClosedCallsTab = ({ setSelectedCall, setCurrentPage }) => {
   const [selectedCategory, setSelectedCategory] = useState('Call Number');
   const [notificationMessage, setNotificationMessage] = useState('');
   const [notificationType, setNotificationType] = useState('error');
+  const [uploadAnnexureModal, setUploadAnnexureModal] = useState({ isOpen: false, call: null });
   const [filters, setFilters] = useState({
     productTypes: [],
     vendors: [],
@@ -587,8 +590,22 @@ const ClosedCallsTab = ({ setSelectedCall, setCurrentPage }) => {
 
                 {/* 2. Correction Slip */}
                 <button
-                  onClick={() => {
-                    setShowCorrectionSlipModal(true);
+                  onClick={async () => {
+                    const row = selectedActionCall;
+                    const callNo = row?.call_no || row?.callNo || row?.requestId;
+                    setSelectedActionCall(null);
+                    try {
+                      const doc = await fetchCorrectionSlipDocument(callNo);
+                      if (doc && doc.exists) {
+                        window.open(getViewCorrectionSlipPdfUrl(callNo), '_blank');
+                      } else {
+                        setNotificationMessage(`Correction slip not found for ${callNo}`);
+                        setNotificationType('warning');
+                      }
+                    } catch (err) {
+                      setNotificationMessage(`Correction slip not found for ${callNo}`);
+                      setNotificationType('warning');
+                    }
                   }}
                   style={{
                     display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '12px',
@@ -606,11 +623,12 @@ const ClosedCallsTab = ({ setSelectedCall, setCurrentPage }) => {
                     e.currentTarget.style.transform = 'translateY(0)';
                     e.currentTarget.style.boxShadow = '0 4px 6px -1px rgba(234, 88, 12, 0.1), 0 2px 4px -1px rgba(234, 88, 12, 0.06)'; 
                   }}
+                  title="View Correction Slip"
                 >
                   <div style={{ width: '48px', height: '48px', background: '#ffffff', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 2px 4px rgba(0,0,0,0.05)' }}>
                     <EditNoteRoundedIcon style={{ fontSize: '26px', color: '#ea580c' }} />
                   </div>
-                  <span style={{ fontWeight: '700', fontSize: '15px' }}>Correction Slip</span>
+                  <span style={{ fontWeight: '700', fontSize: '15px', textAlign: 'center', lineHeight: '1.2' }}>View Correction Slip</span>
                 </button>
 
                 {/* 3. Annexures */}
@@ -731,6 +749,37 @@ const ClosedCallsTab = ({ setSelectedCall, setCurrentPage }) => {
                   </div>
                   <span style={{ fontWeight: '700', fontSize: '15px' }}>{tcPdfLoading ? 'Downloading...' : 'TC Document'}</span>
                 </button>
+
+                {/* 7. View Uploaded Annexures and Other Docs */}
+                <button
+                  onClick={() => {
+                    const call = selectedActionCall;
+                    setSelectedActionCall(null);
+                    setUploadAnnexureModal({ isOpen: true, call });
+                  }}
+                  style={{
+                    display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '12px',
+                    padding: '24px 16px', background: 'linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%)',
+                    border: '1px solid #86efac', borderRadius: '16px',
+                    cursor: 'pointer', transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                    color: '#166534', width: '100%',
+                    boxShadow: '0 4px 6px -1px rgba(22, 101, 52, 0.1), 0 2px 4px -1px rgba(22, 101, 52, 0.06)'
+                  }}
+                  onMouseEnter={(e) => { 
+                    e.currentTarget.style.transform = 'translateY(-4px)';
+                    e.currentTarget.style.boxShadow = '0 10px 15px -3px rgba(22, 101, 52, 0.2), 0 4px 6px -2px rgba(22, 101, 52, 0.1)'; 
+                  }}
+                  onMouseLeave={(e) => { 
+                    e.currentTarget.style.transform = 'translateY(0)';
+                    e.currentTarget.style.boxShadow = '0 4px 6px -1px rgba(22, 101, 52, 0.1), 0 2px 4px -1px rgba(22, 101, 52, 0.06)'; 
+                  }}
+                  title="View uploaded annexures and other documents"
+                >
+                  <div style={{ width: '48px', height: '48px', background: '#ffffff', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 2px 4px rgba(0,0,0,0.05)' }}>
+                    <AttachmentRoundedIcon style={{ fontSize: '26px', color: '#16a34a' }} />
+                  </div>
+                  <span style={{ fontWeight: '700', fontSize: '15px', textAlign: 'center', lineHeight: '1.2' }}>View Uploaded Annexures & Docs</span>
+                </button>
               </div>
             </div>
           </div>
@@ -744,6 +793,7 @@ const ClosedCallsTab = ({ setSelectedCall, setCurrentPage }) => {
           onClose={() => setShowCorrectionSlipModal(false)}
           callNumber={selectedActionCall.call_no || selectedActionCall.callNumber || selectedActionCall.icNumber}
           row={selectedActionCall}
+          viewOnly={true}
         />
       )}
 
@@ -783,6 +833,19 @@ const ClosedCallsTab = ({ setSelectedCall, setCurrentPage }) => {
             )}
           </div>
         </Modal>
+      )}
+
+      {/* Annexure & Document Upload Modal (View-only for Closed calls) */}
+      {uploadAnnexureModal.isOpen && uploadAnnexureModal.call && (
+        <AnnexureUploadModal
+          isOpen={uploadAnnexureModal.isOpen}
+          onClose={() => setUploadAnnexureModal({ isOpen: false, call: null })}
+          callNo={uploadAnnexureModal.call.call_no || uploadAnnexureModal.call.callNo || uploadAnnexureModal.call.requestId}
+          icNumber={uploadAnnexureModal.call.ic_number || uploadAnnexureModal.call.icNo || ""}
+          moduleType={uploadAnnexureModal.call.product_type || "ERC"}
+          uploadedBy={getCurrentUserId() || "Inspecting Engineer"}
+          mode="view"
+        />
       )}
     </div>
   );

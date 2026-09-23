@@ -55,10 +55,6 @@ const DimensionalTesting = ({ type }) => {
                         }
                     }
 
-                    if (percentage >= 99.5) {
-                        percentage = 100;
-                    }
-
                     return {
                         ...batch,
                         // Ensure noOfSleepers always has a displayable value
@@ -114,13 +110,13 @@ const DimensionalTesting = ({ type }) => {
         const isTurnout = isTurnoutOrT45(batch.sleeperType, batch.sleeperCategory);
 
         if (type === 'visual') {
-            return pct >= 99.5 || pct >= 100;
+            return pct >= 100;
         } else if (type === 'critical') {
             return isTurnout ? pct >= 20 : pct >= 10;
         } else if (type === 'noncritical') {
             return isTurnout ? pct >= 5 : pct >= 1;
         }
-        return pct >= 99.5 || pct >= 100;
+        return pct >= 100;
     };
 
     const config = {
@@ -311,32 +307,32 @@ const DimensionalTesting = ({ type }) => {
             </div>
 
             {showForm && (
-                <div className="form-modal-overlay" onClick={() => setShowForm(false)}>
+                <div className="form-modal-overlay" onClick={() => { setShowForm(false); fetchBatches(); }}>
                     <div className="form-modal-container" onClick={e => e.stopPropagation()} style={{ maxWidth: (type === 'visual' || type === 'critical' || type === 'noncritical') ? '1200px' : '900px', width: '98%' }}>
                         <div className="form-modal-header">
                             <span className="form-modal-header-title">{currentConfig.title} - {(type === 'visual' || type === 'critical' || type === 'noncritical') ? 'Full Inspection Form' : 'Batch Detail'}</span>
-                            <button className="form-modal-close" onClick={() => setShowForm(false)}>✕</button>
+                            <button className="form-modal-close" onClick={() => { setShowForm(false); fetchBatches(); }}>✕</button>
                         </div>
                         <div className="form-modal-body" style={{ background: '#f8fafc' }}>
                             {type === 'visual' ? (
                                 <VisualInspectionForm
                                     batch={batchDetails}
                                     onSave={() => { setShowForm(false); fetchBatches(); }}
-                                    onCancel={() => setShowForm(false)}
+                                    onCancel={() => { setShowForm(false); fetchBatches(); }}
                                     shift={selectedShift}
                                 />
                             ) : type === 'critical' ? (
                                 <CriticalDimensionForm
                                     batch={batchDetails}
                                     onSave={() => { setShowForm(false); fetchBatches(); }}
-                                    onCancel={() => setShowForm(false)}
+                                    onCancel={() => { setShowForm(false); fetchBatches(); }}
                                     shift={selectedShift}
                                 />
                             ) : type === 'noncritical' ? (
                                 <NonCriticalDimensionForm
                                     batch={batchDetails}
                                     onSave={() => { setShowForm(false); fetchBatches(); }}
-                                    onCancel={() => setShowForm(false)}
+                                    onCancel={() => { setShowForm(false); fetchBatches(); }}
                                     shift={selectedShift}
                                 />
                             ) : (

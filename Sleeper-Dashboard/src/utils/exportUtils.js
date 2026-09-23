@@ -154,7 +154,7 @@ export async function exportToImage(element, filename = "certificate.png") {
  * Dynamically calculates the PDF (cood, size) coordinates for the eSign stamp
  * based on the actual rendered DOM position of the Inspecting Engineer box.
  */
-export function calculateSignatureCoords(containerElement, defaultCood = "410,165", defaultSize = "155,34") {
+export function calculateSignatureCoords(containerElement, defaultCood = "400,185", defaultSize = "180,50") {
   try {
     if (!containerElement) return { cood: defaultCood, size: defaultSize };
 
@@ -186,15 +186,15 @@ export function calculateSignatureCoords(containerElement, defaultCood = "410,16
     const boxWidthInPoints = widthRatio * pdfWidth;
     const boxHeightInPoints = heightRatio * pdfHeight;
 
-    // Standard eSign stamp size
-    const pdfW = Math.min(155, Math.max(120, Math.round(boxWidthInPoints - 16)));
-    const pdfH = 34;
+    // Increased eSign stamp size for clear readability and larger font
+    const pdfW = Math.min(185, Math.max(150, Math.round(boxWidthInPoints - 12)));
+    const pdfH = 50;
 
-    // Center horizontally inside the Inspecting Engineer cell
-    const pdfX = Math.round(leftRatio * pdfWidth) + Math.max(8, Math.round((boxWidthInPoints - pdfW) / 2));
+    // Position aligned with cell padding
+    const pdfX = Math.round(leftRatio * pdfWidth) + 6;
     
-    // Elevate vertically into the middle of the cell so it stays comfortably inside and never overflows the bottom border
-    const verticalElevation = Math.max(18, Math.round(boxHeightInPoints * 0.22));
+    // Elevate vertically towards the upper-middle of the cell just below the title
+    const verticalElevation = Math.max(34, Math.round(boxHeightInPoints * 0.38));
     const pdfY = Math.round(bottomRatio * pdfHeight) + verticalElevation;
 
     console.log(`📐 Dynamic Signature Coords Calculated: cood="${pdfX},${pdfY}", size="${pdfW},${pdfH}" (elevation: +${verticalElevation}pt)`);

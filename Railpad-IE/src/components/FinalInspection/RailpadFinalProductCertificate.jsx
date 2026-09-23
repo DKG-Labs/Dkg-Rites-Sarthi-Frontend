@@ -1225,7 +1225,6 @@ export default function RailpadFinalProductCertificate({ call = {}, onBack, isVi
           </div>
         </div>
       )}
-
     </div>
   );
 }

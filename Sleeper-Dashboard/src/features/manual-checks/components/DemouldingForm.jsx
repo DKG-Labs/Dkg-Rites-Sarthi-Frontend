@@ -136,7 +136,7 @@ const DemouldingForm = ({ onSave, onCancel, isLongLine, existingEntries = [], in
             })
             .map(d => {
                 const sleeperStr = String(d.sleeperNo || d.sequenceNo || d.sequence || "").trim();
-                const derivedBench = sleeperStr.match(/^\d+/)?.[0] || "";
+                const derivedBench = sleeperStr.match(/^(.*?)\s*[-/_]?\s*([A-Za-z]+)$/)?.[1]?.trim() || sleeperStr.match(/^([\d\s\-_/]+)/)?.[1]?.trim() || "";
                 const benchStr = String(d.benchGangNo || d.benchNo || "").trim() || derivedBench;
                 const seqStr = d.sequenceNo || d.sequence || sleeperStr;
 

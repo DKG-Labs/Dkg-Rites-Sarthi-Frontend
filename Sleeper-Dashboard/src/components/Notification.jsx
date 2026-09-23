@@ -5,8 +5,8 @@ const responsiveStyles = `
     position: fixed;
     top: 20px;
     right: 20px;
-    z-index: 10000;
-    max-width: 400px;
+    z-index: 999999;
+    max-width: 420px;
     width: calc(100% - 40px);
     pointer-events: none;
   }

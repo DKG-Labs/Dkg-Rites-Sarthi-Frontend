@@ -155,8 +155,9 @@ const AttendingCallDashboard = ({ mode }) => {
 
     useEffect(() => {
         let isMounted = true;
-        if (selectedActionCall) {
-            const callNo = selectedActionCall.requestId || selectedActionCall.call_no || selectedActionCall.callNo;
+        const targetCall = selectedActionCall || sendIbsCallRow;
+        if (targetCall) {
+            const callNo = targetCall.requestId || targetCall.call_no || targetCall.callNo || targetCall.id;
             if (callNo) {
                 setCheckingDocs(true);
                 getAnnexureDocuments(callNo, 'SLEEPER')
@@ -181,14 +182,11 @@ const AttendingCallDashboard = ({ mode }) => {
                 setHasUploadedDocs(false);
                 setCheckingDocs(false);
             }
-        } else {
-            setHasUploadedDocs(false);
-            setCheckingDocs(false);
         }
         return () => {
             isMounted = false;
         };
-    }, [selectedActionCall]);
+    }, [selectedActionCall, sendIbsCallRow]);
 
     const showNotification = (message, type = 'info') => {
         setNotification({ message, type });
@@ -255,12 +253,31 @@ const AttendingCallDashboard = ({ mode }) => {
 
     const handleConfirmSendToIbs = async () => {
         if (!sendIbsCallRow) return;
-        if (!hasUploadedDocs) {
-            showNotification('Document upload is mandatory before sending call to IBS. Please upload required documents first.', 'warning');
-            return;
-        }
         setIsSendingIbs(true);
         try {
+            const callNo = sendIbsCallRow.requestId || sendIbsCallRow.callNo || sendIbsCallRow.call_no || sendIbsCallRow.id;
+            
+            // Perform real-time validation for uploaded documents
+            let isDocAttached = hasUploadedDocs;
+            if (!isDocAttached && callNo) {
+                try {
+                    const res = await getAnnexureDocuments(callNo, 'SLEEPER');
+                    const docs = (res && res.success && Array.isArray(res.data)) ? res.data : [];
+                    isDocAttached = docs.length > 0;
+                    if (isDocAttached) {
+                        setHasUploadedDocs(true);
+                    }
+                } catch (e) {
+                    console.warn("Error checking documents before send to IBS:", e);
+                }
+            }
+
+            if (!isDocAttached) {
+                showNotification('Document upload is mandatory before sending call to IBS. Please upload required documents first.', 'warning');
+                setIsSendingIbs(false);
+                return;
+            }
+
             const user = getStoredUser();
             const userId = user?.userId || localStorage.getItem('userId');
             const payload = {
@@ -2323,13 +2340,61 @@ const AttendingCallDashboard = ({ mode }) => {
                                 </div>
                             </div>
 
-                            <div style={{ background: '#ffffff', padding: '10px 12px', borderRadius: '10px', border: '1px solid #edf2f7' }}>
+                            <div style={{ background: '#ffffff', padding: '10px 12px', borderRadius: '10px', border: '1px solid #edf2f7', marginBottom: '14px' }}>
                                 <div style={{ fontSize: '10.5px', fontWeight: '700', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '4px' }}>
                                     Vendor
                                 </div>
                                 <div style={{ fontSize: '13px', fontWeight: '600', color: '#334155', lineHeight: 1.4 }}>
                                     {sendIbsCallRow.vendorName || sendIbsCallRow.vendorCode || '-'}
                                 </div>
+                            </div>
+
+                            <div style={{ 
+                                background: hasUploadedDocs ? '#f0fdf4' : '#fffbeb', 
+                                padding: '10px 14px', 
+                                borderRadius: '10px', 
+                                border: hasUploadedDocs ? '1px solid #86efac' : '1px solid #fde68a',
+                                display: 'flex', 
+                                alignItems: 'center', 
+                                justifyContent: 'space-between',
+                                gap: '10px'
+                            }}>
+                                <div>
+                                    <div style={{ fontSize: '10.5px', fontWeight: '700', color: hasUploadedDocs ? '#166534' : '#92400e', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '2px' }}>
+                                        Attached Document Status
+                                    </div>
+                                    <div style={{ fontSize: '13px', fontWeight: '700', color: hasUploadedDocs ? '#15803d' : '#b45309', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                        {checkingDocs ? (
+                                            <span style={{ color: '#64748b', fontWeight: '600' }}>Checking uploaded documents...</span>
+                                        ) : hasUploadedDocs ? (
+                                            <>✓ Document Uploaded & Verified</>
+                                        ) : (
+                                            <>⚠️ Document Not Uploaded</>
+                                        )}
+                                    </div>
+                                </div>
+                                {!hasUploadedDocs && !checkingDocs && (
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            const call = sendIbsCallRow;
+                                            setUploadAnnexureModal({ isOpen: true, call, mode: 'upload' });
+                                        }}
+                                        style={{
+                                            padding: '6px 12px',
+                                            borderRadius: '6px',
+                                            border: '1px solid #16a34a',
+                                            background: '#16a34a',
+                                            color: '#ffffff',
+                                            fontWeight: '700',
+                                            fontSize: '12px',
+                                            cursor: 'pointer',
+                                            whiteSpace: 'nowrap'
+                                        }}
+                                    >
+                                        Upload Document
+                                    </button>
+                                )}
                             </div>
                         </div>
 

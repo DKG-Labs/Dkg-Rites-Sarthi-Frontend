@@ -217,33 +217,57 @@ export const uploadAnnexureDocument = async (file, callNo, icNumber, moduleType,
     headers['Authorization'] = `Bearer ${token}`;
   }
 
-  const url = `${API_BASE_URL.replace('/api', '')}/api/ic-annexures/upload`;
+  const base = API_BASE_URL.endsWith('/api') ? API_BASE_URL : `${API_BASE_URL}/api`;
+  const url = `${base}/ic-annexures/upload`;
   const response = await fetch(url, {
     method: 'POST',
     headers,
     body: formData
   });
 
+  const contentType = response.headers.get('content-type') || '';
   if (!response.ok) {
-    const errorData = await response.json().catch(() => ({}));
-    throw new Error(errorData.message || `Upload failed with status: ${response.status}`);
+    let errMsg = `Upload failed with status: ${response.status}`;
+    if (contentType.includes('application/json')) {
+      const errorData = await response.json().catch(() => ({}));
+      if (errorData.message) errMsg = errorData.message;
+    }
+    throw new Error(errMsg);
   }
-  return await response.json();
+  if (contentType.includes('application/json')) {
+    return await response.json();
+  }
+  return { success: true, message: 'Document uploaded' };
 };
 
 /**
  * Get list of uploaded Annexure documents for an Inspection Call
  */
 export const getAnnexureDocuments = async (callNo, moduleType) => {
-  const token = localStorage.getItem('authToken') || localStorage.getItem('token');
-  const headers = {
-    'Content-Type': 'application/json',
-    ...(token ? { 'Authorization': `Bearer ${token}` } : {})
-  };
-  const url = `${API_BASE_URL.replace('/api', '')}/api/ic-annexures/list?callNo=${encodeURIComponent(callNo)}&moduleType=${encodeURIComponent(moduleType || '')}`;
-  const response = await fetch(url, { method: 'GET', headers });
-  if (!response.ok) throw new Error('Failed to fetch annexures');
-  return await response.json();
+  if (!callNo) return { success: true, data: [] };
+  try {
+    const token = localStorage.getItem('authToken') || localStorage.getItem('token');
+    const headers = {
+      'Content-Type': 'application/json',
+      ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+    };
+    const base = API_BASE_URL.endsWith('/api') ? API_BASE_URL : `${API_BASE_URL}/api`;
+    const url = `${base}/ic-annexures/list?callNo=${encodeURIComponent(callNo)}&moduleType=${encodeURIComponent(moduleType || 'SLEEPER')}`;
+    const response = await fetch(url, { method: 'GET', headers });
+    if (!response.ok) {
+      console.warn(`[getAnnexureDocuments] HTTP ${response.status} from ${url}`);
+      return { success: false, data: [] };
+    }
+    const contentType = response.headers.get('content-type') || '';
+    if (!contentType.includes('application/json')) {
+      console.warn(`[getAnnexureDocuments] Non-JSON response received from ${url}:`, contentType);
+      return { success: false, data: [] };
+    }
+    return await response.json();
+  } catch (err) {
+    console.error('Failed to load annexures:', err);
+    return { success: false, data: [] };
+  }
 };
 
 /**
@@ -255,10 +279,22 @@ export const deleteAnnexureDocument = async (id, requestedBy) => {
     'Content-Type': 'application/json',
     ...(token ? { 'Authorization': `Bearer ${token}` } : {})
   };
-  const url = `${API_BASE_URL.replace('/api', '')}/api/ic-annexures/${id}?requestedBy=${encodeURIComponent(requestedBy || '')}`;
+  const base = API_BASE_URL.endsWith('/api') ? API_BASE_URL : `${API_BASE_URL}/api`;
+  const url = `${base}/ic-annexures/${id}?requestedBy=${encodeURIComponent(requestedBy || '')}`;
   const response = await fetch(url, { method: 'DELETE', headers });
-  if (!response.ok) throw new Error('Failed to delete annexure');
-  return await response.json();
+  const contentType = response.headers.get('content-type') || '';
+  if (!response.ok) {
+    let errMsg = `Failed to delete annexure (${response.status})`;
+    if (contentType.includes('application/json')) {
+      const errData = await response.json().catch(() => ({}));
+      if (errData.message) errMsg = errData.message;
+    }
+    throw new Error(errMsg);
+  }
+  if (contentType.includes('application/json')) {
+    return await response.json();
+  }
+  return { success: true, message: 'Deleted successfully' };
 };
 
 /**
@@ -266,7 +302,8 @@ export const deleteAnnexureDocument = async (id, requestedBy) => {
  */
 export const viewAnnexureDocument = async (id, fileName) => {
   const token = localStorage.getItem('authToken') || localStorage.getItem('token');
-  const url = `${API_BASE_URL.replace('/api', '')}/api/ic-annexures/download/${id}`;
+  const base = API_BASE_URL.endsWith('/api') ? API_BASE_URL : `${API_BASE_URL}/api`;
+  const url = `${base}/ic-annexures/download/${id}`;
   const response = await fetch(url, {
     method: 'GET',
     headers: {

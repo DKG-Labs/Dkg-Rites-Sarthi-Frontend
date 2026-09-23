@@ -8,7 +8,7 @@ import AnnexureUploadModal from '../../../components/AnnexureUploadModal';
 import './AttendingCallDashboard.css';
 import { apiService, API_BASE_URL } from '../../../services/api';
 import { getStoredUser } from '../../../services/authService';
-import { viewSignedCertificate } from '../../../services/certificateService';
+import { viewSignedCertificate, getAnnexureDocuments } from '../../../services/certificateService';
 import { useShift } from '../../../context/ShiftContext';
 import { generateCallLetterPDF } from '../../../utils/generateCallLetterPDF';
 import { fetchCorrectionSlipDocument, getViewCorrectionSlipPdfUrl } from '../../../services/correctionSlipService';
@@ -150,6 +150,45 @@ const AttendingCallDashboard = ({ mode }) => {
     const [expandedActions, setExpandedActions] = useState({});
     const [notification, setNotification] = useState({ message: '', type: 'info' });
     const [uploadAnnexureModal, setUploadAnnexureModal] = useState({ isOpen: false, call: null });
+    const [hasUploadedDocs, setHasUploadedDocs] = useState(false);
+    const [checkingDocs, setCheckingDocs] = useState(false);
+
+    useEffect(() => {
+        let isMounted = true;
+        if (selectedActionCall) {
+            const callNo = selectedActionCall.requestId || selectedActionCall.call_no || selectedActionCall.callNo;
+            if (callNo) {
+                setCheckingDocs(true);
+                getAnnexureDocuments(callNo, 'SLEEPER')
+                    .then(res => {
+                        if (isMounted) {
+                            const docs = (res && res.success && Array.isArray(res.data)) ? res.data : [];
+                            setHasUploadedDocs(docs.length > 0);
+                        }
+                    })
+                    .catch(err => {
+                        if (isMounted) {
+                            console.warn("Could not check annexures for call:", err);
+                            setHasUploadedDocs(false);
+                        }
+                    })
+                    .finally(() => {
+                        if (isMounted) {
+                            setCheckingDocs(false);
+                        }
+                    });
+            } else {
+                setHasUploadedDocs(false);
+                setCheckingDocs(false);
+            }
+        } else {
+            setHasUploadedDocs(false);
+            setCheckingDocs(false);
+        }
+        return () => {
+            isMounted = false;
+        };
+    }, [selectedActionCall]);
 
     const showNotification = (message, type = 'info') => {
         setNotification({ message, type });
@@ -216,6 +255,10 @@ const AttendingCallDashboard = ({ mode }) => {
 
     const handleConfirmSendToIbs = async () => {
         if (!sendIbsCallRow) return;
+        if (!hasUploadedDocs) {
+            showNotification('Document upload is mandatory before sending call to IBS. Please upload required documents first.', 'warning');
+            return;
+        }
         setIsSendingIbs(true);
         try {
             const user = getStoredUser();
@@ -660,24 +703,26 @@ const AttendingCallDashboard = ({ mode }) => {
 
     const handleViewDetails = async (call) => {
         try {
-            const summaryRes = await apiService.getInspectionCallSummary(call.requestId);
+            const summaryRes = await apiService.getInspectionCallSummary(call.requestId || call.callNo || call.id);
             if (summaryRes && summaryRes.responseData) {
-                setPopupCall({
+                const s = summaryRes.responseData;
+                setSelectedActionCall({
                     ...call,
-                    po: summaryRes.responseData.poNo || call.requestId,
-                    sleeperType: summaryRes.responseData.sleeperType || '-',
-                    qty: summaryRes.responseData.qtyOfferedNow || 0,
-                    accepted: summaryRes.responseData.totalAccepted || 0,
-                    rejected: summaryRes.responseData.totalRejected || 0
+                    poNo: s.poNo || call.poNo || call.requestId,
+                    rlyPoSrNo: call.rlyPoSrNo || s.poNo || call.poNo,
+                    sleeperType: s.sleeperType || call.sleeperType || call.productType || 'Sleeper',
+                    qty: s.qtyOfferedNow ?? call.offeredQty ?? call.totalOffered ?? 0,
+                    accepted: s.totalAccepted ?? 0,
+                    rejected: s.totalRejected ?? 0,
+                    isIssuance: true
                 });
             } else {
-                setPopupCall(call);
+                setSelectedActionCall({ ...call, isIssuance: true });
             }
         } catch (e) {
             console.error("Error fetching popup call details:", e);
-            setPopupCall(call);
+            setSelectedActionCall({ ...call, isIssuance: true });
         }
-        setShowDetailsPopup(true);
     };
 
     const handleDownloadSignedIC = async (call) => {
@@ -1135,25 +1180,33 @@ const AttendingCallDashboard = ({ mode }) => {
                                                         {call.jobStatus || call.status}
                                                     </span>
                                                 </td>
-                                                <td>
-                                                    <div className="table-actions-modern" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                                                        <button
-                                                            className="btn-actions-modern"
-                                                            onClick={() => handleActionClick(call)}
-                                                            style={{
-                                                                padding: '6px 12px',
-                                                                borderRadius: '6px',
-                                                                border: 'none',
-                                                                background: '#2563eb',
-                                                                color: '#ffffff',
-                                                                fontSize: '11px',
+                                                <td style={{ textAlign: 'center', whiteSpace: 'nowrap' }}>
+                                                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                                        <button 
+                                                            style={{ 
+                                                                display: 'inline-flex',
+                                                                alignItems: 'center',
+                                                                gap: '6px',
+                                                                padding: '6px 14px',
                                                                 fontWeight: '700',
+                                                                fontSize: '12px',
+                                                                borderRadius: '8px',
+                                                                background: 'linear-gradient(135deg, #0284c7 0%, #0369a1 100%)',
+                                                                color: '#ffffff',
+                                                                border: 'none',
                                                                 cursor: 'pointer',
-                                                                boxShadow: '0 1px 2px rgba(37, 99, 235, 0.2)',
-                                                                whiteSpace: 'nowrap'
+                                                                boxShadow: '0 2px 6px rgba(2, 132, 199, 0.25)',
+                                                                whiteSpace: 'nowrap',
+                                                                transition: 'all 0.15s ease'
                                                             }}
+                                                            onClick={() => handleViewDetails(call)}
+                                                            title="View Call Actions"
                                                         >
-                                                            VIEW ACTIONS
+                                                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                                                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                                                                <circle cx="12" cy="12" r="3"></circle>
+                                                            </svg>
+                                                            View Actions
                                                         </button>
                                                     </div>
                                                 </td>
@@ -1258,7 +1311,7 @@ const AttendingCallDashboard = ({ mode }) => {
                                                             title="View Call Actions"
                                                         >
                                                             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                                                                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8z"></path>
+                                                                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
                                                                 <circle cx="12" cy="12" r="3"></circle>
                                                             </svg>
                                                             View Actions
@@ -1372,7 +1425,7 @@ const AttendingCallDashboard = ({ mode }) => {
                                                             title="View Call Actions"
                                                         >
                                                             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                                                                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8z"></path>
+                                                                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
                                                                 <circle cx="12" cy="12" r="3"></circle>
                                                             </svg>
                                                             View Actions
@@ -1389,7 +1442,8 @@ const AttendingCallDashboard = ({ mode }) => {
                 )}
             </div>
 
-            {showDetailsPopup && (
+            {/* Legacy details popup disabled */}
+            {false && (
                 <div className="modal-overlay" onClick={() => setShowDetailsPopup(false)}>
                     <div className="modal-content" onClick={e => e.stopPropagation()}>
                         <div className="modal-header">
@@ -1657,21 +1711,41 @@ const AttendingCallDashboard = ({ mode }) => {
                                     <div>
                                         <label style={{ fontSize: '11px', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: '700', marginBottom: '2px', display: 'block' }}>Product Type</label>
                                         <div style={{ display: 'inline-block', background: '#e0f2fe', color: '#0284c7', padding: '3px 10px', borderRadius: '20px', fontSize: '13px', fontWeight: '600' }}>
-                                            Sleeper
+                                            {selectedActionCall.sleeperType || selectedActionCall.productType || 'Sleeper'}
                                         </div>
                                     </div>
                                     <div>
                                         <label style={{ fontSize: '11px', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: '700', marginBottom: '2px', display: 'block' }}>Status</label>
                                         <div style={{ display: 'inline-block', background: '#f1f5f9', color: '#475569', padding: '3px 10px', borderRadius: '20px', fontSize: '13px', fontWeight: '600' }}>
-                                            {selectedActionCall.status || (selectedActionCall.isClosed ? 'Closed' : 'Completed')}
+                                            {selectedActionCall.jobStatus || selectedActionCall.status || (selectedActionCall.isClosed ? 'Closed' : (selectedActionCall.isIssuance ? 'IC Issue' : 'Completed'))}
                                         </div>
                                     </div>
-                                    <div>
-                                        <label style={{ fontSize: '11px', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: '700', marginBottom: '2px', display: 'block' }}>IBS Status</label>
+                                    {(selectedActionCall.qty !== undefined || selectedActionCall.offeredQty !== undefined || selectedActionCall.totalOffered !== undefined) && (
                                         <div>
-                                            {renderIbsStatusBadge(selectedActionCall)}
+                                            <label style={{ fontSize: '11px', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: '700', marginBottom: '2px', display: 'block' }}>Total Offered</label>
+                                            <div style={{ fontWeight: '700', fontSize: '15px', color: '#0f172a' }}>{selectedActionCall.qty ?? selectedActionCall.offeredQty ?? selectedActionCall.totalOffered ?? '-'}</div>
                                         </div>
-                                    </div>
+                                    )}
+                                    {(selectedActionCall.accepted !== undefined || selectedActionCall.totalAccepted !== undefined) && (
+                                        <div>
+                                            <label style={{ fontSize: '11px', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: '700', marginBottom: '2px', display: 'block' }}>Accepted</label>
+                                            <div style={{ fontWeight: '700', fontSize: '15px', color: '#16a34a' }}>{selectedActionCall.accepted ?? selectedActionCall.totalAccepted ?? '-'}</div>
+                                        </div>
+                                    )}
+                                    {(selectedActionCall.rejected !== undefined || selectedActionCall.totalRejected !== undefined) && (
+                                        <div>
+                                            <label style={{ fontSize: '11px', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: '700', marginBottom: '2px', display: 'block' }}>Rejected</label>
+                                            <div style={{ fontWeight: '700', fontSize: '15px', color: '#dc2626' }}>{selectedActionCall.rejected ?? selectedActionCall.totalRejected ?? '-'}</div>
+                                        </div>
+                                    )}
+                                    {!selectedActionCall.isIssuance && activeTab !== 'issuance' && (
+                                        <div>
+                                            <label style={{ fontSize: '11px', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: '700', marginBottom: '2px', display: 'block' }}>IBS Status</label>
+                                            <div>
+                                                {renderIbsStatusBadge(selectedActionCall)}
+                                            </div>
+                                        </div>
+                                    )}
                                     {(selectedActionCall.caseNo || selectedActionCall.ibsCaseNo) && (
                                         <div>
                                             <label style={{ fontSize: '11px', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: '700', marginBottom: '2px', display: 'block' }}>IBS Case Number</label>
@@ -1688,6 +1762,156 @@ const AttendingCallDashboard = ({ mode }) => {
                             </h3>
                             
                             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: '14px' }}>
+                                {(selectedActionCall.isIssuance || activeTab === 'issuance') ? (
+                                    <>
+                                        {/* 1. Issue IC / View IC */}
+                                        <button
+                                            onClick={() => {
+                                                const row = selectedActionCall;
+                                                setSelectedActionCall(null);
+                                                handleIssueIC(row);
+                                            }}
+                                            style={{
+                                                display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '8px',
+                                                padding: '16px 12px', background: 'linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%)',
+                                                border: '1px solid #a7f3d0', borderRadius: '14px',
+                                                cursor: 'pointer', transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                                                color: '#059669', width: '100%',
+                                                boxShadow: '0 4px 6px -1px rgba(5, 150, 105, 0.1), 0 2px 4px -1px rgba(5, 150, 105, 0.06)'
+                                            }}
+                                            onMouseEnter={(e) => { 
+                                                e.currentTarget.style.transform = 'translateY(-3px)';
+                                                e.currentTarget.style.boxShadow = '0 10px 15px -3px rgba(5, 150, 105, 0.2), 0 4px 6px -2px rgba(5, 150, 105, 0.1)'; 
+                                            }}
+                                            onMouseLeave={(e) => { 
+                                                e.currentTarget.style.transform = 'translateY(0)';
+                                                e.currentTarget.style.boxShadow = '0 4px 6px -1px rgba(5, 150, 105, 0.1), 0 2px 4px -1px rgba(5, 150, 105, 0.06)'; 
+                                            }}
+                                        >
+                                            <div style={{ width: '42px', height: '42px', background: '#ffffff', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 2px 4px rgba(0,0,0,0.05)' }}>
+                                                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#059669" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+                                            </div>
+                                            <span style={{ fontWeight: '700', fontSize: '14px' }}>
+                                                {(selectedActionCall.jobStatus === 'IC_ISSUE' || selectedActionCall.status === 'IC_ISSUE') ? 'View IC' : 'Issue IC'}
+                                            </span>
+                                        </button>
+
+                                        {/* 2. Back to Inspection */}
+                                        <button
+                                            onClick={() => {
+                                                const call = selectedActionCall;
+                                                setSelectedActionCall(null);
+                                                handleBackToInspection(call);
+                                            }}
+                                            style={{
+                                                display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '8px',
+                                                padding: '16px 12px', background: 'linear-gradient(135deg, #fff7ed 0%, #ffedd5 100%)',
+                                                border: '1px solid #fed7aa', borderRadius: '14px',
+                                                cursor: 'pointer', transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                                                color: '#c2410c', width: '100%',
+                                                boxShadow: '0 4px 6px -1px rgba(194, 65, 12, 0.1), 0 2px 4px -1px rgba(194, 65, 12, 0.06)'
+                                            }}
+                                            onMouseEnter={(e) => { 
+                                                e.currentTarget.style.transform = 'translateY(-3px)';
+                                                e.currentTarget.style.boxShadow = '0 10px 15px -3px rgba(194, 65, 12, 0.2), 0 4px 6px -2px rgba(194, 65, 12, 0.1)'; 
+                                            }}
+                                            onMouseLeave={(e) => { 
+                                                e.currentTarget.style.transform = 'translateY(0)';
+                                                e.currentTarget.style.boxShadow = '0 4px 6px -1px rgba(194, 65, 12, 0.1), 0 2px 4px -1px rgba(194, 65, 12, 0.06)'; 
+                                            }}
+                                            title="Revert call back to Inspection stage"
+                                        >
+                                            <div style={{ width: '42px', height: '42px', background: '#ffffff', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 2px 4px rgba(0,0,0,0.05)' }}>
+                                                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#c2410c" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><polyline points="1 4 1 10 7 10"></polyline><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"></path></svg>
+                                            </div>
+                                            <span style={{ fontWeight: '700', fontSize: '14px' }}>Back to Inspection</span>
+                                        </button>
+
+                                        {/* 4. Call Letter */}
+                                        <button
+                                            onClick={() => handleDownloadLetter(selectedActionCall)}
+                                            disabled={pdfLoading}
+                                            style={{
+                                                display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '8px',
+                                                padding: '16px 12px', background: 'linear-gradient(135deg, #ecfeff 0%, #cffafe 100%)',
+                                                border: '1px solid #a5f3fc', borderRadius: '14px',
+                                                cursor: pdfLoading ? 'not-allowed' : 'pointer', transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                                                color: '#0891b2', width: '100%',
+                                                boxShadow: '0 4px 6px -1px rgba(8, 145, 178, 0.1), 0 2px 4px -1px rgba(8, 145, 178, 0.06)'
+                                            }}
+                                            onMouseEnter={(e) => { 
+                                                if(!pdfLoading) { 
+                                                     e.currentTarget.style.transform = 'translateY(-3px)';
+                                                     e.currentTarget.style.boxShadow = '0 10px 15px -3px rgba(8, 145, 178, 0.2), 0 4px 6px -2px rgba(8, 145, 178, 0.1)'; 
+                                                }
+                                            }}
+                                            onMouseLeave={(e) => { 
+                                                if(!pdfLoading) { 
+                                                     e.currentTarget.style.transform = 'translateY(0)';
+                                                     e.currentTarget.style.boxShadow = '0 4px 6px -1px rgba(8, 145, 178, 0.1), 0 2px 4px -1px rgba(8, 145, 178, 0.06)'; 
+                                                }
+                                            }}
+                                        >
+                                            <div style={{ width: '42px', height: '42px', background: '#ffffff', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 2px 4px rgba(0,0,0,0.05)' }}>
+                                                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#0891b2" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                                            </div>
+                                            <span style={{ fontWeight: '700', fontSize: '14px' }}>{pdfLoading ? 'Generating...' : 'Call Letter'}</span>
+                                        </button>
+
+                                        {/* 5. PO & MA */}
+                                        <button
+                                            onClick={() => downloadPoDoc(selectedActionCall)}
+                                            style={{
+                                                display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '8px',
+                                                padding: '16px 12px', background: 'linear-gradient(135deg, #f3e8ff 0%, #e9d5ff 100%)',
+                                                border: '1px solid #d8b4fe', borderRadius: '14px',
+                                                cursor: 'pointer', transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                                                color: '#7e22ce', width: '100%',
+                                                boxShadow: '0 4px 6px -1px rgba(126, 34, 206, 0.1), 0 2px 4px -1px rgba(126, 34, 206, 0.06)'
+                                            }}
+                                            onMouseEnter={(e) => { 
+                                                e.currentTarget.style.transform = 'translateY(-3px)';
+                                                e.currentTarget.style.boxShadow = '0 10px 15px -3px rgba(126, 34, 206, 0.2), 0 4px 6px -2px rgba(126, 34, 206, 0.1)'; 
+                                            }}
+                                            onMouseLeave={(e) => { 
+                                                e.currentTarget.style.transform = 'translateY(0)';
+                                                e.currentTarget.style.boxShadow = '0 4px 6px -1px rgba(126, 34, 206, 0.1), 0 2px 4px -1px rgba(126, 34, 206, 0.06)'; 
+                                            }}
+                                        >
+                                            <div style={{ width: '42px', height: '42px', background: '#ffffff', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 2px 4px rgba(0,0,0,0.05)' }}>
+                                                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#7e22ce" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+                                            </div>
+                                            <span style={{ fontWeight: '700', fontSize: '14px' }}>PO & MA</span>
+                                        </button>
+
+                                        {/* 6. Download Annexures */}
+                                        <button
+                                            onClick={() => handleDownloadAnnexures(selectedActionCall)}
+                                            style={{
+                                                display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '8px',
+                                                padding: '16px 12px', background: 'linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%)',
+                                                border: '1px solid #bae6fd', borderRadius: '14px',
+                                                cursor: 'pointer', transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                                                color: '#0284c7', width: '100%',
+                                                boxShadow: '0 4px 6px -1px rgba(2, 132, 199, 0.1), 0 2px 4px -1px rgba(2, 132, 199, 0.06)'
+                                            }}
+                                            onMouseEnter={(e) => { 
+                                                e.currentTarget.style.transform = 'translateY(-3px)';
+                                                e.currentTarget.style.boxShadow = '0 10px 15px -3px rgba(2, 132, 199, 0.2), 0 4px 6px -2px rgba(2, 132, 199, 0.1)'; 
+                                            }}
+                                            onMouseLeave={(e) => { 
+                                                e.currentTarget.style.transform = 'translateY(0)';
+                                                e.currentTarget.style.boxShadow = '0 4px 6px -1px rgba(2, 132, 199, 0.1), 0 2px 4px -1px rgba(2, 132, 199, 0.06)'; 
+                                            }}
+                                        >
+                                            <div style={{ width: '42px', height: '42px', background: '#ffffff', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 2px 4px rgba(0,0,0,0.05)' }}>
+                                                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#0284c7" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                                            </div>
+                                            <span style={{ fontWeight: '700', fontSize: '14px' }}>Download Annexures</span>
+                                        </button>
+                                    </>
+                                ) : (
+                                    <>
                                 {/* 1. View IC */}
                                 <button
                                     onClick={() => {
@@ -1721,31 +1945,60 @@ const AttendingCallDashboard = ({ mode }) => {
                                 {!selectedActionCall.isClosed && activeTab !== 'closed' && (
                                     <button
                                         onClick={() => {
+                                            if (!hasUploadedDocs || checkingDocs) return;
                                             const row = selectedActionCall;
                                             setSelectedActionCall(null);
                                             setSendIbsCallRow(row);
                                         }}
+                                        disabled={!hasUploadedDocs || checkingDocs}
                                         style={{
-                                            display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '8px',
-                                            padding: '16px 12px', background: 'linear-gradient(135deg, #dcfce7 0%, #bbf7d0 100%)',
-                                            border: '1px solid #86efac', borderRadius: '14px',
-                                            cursor: 'pointer', transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-                                            color: '#15803d', width: '100%',
-                                            boxShadow: '0 4px 6px -1px rgba(21, 128, 61, 0.1), 0 2px 4px -1px rgba(21, 128, 61, 0.06)'
+                                            display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '6px',
+                                            padding: '16px 12px', 
+                                            background: (!hasUploadedDocs || checkingDocs) 
+                                                ? '#f8fafc' 
+                                                : 'linear-gradient(135deg, #dcfce7 0%, #bbf7d0 100%)',
+                                            border: (!hasUploadedDocs || checkingDocs) ? '1.5px dashed #cbd5e1' : '1px solid #86efac', 
+                                            borderRadius: '14px',
+                                            cursor: (!hasUploadedDocs || checkingDocs) ? 'not-allowed' : 'pointer', 
+                                            transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                                            color: (!hasUploadedDocs || checkingDocs) ? '#94a3b8' : '#15803d', 
+                                            width: '100%',
+                                            opacity: (!hasUploadedDocs || checkingDocs) ? 0.7 : 1,
+                                            boxShadow: (!hasUploadedDocs || checkingDocs) ? 'none' : '0 4px 6px -1px rgba(21, 128, 61, 0.1), 0 2px 4px -1px rgba(21, 128, 61, 0.06)'
                                         }}
                                         onMouseEnter={(e) => { 
-                                            e.currentTarget.style.transform = 'translateY(-3px)';
-                                            e.currentTarget.style.boxShadow = '0 10px 15px -3px rgba(21, 128, 61, 0.2), 0 4px 6px -2px rgba(21, 128, 61, 0.1)'; 
+                                            if (hasUploadedDocs && !checkingDocs) {
+                                                e.currentTarget.style.transform = 'translateY(-3px)';
+                                                e.currentTarget.style.boxShadow = '0 10px 15px -3px rgba(21, 128, 61, 0.2), 0 4px 6px -2px rgba(21, 128, 61, 0.1)'; 
+                                            }
                                         }}
                                         onMouseLeave={(e) => { 
-                                            e.currentTarget.style.transform = 'translateY(0)';
-                                            e.currentTarget.style.boxShadow = '0 4px 6px -1px rgba(21, 128, 61, 0.1), 0 2px 4px -1px rgba(21, 128, 61, 0.06)'; 
+                                            if (hasUploadedDocs && !checkingDocs) {
+                                                e.currentTarget.style.transform = 'translateY(0)';
+                                                e.currentTarget.style.boxShadow = '0 4px 6px -1px rgba(21, 128, 61, 0.1), 0 2px 4px -1px rgba(21, 128, 61, 0.06)'; 
+                                            }
                                         }}
+                                        title={checkingDocs ? "Checking uploaded documents..." : (!hasUploadedDocs ? "Upload document is mandatory before sending call to IBS" : "Send call to IBS")}
                                     >
-                                        <div style={{ width: '42px', height: '42px', background: '#ffffff', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 2px 4px rgba(0,0,0,0.05)' }}>
-                                            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#15803d" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+                                        <div style={{ 
+                                            width: '42px', height: '42px', 
+                                            background: (!hasUploadedDocs || checkingDocs) ? '#f1f5f9' : '#ffffff', 
+                                            borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', 
+                                            boxShadow: '0 2px 4px rgba(0,0,0,0.05)' 
+                                        }}>
+                                            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={(!hasUploadedDocs || checkingDocs) ? '#94a3b8' : '#15803d'} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
                                         </div>
                                         <span style={{ fontWeight: '700', fontSize: '14px' }}>Send call to IBS</span>
+                                        {(!hasUploadedDocs && !checkingDocs) && (
+                                            <span style={{ fontSize: '9.5px', color: '#dc2626', fontWeight: '800', marginTop: '-2px', background: '#fee2e2', padding: '2px 6px', borderRadius: '4px' }}>
+                                                Upload Doc Required
+                                            </span>
+                                        )}
+                                        {checkingDocs && (
+                                            <span style={{ fontSize: '9.5px', color: '#64748b', fontWeight: '600', marginTop: '-2px' }}>
+                                                Checking Docs...
+                                            </span>
+                                        )}
                                     </button>
                                 )}
 
@@ -1925,6 +2178,8 @@ const AttendingCallDashboard = ({ mode }) => {
                                         </div>
                                         <span style={{ fontWeight: '700', fontSize: '14px' }}>Back to Issuance of IC</span>
                                     </button>
+                                )}
+                                    </>
                                 )}
                             </div>
                         </div>
@@ -2427,7 +2682,16 @@ const AttendingCallDashboard = ({ mode }) => {
             {uploadAnnexureModal.isOpen && uploadAnnexureModal.call && (
                 <AnnexureUploadModal
                     isOpen={uploadAnnexureModal.isOpen}
-                    onClose={() => setUploadAnnexureModal({ isOpen: false, call: null })}
+                    onClose={() => {
+                        const currentCall = uploadAnnexureModal.call;
+                        setUploadAnnexureModal({ isOpen: false, call: null });
+                        if (currentCall) {
+                            setSelectedActionCall(currentCall);
+                        }
+                    }}
+                    onUploadSuccess={() => {
+                        setHasUploadedDocs(true);
+                    }}
                     callNo={uploadAnnexureModal.call.requestId || uploadAnnexureModal.call.callNo || uploadAnnexureModal.call.call_no}
                     icNumber={uploadAnnexureModal.call.icNumber || uploadAnnexureModal.call.icNo || ""}
                     moduleType="SLEEPER"

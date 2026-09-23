@@ -134,6 +134,12 @@ const WaterCubeTesting = () => {
         try {
             const currentPlant = dutyUnit || localStorage.getItem('dutyUnit');
 
+            const isSamePlant = (itemPlant, targetPlant) => {
+                if (!targetPlant) return true;
+                if (!itemPlant) return false;
+                return String(itemPlant).replace(':', '').trim().toLowerCase() === String(targetPlant).replace(':', '').trim().toLowerCase();
+            };
+
             // 1. Fetch all 3 endpoints concurrently
             const [prodData, sampleData, testData] = await Promise.all([
                 getProductionDeclarations().catch(() => []),
@@ -141,10 +147,10 @@ const WaterCubeTesting = () => {
                 getAllWaterCubeTests().catch(() => [])
             ]);
 
-            // Filter by current plant
-            const plantTests = (testData || []).filter(t => !currentPlant || !t.plantId || t.plantId === currentPlant);
-            const plantSamples = (sampleData || []).filter(s => !currentPlant || !s.plantId || s.plantId === currentPlant);
-            const plantProds = (prodData || []).filter(p => !currentPlant || !p.plantId || p.plantId === currentPlant);
+            // Filter strictly by current plant (normalizing colons and preventing null plantId from leaking to all plants)
+            const plantTests = (testData || []).filter(t => isSamePlant(t.plantId, currentPlant));
+            const plantSamples = (sampleData || []).filter(s => isSamePlant(s.plantId, currentPlant));
+            const plantProds = (prodData || []).filter(p => isSamePlant(p.plantId, currentPlant));
 
             // ==========================================
             // SECTION 3: LIST OF TESTING DONE

@@ -66,16 +66,37 @@ const VisualInspectionForm = ({ batch, onSave, onCancel, shift }) => {
         const typeLower = (batch?.sleeperType || '').toLowerCase();
         const isSingleBenchType = ['pnc', 'turnout', 'dc', 'scc', 'curved', 'dcs', 'ds'].some(kw => typeLower.includes(kw));
 
-        // Deduplicate by s.id (unique DB sleeperId) to handle duplicate DB records,
-        // while preserving all distinct sleeper items returned by backend (even if sleeperNo repeats).
-        const seen = new Set();
-        return mapped.filter(s => {
-            const key = s.id;
-            if (seen.has(key)) return false;
-            seen.add(key);
-            return true;
+        // Deduplicate by unique displayNo / sleeperNo, prioritizing passed/rejected status over duplicate pending records
+        const sleeperMap = new Map();
+        mapped.forEach(s => {
+            const key = String(s.displayNo || s.sleeperNo || s.id || '').trim().toUpperCase();
+            if (!key) return;
+            if (!sleeperMap.has(key)) {
+                sleeperMap.set(key, s);
+            } else {
+                const existing = sleeperMap.get(key);
+                if (existing.status === 'pending' && s.status !== 'pending') {
+                    sleeperMap.set(key, s);
+                }
+            }
         });
+        return Array.from(sleeperMap.values());
     }, [batch]);
+
+    const deriveBenchFromSleeper = (sleeperNo) => {
+        if (!sleeperNo) return null;
+        const str = String(sleeperNo).trim();
+        // Match everything before trailing letter(s) (e.g. "5 71A" -> "5 71", "1088A" -> "1088", "10 70A" -> "10 70")
+        const suffixMatch = str.match(/^(.*?)\s*[-/_]?\s*([A-Za-z]+)$/);
+        if (suffixMatch && suffixMatch[1] && suffixMatch[1].trim()) {
+            return suffixMatch[1].trim();
+        }
+        const numMatch = str.match(/^([\d\s\-_/]+)/);
+        if (numMatch && numMatch[1] && numMatch[1].trim()) {
+            return numMatch[1].trim();
+        }
+        return str;
+    };
 
     const [sleepers, setSleepers] = useState(initialSleepers);
     const [searchTerm, setSearchTerm] = useState('');
@@ -102,8 +123,8 @@ const VisualInspectionForm = ({ batch, onSave, onCancel, shift }) => {
             if (isSingleBenchType) {
                 b = defaultBenchName;
             } else {
-                const derivedBench = s.displayNo ? String(s.displayNo).match(/^\d+/)?.[0] : null;
-                b = s.benchNo || derivedBench || 'Batch Items';
+                const derivedBench = deriveBenchFromSleeper(s.displayNo || s.sleeperNo);
+                b = derivedBench || s.benchNo || 'Batch Items';
             }
             if (!groups[b]) groups[b] = [];
             groups[b].push(s);
@@ -184,7 +205,7 @@ const VisualInspectionForm = ({ batch, onSave, onCancel, shift }) => {
             // DESELECTING: If it's already inspected (status passed/rejected), 
             // check if it belongs to this specific module (1 for Visual)
             if (sleeper.status !== 'pending') {
-                if (sleeper.moduleId !== 1) {
+                if (sleeper.moduleId && sleeper.moduleId !== 1) {
                     const moduleMap = { 2: 'Critical Dimensions', 3: 'Non-Critical Dimensions', 4: 'Demoulding' };
                     alert(`Cannot deselect: This sleeper was inspected in ${moduleMap[sleeper.moduleId] || 'another module'}. You can only deselect Visual and Check Measurements sleepers here.`);
                     return;
@@ -202,8 +223,8 @@ const VisualInspectionForm = ({ batch, onSave, onCancel, shift }) => {
                         shift: shift || 'General',
                         createdBy: parseInt(localStorage.getItem('userId') || '118', 10),
                         sleepers: [{
-                            sleeperId: id,
-                            sleeperNo: sleeper.displayNo,
+                            sleeperId: typeof sleeper.sleeperId === 'number' ? sleeper.sleeperId : (typeof id === 'number' ? id : null),
+                            sleeperNo: sleeper.displayNo || sleeper.sleeperNo,
                             result: 'PENDING',
                             rejectionReason: '',
                             parameters: []
@@ -213,6 +234,18 @@ const VisualInspectionForm = ({ batch, onSave, onCancel, shift }) => {
                     
                     setSleepers(prev => prev.map(s => s.id === id ? { ...s, status: 'pending', moduleId: null } : s));
                     setSelectedSleepers(prev => prev.filter(sid => sid !== id));
+                    setSectionStates(prev => {
+                        const updated = { ...prev };
+                        Object.keys(updated).forEach(secId => {
+                            if (updated[secId].failedSleepers.includes(id)) {
+                                updated[secId] = {
+                                    ...updated[secId],
+                                    failedSleepers: updated[secId].failedSleepers.filter(fid => fid !== id)
+                                };
+                            }
+                        });
+                        return updated;
+                    });
                 } catch (error) {
                     toast.error('Failed to reset sleeper status: ' + error.message);
                 } finally {
@@ -223,8 +256,9 @@ const VisualInspectionForm = ({ batch, onSave, onCancel, shift }) => {
                 setSelectedSleepers(prev => prev.filter(sid => sid !== id));
             }
         } else {
-            // Selecting: Just add to current selection state
+            // Selecting: Add to current selection state and mark passed
             setSelectedSleepers(prev => [...prev, id]);
+            setSleepers(prev => prev.map(s => s.id === id ? { ...s, status: 'passed' } : s));
         }
     };
 
@@ -272,8 +306,8 @@ const VisualInspectionForm = ({ batch, onSave, onCancel, shift }) => {
                     shift: shift || 'General',
                     createdBy: parseInt(localStorage.getItem('userId') || '118', 10),
                     sleepers: filteredPassedSleepers.map(s => ({
-                        sleeperId: s.id,
-                        sleeperNo: s.displayNo,
+                        sleeperId: typeof s.sleeperId === 'number' ? s.sleeperId : (typeof s.id === 'number' ? s.id : null),
+                        sleeperNo: s.displayNo || s.sleeperNo,
                         result: 'PENDING',
                         rejectionReason: '',
                         parameters: []
@@ -320,8 +354,8 @@ const VisualInspectionForm = ({ batch, onSave, onCancel, shift }) => {
                     shift: shift || 'General',
                     createdBy: parseInt(localStorage.getItem('userId') || '118', 10),
                     sleepers: filteredRejectedSleepers.map(s => ({
-                        sleeperId: s.id,
-                        sleeperNo: s.displayNo,
+                        sleeperId: typeof s.sleeperId === 'number' ? s.sleeperId : (typeof s.id === 'number' ? s.id : null),
+                        sleeperNo: s.displayNo || s.sleeperNo,
                         result: 'PENDING',
                         rejectionReason: '',
                         parameters: []
@@ -426,25 +460,22 @@ const VisualInspectionForm = ({ batch, onSave, onCancel, shift }) => {
                     }
                 });
 
-                if (isRejected) return { ...sleeper, status: 'rejected' };
+                if (isRejected) return { ...sleeper, status: 'rejected', moduleId: 1 };
                 
-                // ROBUST UI RULE: If a sleeper was already rejected (in any module), 
-                // it must stay visually rejected. It can only be cleared by explicitly 
-                // resetting it to Pending via the confirmation toggle.
-                const originalSleeper = initialSleepers.find(s => s.id === sleeper.id);
-                if (originalSleeper?.status === 'rejected') {
-                    return { ...sleeper, status: 'rejected' };
+                // If a sleeper is already rejected in another module and not reset, keep it rejected
+                if (sleeper.status === 'rejected' && sleeper.moduleId && sleeper.moduleId !== 1) {
+                    return sleeper;
                 }
 
-                // FIX: Only sleepers currently selected for verification can move to 'passed'
+                // FIX: Only sleepers currently selected for verification move to 'passed'
                 if (selectedSleepers.includes(sleeper.id)) {
                     return { ...sleeper, status: 'passed' };
                 }
 
-                // If not selected and not rejected, it stays in its original state (usually 'pending')
+                // If not selected, it stays in its current status ('pending' if deselected/pending, or 'rejected')
                 return { 
                     ...sleeper, 
-                    status: originalSleeper?.status?.toLowerCase() === 'passed' ? 'passed' : 'pending' 
+                    status: sleeper.status === 'rejected' ? 'rejected' : 'pending' 
                 };
             });
         });
@@ -586,8 +617,8 @@ const VisualInspectionForm = ({ batch, onSave, onCancel, shift }) => {
                     }
 
                     return {
-                        sleeperId: s.id,
-                        sleeperNo: s.displayNo,
+                        sleeperId: typeof s.sleeperId === 'number' ? s.sleeperId : (typeof s.id === 'number' ? s.id : null),
+                        sleeperNo: s.displayNo || s.sleeperNo,
                         result: isRejected ? 'REJECTED' : 'OK',
                         rejectionReason: rejectionReason.trim().replace(/;$/, ''),
                         parameters: sleeperParams
@@ -795,11 +826,7 @@ const VisualInspectionForm = ({ batch, onSave, onCancel, shift }) => {
                                                             
                                                             {sectionStates[s.id].result === 'partial-ok' && (
                                                                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
-                                                                    {sleepers.filter(sl => {
-                                                                        if (!selectedSleepers.includes(sl.id)) return false;
-                                                                        const originalSleeper = initialSleepers.find(x => x.id === sl.id);
-                                                                        return originalSleeper && originalSleeper.status === 'pending';
-                                                                    }).map(sl => {
+                                                                    {sleepers.filter(sl => selectedSleepers.includes(sl.id)).map(sl => {
                                                                         const isRejectedElsewhere = sections.some(otherSect => 
                                                                             otherSect.id !== s.id && 
                                                                             (sectionStates[otherSect.id].result === 'all-rejected' || sectionStates[otherSect.id].failedSleepers.includes(sl.id))

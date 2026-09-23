@@ -67,16 +67,37 @@ const CriticalDimensionForm = ({ batch, onSave, onCancel, shift }) => {
         const typeLower = (batch?.sleeperType || '').toLowerCase();
         const isSingleBenchType = ['pnc', 'turnout', 'dc', 'scc', 'curved', 'dcs', 'ds'].some(kw => typeLower.includes(kw));
 
-        // Deduplicate by s.id (unique DB sleeperId) to handle duplicate DB records,
-        // while preserving all distinct sleeper items returned by backend (even if sleeperNo repeats).
-        const seen = new Set();
-        return mapped.filter(s => {
-            const key = s.id;
-            if (seen.has(key)) return false;
-            seen.add(key);
-            return true;
+        // Deduplicate by unique displayNo / sleeperNo, prioritizing passed/rejected status over duplicate pending records
+        const sleeperMap = new Map();
+        mapped.forEach(s => {
+            const key = String(s.displayNo || s.sleeperNo || s.id || '').trim().toUpperCase();
+            if (!key) return;
+            if (!sleeperMap.has(key)) {
+                sleeperMap.set(key, s);
+            } else {
+                const existing = sleeperMap.get(key);
+                if (!existing.isRejected && !existing.isAlreadyPassed && (s.isRejected || s.isAlreadyPassed)) {
+                    sleeperMap.set(key, s);
+                }
+            }
         });
+        return Array.from(sleeperMap.values());
     }, [batch]);
+
+    const deriveBenchFromSleeper = (sleeperNo) => {
+        if (!sleeperNo) return null;
+        const str = String(sleeperNo).trim();
+        // Match everything before trailing letter(s) (e.g. "5 71A" -> "5 71", "1088A" -> "1088", "10 70A" -> "10 70")
+        const suffixMatch = str.match(/^(.*?)\s*[-/_]?\s*([A-Za-z]+)$/);
+        if (suffixMatch && suffixMatch[1] && suffixMatch[1].trim()) {
+            return suffixMatch[1].trim();
+        }
+        const numMatch = str.match(/^([\d\s\-_/]+)/);
+        if (numMatch && numMatch[1] && numMatch[1].trim()) {
+            return numMatch[1].trim();
+        }
+        return str;
+    };
 
     const [selectedSleepers, setSelectedSleepers] = useState(() => 
         // Initial select: both OK and REJECTED ones.
@@ -117,8 +138,8 @@ const CriticalDimensionForm = ({ batch, onSave, onCancel, shift }) => {
             if (isSingleBenchType) {
                 b = defaultBenchName;
             } else {
-                const derivedBench = s.displayNo ? String(s.displayNo).match(/^\d+/)?.[0] : null;
-                b = s.benchNo || derivedBench || 'Batch Items';
+                const derivedBench = deriveBenchFromSleeper(s.displayNo || s.sleeperNo);
+                b = derivedBench || s.benchNo || 'Batch Items';
             }
             if (!groups[b]) groups[b] = [];
             groups[b].push(s);
@@ -191,14 +212,14 @@ const CriticalDimensionForm = ({ batch, onSave, onCancel, shift }) => {
     };
 
     const toggleSleeperSelection = async (id) => {
-        const sleeper = allSleepersPool.find(s => s.id === id);
+        const sleeper = displaySleepers.find(s => s.id === id) || allSleepersPool.find(s => s.id === id);
         const isCurrentlySelected = selectedSleepers.includes(id);
 
         if (isCurrentlySelected) {
             // DESELECTING: If it's already inspected (status passed/rejected), 
             // check if it belongs to this specific module (2 for Critical)
-            if (sleeper.isAlreadyPassed || sleeper.isRejected) {
-                if (sleeper.moduleId !== 2) {
+            if (sleeper.currentStatus !== 'pending' && (sleeper.isAlreadyPassed || sleeper.isRejected || sleeper.currentStatus === 'passed' || sleeper.currentStatus === 'rejected')) {
+                if (sleeper.moduleId && sleeper.moduleId !== 2) {
                     const moduleMap = { 1: 'Visual and Check Measurements', 3: 'Non-Critical Dimensions', 4: 'Demoulding' };
                     toast.error(`Cannot deselect: This sleeper was inspected in ${moduleMap[sleeper.moduleId] || 'another module'}. You can only deselect Critical Dimensions here.`);
                     return;
@@ -216,8 +237,8 @@ const CriticalDimensionForm = ({ batch, onSave, onCancel, shift }) => {
                         shift: shift || 'General',
                         createdBy: parseInt(localStorage.getItem('userId') || '118', 10),
                         sleepers: [{
-                            sleeperId: id,
-                            sleeperNo: sleeper.displayNo,
+                            sleeperId: typeof sleeper.sleeperId === 'number' ? sleeper.sleeperId : (typeof id === 'number' ? id : null),
+                            sleeperNo: sleeper.displayNo || sleeper.sleeperNo,
                             result: 'PENDING',
                             rejectionReason: '',
                             parameters: []
@@ -225,13 +246,13 @@ const CriticalDimensionForm = ({ batch, onSave, onCancel, shift }) => {
                     };
                     await apiService.updateInspectionSleepers(payload);
                     
-                    // Reset selection locally (re-calling onSave to refresh from API is also an option)
                     setSelectedSleepers(prev => prev.filter(sid => sid !== id));
-                    setDisplaySleepers(prev => prev.map(s => s.id === id ? { ...s, currentStatus: 'pending' } : s));
-                    // Note: In this component, we rely on the parent (onSave/refresh) to truly clear status 
-                    // or we'd need to convert allSleepersPool into state. 
-                    // Let's force a refresh by alerting user and closing? 
-                    // Better: The User will see it moved out of selection, and next time we open the form, it's pending.
+                    setDisplaySleepers(prev => prev.map(s => s.id === id ? { ...s, currentStatus: 'pending', isAlreadyPassed: false, isRejected: false, moduleId: null } : s));
+                    setRejectionDetails(prev => {
+                        const copy = { ...prev };
+                        delete copy[id];
+                        return copy;
+                    });
                     toast.success(`Sleeper ${sleeper.displayNo} reset successfully.`);
                 } catch (error) {
                     toast.error('Failed to reset sleeper status: ' + error.message);
@@ -244,6 +265,7 @@ const CriticalDimensionForm = ({ batch, onSave, onCancel, shift }) => {
             }
         } else {
             setSelectedSleepers(prev => [...prev, id]);
+            setDisplaySleepers(prev => prev.map(s => s.id === id ? { ...s, currentStatus: overallResult === 'all-rejected' ? 'rejected' : 'passed' } : s));
         }
     };
 
@@ -291,8 +313,8 @@ const CriticalDimensionForm = ({ batch, onSave, onCancel, shift }) => {
                     shift: shift || 'General',
                     createdBy: parseInt(localStorage.getItem('userId') || '118', 10),
                     sleepers: filteredPassedSleepers.map(s => ({
-                        sleeperId: s.id,
-                        sleeperNo: s.displayNo,
+                        sleeperId: typeof s.sleeperId === 'number' ? s.sleeperId : (typeof s.id === 'number' ? s.id : null),
+                        sleeperNo: s.displayNo || s.sleeperNo,
                         result: 'PENDING',
                         rejectionReason: '',
                         parameters: []
@@ -339,8 +361,8 @@ const CriticalDimensionForm = ({ batch, onSave, onCancel, shift }) => {
                     shift: shift || 'General',
                     createdBy: parseInt(localStorage.getItem('userId') || '118', 10),
                     sleepers: filteredRejectedSleepers.map(s => ({
-                        sleeperId: s.id,
-                        sleeperNo: s.displayNo,
+                        sleeperId: typeof s.sleeperId === 'number' ? s.sleeperId : (typeof s.id === 'number' ? s.id : null),
+                        sleeperNo: s.displayNo || s.sleeperNo,
                         result: 'PENDING',
                         rejectionReason: '',
                         parameters: []
@@ -408,7 +430,6 @@ const CriticalDimensionForm = ({ batch, onSave, onCancel, shift }) => {
         }
 
         setDisplaySleepers(prev => prev.map(sleeper => {
-            if (sleeper.isRejected) return { ...sleeper, currentStatus: 'rejected' };
             if (!selectedSleepers.includes(sleeper.id)) return sleeper;
 
             if (result === 'all-rejected') return { ...sleeper, currentStatus: 'rejected', moduleId: 2 };
@@ -502,16 +523,11 @@ const CriticalDimensionForm = ({ batch, onSave, onCancel, shift }) => {
                 shift: shift || 'General',
                 createdBy: parseInt(localStorage.getItem('userId') || '118', 10),
                 sleepers: selectedSleepers
-                    .filter(sid => {
-                        const s = allSleepersPool.find(x => x.id === sid);
-                        return !!s;
-                    })
                     .map(sid => {
-                    const sleeper = allSleepersPool.find(s => s.id === sid);
+                    const sleeper = displaySleepers.find(s => s.id === sid) || allSleepersPool.find(s => s.id === sid);
+                    if (!sleeper) return null;
                     
-                    // A sleeper is rejected if it's currently marked as rejected in the form UI,
-                    // OR if it was already rejected and has not been explicitly reset to Pending.
-                    let isRejected = !!rejectionDetails[sid] || (sleeper.isRejected);
+                    let isRejected = overallResult === 'all-rejected' || !!rejectionDetails[sid] || (sleeper.currentStatus === 'rejected');
                     let rejectionMsg = isRejected ? (rejectionDetails[sid]?.mainReason ? `${rejectionDetails[sid].mainReason}: ${rejectionDetails[sid].subReason}` : (sleeper.rejectionReason || 'Previously Rejected')) : '';
 
                     const sleeperParams = parametersToCheck.map(p => ({
@@ -520,13 +536,14 @@ const CriticalDimensionForm = ({ batch, onSave, onCancel, shift }) => {
                     }));
 
                     return {
-                        sleeperId: sid,
-                        sleeperNo: sleeper.displayNo,
+                        sleeperId: typeof sleeper.sleeperId === 'number' ? sleeper.sleeperId : (typeof sid === 'number' ? sid : null),
+                        sleeperNo: sleeper.displayNo || sleeper.sleeperNo,
                         result: isRejected ? 'REJECTED' : 'OK',
                         rejectionReason: rejectionMsg,
                         parameters: sleeperParams
                     };
                 })
+                .filter(Boolean)
             };
 
             await apiService.saveFinalInspection(payload);
@@ -701,10 +718,8 @@ const CriticalDimensionForm = ({ batch, onSave, onCancel, shift }) => {
 
                             {overallResult === 'partial-ok' && (
                                 <div className="rejection-sleepers-row">
-                                    {selectedSleepers.filter(sid => {
-                                        const s = allSleepersPool.find(x => x.id === sid);
-                                        return s && !s.isAlreadyPassed && !s.isRejected;
-                                    }).map(sid => {
+                                    {selectedSleepers.map(sid => {
+                                        const s = displaySleepers.find(x => x.id === sid) || allSleepersPool.find(x => x.id === sid);
                                         const isRejected = !!rejectionDetails[sid];
                                         return (
                                             <button
@@ -718,7 +733,7 @@ const CriticalDimensionForm = ({ batch, onSave, onCancel, shift }) => {
                                                     color: isRejected ? '#991b1b' : '#64748b'
                                                 }}
                                             >
-                                                {allSleepersPool.find(s => s.id === sid)?.displayNo}
+                                                {s?.displayNo}
                                             </button>
                                         );
                                     })}

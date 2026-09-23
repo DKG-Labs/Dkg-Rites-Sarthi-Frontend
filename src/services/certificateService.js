@@ -780,16 +780,30 @@ export const uploadAnnexureDocument = async (file, callNo, icNumber, moduleType,
  * Get list of uploaded Annexure documents for an Inspection Call
  */
 export const getAnnexureDocuments = async (callNo, moduleType) => {
-  const token = localStorage.getItem('authToken') || localStorage.getItem('token');
-  const headers = {
-    'Content-Type': 'application/json',
-    ...(token ? { 'Authorization': `Bearer ${token}` } : {})
-  };
-  const backendOrigin = API_BASE_URL.replace(/\/api\/.*$/, '').replace(/\/api$/, '');
-  const url = `${backendOrigin}/api/ic-annexures/list?callNo=${encodeURIComponent(callNo)}&moduleType=${encodeURIComponent(moduleType || '')}`;
-  const response = await fetch(url, { method: 'GET', headers });
-  if (!response.ok) throw new Error('Failed to fetch annexures');
-  return await response.json();
+  if (!callNo) return { success: true, data: [] };
+  try {
+    const token = localStorage.getItem('authToken') || localStorage.getItem('token');
+    const headers = {
+      'Content-Type': 'application/json',
+      ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+    };
+    const backendOrigin = API_BASE_URL.replace(/\/api\/.*$/, '').replace(/\/api$/, '');
+    const url = `${backendOrigin}/api/ic-annexures/list?callNo=${encodeURIComponent(callNo)}&moduleType=${encodeURIComponent(moduleType || '')}`;
+    const response = await fetch(url, { method: 'GET', headers });
+    if (!response.ok) {
+      console.warn(`[getAnnexureDocuments] HTTP ${response.status} from ${url}`);
+      return { success: false, data: [] };
+    }
+    const contentType = response.headers.get('content-type') || '';
+    if (!contentType.includes('application/json')) {
+      console.warn(`[getAnnexureDocuments] Non-JSON response received from ${url}:`, contentType);
+      return { success: false, data: [] };
+    }
+    return await response.json();
+  } catch (err) {
+    console.error('Failed to load annexures:', err);
+    return { success: false, data: [] };
+  }
 };
 
 /**

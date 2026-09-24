@@ -52,6 +52,22 @@ const isPlantMatching = (callPlantId, allowedPlantList) => {
     });
 };
 
+const isSetOrTurnout = (sleeperType, uom) => {
+    const u = String(uom || '').toUpperCase();
+    if (u.includes('SET')) return true;
+    const st = String(sleeperType || '').toUpperCase();
+    return st.includes('SET') || st.includes('PNC') || st.includes('TURNOUT') || st.includes('4865') || st.includes('9790') || st.includes('4218') || st.includes('4732') || st.includes('DERAIL');
+};
+
+const getEffectiveUom = (call) => {
+    if (!call) return 'Nos.';
+    const rawUom = call.uom || call.unit || call.callUnit;
+    if (rawUom && rawUom.toUpperCase().includes('SET')) return 'Set';
+    const type = call.sleeperType || call.productType || call.product_type;
+    if (isSetOrTurnout(type, rawUom)) return 'Set';
+    return rawUom || 'Nos.';
+};
+
 const AttendingCallDashboard = ({ mode }) => {
     const { dutyUnit } = useShift();
     const [internalActiveTab, setInternalActiveTab] = useState(() => {
@@ -1092,7 +1108,7 @@ const AttendingCallDashboard = ({ mode }) => {
                                                 <td style={{ whiteSpace: 'nowrap' }}>{call.callDate ? new Date(call.callDate).toLocaleDateString('en-GB') : (call.createdDate ? new Date(call.createdDate).toLocaleDateString('en-GB') : '-')}</td>
                                                 <td style={{ color: '#ea580c', fontWeight: '600', whiteSpace: 'nowrap' }}>{call.desiredInspectionDate ? new Date(call.desiredInspectionDate).toLocaleDateString('en-GB') : '-'}</td>
                                                 <td style={{ fontWeight: '600', whiteSpace: 'nowrap' }}>
-                                                    {call.offeredQty ?? call.totalOffered ?? '-'} {call.offeredQty || call.totalOffered ? (call.uom || 'Nos.') : ''}
+                                                    {call.offeredQty ?? call.totalOffered ?? '-'} {call.offeredQty || call.totalOffered ? getEffectiveUom(call) : ''}
                                                 </td>
                                                 <td style={{ color: '#2563eb', fontWeight: '600', whiteSpace: 'nowrap' }}>
                                                     {call.scheduleDate ? new Date(call.scheduleDate).toLocaleDateString('en-GB') : (call.scheduledDate ? new Date(call.scheduledDate).toLocaleDateString('en-GB') : '-')}
@@ -1740,7 +1756,9 @@ const AttendingCallDashboard = ({ mode }) => {
                                     {(selectedActionCall.qty !== undefined || selectedActionCall.offeredQty !== undefined || selectedActionCall.totalOffered !== undefined) && (
                                         <div>
                                             <label style={{ fontSize: '11px', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: '700', marginBottom: '2px', display: 'block' }}>Total Offered</label>
-                                            <div style={{ fontWeight: '700', fontSize: '15px', color: '#0f172a' }}>{selectedActionCall.qty ?? selectedActionCall.offeredQty ?? selectedActionCall.totalOffered ?? '-'}</div>
+                                            <div style={{ fontWeight: '700', fontSize: '15px', color: '#0f172a' }}>
+                                                {selectedActionCall.qty ?? selectedActionCall.offeredQty ?? selectedActionCall.totalOffered ?? '-'} {getEffectiveUom(selectedActionCall)}
+                                            </div>
                                         </div>
                                     )}
                                     {(selectedActionCall.accepted !== undefined || selectedActionCall.totalAccepted !== undefined) && (

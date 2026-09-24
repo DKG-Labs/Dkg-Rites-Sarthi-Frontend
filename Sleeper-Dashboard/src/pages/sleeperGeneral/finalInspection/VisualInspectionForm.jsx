@@ -54,9 +54,10 @@ const VisualInspectionForm = ({ batch, onSave, onCancel, shift }) => {
 
         const mapped = rawList.map(s => {
             const statusUpper = s.status?.toUpperCase() || 'PENDING';
+            const uniqueId = s.sleeperId ? String(s.sleeperId) : (s.benchNo ? `${s.benchNo}_${s.sleeperNo}` : (s.id || s.sleeperNo));
             return {
                 ...s,
-                id: s.sleeperId || s.sleeperNo,
+                id: uniqueId,
                 displayNo: s.sleeperNo || s.sleeperId,
                 status: statusUpper === 'REJECTED' ? 'rejected' : 
                         (statusUpper === 'OK' || statusUpper === 'PASSED' ? 'passed' : 'pending')
@@ -66,10 +67,10 @@ const VisualInspectionForm = ({ batch, onSave, onCancel, shift }) => {
         const typeLower = (batch?.sleeperType || '').toLowerCase();
         const isSingleBenchType = ['pnc', 'turnout', 'dc', 'scc', 'curved', 'dcs', 'ds'].some(kw => typeLower.includes(kw));
 
-        // Deduplicate by unique displayNo / sleeperNo, prioritizing passed/rejected status over duplicate pending records
+        // Deduplicate only when records share the exact same sleeperId / bench identity
         const sleeperMap = new Map();
         mapped.forEach(s => {
-            const key = String(s.displayNo || s.sleeperNo || s.id || '').trim().toUpperCase();
+            const key = String(s.id || '').trim().toUpperCase();
             if (!key) return;
             if (!sleeperMap.has(key)) {
                 sleeperMap.set(key, s);
@@ -119,12 +120,13 @@ const VisualInspectionForm = ({ batch, onSave, onCancel, shift }) => {
 
         const groups = {};
         list.forEach(s => {
-            let b;
-            if (isSingleBenchType) {
-                b = defaultBenchName;
-            } else {
-                const derivedBench = deriveBenchFromSleeper(s.displayNo || s.sleeperNo);
-                b = derivedBench || s.benchNo || 'Batch Items';
+            let b = s.benchNo;
+            if (!b) {
+                if (isSingleBenchType) {
+                    b = defaultBenchName;
+                } else {
+                    b = deriveBenchFromSleeper(s.displayNo || s.sleeperNo) || 'Batch Items';
+                }
             }
             if (!groups[b]) groups[b] = [];
             groups[b].push(s);
@@ -223,7 +225,7 @@ const VisualInspectionForm = ({ batch, onSave, onCancel, shift }) => {
                         shift: shift || 'General',
                         createdBy: parseInt(localStorage.getItem('userId') || '118', 10),
                         sleepers: [{
-                            sleeperId: typeof sleeper.sleeperId === 'number' ? sleeper.sleeperId : (typeof id === 'number' ? id : null),
+                            sleeperId: !isNaN(Number(sleeper.sleeperId ?? id)) && Number(sleeper.sleeperId ?? id) > 0 ? Number(sleeper.sleeperId ?? id) : null,
                             sleeperNo: sleeper.displayNo || sleeper.sleeperNo,
                             result: 'PENDING',
                             rejectionReason: '',
@@ -305,13 +307,16 @@ const VisualInspectionForm = ({ batch, onSave, onCancel, shift }) => {
                     sleeperType: batch.sleeperType,
                     shift: shift || 'General',
                     createdBy: parseInt(localStorage.getItem('userId') || '118', 10),
-                    sleepers: filteredPassedSleepers.map(s => ({
-                        sleeperId: typeof s.sleeperId === 'number' ? s.sleeperId : (typeof s.id === 'number' ? s.id : null),
-                        sleeperNo: s.displayNo || s.sleeperNo,
-                        result: 'PENDING',
-                        rejectionReason: '',
-                        parameters: []
-                    }))
+                    sleepers: filteredPassedSleepers.map(s => {
+                        const sidNum = Number(s.sleeperId ?? s.id);
+                        return {
+                            sleeperId: !isNaN(sidNum) && sidNum > 0 ? sidNum : null,
+                            sleeperNo: s.displayNo || s.sleeperNo,
+                            result: 'PENDING',
+                            rejectionReason: '',
+                            parameters: []
+                        };
+                    })
                 };
                 await apiService.updateInspectionSleepers(payload);
                 
@@ -353,13 +358,16 @@ const VisualInspectionForm = ({ batch, onSave, onCancel, shift }) => {
                     sleeperType: batch.sleeperType,
                     shift: shift || 'General',
                     createdBy: parseInt(localStorage.getItem('userId') || '118', 10),
-                    sleepers: filteredRejectedSleepers.map(s => ({
-                        sleeperId: typeof s.sleeperId === 'number' ? s.sleeperId : (typeof s.id === 'number' ? s.id : null),
-                        sleeperNo: s.displayNo || s.sleeperNo,
-                        result: 'PENDING',
-                        rejectionReason: '',
-                        parameters: []
-                    }))
+                    sleepers: filteredRejectedSleepers.map(s => {
+                        const sidNum = Number(s.sleeperId ?? s.id);
+                        return {
+                            sleeperId: !isNaN(sidNum) && sidNum > 0 ? sidNum : null,
+                            sleeperNo: s.displayNo || s.sleeperNo,
+                            result: 'PENDING',
+                            rejectionReason: '',
+                            parameters: []
+                        };
+                    })
                 };
                 await apiService.updateInspectionSleepers(payload);
                 
@@ -616,8 +624,9 @@ const VisualInspectionForm = ({ batch, onSave, onCancel, shift }) => {
                         rejectionReason = s.rejectionReason || 'Previously Rejected';
                     }
 
+                    const sidNum = Number(s.sleeperId ?? s.id);
                     return {
-                        sleeperId: typeof s.sleeperId === 'number' ? s.sleeperId : (typeof s.id === 'number' ? s.id : null),
+                        sleeperId: !isNaN(sidNum) && sidNum > 0 ? sidNum : null,
                         sleeperNo: s.displayNo || s.sleeperNo,
                         result: isRejected ? 'REJECTED' : 'OK',
                         rejectionReason: rejectionReason.trim().replace(/;$/, ''),

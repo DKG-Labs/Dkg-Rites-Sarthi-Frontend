@@ -55,9 +55,10 @@ const CriticalDimensionForm = ({ batch, onSave, onCancel, shift }) => {
         const mapped = rawList.map(s => {
             const statusUpper = s.status?.toUpperCase() || 'PENDING';
             const isAlreadyRejected = statusUpper === 'REJECTED';
+            const uniqueId = s.sleeperId ? String(s.sleeperId) : (s.benchNo ? `${s.benchNo}_${s.sleeperNo}` : (s.id || s.sleeperNo));
             return {
                 ...s,
-                id: s.sleeperId || s.sleeperNo,
+                id: uniqueId,
                 displayNo: s.sleeperNo || s.sleeperId,
                 isRejected: isAlreadyRejected,
                 isAlreadyPassed: statusUpper === 'OK' || statusUpper === 'PASSED'
@@ -67,10 +68,10 @@ const CriticalDimensionForm = ({ batch, onSave, onCancel, shift }) => {
         const typeLower = (batch?.sleeperType || '').toLowerCase();
         const isSingleBenchType = ['pnc', 'turnout', 'dc', 'scc', 'curved', 'dcs', 'ds'].some(kw => typeLower.includes(kw));
 
-        // Deduplicate by unique displayNo / sleeperNo, prioritizing passed/rejected status over duplicate pending records
+        // Deduplicate only when records share the exact same sleeperId / bench identity
         const sleeperMap = new Map();
         mapped.forEach(s => {
-            const key = String(s.displayNo || s.sleeperNo || s.id || '').trim().toUpperCase();
+            const key = String(s.id || '').trim().toUpperCase();
             if (!key) return;
             if (!sleeperMap.has(key)) {
                 sleeperMap.set(key, s);
@@ -134,12 +135,13 @@ const CriticalDimensionForm = ({ batch, onSave, onCancel, shift }) => {
 
         const groups = {};
         list.forEach(s => {
-            let b;
-            if (isSingleBenchType) {
-                b = defaultBenchName;
-            } else {
-                const derivedBench = deriveBenchFromSleeper(s.displayNo || s.sleeperNo);
-                b = derivedBench || s.benchNo || 'Batch Items';
+            let b = s.benchNo;
+            if (!b) {
+                if (isSingleBenchType) {
+                    b = defaultBenchName;
+                } else {
+                    b = deriveBenchFromSleeper(s.displayNo || s.sleeperNo) || 'Batch Items';
+                }
             }
             if (!groups[b]) groups[b] = [];
             groups[b].push(s);
@@ -312,13 +314,16 @@ const CriticalDimensionForm = ({ batch, onSave, onCancel, shift }) => {
                     sleeperType: batch.sleeperType,
                     shift: shift || 'General',
                     createdBy: parseInt(localStorage.getItem('userId') || '118', 10),
-                    sleepers: filteredPassedSleepers.map(s => ({
-                        sleeperId: typeof s.sleeperId === 'number' ? s.sleeperId : (typeof s.id === 'number' ? s.id : null),
-                        sleeperNo: s.displayNo || s.sleeperNo,
-                        result: 'PENDING',
-                        rejectionReason: '',
-                        parameters: []
-                    }))
+                    sleepers: filteredPassedSleepers.map(s => {
+                        const sidNum = Number(s.sleeperId ?? s.id);
+                        return {
+                            sleeperId: !isNaN(sidNum) && sidNum > 0 ? sidNum : null,
+                            sleeperNo: s.displayNo || s.sleeperNo,
+                            result: 'PENDING',
+                            rejectionReason: '',
+                            parameters: []
+                        };
+                    })
                 };
                 await apiService.updateInspectionSleepers(payload);
                 
@@ -360,13 +365,16 @@ const CriticalDimensionForm = ({ batch, onSave, onCancel, shift }) => {
                     sleeperType: batch.sleeperType,
                     shift: shift || 'General',
                     createdBy: parseInt(localStorage.getItem('userId') || '118', 10),
-                    sleepers: filteredRejectedSleepers.map(s => ({
-                        sleeperId: typeof s.sleeperId === 'number' ? s.sleeperId : (typeof s.id === 'number' ? s.id : null),
-                        sleeperNo: s.displayNo || s.sleeperNo,
-                        result: 'PENDING',
-                        rejectionReason: '',
-                        parameters: []
-                    }))
+                    sleepers: filteredRejectedSleepers.map(s => {
+                        const sidNum = Number(s.sleeperId ?? s.id);
+                        return {
+                            sleeperId: !isNaN(sidNum) && sidNum > 0 ? sidNum : null,
+                            sleeperNo: s.displayNo || s.sleeperNo,
+                            result: 'PENDING',
+                            rejectionReason: '',
+                            parameters: []
+                        };
+                    })
                 };
                 await apiService.updateInspectionSleepers(payload);
                 
@@ -535,8 +543,9 @@ const CriticalDimensionForm = ({ batch, onSave, onCancel, shift }) => {
                         result: isRejected && (rejectionDetails[sid]?.mainReason === p.label) ? 'REJECTED' : 'OK'
                     }));
 
+                    const sidNum = Number(sleeper.sleeperId ?? sid ?? sleeper.id);
                     return {
-                        sleeperId: typeof sleeper.sleeperId === 'number' ? sleeper.sleeperId : (typeof sid === 'number' ? sid : null),
+                        sleeperId: !isNaN(sidNum) && sidNum > 0 ? sidNum : null,
                         sleeperNo: sleeper.displayNo || sleeper.sleeperNo,
                         result: isRejected ? 'REJECTED' : 'OK',
                         rejectionReason: rejectionMsg,

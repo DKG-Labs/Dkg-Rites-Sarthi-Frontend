@@ -295,9 +295,9 @@ const FinalInspectionScreen = ({ call, onBack }) => {
                         place: summary.placeOfInspection || ''
                     }));
                 }
-                const initialVendorSets = Number(sec2?.callQtyMt || summary?.qtyOfferedNow || call?.callQty || call?.totalOffered || call?.offeredQty || 0) || 0;
+                const initialVendorSets = Number(call?.totalOffered || call?.offeredQty || call?.qty || sec2?.callQtyMt || summary?.qtyOfferedNow || 0) || 0;
                 if (initialVendorSets > 0) {
-                    setOfferedSetsQty(prev => prev || initialVendorSets);
+                    setOfferedSetsQty(initialVendorSets);
                 }
             } catch (err) {
                 console.error("Error loading verification details:", err);
@@ -595,9 +595,6 @@ const FinalInspectionScreen = ({ call, onBack }) => {
                 if (savedDraft) {
                     try {
                         const draft = JSON.parse(savedDraft);
-                        if (draft.offeredSetsQty !== undefined && draft.offeredSetsQty !== null) {
-                            setOfferedSetsQty(Number(draft.offeredSetsQty));
-                        }
                         if (draft.rejectedSetsQty !== undefined && draft.rejectedSetsQty !== null) {
                             setRejectedSetsQty(Number(draft.rejectedSetsQty));
                         }
@@ -629,9 +626,6 @@ const FinalInspectionScreen = ({ call, onBack }) => {
                     const finalResResp = await apiService.getSleeperFinalResult(callNo);
                     const finalResData = finalResResp?.responseData || finalResResp;
                     if (finalResData) {
-                        if (finalResData.offeredSetsQuantity != null && Number(finalResData.offeredSetsQuantity) > 0) {
-                            setOfferedSetsQty(Number(finalResData.offeredSetsQuantity));
-                        }
                         if (finalResData.rejectedSetsQuantity != null) {
                             setRejectedSetsQty(Number(finalResData.rejectedSetsQuantity));
                         }

@@ -3,6 +3,22 @@ import CallCancellationModal from './CallCancellationModal';
 import { generateCallLetterPDF } from '../utils/generateCallLetterPDF';
 import { API_BASE_URL, apiService } from '../services/api';
 
+const isSetOrTurnout = (sleeperType, uom) => {
+  const u = String(uom || '').toUpperCase();
+  if (u.includes('SET')) return true;
+  const st = String(sleeperType || '').toUpperCase();
+  return st.includes('SET') || st.includes('PNC') || st.includes('TURNOUT') || st.includes('4865') || st.includes('9790') || st.includes('4218') || st.includes('4732') || st.includes('DERAIL');
+};
+
+const getEffectiveUom = (call) => {
+  if (!call) return 'Nos.';
+  const rawUom = call.uom || call.unit || call.callUnit;
+  if (rawUom && rawUom.toUpperCase().includes('SET')) return 'Set';
+  const type = call.sleeperType || call.productType || call.product_type;
+  if (isSetOrTurnout(type, rawUom)) return 'Set';
+  return rawUom || 'Nos.';
+};
+
 const PendingCallDetailsModal = ({
   isOpen,
   onClose,
@@ -220,7 +236,7 @@ const PendingCallDetailsModal = ({
               <div>
                 <label style={{ fontSize: '11px', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: '700', marginBottom: '4px', display: 'block' }}>Offered Quantity</label>
                 <div style={{ fontWeight: '700', fontSize: '15px', color: '#0f172a' }}>
-                  {call.offeredQty ?? call.totalOffered ?? call.qty ?? '-'} {call.offeredQty || call.totalOffered ? (call.uom || 'Nos.') : ''}
+                  {call.offeredQty ?? call.totalOffered ?? call.qty ?? '-'} {call.offeredQty || call.totalOffered ? getEffectiveUom(call) : ''}
                 </div>
               </div>
             </div>

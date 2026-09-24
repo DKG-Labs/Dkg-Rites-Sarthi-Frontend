@@ -321,7 +321,12 @@ export const generateCallLetterPDF = (call, shouldDownload = true) => {
     drawRow('Product Selected By Vendor', val(prodName), { rowH: 9 });
 
     // Quantity formatter
-    const uomText = call.uom || call.unit || call.callUnit || 'Nos.';
+    const isSetType = (str) => {
+        const s = String(str || '').toUpperCase();
+        return s.includes('SET') || s.includes('PNC') || s.includes('TURNOUT') || s.includes('4865') || s.includes('9790') || s.includes('4218') || s.includes('4732') || s.includes('DERAIL');
+    };
+    const rawUom = call.uom || call.unit || call.callUnit;
+    const uomText = (rawUom && rawUom.toUpperCase().includes('SET')) ? 'Set' : (isSetType(call.sleeperType || prodName) ? 'Set' : (rawUom || 'Nos.'));
     const formatQtyWithUom = (qtyVal, defaultUom = uomText) => {
         if (qtyVal === null || qtyVal === undefined || String(qtyVal).trim() === '') return '-';
         const str = String(qtyVal).trim();

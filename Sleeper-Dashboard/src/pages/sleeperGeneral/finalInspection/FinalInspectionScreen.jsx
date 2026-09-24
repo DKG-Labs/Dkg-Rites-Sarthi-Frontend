@@ -645,18 +645,24 @@ const FinalInspectionScreen = ({ call, onBack }) => {
                     combinedBatches = masterBatches.map(mb => {
                         const overlay = overlayMap.get(mb.batchNo?.trim());
                         if (overlay) {
+                            const rejList = overlay.rejectedSleepers || mb.rejectedSleepers || [];
+                            const rejCodes = new Set(rejList.map(r => getSCode(r)));
+                            let finalAccepted = mb.acceptedSleepers.filter(s => !rejCodes.has(getSCode(s)));
+                            if (overlay.acceptedSleepers && overlay.acceptedSleepers.length > 0 && overlay.acceptedSleepers.length >= finalAccepted.length) {
+                                finalAccepted = overlay.acceptedSleepers;
+                            }
+                            const offeredNow = Math.max(mb.offeredNow || 0, mb.acceptedSleepers.length + (mb.rejectedSleepers || []).length);
                             return {
                                 ...mb,
                                 ...overlay,
                                 qtyCasted: mb.qtyCasted || overlay.qtyCasted,
                                 dateCasted: mb.dateCasted || overlay.dateCasted,
-                                offeredNow: overlay.offeredNow || mb.offeredNow,
-                                passed: overlay.passed ?? mb.passed,
-                                rejected: overlay.rejected ?? mb.rejected,
-                                unoffered: overlay.unoffered ?? mb.unoffered,
-                                sleepers: (overlay.sleepers && overlay.sleepers.length > 0) ? overlay.sleepers : mb.sleepers,
-                                acceptedSleepers: (overlay.acceptedSleepers && overlay.acceptedSleepers.length > 0) ? overlay.acceptedSleepers : mb.acceptedSleepers,
-                                rejectedSleepers: overlay.rejectedSleepers || mb.rejectedSleepers || [],
+                                offeredNow: offeredNow,
+                                passed: finalAccepted.length,
+                                rejected: rejList.length,
+                                unoffered: Math.max(0, (mb.qtyCasted || 0) - offeredNow),
+                                acceptedSleepers: finalAccepted,
+                                rejectedSleepers: rejList,
                                 etSleepers: overlay.etSleepers || mb.etSleepers || []
                             };
                         }

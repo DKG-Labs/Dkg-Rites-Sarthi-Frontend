@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import reportService from '../../../services/reportService';
 import { ExportButton, downloadExcel } from '../SharedComponents';
 import Pagination from '../../Pagination';
@@ -218,7 +218,7 @@ const ProcessInspectionQualityTable = ({ refreshTick = 0 }) => {
     const [batchProgress, setBatchProgress] = useState(0);
 
     // Fetch Table Data
-    const fetchTableData = async () => {
+    const fetchTableData = useCallback(async () => {
         setLoading(true);
         setError(null);
         try {
@@ -234,11 +234,11 @@ const ProcessInspectionQualityTable = ({ refreshTick = 0 }) => {
         } finally {
             setLoading(false);
         }
-    };
+    }, [fromDate, toDate]);
 
     useEffect(() => {
         fetchTableData();
-    }, [refreshTick]);
+    }, [fetchTableData, refreshTick]);
 
     // Handle PO Details Modal
     const handleOpenPoDetails = async (manufacturerName) => {

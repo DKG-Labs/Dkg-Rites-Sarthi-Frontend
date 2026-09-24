@@ -42,6 +42,7 @@ import InspectionCallStatusModal from './InspectionCallStatusModal';
 import SleeperAnomalyDiagnostics from './sleeper-anomaly/SleeperAnomalyDiagnostics';
 import DownloadIcAnnexures from './DownloadIcAnnexures';
 import ProductionRejectionTrendModal from './ProductionRejectionTrendModal';
+import ProcessInspectionQualityTable from './erc-board/ProcessInspectionQualityTable';
 
 const { Option } = Select;
 
@@ -240,6 +241,8 @@ const ProfessionalCardSection = ({
     const [isTrendModalOpen, setIsTrendModalOpen] = useState(false);
     const [trendModalMetric, setTrendModalMetric] = useState('production');
     const [trendModalProduct, setTrendModalProduct] = useState('ERC');
+    const [ercQualitySubTab, setErcQualitySubTab] = useState('table'); // 'table' | 'charts'
+    const [chartFilterManufacturers, setChartFilterManufacturers] = useState([]);
 
     const handleOpenTrendModal = (metric, prod = selectedProduct) => {
         setTrendModalMetric(metric);
@@ -1043,7 +1046,7 @@ const ProfessionalCardSection = ({
                                                     }}
                                                     style={{ width: '100%', height: '36px' }}
                                                     popupMatchSelectWidth={false}
-                                                    dropdownStyle={{ maxWidth: '600px' }}
+                                                    styles={{ popup: { root: { maxWidth: '600px' } } }}
                                                     optionFilterProp="children"
                                                     filterOption={(input, option) =>
                                                         (option?.children ?? option?.title ?? '').toString().toLowerCase().includes(input.toLowerCase())
@@ -1460,9 +1463,85 @@ const ProfessionalCardSection = ({
                                 />;
                             }
                             return (
-
                                 <div className="quality-tab-content fade-in">
-                                    <div className="sec-title" style={{ fontSize: '14px', marginBottom: '10px' }}>Railway Quality Surveillance · ERC Defect Analysis</div>
+                                    {/* ERC Sub-tab switcher */}
+                                    <div style={{ display: 'flex', gap: '8px', marginBottom: '16px', background: '#f1f5f9', padding: '4px', borderRadius: '8px', width: 'fit-content' }}>
+                                        <button
+                                            style={{
+                                                padding: '8px 18px',
+                                                borderRadius: '6px',
+                                                fontWeight: '700',
+                                                fontSize: '13px',
+                                                border: 'none',
+                                                cursor: 'pointer',
+                                                transition: 'all 0.2s',
+                                                background: ercQualitySubTab === 'table' ? '#0f172a' : 'transparent',
+                                                color: ercQualitySubTab === 'table' ? '#ffffff' : '#64748b',
+                                                boxShadow: ercQualitySubTab === 'table' ? '0 2px 4px rgba(0,0,0,0.1)' : 'none'
+                                            }}
+                                            onClick={() => setErcQualitySubTab('table')}
+                                        >
+                                            <i className="fa-solid fa-table-cells mr-2"></i> Process Inspection Quality Table
+                                        </button>
+                                        <button
+                                            style={{
+                                                padding: '8px 18px',
+                                                borderRadius: '6px',
+                                                fontWeight: '700',
+                                                fontSize: '13px',
+                                                border: 'none',
+                                                cursor: 'pointer',
+                                                transition: 'all 0.2s',
+                                                background: ercQualitySubTab === 'charts' ? '#0f172a' : 'transparent',
+                                                color: ercQualitySubTab === 'charts' ? '#ffffff' : '#64748b',
+                                                boxShadow: ercQualitySubTab === 'charts' ? '0 2px 4px rgba(0,0,0,0.1)' : 'none'
+                                            }}
+                                            onClick={() => setErcQualitySubTab('charts')}
+                                        >
+                                            <i className="fa-solid fa-chart-pie mr-2"></i> Chart Section
+                                        </button>
+                                    </div>
+
+                                    {ercQualitySubTab === 'table' ? (
+                                        <ProcessInspectionQualityTable refreshTick={refreshTick} />
+                                    ) : (
+                                        <>
+                                            {/* Filters Bar for Chart Section */}
+                                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#ffffff', padding: '12px 18px', borderRadius: '10px', border: '1px solid #e2e8f0', marginBottom: '16px', flexWrap: 'wrap', gap: '12px', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
+                                                <div style={{ display: 'flex', alignItems: 'center', gap: '14px', flexWrap: 'wrap' }}>
+                                                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13px', fontWeight: '600', color: '#475569' }}>
+                                                        <label>From</label>
+                                                        <input type="date" value={fromDate} onChange={(e) => setFromDate && setFromDate(e.target.value)} style={{ border: '1px solid #cbd5e1', borderRadius: '6px', padding: '5px 10px', fontSize: '13px', background: '#f8fafc' }} />
+                                                    </div>
+                                                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13px', fontWeight: '600', color: '#475569' }}>
+                                                        <label>To</label>
+                                                        <input type="date" value={toDate} onChange={(e) => setToDate && setToDate(e.target.value)} style={{ border: '1px solid #cbd5e1', borderRadius: '6px', padding: '5px 10px', fontSize: '13px', background: '#f8fafc' }} />
+                                                    </div>
+                                                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13px', fontWeight: '600', color: '#475569' }}>
+                                                        <label>Manufacturer</label>
+                                                        <Select
+                                                            mode="multiple"
+                                                            allowClear
+                                                            style={{ minWidth: '240px', maxWidth: '380px' }}
+                                                            placeholder="All Manufacturers"
+                                                            value={chartFilterManufacturers}
+                                                            onChange={setChartFilterManufacturers}
+                                                            maxTagCount="responsive"
+                                                        >
+                                                            {Array.from(new Set([
+                                                                ...(manufacturerRejectionData || []).map(m => m.name),
+                                                                ...(processPerformanceData?.topPerforming || []).map(m => m.name),
+                                                                ...(processPerformanceData?.worstPerforming || []).map(m => m.name),
+                                                                ...(mpiaData || []).map(m => m.manufacture)
+                                                            ])).filter(Boolean).sort().map(m => (
+                                                                <Option key={m} value={m}>{m}</Option>
+                                                            ))}
+                                                        </Select>
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            <div className="sec-title" style={{ fontSize: '14px', marginBottom: '10px' }}>Railway Quality Surveillance · ERC Defect Analysis</div>
 
                                     {/* KPI Row exactly from Index 5, adjusted to hide Total Defects */}
                                     {(() => {
@@ -1760,6 +1839,8 @@ const ProfessionalCardSection = ({
                                             </div>
                                         </div>
                                     </div>
+                                    </>
+                                    )}
                                 </div>
                             );
 

@@ -1273,8 +1273,29 @@ const reportService = {
             headers: getAuthHeaders(),
         });
         return handleResponse(response);
+    },
+    getProcessInspectionQualityTable: async (filters = {}) => {
+        const { startDate, endDate } = filters;
+        const url = new URL(`${API_ENDPOINTS.REPORTS}/processInspectionQualityTable`);
+        if (startDate) url.searchParams.append('startDate', startDate);
+        if (endDate) url.searchParams.append('endDate', endDate);
+        const response = await fetch(url.toString(), { headers: getAuthHeaders() });
+        return handleResponse(response);
+    },
+    getManufacturerPoDetails: async (companyName) => {
+        const url = new URL(`${API_ENDPOINTS.REPORTS}/manufacturerPoDetails`);
+        url.searchParams.append('companyName', companyName);
+        const response = await fetch(url.toString(), { headers: getAuthHeaders() });
+        return handleResponse(response);
+    },
+    getPoOpenCalls: async (poNo) => {
+        const url = new URL(`${API_ENDPOINTS.REPORTS}/poOpenCalls`);
+        url.searchParams.append('poNo', poNo);
+        const response = await fetch(url.toString(), { headers: getAuthHeaders() });
+        return handleResponse(response);
     }
 };
 
 export default reportService;
+
 

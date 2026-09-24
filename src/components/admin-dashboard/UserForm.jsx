@@ -1402,7 +1402,8 @@ export const UserForm = ({ user, roles = [], rolesLoading = false, existingUsers
                                                             filterOption={(input, option) =>
                                                                 (option?.children ?? '').toLowerCase().includes(input.toLowerCase())
                                                             }
-                                                            dropdownStyle={{ maxHeight: '220px', overflowY: 'auto' }}
+                                                            styles={{ popup: { root: { maxHeight: '220px', overflowY: 'auto' } } }}
+                                                            listHeight={220}
                                                         >
                                                             {ZONAL_RAILWAY_LIST.map(zr => (
                                                                 <Select.Option key={zr} value={zr}>{zr}</Select.Option>
@@ -1421,7 +1422,8 @@ export const UserForm = ({ user, roles = [], rolesLoading = false, existingUsers
                                                             filterOption={(input, option) =>
                                                                 (option?.children ?? '').toLowerCase().includes(input.toLowerCase())
                                                             }
-                                                            dropdownStyle={{ maxHeight: '220px', overflowY: 'auto' }}
+                                                            styles={{ popup: { root: { maxHeight: '220px', overflowY: 'auto' } } }}
+                                                            listHeight={220}
                                                         >
                                                             {RIO_OPTIONS_LIST.map(rio => (
                                                                 <Select.Option key={rio} value={rio}>{rio}</Select.Option>
@@ -1661,7 +1663,8 @@ export const UserForm = ({ user, roles = [], rolesLoading = false, existingUsers
                                                             filterOption={(input, option) =>
                                                                 (option?.children ?? '').toLowerCase().includes(input.toLowerCase())
                                                             }
-                                                            dropdownStyle={{ maxHeight: '220px', overflowY: 'auto' }}
+                                                            styles={{ popup: { root: { maxHeight: '220px', overflowY: 'auto' } } }}
+                                                            listHeight={220}
                                                         >
                                                             {ZONAL_RAILWAY_LIST.map(zr => (
                                                                 <Select.Option key={zr} value={zr}>{zr}</Select.Option>
@@ -1680,7 +1683,8 @@ export const UserForm = ({ user, roles = [], rolesLoading = false, existingUsers
                                                             filterOption={(input, option) =>
                                                                 (option?.children ?? '').toLowerCase().includes(input.toLowerCase())
                                                             }
-                                                            dropdownStyle={{ maxHeight: '220px', overflowY: 'auto' }}
+                                                            styles={{ popup: { root: { maxHeight: '220px', overflowY: 'auto' } } }}
+                                                            listHeight={220}
                                                         >
                                                             {RIO_OPTIONS_LIST.map(rio => (
                                                                 <Select.Option key={rio} value={rio}>{rio}</Select.Option>

@@ -191,9 +191,9 @@ const ErcFinalIc = ({ data = {}, isEditing = false, isBusy = false, onFieldChang
 
   // Still Due Qty = Order Qty - Previously Passed Qty - Now Accepted Qty
   const calculatedQtyStillDue = Math.max(0, numQtyOnOrder - numQtyPassedPreviously - rawAccepted);
-  const displayQtyStillDue = (numQtyOnOrder > 0 || numQtyPassedPreviously > 0 || rawAccepted > 0)
-    ? String(calculatedQtyStillDue)
-    : (qtyStillDue || "0");
+  const displayQtyStillDue = (qtyStillDue !== undefined && qtyStillDue !== null && qtyStillDue !== "")
+    ? String(qtyStillDue)
+    : String(calculatedQtyStillDue);
 
   // Sanitize certificate number for display
   const displayCertificateNo = (certificateNo || '')

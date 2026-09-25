@@ -609,7 +609,7 @@ const RailwayBoardDashboard = () => {
                                             <i className="fa-solid fa-chart-pie" style={{ marginRight: '8px' }}></i>Dashboard
                                         </div>
                                         <div className={`report-link ${activeMainCard === 'quality' ? 'active' : ''}`} onClick={() => handleSwitchTab('quality')} style={{ fontSize: '15px' }}>
-                                            <i className="fa-solid fa-shield-halved" style={{ marginRight: '8px' }}></i>Quality
+                                            <i className="fa-solid fa-shield-halved" style={{ marginRight: '8px' }}></i>{selectedProduct === 'ERC' ? 'Process Inspection Quality Dashboard' : 'Quality'}
                                         </div>
                                         <div className={`report-link ${activeMainCard === 'lifecycle' ? 'active' : ''}`} onClick={() => handleSwitchTab('lifecycle')} style={{ fontSize: '15px' }}>
                                             <i className="fa-solid fa-file-contract" style={{ marginRight: '8px' }}></i>PO Lifecycle
@@ -729,7 +729,7 @@ const RailwayBoardDashboard = () => {
                                     <i className="fa-solid fa-chart-pie"></i> {!isSidebarCollapsed && <span>Dashboard</span>}
                                 </div>
                                 <div className={`nav-item ${activeMainCard === 'quality' ? 'active' : ''}`} onClick={() => handleSwitchTab('quality')}>
-                                    <i className="fa-solid fa-shield-halved"></i> {!isSidebarCollapsed && <span>Quality</span>}
+                                    <i className="fa-solid fa-shield-halved"></i> {!isSidebarCollapsed && <span>{selectedProduct === 'ERC' ? 'Process Inspection Quality Dashboard' : 'Quality'}</span>}
                                 </div>
                                 <div className={`nav-item ${activeMainCard === 'lifecycle' ? 'active' : ''}`} onClick={() => handleSwitchTab('lifecycle')}>
                                     <i className="fa-solid fa-file-contract"></i> {!isSidebarCollapsed && <span>PO Lifecycle</span>}

@@ -441,6 +441,7 @@ const CriticalDimensionForm = ({ batch, onSave, onCancel, shift }) => {
             if (!selectedSleepers.includes(sleeper.id)) return sleeper;
 
             if (result === 'all-rejected') return { ...sleeper, currentStatus: 'rejected', moduleId: 2 };
+            if (sleeper.isRejected) return { ...sleeper, currentStatus: 'rejected' };
             if (result === 'ok') return { ...sleeper, currentStatus: 'passed' };
             
             if (result === 'partial-ok') {

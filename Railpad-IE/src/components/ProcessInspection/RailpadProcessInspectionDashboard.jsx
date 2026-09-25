@@ -149,20 +149,20 @@ const RailpadProcessInspectionDashboard = ({ user, call, currentShift, onBack, o
 
           // Pre-select drafted batches
           draft.batches.forEach(b => {
-            const avail = b.qtyAvailable !== undefined ? b.qtyAvailable : b.qtyManufactured;
-            const rej = b.qtyRejected || 0;
+            const foundBatch = allBatches.find(ab => ab.declarationBatchId?.toString() === b.declarationBatchId?.toString());
+            const avail = foundBatch?.availableQty !== undefined ? foundBatch.availableQty : (b.qtyAvailable !== undefined ? b.qtyAvailable : b.qtyManufactured);
+            const rej = foundBatch?.verificationRejectedQty !== undefined ? foundBatch.verificationRejectedQty : (b.qtyRejected || 0);
             const netAcc = Math.max(0, avail - rej);
-            const acc = (b.qtyAccepted !== undefined && b.qtyAccepted !== null) ? b.qtyAccepted : netAcc;
-            const finalAcc = (rej > 0 && acc > netAcc) ? netAcc : acc;
+            const acc = (b.qtyAccepted !== undefined && b.qtyAccepted !== null) ? Math.min(b.qtyAccepted, netAcc) : netAcc;
             newSelectedBatches[b.declarationBatchId] = {
               declarationBatchId: b.declarationBatchId,
               batchNo: b.batchNo,
               drawingNo: b.drawingNo,
               qtyManufactured: b.qtyManufactured,
               availableQty: avail,
-              acceptedQty: finalAcc,
+              acceptedQty: acc,
               qtyRejected: rej,
-              qtyRemaining: b.qtyRemaining !== undefined ? b.qtyRemaining : Math.max(0, avail - finalAcc - rej),
+              qtyRemaining: Math.max(0, avail - acc - rej),
               productionDate: b.productionDate
             };
           });
@@ -189,14 +189,17 @@ const RailpadProcessInspectionDashboard = ({ user, call, currentShift, onBack, o
                 if (foundBatch) {
                   const saved = savedLocalDraft.selectedBatches[batchId] || {};
                   const avail = foundBatch.availableQty !== undefined ? foundBatch.availableQty : foundBatch.qtyManufactured;
+                  const rej = foundBatch.verificationRejectedQty !== undefined ? foundBatch.verificationRejectedQty : 0;
+                  const maxAllowed = Math.max(0, avail - rej);
                   const acc = (saved.acceptedQty !== undefined && saved.acceptedQty !== null && saved.acceptedQty !== '')
-                    ? saved.acceptedQty
-                    : avail;
+                    ? Math.min(typeof saved.acceptedQty === 'number' ? saved.acceptedQty : (parseInt(saved.acceptedQty, 10) || 0), maxAllowed)
+                    : maxAllowed;
                   newSelectedBatches[batchId] = {
                     ...saved,
                     availableQty: avail,
+                    qtyRejected: rej,
                     acceptedQty: acc,
-                    qtyRemaining: Math.max(0, avail - (typeof acc === 'number' ? acc : (parseInt(acc, 10) || 0)))
+                    qtyRemaining: Math.max(0, avail - acc - rej)
                   };
                 }
               });

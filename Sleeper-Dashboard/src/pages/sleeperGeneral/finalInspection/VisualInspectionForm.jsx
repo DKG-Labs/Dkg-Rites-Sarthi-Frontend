@@ -199,6 +199,12 @@ const VisualInspectionForm = ({ batch, onSave, onCancel, shift }) => {
         );
     };
 
+    const initiallyRejectedIds = useMemo(() => {
+        return new Set(initialSleepers.filter(s => s.status === 'rejected').map(s => s.id));
+    }, [initialSleepers]);
+
+    const [manuallyResetIds, setManuallyResetIds] = useState(() => new Set());
+
     const toggleSleeperSelection = async (id) => {
         const sleeper = sleepers.find(s => s.id === id);
         const isCurrentlySelected = selectedSleepers.includes(id);
@@ -234,6 +240,7 @@ const VisualInspectionForm = ({ batch, onSave, onCancel, shift }) => {
                     };
                     await apiService.updateInspectionSleepers(payload);
                     
+                    setManuallyResetIds(prev => new Set([...prev, id]));
                     setSleepers(prev => prev.map(s => s.id === id ? { ...s, status: 'pending', moduleId: null } : s));
                     setSelectedSleepers(prev => prev.filter(sid => sid !== id));
                     setSectionStates(prev => {
@@ -372,6 +379,7 @@ const VisualInspectionForm = ({ batch, onSave, onCancel, shift }) => {
                 await apiService.updateInspectionSleepers(payload);
                 
                 const resetIds = new Set(filteredRejectedSleepers.map(s => s.id));
+                setManuallyResetIds(prev => new Set([...prev, ...resetIds]));
                 setSleepers(prev => prev.map(s => resetIds.has(s.id) ? { ...s, status: 'pending', moduleId: null } : s));
                 setSelectedSleepers(prev => prev.filter(id => !resetIds.has(id)));
                 toast.success(`${count} rejected sleeper(s) reset to PENDING.`);
@@ -470,9 +478,10 @@ const VisualInspectionForm = ({ batch, onSave, onCancel, shift }) => {
 
                 if (isRejected) return { ...sleeper, status: 'rejected', moduleId: 1 };
                 
-                // If a sleeper is already rejected in another module and not reset, keep it rejected
-                if (sleeper.status === 'rejected' && sleeper.moduleId && sleeper.moduleId !== 1) {
-                    return sleeper;
+                // If a sleeper was initially rejected and not explicitly reset to pending, keep it rejected!
+                const isInitiallyRejected = initiallyRejectedIds.has(sleeper.id) && !manuallyResetIds.has(sleeper.id);
+                if (isInitiallyRejected || (sleeper.status === 'rejected' && sleeper.moduleId && sleeper.moduleId !== 1)) {
+                    return { ...sleeper, status: 'rejected' };
                 }
 
                 // FIX: Only sleepers currently selected for verification move to 'passed'
@@ -480,10 +489,10 @@ const VisualInspectionForm = ({ batch, onSave, onCancel, shift }) => {
                     return { ...sleeper, status: 'passed' };
                 }
 
-                // If not selected, it stays in its current status ('pending' if deselected/pending, or 'rejected')
+                // If not selected, it stays in its current status ('pending' if deselected/pending)
                 return { 
                     ...sleeper, 
-                    status: sleeper.status === 'rejected' ? 'rejected' : 'pending' 
+                    status: 'pending' 
                 };
             });
         });
@@ -584,14 +593,15 @@ const VisualInspectionForm = ({ batch, onSave, onCancel, shift }) => {
                         return sectState.result === 'all-rejected' || sectState.failedSleepers.includes(s.id);
                     });
 
-                    const isRejected = currentIsRejected || s.status === 'rejected';
+                    const isInitiallyRejected = initiallyRejectedIds.has(s.id) && !manuallyResetIds.has(s.id);
+                    const isRejected = currentIsRejected || s.status === 'rejected' || isInitiallyRejected;
 
                     const sleeperParams = sections.map((sect, idx) => {
                         const sectState = sectionStates[sect.id];
                         let paramResult = 'OK';
                         if (sectState.result === 'all-rejected') paramResult = 'REJECTED';
                         else if (sectState.result === 'partial-ok' && sectState.failedSleepers.includes(s.id)) paramResult = 'REJECTED';
-                        else if (s.status === 'rejected' && !currentIsRejected) paramResult = 'REJECTED';
+                        else if (isRejected && !currentIsRejected) paramResult = 'REJECTED';
 
                         return {
                             parameterId: idx + 1,
@@ -620,7 +630,7 @@ const VisualInspectionForm = ({ batch, onSave, onCancel, shift }) => {
                                 }
                             }
                         });
-                    } else if (s.status === 'rejected') {
+                    } else if (isRejected) {
                         rejectionReason = s.rejectionReason || 'Previously Rejected';
                     }
 

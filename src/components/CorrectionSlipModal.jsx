@@ -6,6 +6,7 @@ import {
   getRmIcEditData,
   getProcessIcEditData,
   getFinalIcEditData,
+  getFinalIcSaveChanges,
 } from '../services/certificateService';
 import {
   fetchCorrectionSlip,
@@ -25,6 +26,262 @@ const getProductType = (row) => {
   if (pt.includes('raw') || pt.includes('rm')) return 'RM';
   if (pt.includes('final') || pt.includes('fp') || pt.includes('final product')) return 'FINAL';
   return 'PROCESS';
+};
+
+const numberToWords = (num) => {
+  if (num === 0) return "Zero";
+  const a = ["", "One ", "Two ", "Three ", "Four ", "Five ", "Six ", "Seven ", "Eight ", "Nine ", "Ten ", "Eleven ", "Twelve ", "Thirteen ", "Fourteen ", "Fifteen ", "Sixteen ", "Seventeen ", "Eighteen ", "Nineteen "];
+  const b = ["", "", "Twenty", "Thirty", "Forty", "Fifty", "Sixty", "Seventy", "Eighty", "Ninety"];
+  
+  if ((num = num.toString()).length > 9) return "Overflow";
+  let n = ("000000000" + num).substr(-9).match(/^(\d{2})(\d{2})(\d{2})(\d{1})(\d{2})$/);
+  if (!n) return "";
+  let str = "";
+  str += (Number(n[1]) !== 0) ? (a[Number(n[1])] || b[n[1][0]] + (Number(n[1][1]) ? "-" + a[n[1][1]] : " ")) + "Crore " : "";
+  str += (Number(n[2]) !== 0) ? (a[Number(n[2])] || b[n[2][0]] + (Number(n[2][1]) ? "-" + a[n[2][1]] : " ")) + "Lakh " : "";
+  str += (Number(n[3]) !== 0) ? (a[Number(n[3])] || b[n[3][0]] + (Number(n[3][1]) ? "-" + a[n[3][1]] : " ")) + "Thousand " : "";
+  str += (Number(n[4]) !== 0) ? (a[Number(n[4])] || b[n[4][0]] + (Number(n[4][1]) ? "-" + a[n[4][1]] : " ")) + "Hundred " : "";
+  str += (Number(n[5]) !== 0) ? ((str !== "") ? "and " : "") + (a[Number(n[5])] || b[n[5][0]] + (Number(n[5][1]) ? "-" + a[n[5][1]] : " ")) : "";
+  return str.trim();
+};
+
+const digitWords = {
+  '0': 'Zero', '1': 'One', '2': 'Two', '3': 'Three', '4': 'Four',
+  '5': 'Five', '6': 'Six', '7': 'Seven', '8': 'Eight', '9': 'Nine'
+};
+
+const decimalNumberToWords = (num) => {
+  const str = typeof num === 'number' ? num.toFixed(3) : String(num);
+  const parts = str.split('.');
+  const intPart = parseInt(parts[0], 10) || 0;
+  const intWords = numberToWords(intPart).trim();
+  
+  if (parts.length > 1 && parts[1]) {
+    let decStr = parts[1].slice(0, 3);
+    const decWords = decStr.split('').map(d => digitWords[d] || d).join(' ');
+    return `${intWords} Point ${decWords}`;
+  }
+  return intWords;
+};
+
+const getErcKFactor = (callOrType) => {
+  if (callOrType && typeof callOrType === "object" && callOrType.ercType) {
+    const explicitType = String(callOrType.ercType).toLowerCase().trim();
+    if (explicitType.includes("mk-iii") || explicitType.includes("mk iii") || explicitType.includes("3701")) return 0.91;
+    if (explicitType.includes("j-type") || explicitType.includes("j type") || explicitType.includes("erc-j") || explicitType.includes("4158")) return 0.915;
+    if (explicitType.includes("mk-v") || explicitType.includes("mk v") || explicitType.includes("5919")) return 1.088;
+  }
+
+  let searchStr = "";
+  if (typeof callOrType === "string") {
+    searchStr = callOrType;
+  } else if (callOrType && typeof callOrType === "object") {
+    searchStr = [
+      callOrType.ercType,
+      callOrType.productType,
+      callOrType.product_type,
+      callOrType.typeOfErc,
+      callOrType.drgNo,
+      callOrType.drawingNo,
+      callOrType.drg_no,
+      callOrType.description,
+      callOrType.productDescription,
+      callOrType.product_description,
+      callOrType.remarks,
+      callOrType.specNo,
+      callOrType.specificationNo,
+      callOrType.spec_no
+    ].filter(Boolean).join(" ");
+  }
+
+  const lower = searchStr.toLowerCase();
+
+  if (
+    lower.includes("mk-iii") ||
+    lower.includes("mk iii") ||
+    lower.includes("mark iii") ||
+    lower.includes("mark 3") ||
+    lower.includes("mk 3") ||
+    lower.includes("mkiii") ||
+    lower.includes("3701") ||
+    lower.includes("rt-3701") ||
+    lower.includes("t-3701")
+  ) {
+    return 0.91;
+  }
+
+  if (
+    lower.includes("j-type") ||
+    lower.includes("j type") ||
+    lower.includes("j_type") ||
+    lower.includes("erc-j") ||
+    lower.includes("erc j") ||
+    lower.includes("j-clip") ||
+    lower.includes("j clip") ||
+    lower.includes("4158") ||
+    lower.includes("rt-4158") ||
+    lower.includes("8258") ||
+    lower.includes("t-8258")
+  ) {
+    return 0.915;
+  }
+
+  if (
+    lower.includes("mk-v") ||
+    lower.includes("mk v") ||
+    lower.includes("mark v") ||
+    lower.includes("mark 5") ||
+    lower.includes("mk 5") ||
+    lower.includes("mkv") ||
+    lower.includes("5919") ||
+    lower.includes("rt-5919") ||
+    lower.includes("t-5919") ||
+    lower.includes("t5919") ||
+    lower.includes("6025")
+  ) {
+    return 1.088;
+  }
+
+  return 1.088;
+};
+
+const generateQuantityRemarks = (c) => {
+  if (!c) return "";
+  const rawErcType = c.ercType || c.productType || c.description || c.drgNo || "";
+  const kFactor = getErcKFactor(c || rawErcType);
+
+  const qtyNowOffered = Number(c.qtyNowOffered || 0);
+  const qtyNowRejected = Number(c.qtyNowRejected || 0);
+  
+  let ercUsedCount = 0;
+  if (c.ercUsedForTesting !== undefined && c.ercUsedForTesting !== null) {
+    ercUsedCount = Number(c.ercUsedForTesting);
+  } else if (c.erc_used_for_testing !== undefined && c.erc_used_for_testing !== null) {
+    ercUsedCount = Number(c.erc_used_for_testing);
+  } else if (c.lotDetails && Array.isArray(c.lotDetails) && c.lotDetails.length > 0) {
+    ercUsedCount = c.lotDetails.reduce((sum, l) => sum + (Number(l.ercUsedForTesting || l.erc_used_for_testing || l.ercUsed || l.erc_used || l.noOfErcUsed || l.no_of_erc_used || l.testingQty) || 0), 0);
+  } else if (c.finalLotDetails && Array.isArray(c.finalLotDetails) && c.finalLotDetails.length > 0) {
+    ercUsedCount = c.finalLotDetails.reduce((sum, l) => sum + (Number(l.ercUsedForTesting || l.erc_used_for_testing || l.ercUsed || l.erc_used || l.noOfErcUsed || l.no_of_erc_used || l.testingQty) || 0), 0);
+  }
+  
+  let qtyNowAccepted = 0;
+  if (c.qtyNowPassed !== undefined && c.qtyNowPassed !== null && c.qtyNowPassed !== "") {
+    qtyNowAccepted = Number(String(c.qtyNowPassed).replace(/\*/g, '')) || 0;
+  } else if (qtyNowOffered > 0) {
+    qtyNowAccepted = Math.max(0, qtyNowOffered - qtyNowRejected - ercUsedCount);
+  }
+  
+  const isMtUom = (() => {
+    const directUom = String(
+      c?.uom || 
+      c?.unit || 
+      c?.poUom || 
+      c?.itemUom || 
+      c?.poQtyUnit || 
+      c?.uomCd ||
+      c?.uom_cd ||
+      c?.poItem?.uom || 
+      c?.poItem?.uomCd ||
+      c?.poItems?.[0]?.uom || 
+      ""
+    ).trim().toUpperCase();
+
+    if (
+      directUom === "15" ||
+      directUom.startsWith("MT") ||
+      directUom.startsWith("M.T") ||
+      directUom.includes("METRIC") ||
+      directUom.includes("TON")
+    ) {
+      return true;
+    }
+
+    if (
+      directUom.startsWith("NO") ||
+      directUom.includes("NUMBER") ||
+      directUom.includes("SET") ||
+      directUom.includes("PIECE") ||
+      directUom.includes("EACH") ||
+      directUom === "01"
+    ) {
+      return false;
+    }
+
+    const descStr = String(c?.description || "");
+    const poMatch = descStr.match(/PO\s+Sr\.?\s*No\.?\s*[^)]*?\b(?:For|Qty|:|-)\s*[\d,.]+\s*([A-Za-z.]+)/i);
+    if (poMatch && poMatch[1]) {
+      const u = poMatch[1].trim().toUpperCase();
+      if (u === "15" || u.startsWith("MT") || u.startsWith("M.T") || u.includes("METRIC") || u.includes("TON")) return true;
+      if (u.startsWith("NO") || u.includes("NUM") || u.includes("SET")) return false;
+    }
+
+    const allText = `${c?.description || ""} ${c?.contractRef || ""} ${c?.poDetails || ""}`;
+    if (/\b(?:MTS?\.?|M\.T\.|METRIC\s+TONNES?|METRIC\s+TONS?|TONNES?|TONS?)\b/i.test(allText) && !/\b(?:NOS?\.?|NUMBERS?)\b/i.test(allText)) return true;
+    return false;
+  })();
+
+  const acceptedMt = (Math.round(((qtyNowAccepted * kFactor) / 1000) * 1000 + Number.EPSILON) / 1000);
+  const acceptedMtWords = decimalNumberToWords(acceptedMt);
+  const acceptedNosFormatted = Number(qtyNowAccepted).toLocaleString('en-IN');
+  const acceptedNosWords = numberToWords(qtyNowAccepted);
+
+  let text = isMtUom
+    ? `Quantity now passed ${acceptedMtWords} Mt Only Total Quantity is ${acceptedNosFormatted} Nos, `
+    : `Quantity now passed ${acceptedNosWords} (${acceptedNosFormatted}) Nos. Only, `;
+  
+  if (qtyNowAccepted > 0) {
+    let bagsOf50 = Math.floor(qtyNowAccepted / 50);
+    let rem = qtyNowAccepted % 50;
+    let packText = [];
+    if (bagsOf50 > 0) packText.push(`${bagsOf50} Bags X 50 Nos per bag`);
+    if (rem > 0) packText.push(`01 Bag X ${rem.toString().padStart(2, '0')} Nos`);
+    if (packText.length > 0) {
+      text += `Packed in ${packText.join(', ')}. `;
+    }
+  }
+
+  if (c.lotDetails && c.lotDetails.length > 0) {
+    let markings = c.lotDetails.map(l => `${l.lotNo || ''}, HNO - ${l.heatNo || ''}`).filter(Boolean).join(' & ');
+    if (markings) {
+      text += `Marking: ${markings} `;
+    }
+  }
+  
+  if (ercUsedCount > 0) {
+    text += `Note: ${ercUsedCount} Nos. ERC consumed in Destructive Testing are extra offer `;
+  }
+
+  let stageIcText = "";
+  if (c.rmIcNo) {
+    let rmDateStr = c.rmIcDate ? ` Dt: ${c.rmIcDate}` : "";
+    let bookSetStr = (c.bookNo && c.setNo) ? ` Book No.${c.bookNo} Set No. ${c.setNo}` : "";
+    stageIcText += `Note: Raw Material Pre-Inspected by RITES vide Stage I.C. No. ${c.rmIcNo}${rmDateStr}${bookSetStr}`;
+  }
+  
+  if (c.processIcNo) {
+    let processDateStr = c.processIcDate ? ` Dt: ${c.processIcDate}` : "";
+    stageIcText += `${stageIcText ? ", " : ""}Note: Process Inspection carried out by RITES vide Stage I.C. No. ${c.processIcNo}${processDateStr}`;
+  } else {
+    stageIcText += `${stageIcText ? ", " : ""}Note: Process Inspection carried out by RITES as per the Railway Board Letter No. 2024/RS(G)/779/12`;
+  }
+
+  if (stageIcText) {
+    text += `${stageIcText} `;
+  }
+
+  if (c.ibsCaseNo && c.ibsCaseNo !== '-') {
+    text += `(IBS Case No: ${c.ibsCaseNo})\n`;
+  } else {
+    text += `\n`;
+  }
+
+  if (qtyNowRejected > 0 && qtyNowAccepted === 0) {
+    text += `\nMaterial is Non-conforming as per Lab Report No. [FILL_LAB_REPORT]. In the chemical test, the observed value was [OBSERVED], which exceeds the specified limit.\n`;
+  } else {
+    text += `NOTE: THE SAMPLES REJECTED DURING INSPECTION HAVE SUBSEQUENTLY BEEN USED FOR DESTRUCTIVE TESTING.`;
+  }
+  
+  return text;
 };
 
 /* ─── Per-IC-type field label maps (sourced from backend DTOs) ─── */
@@ -57,7 +314,7 @@ const RM_FIELD_MAP = {
   result:               'Result',
   qtyCleared:           'Qty. Cleared',
   qtyRejected:          'Qty. Rejected',
-  remarks:              'Remarks',
+  remarks:              'Remark',
   dateOfCall:           'Date of Call',
   noOfVisits:           'No. of Visits',
   dateOfInspection:     'Date of Inspection',
@@ -84,6 +341,7 @@ const PROCESS_FIELD_MAP = {
   purchasingAuthority:  'Purchasing Authority (Railway)',
   maNumberAndDate:      'MA Number & Date',
   facsimileText:        'Facsimile Text',
+  remarks:              'Remark',
   reasonsForRejection:  'Reasons for Rejection',
   inspectingEngineer:   'Inspecting Engineer',
   datesOfInspection:    'Dates of Inspection',
@@ -129,8 +387,7 @@ const FINAL_FIELD_MAP = {
   qtyNowPassed:           'Qty. Now Passed',
   qtyNowRejected:         'Qty. Now Rejected',
   qtyStillDue:            'Qty. Still Due',
-  quantityNowPassedText:  'Qty. Now Passed (Text)',
-  remarks:                'Remarks',
+  remarks:                'Remark',
   trRecDate:              'TR Rec. Date',
   noOfItemsChecked:       'No. of Items Checked',
   dateOfCall:             'Date of Call',
@@ -363,7 +620,8 @@ const HIDDEN_DROPDOWN_KEYS = [
   'qtyNowPassed',
   'qtyNowRejected',
   'rmIcNo',
-  'processIcNo'
+  'processIcNo',
+  'quantityNowPassedText'
 ];
 
 /* ─── main component ─── */
@@ -420,7 +678,10 @@ const CorrectionSlipModal = ({ row, onClose, viewOnly = false, isViewOnly = fals
           if (productType === 'RM') {
             editData = await getRmIcEditData(fullIcNumber);
           } else if (productType === 'FINAL') {
-            editData = await getFinalIcEditData(fullIcNumber);
+            editData = await getFinalIcSaveChanges(fullIcNumber);
+            if (!editData) {
+              editData = await getFinalIcEditData(fullIcNumber);
+            }
           } else {
             editData = await getProcessIcEditData(fullIcNumber);
           }
@@ -476,6 +737,14 @@ const CorrectionSlipModal = ({ row, onClose, viewOnly = false, isViewOnly = fals
         }
 
         const merged = { ...certData, ...editOverrides };
+
+        if (productType === 'FINAL') {
+          const fullRemarks = (merged.quantityNowPassedText && String(merged.quantityNowPassedText).trim().length > 10)
+            ? merged.quantityNowPassedText
+            : generateQuantityRemarks(merged);
+          merged.remarks = fullRemarks || merged.remarks || 'LOT FOUND ACCEPTABLE AND CLEARED FOR DELIVERY';
+          merged.quantityNowPassedText = merged.remarks;
+        }
 
         setIcData(merged);
       } catch (err) {
@@ -827,7 +1096,7 @@ const CorrectionSlipModal = ({ row, onClose, viewOnly = false, isViewOnly = fals
                             </div>
                           ) : (
                             <textarea
-                              rows={corr.readAs && corr.readAs.includes('\n') ? Math.min(Math.max(corr.readAs.split('\n').length, 2), 8) : 2}
+                              rows={corr.readAs && (corr.readAs.includes('\n') || corr.readAs.length > 80) ? Math.min(Math.max(corr.readAs.split('\n').length + (corr.readAs.length > 150 ? 2 : 0), 3), 8) : 2}
                               style={S.inputBase}
                               placeholder="Enter corrected value"
                               value={corr.readAs}
@@ -844,7 +1113,7 @@ const CorrectionSlipModal = ({ row, onClose, viewOnly = false, isViewOnly = fals
                             </div>
                           ) : (
                             <textarea
-                              rows={corr.insteadOf && corr.insteadOf.includes('\n') ? Math.min(Math.max(corr.insteadOf.split('\n').length, 2), 8) : 2}
+                              rows={corr.insteadOf && (corr.insteadOf.includes('\n') || corr.insteadOf.length > 80) ? Math.min(Math.max(corr.insteadOf.split('\n').length + (corr.insteadOf.length > 150 ? 2 : 0), 3), 8) : 2}
                               style={S.inputBase}
                               placeholder="Enter instead of value"
                               value={corr.insteadOf}

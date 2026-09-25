@@ -264,12 +264,19 @@ const ErcFinalIc = ({ data = {}, isEditing = false, isBusy = false, onFieldChang
     return false;
   })();
 
-  const formatNosToMtValue = (val) => {
-    if (val === undefined || val === null || val === "" || String(val).toUpperCase() === "NIL") return "NIL";
+  const formatNosToMtValue = (val, isRejection = false) => {
+    if (val === undefined || val === null || val === "" || String(val).toUpperCase() === "NIL") return isRejection ? "NIL" : (isMtUom ? "0.000" : "0");
     const num = parseFloat(String(val).replace(/,/g, ''));
     if (isNaN(num)) return val;
-    if (num === 0) return isMtUom ? "0.000" : "0";
+    if (num === 0) return isRejection ? "NIL" : (isMtUom ? "0.000" : "0");
     if (isMtUom) {
+      if (isRejection) {
+        // If integer piece count in Nos (e.g. 15 Nos rejected), convert to MT using kFactor
+        if (Number.isInteger(num) && num > 0) {
+          return (Math.round(((num * kFactor) / 1000) * 1000 + Number.EPSILON) / 1000).toFixed(3);
+        }
+        return num.toFixed(3);
+      }
       if (num > 2000) {
         return (Math.round(((num * kFactor) / 1000) * 1000 + Number.EPSILON) / 1000).toFixed(3);
       }
@@ -482,7 +489,7 @@ const ErcFinalIc = ({ data = {}, isEditing = false, isBusy = false, onFieldChang
               { val: displayQtyStillDue, field: "qtyStillDue" }
             ].map((col, idx) => {
               const isZeroOrNil = !col.val || col.val === "0" || col.val === 0 || String(col.val).toUpperCase() === "NIL";
-              const displayVal = col.isRejection && isZeroOrNil ? "NIL" : formatNosToMtValue(col.val);
+              const displayVal = col.isRejection && isZeroOrNil ? "NIL" : formatNosToMtValue(col.val, col.isRejection);
               const showUnit = displayVal !== "NIL";
 
               return (

@@ -146,6 +146,8 @@ const MomentOfResistance = () => {
     const [showDeclareModal, setShowDeclareModal] = useState(false);
     const [showTestModal, setShowTestModal] = useState(false);
     const [selectedBatch, setSelectedBatch] = useState(null);
+    const [selectedDeclRows, setSelectedDeclRows] = useState([]);
+    const [selectedTestingRows, setSelectedTestingRows] = useState([]);
 
     const getCommonParams = useCallback(() => {
         const dateObj = new Date(dutyDate || new Date());
@@ -386,8 +388,8 @@ const MomentOfResistance = () => {
                     };
                 });
 
-            // Map Declared Records (Pending Results)
-            const mappedDeclared = mrData
+            // Map Declared Records (Pending Results) - Support Multi-Batch / MRGroup grouping
+            const pendingDeclaredItems = mrData
                 .filter(item => isSamePlant(item.plantId, params.plantId))
                 .filter(item => {
                     const decl = findDeclaration(item);
@@ -401,38 +403,111 @@ const MomentOfResistance = () => {
                     if (!pId && completedItemKeys.has(itemKey)) return false;
 
                     return (!item.testResult || item.testResult === 'Pending' || item.status !== 'COMPLETED');
-                })
-                .map(item => {
-                    const decl = findDeclaration(item);
-                    const pId = decl ? String(decl.id) : (item.productionDeclarationId ? String(item.productionDeclarationId) : null);
-                    const bList = String(item.benchNumber || '').split(',').map(s => s.trim());
-                    const sList = String(item.sleeperNo || '').split(',').map(s => s.trim());
-                    const samples = (sList.length > 0 && sList[0] !== '') 
-                        ? sList.map((no, idx) => ({
-                            bench: bList[idx] || bList[0] || '',
-                            no: no
-                          }))
-                        : [{ bench: item.benchNumber || '', no: item.sleeperNo || '' }];
-
-                    const actualCastingDate = extractCastDate(item, decl) || 'N/A';
-                    const actualSleeperType = extractDrawingNo(item, decl);
-
-                    return {
-                        ...item,
-                        productionDeclarationId: pId,
-                        batchNo: item.batchNumber,
-                        sleeperCategory: item.sleeperCategory || decl?.sleeperCategory,
-                        sleeperType: actualSleeperType,
-                        declaredSamples: samples,
-                        castingDate: actualCastingDate, 
-                        status: 'Testing Pending',
-                        mrTestType: item.mrTestType || 'Fresh',
-                        isTestRecord: false,
-                        originalData: decl || item
-                    };
                 });
 
-            // Map Completed Tests (Historical)
+            // Group pending declared items by MRGroup if they were declared together
+            const groupMap = new Map();
+            const singleDeclaredItems = [];
+
+            pendingDeclaredItems.forEach(item => {
+                const m = String(item.remarks || '').match(/\[MRGroup:\s*([^\]]+)\]/i);
+                if (m && m[1]) {
+                    const gId = m[1].trim();
+                    if (!groupMap.has(gId)) {
+                        groupMap.set(gId, []);
+                    }
+                    groupMap.get(gId).push(item);
+                } else {
+                    singleDeclaredItems.push(item);
+                }
+            });
+
+            const groupedDeclaredList = [];
+            groupMap.forEach((items, gId) => {
+                const decls = items.map(findDeclaration);
+                const bNos = items.map(i => String(i.batchNumber || '').trim()).filter(Boolean);
+                const firstDecl = decls.find(Boolean) || items[0];
+
+                const allSamples = items.flatMap(item => {
+                    const bList = String(item.benchNumber || '').split(',').map(s => s.trim());
+                    const sList = String(item.sleeperNo || '').split(',').map(s => s.trim());
+                    return (sList.length > 0 && sList[0] !== '')
+                        ? sList.map((no, idx) => ({ bench: bList[idx] || bList[0] || '', no: no, batch: item.batchNumber }))
+                        : [{ bench: item.benchNumber || '', no: item.sleeperNo || '', batch: item.batchNumber }];
+                });
+
+                // Extract all unique sleeper types / drawing numbers across all batches in this group
+                const allSleeperTypes = Array.from(new Set(
+                    items.map((item, idx) => {
+                        const dwg = extractDrawingNo(item, decls[idx]) || item.sleeperType;
+                        return (dwg && !isGrade(dwg) && dwg !== 'N/A' && dwg !== '-') ? dwg.trim() : null;
+                    }).filter(Boolean)
+                ));
+                const combinedSleeperType = allSleeperTypes.length > 0 ? allSleeperTypes.join(', ') : (extractDrawingNo(items[0], firstDecl) || items[0].sleeperType || '-');
+
+                // Extract all unique casting dates across all batches in this group
+                const allCastingDates = Array.from(new Set(
+                    items.map((item, idx) => {
+                        const cDate = extractCastDate(item, decls[idx]) || item.castingDate;
+                        return (cDate && cDate !== 'N/A') ? cDate.trim() : null;
+                    }).filter(Boolean)
+                ));
+                const combinedCastingDate = allCastingDates.length > 0 ? allCastingDates.join(', ') : (extractCastDate(items[0], firstDecl) || 'N/A');
+
+                groupedDeclaredList.push({
+                    id: items[0].id,
+                    groupId: gId,
+                    isGrouped: true,
+                    groupRecords: items,
+                    batchNo: bNos.join(', '),
+                    batchNumber: bNos.join(', '),
+                    batchNumbers: bNos,
+                    sleeperCategory: items[0].sleeperCategory || firstDecl?.sleeperCategory,
+                    sleeperType: combinedSleeperType,
+                    declaredSamples: allSamples,
+                    benchNumber: items.map(i => i.benchNumber).filter(Boolean).join(', '),
+                    sleeperNo: items.map(i => i.sleeperNo).filter(Boolean).join(', '),
+                    castingDate: combinedCastingDate,
+                    status: 'Testing Pending',
+                    mrTestType: items[0].mrTestType || 'Fresh',
+                    isTestRecord: false,
+                    originalData: firstDecl || items[0]
+                });
+            });
+
+            const singleDeclaredList = singleDeclaredItems.map(item => {
+                const decl = findDeclaration(item);
+                const pId = decl ? String(decl.id) : (item.productionDeclarationId ? String(item.productionDeclarationId) : null);
+                const bList = String(item.benchNumber || '').split(',').map(s => s.trim());
+                const sList = String(item.sleeperNo || '').split(',').map(s => s.trim());
+                const samples = (sList.length > 0 && sList[0] !== '') 
+                    ? sList.map((no, idx) => ({
+                        bench: bList[idx] || bList[0] || '',
+                        no: no
+                      }))
+                    : [{ bench: item.benchNumber || '', no: item.sleeperNo || '' }];
+
+                const actualCastingDate = extractCastDate(item, decl) || 'N/A';
+                const actualSleeperType = extractDrawingNo(item, decl);
+
+                return {
+                    ...item,
+                    productionDeclarationId: pId,
+                    batchNo: item.batchNumber,
+                    sleeperCategory: item.sleeperCategory || decl?.sleeperCategory,
+                    sleeperType: actualSleeperType,
+                    declaredSamples: samples,
+                    castingDate: actualCastingDate, 
+                    status: 'Testing Pending',
+                    mrTestType: item.mrTestType || 'Fresh',
+                    isTestRecord: false,
+                    originalData: decl || item
+                };
+            });
+
+            const mappedDeclared = [...groupedDeclaredList, ...singleDeclaredList];
+
+            // Map Completed Tests (Historical) - Always shows individual entries for each batch
             const mappedHistorical = testData
                 .filter(item => isSamePlant(item.plantId, params.plantId))
                 .map(item => {
@@ -526,60 +601,70 @@ const MomentOfResistance = () => {
     const testingList = useMemo(() => declaredRecords, [declaredRecords]);
     const historicalList = useMemo(() => historicalTests, [historicalTests]);
 
-    const handleDeclareSamples = async (batch, samples) => {
+    const handleDeclareSamples = async (target, samplesData) => {
         setLoading(true);
         try {
             const currentUserId = parseInt(userId || localStorage.getItem('userId'), 10) || 0;
             const params = getCommonParams();
-            const declId = batch.productionDeclarationId || extractDeclId(batch) || batch.id;
-            const declTag = declId ? `[DeclId: ${declId}] ` : '';
-            const castTag = batch.castingDate ? `[Cast: ${batch.castingDate}] ` : '';
+            const targetBatches = Array.isArray(target) ? target : [target];
+            const isMultiple = targetBatches.length > 1;
+            const groupId = isMultiple ? `MRG-${Date.now()}` : null;
+            const allBatchNumbers = targetBatches.map(b => String(b.batchNo || b.batchNumber));
 
-            if (batch.id && batch.status === 'Testing Pending') {
-                // UPDATE if existing record
-                const baseRemarks = batch.remarks && batch.remarks.includes('[DeclId:') 
-                    ? batch.remarks 
-                    : `${declTag}${castTag}${batch.remarks || 'Declaration Updated'}`;
-                const payload = {
-                    batchNumber: String(batch.batchNumber || batch.batchNo),
-                    sleeperType: batch.sleeperType,
-                    castingDate: batch.castingDate,
-                    benchNumber: Array.from(new Set(samples.map(s => s.bench).filter(Boolean))).join(', '),
-                    sleeperNo: samples.map(s => s.no).filter(Boolean).join(', '),
-                    testResult: batch.testResult || 'Pending',
-                    remarks: baseRemarks,
-                    vendorCode: params.vendorCode,
-                    plantId: params.plantId,
-                    shift: params.shift,
-                    createdBy: batch.createdBy || currentUserId,
-                    updatedBy: currentUserId
-                };
-                await apiService.updateMRRecord(batch.id, payload);
-                toast.success("Declaration updated successfully!");
-            } else {
-                // CREATE ONE entry with combined samples
-                const benchNos = Array.from(new Set(samples.map(s => s.bench).filter(Boolean))).join(', ');
-                const sleeperNos = samples.map(s => s.no).filter(Boolean).join(', ');
-                const payload = {
-                    batchNumber: String(batch.batchNo),
-                    sleeperType: batch.sleeperType,
-                    castingDate: batch.castingDate,
-                    benchNumber: benchNos,
-                    sleeperNo: sleeperNos,
-                    testResult: 'Pending',
-                    mrTestType: batch.mrTestType || 'Fresh',
-                    remarks: `${declTag}${castTag}Declared for MR ${batch.mrTestType || 'Fresh'} Testing (${samples.length} Sleeper${samples.length > 1 ? 's' : ''})`,
-                    vendorCode: params.vendorCode,
-                    plantId: params.plantId,
-                    shift: params.shift,
-                    createdBy: currentUserId,
-                    updatedBy: currentUserId
-                };
+            for (const batch of targetBatches) {
+                const batchKey = String(batch.id || batch.batchNo || batch.batchNumber);
+                const samples = Array.isArray(samplesData) ? samplesData : (samplesData[batchKey] || samplesData['default'] || [{ bench: '', no: '' }]);
+                const declId = batch.productionDeclarationId || extractDeclId(batch) || batch.id;
+                const declTag = declId ? `[DeclId: ${declId}] ` : '';
+                const castTag = batch.castingDate ? `[Cast: ${batch.castingDate}] ` : '';
+                const groupTag = groupId ? `[MRGroup: ${groupId}] [GroupBatches: ${allBatchNumbers.join(',')}] ` : '';
 
-                await apiService.createMRRecord(payload);
-                toast.success("Samples declared successfully!");
+                if (batch.id && batch.status === 'Testing Pending') {
+                    // UPDATE if existing record
+                    const baseRemarks = batch.remarks && batch.remarks.includes('[DeclId:') 
+                        ? batch.remarks 
+                        : `${groupTag}${declTag}${castTag}${batch.remarks || 'Declaration Updated'}`;
+                    const payload = {
+                        batchNumber: String(batch.batchNumber || batch.batchNo),
+                        sleeperType: batch.sleeperType,
+                        castingDate: batch.castingDate,
+                        benchNumber: Array.from(new Set(samples.map(s => s.bench).filter(Boolean))).join(', '),
+                        sleeperNo: samples.map(s => s.no).filter(Boolean).join(', '),
+                        testResult: batch.testResult || 'Pending',
+                        remarks: baseRemarks,
+                        vendorCode: params.vendorCode,
+                        plantId: params.plantId,
+                        shift: params.shift,
+                        createdBy: batch.createdBy || currentUserId,
+                        updatedBy: currentUserId
+                    };
+                    await apiService.updateMRRecord(batch.id, payload);
+                } else {
+                    // CREATE entry with samples
+                    const benchNos = Array.from(new Set(samples.map(s => s.bench).filter(Boolean))).join(', ');
+                    const sleeperNos = samples.map(s => s.no).filter(Boolean).join(', ');
+                    const payload = {
+                        batchNumber: String(batch.batchNo || batch.batchNumber),
+                        sleeperType: batch.sleeperType,
+                        castingDate: batch.castingDate,
+                        benchNumber: benchNos,
+                        sleeperNo: sleeperNos,
+                        testResult: 'Pending',
+                        mrTestType: batch.mrTestType || 'Fresh',
+                        remarks: `${groupTag}${declTag}${castTag}Declared for MR ${batch.mrTestType || 'Fresh'} Testing (${samples.length} Sleeper${samples.length > 1 ? 's' : ''})`,
+                        vendorCode: params.vendorCode,
+                        plantId: params.plantId,
+                        shift: params.shift,
+                        createdBy: currentUserId,
+                        updatedBy: currentUserId
+                    };
+
+                    await apiService.createMRRecord(payload);
+                }
             }
-            
+
+            toast.success(isMultiple ? `Samples declared successfully for ${targetBatches.length} batches!` : "Samples declared successfully!");
+            setSelectedDeclRows([]);
             setActiveTab('testing');
             await fetchMRData();
             setShowDeclareModal(false);
@@ -598,57 +683,50 @@ const MomentOfResistance = () => {
             const params = getCommonParams();
             const testResultStatus = results.result; // 'Pass', 'Retest', 'Fail'
 
-            const declId = record.productionDeclarationId || extractDeclId(record);
-            const declTag = declId ? `[DeclId: ${declId}] ` : '';
-            const actualCastDate = (record.castingDate && record.castingDate !== 'N/A')
-                ? record.castingDate
-                : (record.originalData?.castingDate || record.originalData?.dateOfCasting || '');
-            const castTag = actualCastDate ? `[Cast: ${actualCastDate}] ` : '';
+            const groupItems = record.groupRecords || (Array.isArray(record) ? record : [record]);
 
-            const payload = {
-                batchNumber: String(record.batchNo),
-                sleeperType: record.sleeperType,
-                benchNumber: String(record.benchNumber || record.declaredSamples?.[0]?.bench || results.results?.[0]?.bench || ''),
-                sleeperNo: String(record.sleeperNo || record.declaredSamples?.map(s => s.no).join(', ') || results.results?.[0]?.no || ''),
-                castingDate: actualCastDate || params.date,
-                dateOfTesting: results.dateOfTesting || record.dateOfTesting || params.date || new Date().toISOString().split('T')[0],
-                remarks: `${declTag}${castTag}MR Test ${testResultStatus}`,
-                testResult: testResultStatus,
-                vendorCode: params.vendorCode,
-                plantId: params.plantId,
-                shift: params.shift,
-                createdBy: record.createdBy || currentUserId,
-                updatedBy: currentUserId,
-                monmentOfResistanceId: record.monmentOfResistanceId || record.id,
-                details: results.results.map(r => ({
-                    dataType: r.isScada ? 'SCADA' : 'MANUAL',
-                    ct: parseFloat(r.ct) || 0,
-                    cb: parseFloat(r.cb) || 0,
-                    rs1: parseFloat(r.rs1) || 0,
-                    rs2: parseFloat(r.rs2) || 0
-                }))
-            };
+            for (const item of groupItems) {
+                const declId = item.productionDeclarationId || extractDeclId(item);
+                const declTag = declId ? `[DeclId: ${declId}] ` : '';
+                const actualCastDate = (item.castingDate && item.castingDate !== 'N/A')
+                    ? item.castingDate
+                    : (item.originalData?.castingDate || item.originalData?.dateOfCasting || '');
+                const castTag = actualCastDate ? `[Cast: ${actualCastDate}] ` : '';
 
-            if (record.isTestRecord) {
-                // UPDATE existing test entry in history
-                await apiService.updateMRTest(record.id, payload);
-            } else {
-                // CREATE new test entry
-                await apiService.createMRTest(payload);
-            }
+                const payload = {
+                    batchNumber: String(item.batchNumber || item.batchNo),
+                    sleeperType: item.sleeperType || record.sleeperType,
+                    benchNumber: String(item.benchNumber || item.declaredSamples?.[0]?.bench || results.results?.[0]?.bench || ''),
+                    sleeperNo: String(item.sleeperNo || item.declaredSamples?.map(s => s.no).join(', ') || results.results?.[0]?.no || ''),
+                    castingDate: actualCastDate || params.date,
+                    dateOfTesting: results.dateOfTesting || item.dateOfTesting || params.date || new Date().toISOString().split('T')[0],
+                    remarks: `${declTag}${castTag}MR Test ${testResultStatus}`,
+                    testResult: testResultStatus,
+                    vendorCode: params.vendorCode,
+                    plantId: params.plantId,
+                    shift: params.shift,
+                    createdBy: item.createdBy || currentUserId,
+                    updatedBy: currentUserId,
+                    monmentOfResistanceId: item.monmentOfResistanceId || item.id,
+                    details: results.results.map(r => ({
+                        dataType: r.isScada ? 'SCADA' : 'MANUAL',
+                        ct: parseFloat(r.ct) || 0,
+                        cb: parseFloat(r.cb) || 0,
+                        rs1: parseFloat(r.rs1) || 0,
+                        rs2: parseFloat(r.rs2) || 0
+                    }))
+                };
 
-            if (testResultStatus === 'Pass') {
-                toast.success("MR Test Passed! Entry shifted to completed testing.");
-                setActiveTab('historical');
-            } else if (testResultStatus === 'Fail') {
-                toast.error(`MR Test Failed! All sleepers of drawing / batch ${record.batchNo} (${record.sleeperType}) rejected.`);
-                setActiveTab('historical');
-            } else if (testResultStatus === 'Retest') {
-                toast.warning(`MR Test set to Retest. Entry moved back to pending list for Retest (2 sleepers required).`);
-                if (record.id) {
+                if (item.isTestRecord) {
+                    await apiService.updateMRTest(item.id, payload);
+                } else {
+                    await apiService.createMRTest(payload);
+                }
+
+                if (testResultStatus === 'Retest' && item.id) {
                     try {
-                        await apiService.updateMRRecord(record.id, {
-                            ...record,
+                        await apiService.updateMRRecord(item.id, {
+                            ...item,
                             testResult: 'Retest',
                             mrTestType: 'Retest',
                             mrSamplesNeeded: 2,
@@ -658,9 +736,21 @@ const MomentOfResistance = () => {
                         console.warn("MR record retest update notice:", e);
                     }
                 }
+            }
+
+            const batchNames = groupItems.map(b => b.batchNumber || b.batchNo).join(', ');
+            if (testResultStatus === 'Pass') {
+                toast.success(`MR Test Passed for batch(es): ${batchNames}! Entry shifted to completed testing.`);
+                setActiveTab('historical');
+            } else if (testResultStatus === 'Fail') {
+                toast.error(`MR Test Failed for batch(es): ${batchNames}! Sleepers rejected.`);
+                setActiveTab('historical');
+            } else if (testResultStatus === 'Retest') {
+                toast.warning(`MR Test set to Retest for batch(es): ${batchNames}. Moved back for Retest.`);
                 setActiveTab('declaration');
             }
 
+            setSelectedTestingRows([]);
             await fetchMRData();
             setShowTestModal(false);
         } catch (error) {
@@ -672,16 +762,16 @@ const MomentOfResistance = () => {
     };
 
     const columnsDeclaration = [
-        { key: 'batchNo', label: 'Batch Number' },
+        { key: 'batchNo', label: 'BATCH NUMBER' },
         { 
             key: 'sleeperType', 
-            label: 'Dwg. no.',
+            label: 'DWG. NO.',
             render: (val, row) => (val && !isGrade(val)) ? val : (extractDrawingNo(row) || val || '-')
         },
-        { key: 'castingDate', label: 'Date of Casting' },
+        { key: 'castingDate', label: 'DATE OF CASTING' },
         {
             key: 'waterCubeStatus',
-            label: 'Water Cube Testing',
+            label: 'WATER CUBE TESTING',
             render: (val) => (
                 <span style={{
                     padding: '4px 8px', borderRadius: '4px', fontSize: '10px', fontWeight: '700',
@@ -692,11 +782,11 @@ const MomentOfResistance = () => {
                 </span>
             )
         },
-        { key: 'mrSamplesNeeded', label: 'Samples to Test' },
-        { key: 'mrTestType', label: 'MR Test Type' },
+        { key: 'mrSamplesNeeded', label: 'SAMPLES TO TEST' },
+        { key: 'mrTestType', label: 'MR TEST TYPE' },
         {
             key: 'actions',
-            label: 'Actions',
+            label: 'ACTIONS',
             render: (_, row) => (
                 <button
                     className="btn-verify"
@@ -710,18 +800,20 @@ const MomentOfResistance = () => {
         }
     ];
 
-    const handleDeleteLog = async (id, isTest) => {
+    const handleDeleteLog = async (target, isTest) => {
         if (!window.confirm(`Are you sure you want to delete this ${isTest ? 'test result' : 'sample declaration'}?`)) return;
         setLoading(true);
         try {
             if (isTest) {
-                // If deleting a test, call the MR Record update to reset status
-                // OR delete the test record and the item should reappear if backend links it
-                await apiService.deleteMRTest(id);
+                await apiService.deleteMRTest(target.id || target);
                 toast.success("Test record deleted. Sample is now pending result again.");
                 setActiveTab('testing');
             } else {
-                await apiService.deleteMRRecord(id);
+                if (target.isGrouped && target.groupRecords) {
+                    await Promise.all(target.groupRecords.map(r => apiService.deleteMRRecord(r.id)));
+                } else {
+                    await apiService.deleteMRRecord(target.id || target);
+                }
                 toast.success("Declaration deleted. Batch is now pending declaration.");
                 setActiveTab('declaration');
             }
@@ -735,32 +827,68 @@ const MomentOfResistance = () => {
         }
     };
 
-    const [showViewModal, setShowViewModal] = useState(false); // No longer purely used by button, but keeping for state consistency if needed or remove
-
-    const isActionable = (createdDate) => {
-        if (!createdDate) return true;
-        const created = new Date(createdDate);
-        const now = new Date();
-        const diffHours = (now - created) / (1000 * 60 * 60);
-        return diffHours <= 8;
-    };
+    const [showViewModal, setShowViewModal] = useState(false);
 
     const columnsTesting = [
-        { key: 'batchNo', label: 'Batch Number' },
+        { 
+            key: 'batchNo', 
+            label: 'BATCH NUMBER',
+            render: (val, row) => {
+                const bList = String(val || '').split(',').map(s => s.trim()).filter(Boolean);
+                return (
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', alignItems: 'center' }}>
+                        <span style={{ fontWeight: '700', color: '#1e293b' }}>
+                            {bList.join(', ')}
+                        </span>
+                        {row.isGrouped && (
+                            <span style={{ fontSize: '9px', background: '#e0f2fe', color: '#0369a1', padding: '2px 6px', borderRadius: '4px', fontWeight: '800' }}>
+                                Grouped ({row.groupRecords?.length || bList.length})
+                            </span>
+                        )}
+                    </div>
+                );
+            }
+        },
         { 
             key: 'sleeperType', 
-            label: 'Dwg. no.',
-            render: (val, row) => (val && !isGrade(val)) ? val : (extractDrawingNo(row) || val || '-')
+            label: 'DWG. NO.',
+            render: (val, row) => {
+                if (row.isGrouped && row.groupRecords) {
+                    const types = Array.from(new Set(
+                        row.groupRecords.map(r => (r.sleeperType && !isGrade(r.sleeperType) && r.sleeperType !== 'N/A' && r.sleeperType !== '-') ? r.sleeperType.trim() : (extractDrawingNo(r) || r.sleeperType))
+                            .filter(t => t && t !== '-' && t !== 'N/A' && !isGrade(t))
+                    ));
+                    if (types.length > 0) return types.join(', ');
+                }
+                return (val && !isGrade(val)) ? val : (extractDrawingNo(row) || val || '-');
+            }
         },
         {
             key: 'declaredSamples',
-            label: 'Sleeper Number',
-            render: (val) => val?.map(s => s.no).join(', ')
+            label: 'SLEEPER NUMBER',
+            render: (val, row) => {
+                if (Array.isArray(val) && val.length > 0) {
+                    return val.map(s => s.no).filter(Boolean).join(', ');
+                }
+                return row.sleeperNo || '-';
+            }
         },
-        { key: 'castingDate', label: 'Date of Casting' },
+        { 
+            key: 'castingDate', 
+            label: 'DATE OF CASTING',
+            render: (val, row) => {
+                if (row.isGrouped && row.groupRecords) {
+                    const dates = Array.from(new Set(
+                        row.groupRecords.map(r => extractCastDate(r) || r.castingDate).filter(d => d && d !== 'N/A')
+                    ));
+                    if (dates.length > 0) return dates.join(', ');
+                }
+                return val || '-';
+            }
+        },
         {
             key: 'actions',
-            label: 'Actions',
+            label: 'ACTIONS',
             render: (_, row) => (
                 <button 
                     className="btn-verify" 
@@ -774,18 +902,18 @@ const MomentOfResistance = () => {
     ];
 
     const columnsHistorical = [
-        { key: 'batchNo', label: 'Batch Number' },
+        { key: 'batchNo', label: 'BATCH NUMBER' },
         { 
             key: 'sleeperType', 
-            label: 'Dwg. no.',
+            label: 'DWG. NO.',
             render: (val, row) => (val && !isGrade(val)) ? val : (extractDrawingNo(row) || val || '-')
         },
-        { key: 'sleeperNo', label: 'Sleeper No.' },
-        { key: 'castingDate', label: 'Date of Casting' },
-        { key: 'dateOfTesting', label: 'Date of Testing' },
+        { key: 'sleeperNo', label: 'SLEEPER NO.' },
+        { key: 'castingDate', label: 'DATE OF CASTING' },
+        { key: 'dateOfTesting', label: 'DATE OF TESTING' },
         {
             key: 'testResult',
-            label: 'Test Result',
+            label: 'TEST RESULT',
             render: (val, row) => {
                 const res = val || row.status || 'Pass';
                 return (
@@ -804,7 +932,7 @@ const MomentOfResistance = () => {
         },
         {
             key: 'actions',
-            label: 'Actions',
+            label: 'ACTIONS',
             render: (_, row) => (
                 <button 
                     className="btn-verify" 
@@ -816,21 +944,6 @@ const MomentOfResistance = () => {
             )
         }
     ];
-
-    const handleDeleteTest = async (id) => {
-        if (!window.confirm("Are you sure you want to delete this test result?")) return;
-        setLoading(true);
-        try {
-            await apiService.deleteMRTest(id);
-            toast.success("Test record deleted");
-            await fetchMRData();
-        } catch (error) {
-            console.error("Failed to delete MR test:", error);
-            toast.error("Failed to delete record.");
-        } finally {
-            setLoading(false);
-        }
-    };
 
     return (
         <div className="mr-module cement-forms-scope">
@@ -884,8 +997,93 @@ const MomentOfResistance = () => {
             <div className="tab-content">
                 {activeTab === 'declaration' && (
                     <div className="section-card">
+                        <div style={{ marginBottom: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                                <h4 style={{ margin: 0, color: '#475569' }}>Pending MR Sample Declaration</h4>
+                                {selectedDeclRows.length > 0 && (
+                                    <span style={{ fontSize: '12px', fontWeight: '700', color: '#0f766e', background: '#ccfbf1', padding: '4px 10px', borderRadius: '20px' }}>
+                                        {selectedDeclRows.length} batch{selectedDeclRows.length > 1 ? 'es' : ''} selected
+                                    </span>
+                                )}
+                            </div>
+                            <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+                                {selectedDeclRows.length > 0 && (
+                                    <button
+                                        className="btn-verify"
+                                        style={{ background: '#0f766e', padding: '8px 18px', fontSize: '12px', fontWeight: '700', borderRadius: '8px' }}
+                                        onClick={() => {
+                                            setSelectedBatch(selectedDeclRows);
+                                            setShowDeclareModal(true);
+                                        }}
+                                    >
+                                        Declare Selected Batches ({selectedDeclRows.length})
+                                    </button>
+                                )}
+                                <button 
+                                    className="toggle-btn mini" 
+                                    onClick={fetchMRData}
+                                    disabled={loading}
+                                >
+                                    {loading ? 'Refreshing...' : '↻ Refresh Data'}
+                                </button>
+                            </div>
+                        </div>
+                        <EnhancedDataTable 
+                            columns={columnsDeclaration} 
+                            data={declarationList} 
+                            loading={loading}
+                            selectable={true}
+                            onSelectionChange={setSelectedDeclRows}
+                        />
+                    </div>
+                )}
+                {activeTab === 'testing' && (
+                    <div className="section-card">
+                        <div style={{ marginBottom: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                                <h4 style={{ margin: 0, color: '#475569' }}>Samples Declared (Pending Testing)</h4>
+                                {selectedTestingRows.length > 0 && (
+                                    <span style={{ fontSize: '12px', fontWeight: '700', color: '#0f766e', background: '#ccfbf1', padding: '4px 10px', borderRadius: '20px' }}>
+                                        {selectedTestingRows.length} selected
+                                    </span>
+                                )}
+                            </div>
+                            {selectedTestingRows.length > 1 && (
+                                <button
+                                    className="btn-verify"
+                                    style={{ background: '#0f766e', padding: '8px 18px', fontSize: '12px', fontWeight: '700', borderRadius: '8px' }}
+                                    onClick={() => {
+                                        const combinedBatch = {
+                                            isGrouped: true,
+                                            groupRecords: selectedTestingRows.flatMap(r => r.groupRecords || [r]),
+                                            batchNo: selectedTestingRows.map(r => r.batchNo || r.batchNumber).join(', '),
+                                            batchNumber: selectedTestingRows.map(r => r.batchNo || r.batchNumber).join(', '),
+                                            sleeperType: selectedTestingRows[0].sleeperType,
+                                            castingDate: selectedTestingRows[0].castingDate,
+                                            declaredSamples: selectedTestingRows.flatMap(r => r.declaredSamples || [{ bench: r.benchNumber, no: r.sleeperNo }]),
+                                            benchNumber: selectedTestingRows.map(r => r.benchNumber).filter(Boolean).join(', '),
+                                            sleeperNo: selectedTestingRows.map(r => r.sleeperNo).filter(Boolean).join(', ')
+                                        };
+                                        setSelectedBatch(combinedBatch);
+                                        setShowTestModal(true);
+                                    }}
+                                >
+                                    Enter Test Details for Selected ({selectedTestingRows.length})
+                                </button>
+                            )}
+                        </div>
+                        <EnhancedDataTable 
+                            columns={columnsTesting} 
+                            data={testingList}
+                            selectable={true}
+                            onSelectionChange={setSelectedTestingRows}
+                        />
+                    </div>
+                )}
+                {activeTab === 'historical' && (
+                    <div className="section-card">
                         <div style={{ marginBottom: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                            <h4 style={{ margin: 0, color: '#475569' }}>Pending MR Sample Declaration</h4>
+                            <h4 style={{ margin: 0, color: '#475569' }}>Recent Testing Results</h4>
                             <button 
                                 className="toggle-btn mini" 
                                 onClick={fetchMRData}
@@ -894,23 +1092,7 @@ const MomentOfResistance = () => {
                                 {loading ? 'Refreshing...' : '↻ Refresh Data'}
                             </button>
                         </div>
-                        <EnhancedDataTable columns={columnsDeclaration} data={declarationList} loading={loading} />
-                    </div>
-                )}
-                {activeTab === 'testing' && (
-                    <div className="section-card">
-                        <div style={{ marginBottom: '16px', display: 'flex', justifyContent: 'space-between' }}>
-                            <h4 style={{ margin: 0, color: '#475569' }}>Samples Declared (Pending Testing)</h4>
-                        </div>
-                        <EnhancedDataTable columns={columnsTesting} data={testingList} />
-                    </div>
-                )}
-                {activeTab === 'historical' && (
-                    <div className="section-card">
-                        <div style={{ marginBottom: '16px', display: 'flex', justifyContent: 'space-between' }}>
-                            <h4 style={{ margin: 0, color: '#475569' }}>Recent Testing Results</h4>
-                        </div>
-                        <EnhancedDataTable columns={columnsHistorical} data={historicalList} />
+                        <EnhancedDataTable columns={columnsHistorical} data={historicalList} selectable={true} />
                     </div>
                 )}
             </div>
@@ -927,7 +1109,7 @@ const MomentOfResistance = () => {
                             setShowDeclareModal(true);
                         }
                     }}
-                    onDelete={(id) => handleDeleteLog(id, selectedBatch.isTestRecord)}
+                    onDelete={() => handleDeleteLog(selectedBatch, selectedBatch.isTestRecord)}
                     onEnterTest={() => {
                         setShowViewModal(false);
                         setShowTestModal(true);
@@ -940,7 +1122,7 @@ const MomentOfResistance = () => {
                     batch={selectedBatch}
                     onClose={() => setShowDeclareModal(false)}
                     onSave={handleDeclareSamples}
-                    isEdit={selectedBatch?.status === 'Testing Pending'}
+                    isEdit={!Array.isArray(selectedBatch) && selectedBatch?.status === 'Testing Pending'}
                 />
             )}
 
@@ -956,31 +1138,43 @@ const MomentOfResistance = () => {
 };
 
 const DeclareSampleModal = ({ batch, onClose, onSave, isEdit }) => {
-    const [samples, setSamples] = useState(
-        isEdit 
-            ? batch.declaredSamples 
-            : Array.from({ length: batch.mrSamplesNeeded || 1 }, () => ({ bench: '', no: '' }))
-    );
+    const isMultiBatch = Array.isArray(batch);
+    const targetBatches = useMemo(() => isMultiBatch ? batch : [batch], [isMultiBatch, batch]);
+
+    // Single selected sleeper state for all declared batches
+    const [selectedSleeper, setSelectedSleeper] = useState(() => {
+        if (isEdit && targetBatches[0]?.declaredSamples?.[0]) {
+            const first = targetBatches[0].declaredSamples[0];
+            return { bench: first.bench || '1', no: first.no || '', batchNo: targetBatches[0].batchNo || '' };
+        }
+        if (isEdit && targetBatches[0]?.sleeperNo) {
+            return { bench: targetBatches[0].benchNumber || '1', no: targetBatches[0].sleeperNo || '', batchNo: targetBatches[0].batchNo || '' };
+        }
+        return { bench: '', no: '', batchNo: '' };
+    });
+
     const [isSaving, setIsSaving] = useState(false);
-    const [availableSleepers, setAvailableSleepers] = useState([]);
+    const [allSleepers, setAllSleepers] = useState([]);
     const [isLoadingSleepers, setIsLoadingSleepers] = useState(false);
     const [searchTerm, setSearchTerm] = useState('');
-    const [activeDropdownIdx, setActiveDropdownIdx] = useState(null);
+    const [isOpenDropdown, setIsOpenDropdown] = useState(false);
 
-    const resolvedDwg = (batch?.sleeperType && !isGrade(batch.sleeperType)) ? batch.sleeperType : (extractDrawingNo(batch) || batch?.sleeperType || '-');
-
+    // Fetch and aggregate all sleepers across all target batches
     useEffect(() => {
-        const fetchSleepers = async () => {
-            const batchNo = batch?.batchNo || batch?.batchNumber;
-            if (!batchNo) return;
+        let isMounted = true;
+        const fetchAllBatchSleepers = async () => {
             setIsLoadingSleepers(true);
-            try {
-                let list = [];
+            const combinedList = [];
+            const seenKeys = new Set();
 
+            for (const b of targetBatches) {
+                const batchNo = b.batchNo || b.batchNumber;
+                if (!batchNo) continue;
+
+                let list = [];
                 const extractFromData = (data) => {
                     const result = [];
                     if (!data) return result;
-                    // Case 1: Stress Bench (Chambers/BenchGroups)
                     if (data?.chambers && Array.isArray(data.chambers)) {
                         data.chambers.forEach(chamber => {
                             chamber.benchGroups?.forEach(group => {
@@ -989,15 +1183,14 @@ const DeclareSampleModal = ({ batch, onClose, onSave, isEdit }) => {
                                     const s = typeof item === 'string' ? item : (item.sleeperNo || item.id);
                                     if (!s) return;
                                     result.push({
-                                        bench: String(group.benchNo || ''),
+                                        bench: String(group.benchNo || chamber.chamberNo || '1'),
                                         no: String(s),
-                                        label: String(s)
+                                        batchNo: String(batchNo)
                                     });
                                 });
                             });
                         });
                     }
-                    // Case 2: Long Line (Gangs)
                     if (data?.gangs && Array.isArray(data.gangs)) {
                         data.gangs.forEach(gang => {
                             gang.gangGroups?.forEach(group => {
@@ -1006,9 +1199,9 @@ const DeclareSampleModal = ({ batch, onClose, onSave, isEdit }) => {
                                     const s = typeof item === 'string' ? item : (item.sleeperNo || item.id);
                                     if (!s) return;
                                     result.push({
-                                        bench: String(group.gangNo || group.benchNo || ''),
+                                        bench: String(group.gangNo || group.benchNo || '1'),
                                         no: String(s),
-                                        label: String(s)
+                                        batchNo: String(batchNo)
                                     });
                                 });
                             });
@@ -1017,9 +1210,9 @@ const DeclareSampleModal = ({ batch, onClose, onSave, isEdit }) => {
                                 const s = typeof item === 'string' ? item : (item.sleeperNo || item.id);
                                 if (!s) return;
                                 result.push({
-                                    bench: String(gang.gangNo || gang.gangFrom || ''),
+                                    bench: String(gang.gangNo || gang.gangFrom || '1'),
                                     no: String(s),
-                                    label: String(s)
+                                    batchNo: String(batchNo)
                                 });
                             });
                         });
@@ -1027,29 +1220,26 @@ const DeclareSampleModal = ({ batch, onClose, onSave, isEdit }) => {
                     return result;
                 };
 
-                // Try in-memory data from selected batch first
-                list = extractFromData(batch?.originalData) || [];
-                if (list.length === 0 && batch?.batchMatch) {
-                    list = extractFromData(batch.batchMatch) || [];
+                list = extractFromData(b?.originalData) || [];
+                if (list.length === 0 && b?.batchMatch) {
+                    list = extractFromData(b.batchMatch) || [];
                 }
-                if (list.length === 0 && (batch?.chambers || batch?.gangs)) {
-                    list = extractFromData(batch) || [];
+                if (list.length === 0 && (b?.chambers || b?.gangs)) {
+                    list = extractFromData(b) || [];
                 }
 
-                const declId = batch?.productionDeclarationId || batch?.declarationId || batch?.id;
-                
-                // Method 1: Fetch declaration record by specific ID if not already in memory
+                const declId = b?.productionDeclarationId || b?.declarationId || b?.id;
                 if (list.length === 0 && declId) {
                     try {
                         const response = await (apiService.getProductionDeclarationById || apiService.getProductionDeclarationRecordById)(declId);
                         const data = response?.responseData || response;
                         list = extractFromData(data) || [];
                     } catch (e) {
-                        console.warn("Fetch by declId failed, falling back to sleeperType/batch query:", e);
+                        console.warn("Fetch by declId failed:", e);
                     }
                 }
 
-                // Method 2: Fallback to querying sleepers by batch number and sleeperType
+                const resolvedDwg = (b?.sleeperType && !isGrade(b.sleeperType)) ? b.sleeperType : (extractDrawingNo(b) || b?.sleeperType || null);
                 if (list.length === 0) {
                     try {
                         const sleepersRes = await apiService.getAllProductionSleepers(batchNo, null, resolvedDwg !== '-' ? resolvedDwg : null);
@@ -1063,7 +1253,7 @@ const DeclareSampleModal = ({ batch, onClose, onSave, isEdit }) => {
                                 list.push({
                                     bench: benchNo,
                                     no: String(s),
-                                    label: String(s)
+                                    batchNo: String(batchNo)
                                 });
                             });
                         }
@@ -1072,157 +1262,216 @@ const DeclareSampleModal = ({ batch, onClose, onSave, isEdit }) => {
                     }
                 }
 
-                // Deduplicate list by (bench + no)
-                const seenSleepers = new Set();
-                const uniqueList = [];
                 list.forEach(item => {
-                    const key = `${item.bench}_${item.no}`;
-                    if (!seenSleepers.has(key)) {
-                        seenSleepers.add(key);
-                        uniqueList.push(item);
+                    const key = `${item.batchNo}_${item.bench}_${item.no}`;
+                    if (!seenKeys.has(key)) {
+                        seenKeys.add(key);
+                        combinedList.push({
+                            ...item,
+                            displayLabel: targetBatches.length > 1 
+                                ? `${item.no} (Batch: ${item.batchNo}${item.bench ? `, Bench: ${item.bench}` : ''})` 
+                                : `${item.no}${item.bench ? ` (Bench: ${item.bench})` : ''}`
+                        });
                     }
                 });
+            }
 
-                setAvailableSleepers(uniqueList);
-            } catch (error) {
-                console.error("Error fetching sleepers for declaration:", error);
-            } finally {
+            if (isMounted) {
+                setAllSleepers(combinedList);
                 setIsLoadingSleepers(false);
             }
         };
-        fetchSleepers();
-    }, [batch, resolvedDwg]);
 
-    const handleUpdate = (idx, sleeperObj) => {
-        const updated = [...samples];
-        updated[idx] = { bench: sleeperObj.bench, no: sleeperObj.no };
-        setSamples(updated);
-        setActiveDropdownIdx(null);
+        fetchAllBatchSleepers();
+
+        return () => {
+            isMounted = false;
+        };
+    }, [targetBatches]);
+
+    const handleSelectSleeperItem = (item) => {
+        setSelectedSleeper({
+            bench: item.bench || '1',
+            no: item.no,
+            batchNo: item.batchNo
+        });
         setSearchTerm('');
+        setIsOpenDropdown(false);
     };
+
+    const handleManualInputChange = (val) => {
+        setSearchTerm(val);
+        const match = String(val).match(/^(\d+)/);
+        setSelectedSleeper({
+            bench: match ? match[1] : (selectedSleeper.bench || '1'),
+            no: val,
+            batchNo: ''
+        });
+    };
+
+    const isReadyToSave = Boolean(selectedSleeper.no && selectedSleeper.no.trim());
 
     return (
         <div className="form-modal-overlay" onClick={onClose}>
-            <div className="form-modal-container" onClick={e => e.stopPropagation()} style={{ maxWidth: '600px' }}>
+            <div className="form-modal-container" onClick={e => e.stopPropagation()} style={{ maxWidth: '650px' }}>
                 <div className="form-modal-header">
-                    <span className="form-modal-header-title">Declare Sleeper Sample for MR Testing</span>
+                    <span className="form-modal-header-title">
+                        {targetBatches.length > 1 ? `Declare Sleeper Sample for MR Testing (${targetBatches.length} Batches)` : 'Declare Sleeper Sample for MR Testing'}
+                    </span>
                     <button className="form-modal-close" onClick={onClose}>×</button>
                 </div>
-                <div className="form-modal-body">
-                    <div style={{ background: '#f8fafc', padding: '16px', borderRadius: '12px', border: '1px solid #e2e8f0', marginBottom: '20px' }}>
-                        <div className="form-grid">
-                            <div className="input-group"><label>Batch</label><input readOnly value={batch?.batchNo || batch?.batchNumber} className="readOnly" /></div>
-                            <div className="input-group"><label>Dwg. no.</label><input readOnly value={resolvedDwg} className="readOnly" /></div>
-                        </div>
-                    </div>
-
-                    <h4 style={{ fontSize: '13px', color: '#42818c', marginBottom: '16px', fontWeight: '700' }}>
-                        Select Sleeper Details ({batch.mrSamplesNeeded} needed)
-                    </h4>
-
-                    {samples.map((s, idx) => (
-                        <div key={idx} style={{ 
-                            marginBottom: '16px', background: '#fff', padding: '16px', borderRadius: '12px', 
-                            border: '1px solid #f1f5f9', boxShadow: '0 2px 4px rgba(0,0,0,0.02)' 
-                        }}>
-                            <div className="input-group" style={{ position: 'relative' }}>
-                                <label>Search & Select Sleeper <span className="required">*</span></label>
-                                <div className="searchable-dropdown-wrapper">
-                                    <input 
-                                        type="text" 
-                                        placeholder={isLoadingSleepers ? "Loading sleepers..." : "Type to search sleeper (e.g. 100A)..."}
-                                        value={activeDropdownIdx === idx ? searchTerm : (s.no || '')}
-                                        onFocus={() => {
-                                             setActiveDropdownIdx(idx);
-                                             setSearchTerm('');
-                                        }}
-                                        onChange={(e) => setSearchTerm(e.target.value)}
-                                        style={{ 
-                                            paddingRight: '36px',
-                                            borderColor: activeDropdownIdx === idx ? '#42818c' : '#cbd5e1'
-                                        }}
-                                    />
-                                    <div style={{ 
-                                        position: 'absolute', 
-                                        right: '12px', 
-                                        top: '50%', 
-                                        transform: 'translateY(15%)',
-                                        color: '#64748b',
-                                        pointerEvents: 'none'
-                                    }}>
-                                        {isLoadingSleepers ? (
-                                            <div className="spinner-mini"></div>
-                                        ) : (
-                                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
-                                                <path d="M6 9l6 6 6-6"/>
-                                            </svg>
-                                        )}
-                                    </div>
-
-                                    {activeDropdownIdx === idx && (
-                                        <div className="dropdown-options-list" style={{
-                                            position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 100,
-                                            background: 'white', border: '1px solid #cbd5e1', borderRadius: '8px',
-                                            marginTop: '4px', maxHeight: '200px', overflowY: 'auto',
-                                            boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)'
-                                        }}>
-                                            {availableSleepers.length === 0 ? (
-                                                <div style={{ padding: '12px', fontSize: '12px', color: '#64748b', textAlign: 'center' }}>
-                                                    {isLoadingSleepers ? 'Fetching sleepers...' : 'No sleepers found for this batch'}
-                                                </div>
-                                            ) : (
-                                                <>
-                                                    {availableSleepers
-                                                        .filter(item => item.label.toLowerCase().includes(searchTerm.toLowerCase()))
-                                                        .slice(0, 50)
-                                                        .map((item, sIdx) => (
-                                                            <div 
-                                                                key={sIdx} 
-                                                                style={{ 
-                                                                    padding: '10px 16px', cursor: 'pointer', borderBottom: '1px solid #f1f5f9',
-                                                                    fontSize: '13px', color: '#334155'
-                                                                }}
-                                                                onMouseDown={() => handleUpdate(idx, item)}
-                                                                onMouseEnter={(e) => e.target.style.background = '#f8fafc'}
-                                                                onMouseLeave={(e) => e.target.style.background = 'white'}
-                                                            >
-                                                                {item.label}
-                                                            </div>
-                                                        ))
-                                                    }
-                                                    {availableSleepers.filter(item => item.label.toLowerCase().includes(searchTerm.toLowerCase())).length === 0 && (
-                                                        <div style={{ padding: '12px', textAlign: 'center', fontSize: '12px', color: '#94a3b8' }}>
-                                                            No matches found
-                                                        </div>
-                                                    )}
-                                                </>
-                                            )}
-                                        </div>
-                                    )}
-                                </div>
+                <div className="form-modal-body" style={{ maxHeight: '75vh', overflowY: 'auto' }}>
+                    {/* Multi-Batch Overview Card */}
+                    {targetBatches.length > 1 ? (
+                        <div style={{ background: '#f8fafc', padding: '16px', borderRadius: '12px', border: '1px solid #e2e8f0', marginBottom: '20px' }}>
+                            <div style={{ fontSize: '11px', fontWeight: '800', color: '#0f766e', textTransform: 'uppercase', marginBottom: '8px' }}>
+                                Selected Batches ({targetBatches.length})
+                            </div>
+                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+                                {targetBatches.map((b, idx) => (
+                                    <span key={idx} style={{ background: '#e0f2fe', color: '#0369a1', padding: '5px 12px', borderRadius: '6px', fontSize: '12px', fontWeight: '700' }}>
+                                        Batch: {b.batchNo || b.batchNumber} ({b.sleeperType || 'RT-8746'})
+                                    </span>
+                                ))}
                             </div>
                         </div>
-                    ))}
+                    ) : (
+                        <div style={{ background: '#f8fafc', padding: '16px', borderRadius: '12px', border: '1px solid #e2e8f0', marginBottom: '20px' }}>
+                            <div className="form-grid">
+                                <div className="input-group"><label>Batch</label><input readOnly value={targetBatches[0]?.batchNo || targetBatches[0]?.batchNumber} className="readOnly" /></div>
+                                <div className="input-group"><label>Dwg. no.</label><input readOnly value={targetBatches[0]?.sleeperType || extractDrawingNo(targetBatches[0]) || '-'} className="readOnly" /></div>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Single Combined Sleeper Selection */}
+                    <div style={{ 
+                        background: '#fff', padding: '18px', borderRadius: '12px', 
+                        border: '1.5px solid #e2e8f0', boxShadow: '0 2px 6px rgba(0,0,0,0.03)' 
+                    }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+                            <h4 style={{ margin: 0, fontSize: '13px', color: '#13343b', fontWeight: '800' }}>
+                                Select Sleeper Sample
+                            </h4>
+                            <span style={{ fontSize: '11px', color: '#0f766e', fontWeight: '700', background: '#f0fdfa', padding: '3px 10px', borderRadius: '4px' }}>
+                                1 sample for {targetBatches.length > 1 ? `all ${targetBatches.length} batches` : 'batch'}
+                            </span>
+                        </div>
+
+                        <div className="input-group" style={{ position: 'relative', marginTop: '8px' }}>
+                            <label style={{ fontSize: '11px', fontWeight: '700', color: '#475569' }}>
+                                Select Sleeper <span className="required">*</span>
+                            </label>
+                            <div className="searchable-dropdown-wrapper">
+                                <input 
+                                    type="text" 
+                                    placeholder={isLoadingSleepers ? "Loading sleepers..." : "Type or click to search sleeper (e.g. 176A)..."}
+                                    value={isOpenDropdown ? searchTerm : (selectedSleeper.no ? (selectedSleeper.batchNo && targetBatches.length > 1 ? `${selectedSleeper.no} (Batch: ${selectedSleeper.batchNo})` : selectedSleeper.no) : '')}
+                                    onFocus={() => {
+                                        setIsOpenDropdown(true);
+                                        setSearchTerm('');
+                                    }}
+                                    onChange={(e) => handleManualInputChange(e.target.value)}
+                                    style={{ 
+                                        paddingRight: '36px',
+                                        borderColor: isOpenDropdown ? '#42818c' : '#cbd5e1'
+                                    }}
+                                />
+                                <div style={{ 
+                                    position: 'absolute', 
+                                    right: '12px', 
+                                    top: '50%', 
+                                    transform: 'translateY(15%)',
+                                    color: '#64748b',
+                                    pointerEvents: 'none'
+                                }}>
+                                    {isLoadingSleepers ? (
+                                        <div className="spinner-mini"></div>
+                                    ) : (
+                                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                                            <path d="M6 9l6 6 6-6"/>
+                                        </svg>
+                                    )}
+                                </div>
+
+                                {isOpenDropdown && (
+                                    <div className="dropdown-options-list" style={{
+                                        position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 100,
+                                        background: 'white', border: '1px solid #cbd5e1', borderRadius: '8px',
+                                        marginTop: '4px', maxHeight: '200px', overflowY: 'auto',
+                                        boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)'
+                                    }}>
+                                        {allSleepers.length === 0 ? (
+                                            <div style={{ padding: '12px', fontSize: '12px', color: '#64748b', textAlign: 'center' }}>
+                                                {isLoadingSleepers ? 'Fetching sleepers across batches...' : 'No sleepers found for selected batch(es)'}
+                                            </div>
+                                        ) : (
+                                            <>
+                                                {allSleepers
+                                                    .filter(item => 
+                                                        item.no.toLowerCase().includes(searchTerm.toLowerCase()) || 
+                                                        String(item.batchNo || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+                                                        item.displayLabel.toLowerCase().includes(searchTerm.toLowerCase())
+                                                    )
+                                                    .slice(0, 60)
+                                                    .map((item, sIdx) => (
+                                                        <div 
+                                                            key={sIdx} 
+                                                            style={{ 
+                                                                padding: '10px 16px', cursor: 'pointer', borderBottom: '1px solid #f1f5f9',
+                                                                fontSize: '13px', color: '#334155', display: 'flex', justifyContent: 'space-between', alignItems: 'center'
+                                                            }}
+                                                            onMouseDown={() => handleSelectSleeperItem(item)}
+                                                            onMouseEnter={(e) => e.currentTarget.style.background = '#f8fafc'}
+                                                            onMouseLeave={(e) => e.currentTarget.style.background = 'white'}
+                                                        >
+                                                            <span style={{ fontWeight: '600' }}>{item.no}</span>
+                                                            {targetBatches.length > 1 && item.batchNo && (
+                                                                <span style={{ fontSize: '11px', color: '#0369a1', background: '#e0f2fe', padding: '2px 8px', borderRadius: '4px', fontWeight: '700' }}>
+                                                                    Batch: {item.batchNo} {item.bench ? `• Bench: ${item.bench}` : ''}
+                                                                </span>
+                                                            )}
+                                                        </div>
+                                                    ))
+                                                }
+                                                {allSleepers.filter(item => 
+                                                    item.no.toLowerCase().includes(searchTerm.toLowerCase()) || 
+                                                    String(item.batchNo || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+                                                    item.displayLabel.toLowerCase().includes(searchTerm.toLowerCase())
+                                                ).length === 0 && (
+                                                    <div style={{ padding: '12px', textAlign: 'center', fontSize: '12px', color: '#94a3b8' }}>
+                                                        No matching sleepers found
+                                                    </div>
+                                                )}
+                                            </>
+                                        )}
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    </div>
 
                     <div style={{ display: 'flex', gap: '12px', marginTop: '24px' }}>
                         <button 
                             className="btn-verify" 
                             style={{ 
                                 flex: 1, 
-                                opacity: isSaving || isLoadingSleepers ? 0.7 : 1, 
-                                cursor: (isSaving || isLoadingSleepers) ? 'not-allowed' : 'pointer' 
+                                opacity: isSaving || !isReadyToSave ? 0.7 : 1, 
+                                cursor: (isSaving || !isReadyToSave) ? 'not-allowed' : 'pointer',
+                                background: '#0f766e',
+                                padding: '12px'
                             }} 
-                            disabled={isSaving || isLoadingSleepers}
+                            disabled={isSaving || !isReadyToSave}
                             onClick={() => {
-                                if (samples.some(s => !s.bench || !s.no)) {
-                                    alert("Please select a sleeper for MR testing.");
+                                if (!isReadyToSave) {
+                                    alert("Please select a sleeper sample.");
                                     return;
                                 }
                                 setIsSaving(true);
-                                onSave(batch, samples);
+                                onSave(targetBatches, [{ bench: selectedSleeper.bench || '1', no: selectedSleeper.no.trim() }]);
                             }}
                         >
-                            {isSaving ? 'Saving...' : 'Save Declaration'}
+                            {isSaving ? 'Saving Declaration...' : `Save Declaration (${targetBatches.length} Batch${targetBatches.length > 1 ? 'es' : ''})`}
                         </button>
                         <button className="btn-save" style={{ flex: 1, background: '#f1f5f9', color: '#475569', border: 'none' }} onClick={onClose}>Cancel</button>
                     </div>
@@ -1254,41 +1503,80 @@ const TestDetailsModal = ({ batch, onClose, onSave }) => {
     const [testingDate, setTestingDate] = useState(() => {
         return normDate(batch?.dateOfTesting || batch?.testingDate) || new Date().toISOString().split('T')[0];
     });
+    
+    // Prepare single unified test result field for the form
     const [manualResults, setManualResults] = useState(() => {
         if (batch.details && batch.details.length > 0) {
-            return batch.details.map(d => ({
-                ...d,
-                bench: batch.benchNumber,
-                no: batch.sleeperNo,
-                ct: d.ct || '',
-                cb: d.cb || '',
-                rs1: d.rs1 || d.rs || '',
-                rs2: d.rs2 || d.rs || '',
-                isScada: d.dataType === 'SCADA'
-            }));
+            return [{
+                ...batch.details[0],
+                bench: batch.benchNumber || batch.details[0].bench || '',
+                no: batch.sleeperNo || batch.details[0].no || '',
+                ct: batch.details[0].ct || '',
+                cb: batch.details[0].cb || '',
+                rs1: batch.details[0].rs1 || batch.details[0].rs || '',
+                rs2: batch.details[0].rs2 || batch.details[0].rs || '',
+                isScada: batch.details[0].dataType === 'SCADA'
+            }];
         }
-        return (batch.declaredSamples || [{ bench: batch.benchNumber || '', no: batch.sleeperNo || '' }]).map(s => ({
-            ...s,
+        return [{
+            bench: batch.benchNumber || batch.declaredSamples?.[0]?.bench || '',
+            no: batch.sleeperNo || batch.declaredSamples?.map(s => s.no).filter(Boolean).join(', ') || '',
             ct: '',
             cb: '',
             rs1: '',
             rs2: '',
             date: new Date().toISOString().split('T')[0]
-        }));
+        }];
     });
+
     const [isSaving, setIsSaving] = useState(false);
     const [witnessed, setWitnessed] = useState(manualResults.map(r => !!r.isScada));
 
-    const resolvedDwg = (batch?.sleeperType && !isGrade(batch.sleeperType)) ? batch.sleeperType : (extractDrawingNo(batch) || batch?.sleeperType || '-');
+    const displayBatch = useMemo(() => {
+        const raw = batch?.batchNo || batch?.batchNumber || '';
+        return String(raw).split(',').map(s => s.trim()).filter(Boolean).join(', ');
+    }, [batch]);
+
+    const displaySleeperNo = useMemo(() => {
+        if (batch?.declaredSamples && batch.declaredSamples.length > 0) {
+            const list = Array.from(new Set(batch.declaredSamples.map(s => s.no).filter(Boolean)));
+            if (list.length > 0) return list.join(', ');
+        }
+        if (batch?.sleeperNo) {
+            return String(batch.sleeperNo).split(',').map(s => s.trim()).filter(Boolean).join(', ');
+        }
+        return 'Declared Sample';
+    }, [batch]);
+
+    const resolvedDwg = useMemo(() => {
+        if (batch?.isGrouped && batch?.groupRecords) {
+            const types = Array.from(new Set(
+                batch.groupRecords.map(r => (r.sleeperType && !isGrade(r.sleeperType) && r.sleeperType !== 'N/A' && r.sleeperType !== '-') ? r.sleeperType.trim() : (extractDrawingNo(r) || r.sleeperType))
+                    .filter(t => t && t !== '-' && t !== 'N/A' && !isGrade(t))
+            ));
+            if (types.length > 0) return types.join(', ');
+        }
+        return (batch?.sleeperType && !isGrade(batch?.sleeperType)) ? batch.sleeperType : (extractDrawingNo(batch) || batch?.sleeperType || '-');
+    }, [batch]);
+
+    const displayCastingDate = useMemo(() => {
+        if (batch?.isGrouped && batch?.groupRecords) {
+            const dates = Array.from(new Set(
+                batch.groupRecords.map(r => extractCastDate(r) || r.castingDate).filter(d => d && d !== 'N/A')
+            ));
+            if (dates.length > 0) return dates.join(', ');
+        }
+        return batch?.castingDate || 'N/A';
+    }, [batch]);
 
     const mockScadaData = useMemo(() => {
-        return (batch.declaredSamples || [{ bench: batch.benchNumber || '', no: batch.sleeperNo || '' }]).map(() => ({
-            ct: Math.floor(460 + Math.random() * 100),
-            cb: Math.floor(560 + Math.random() * 100),
-            rs1: Math.floor(650 + Math.random() * 100),
-            rs2: Math.floor(650 + Math.random() * 100)
+        return manualResults.map(() => ({
+            ct: Math.floor(460 + Math.random() * 20),
+            cb: Math.floor(560 + Math.random() * 20),
+            rs1: Math.floor(690 + Math.random() * 20),
+            rs2: Math.floor(690 + Math.random() * 20)
         }));
-    }, [batch]);
+    }, [manualResults]);
 
     const handleWitness = (idx) => {
         const updatedManual = [...manualResults];
@@ -1318,16 +1606,25 @@ const TestDetailsModal = ({ batch, onClose, onSave }) => {
         <div className="form-modal-overlay" onClick={onClose}>
             <div className="form-modal-container" onClick={e => e.stopPropagation()} style={{ maxWidth: '900px' }}>
                 <div className="form-modal-header">
-                    <span className="form-modal-header-title">Enter MR Test Details - Batch {batch.batchNo || batch.batchNumber}</span>
+                    <span className="form-modal-header-title">Enter MR Test Details - Batch {displayBatch}</span>
                     <button className="form-modal-close" onClick={onClose}>×</button>
                 </div>
                 <div className="form-modal-body" style={{ maxHeight: '80vh', overflowY: 'auto' }}>
                     {/* Section 1: Sample Details */}
                     <div style={{ background: '#fff', padding: '16px', borderRadius: '12px', border: '1px solid #e2e8f0', marginBottom: '20px' }}>
                         <div className="form-grid" style={{ gridTemplateColumns: 'repeat(4, 1fr)', gap: '12px' }}>
-                            <div className="input-group"><label>Batch</label><input readOnly value={batch?.batchNo || batch?.batchNumber} className="readOnly" /></div>
-                            <div className="input-group"><label>Dwg. no.</label><input readOnly value={resolvedDwg} className="readOnly" /></div>
-                            <div className="input-group"><label>Casting Date</label><input readOnly value={batch?.castingDate} className="readOnly" /></div>
+                            <div className="input-group">
+                                <label style={{ fontSize: '11px', fontWeight: '700', color: '#475569' }}>Batch</label>
+                                <input readOnly value={displayBatch} className="readOnly" style={{ fontWeight: '700', color: '#0f766e' }} />
+                            </div>
+                            <div className="input-group">
+                                <label style={{ fontSize: '11px', fontWeight: '700', color: '#475569' }}>Dwg. no.</label>
+                                <input readOnly value={resolvedDwg} className="readOnly" />
+                            </div>
+                            <div className="input-group">
+                                <label style={{ fontSize: '11px', fontWeight: '700', color: '#475569' }}>Casting Date</label>
+                                <input readOnly value={displayCastingDate} className="readOnly" />
+                            </div>
                             <div className="input-group">
                                 <label style={{ fontSize: '11px', fontWeight: '700', color: '#475569' }}>Date of Testing <span style={{ color: '#ef4444' }}>*</span></label>
                                 <input 
@@ -1340,12 +1637,16 @@ const TestDetailsModal = ({ batch, onClose, onSave }) => {
                         </div>
                     </div>
 
-                    {/* Section 2 & 3: SCADA & Manual Entry */}
+                    {/* Section 2 & 3: SCADA & Manual Entry (Single Test Form for all batches) */}
                     {manualResults.map((res, idx) => (
                         <div key={idx} style={{ marginBottom: '24px', padding: '20px', background: '#fff', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '16px' }}>
-                                <h4 style={{ margin: 0, color: '#42818c' }}>Test for Sleeper #{idx + 1}: {res.bench ? `Bench ${res.bench} - ` : ''}Sleeper {res.no}</h4>
-                                <button className="btn-verify" style={{ fontSize: '11px' }} onClick={() => handleWitness(idx)}>Witness through SCADA</button>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '16px', alignItems: 'center' }}>
+                                <h4 style={{ margin: 0, color: '#42818c', fontSize: '14px', fontWeight: '800' }}>
+                                    Test for Sleeper Sample: {displaySleeperNo}
+                                </h4>
+                                <button className="btn-verify" style={{ fontSize: '11px', padding: '6px 14px' }} onClick={() => handleWitness(idx)}>
+                                    Witness through SCADA
+                                </button>
                             </div>
 
                             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1.2fr', gap: '20px' }}>
@@ -1383,7 +1684,7 @@ const TestDetailsModal = ({ batch, onClose, onSave }) => {
                         </div>
                     ))}
 
-                    {/* Manual Test Result Selection Dropdown for IE */}
+                    {/* Test Result Selection Dropdown */}
                     <div style={{ background: '#f8fafc', padding: '16px', borderRadius: '12px', border: '1px solid #e2e8f0', marginBottom: '20px' }}>
                         <div className="input-group">
                             <label style={{ fontSize: '11px', fontWeight: '800', color: '#13343b', marginBottom: '6px', display: 'block', textTransform: 'uppercase' }}>
@@ -1449,13 +1750,35 @@ const MRDetailsModal = ({ batch, onClose, onModify, onEnterTest, onDelete }) => 
     const hoursPassed = diffMs / (1000 * 60 * 60);
     const canModifyOrDelete = hoursPassed <= 8;
 
-    const resolvedDwg = (batch.sleeperType && !isGrade(batch.sleeperType)) ? batch.sleeperType : (extractDrawingNo(batch) || batch.sleeperType || '-');
+    const displayBatch = String(batch.batchNo || batch.batchNumber || '').split(',').map(s => s.trim()).filter(Boolean).join(', ');
+
+    const resolvedDwg = (() => {
+        if (batch.isGrouped && batch.groupRecords) {
+            const types = Array.from(new Set(
+                batch.groupRecords.map(r => (r.sleeperType && !isGrade(r.sleeperType) && r.sleeperType !== 'N/A' && r.sleeperType !== '-') ? r.sleeperType.trim() : (extractDrawingNo(r) || r.sleeperType))
+                    .filter(t => t && t !== '-' && t !== 'N/A' && !isGrade(t))
+            ));
+            if (types.length > 0) return types.join(', ');
+        }
+        return (batch.sleeperType && !isGrade(batch.sleeperType)) ? batch.sleeperType : (extractDrawingNo(batch) || batch.sleeperType || '-');
+    })();
+
+    const displayCastingDate = (() => {
+        if (batch.isGrouped && batch.groupRecords) {
+            const dates = Array.from(new Set(
+                batch.groupRecords.map(r => extractCastDate(r) || r.castingDate).filter(d => d && d !== 'N/A')
+            ));
+            if (dates.length > 0) return dates.join(', ');
+        }
+        return batch.castingDate || 'N/A';
+    })();
+
     const testDateDisplay = batch.dateOfTesting ? batch.dateOfTesting : (batch.createdDate ? new Date(batch.createdDate).toLocaleDateString('en-GB') : '-');
 
     const details = [
-        { label: 'Batch No', value: batch.batchNo || batch.batchNumber },
+        { label: 'Batch No', value: displayBatch },
         { label: 'Dwg. no.', value: resolvedDwg },
-        { label: 'Casting Date', value: batch.castingDate },
+        { label: 'Casting Date', value: displayCastingDate },
         ...(batch.isTestRecord || batch.dateOfTesting ? [{ label: 'Date of Testing', value: testDateDisplay }] : []),
         { label: 'Sleeper Info', value: batch.isTestRecord ? batch.sleeperNo : batch.declaredSamples?.map(s => s.no).join(', ') },
         { label: 'Log Created', value: `${createdTime.toLocaleDateString('en-GB')} ${createdTime.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}` }
@@ -1522,7 +1845,7 @@ const MRDetailsModal = ({ batch, onClose, onModify, onEnterTest, onDelete }) => 
                                 fontWeight: '700'
                             }}
                             disabled={!canModifyOrDelete}
-                            onClick={() => onDelete(batch.id)}
+                            onClick={onDelete}
                         >
                             Delete
                         </button>

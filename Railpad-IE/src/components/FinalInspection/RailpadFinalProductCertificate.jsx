@@ -273,7 +273,9 @@ export default function RailpadFinalProductCertificate({ call = {}, onBack, isVi
             offeredInstNo: fetchedData.offeredInsttNo || "",
             passedInstNo: fetchedData.passedInsttNo || "",
             contractor: fetchedData.contractorName || "",
-            placeOfInspection: fetchedData.placeOfInspection || "",
+            manufacturer: fetchedData.manufacturer || fetchedData.contractorName || "",
+            consigneeManufacturer: fetchedData.consigneeManufacturer || fetchedData.manufacturer || fetchedData.contractorName || "",
+            placeOfInspection: fetchedData.placeOfInspection || fetchedData.manufacturer || fetchedData.contractorName || "",
             contractRef: fetchedData.contractReferences + (fetchedData.latest4Amendments && fetchedData.latest4Amendments.length > 0 ? "\nUpto Latest 4 Amendments\n" + fetchedData.latest4Amendments.join("\n") : "\nUpto Latest 4 Amendments\nN/A"),
             billPayingOfficer: fetchedData.billPayingOfficer || "",
             consignee: fetchedData.consignee || "",
@@ -296,6 +298,9 @@ export default function RailpadFinalProductCertificate({ call = {}, onBack, isVi
             sealingPattern: dynamicSealingPattern || "RITES HOLOGRAM HAS BEEN AFFIXED ON THE LEAD SEAL ,TIED WITH SEALING WIRE TO THE PACKING STRIP OF EACH CORRUGATED BOX",
             facsimileText: "RITES HOLOGRAM SEAL",
             reasonsForRejection: fetchedData.reasonOfRejection || "Not Applicable",
+            qapNo: fetchedData.qapNo || "",
+            drgNo: fetchedData.drgNo || "",
+            specNo: fetchedData.specNo || "IRS T-55-2025 Rev.1",
             inspectingEngineer: "",
             region: fetchedData.region || "",
             lotDetails: []
@@ -364,7 +369,7 @@ export default function RailpadFinalProductCertificate({ call = {}, onBack, isVi
             }
 
             mappedData.specNo = mappedData.specNo || "IRS T-55-2025 Rev.1";
-            mappedData.qapNo = mappedData.qapNo || "QAP/MG/CGRSP, REV-01 Effective Date: 14.01.2026";
+            mappedData.qapNo = fetchedData?.qapNo || mappedData.qapNo || "";
             mappedData.offeredInstNo = mappedData.offeredInstNo || "";
             mappedData.passedInstNo = mappedData.passedInstNo || "";
             mappedData.sealingPattern = "NA";
@@ -407,6 +412,8 @@ export default function RailpadFinalProductCertificate({ call = {}, onBack, isVi
             mappedData.setNo = savedEdit.setNo || mappedData.setNo;
             mappedData.certificateDate = savedEdit.certificateDate || mappedData.certificateDate;
             mappedData.contractor = savedEdit.contractor || mappedData.contractor;
+            mappedData.manufacturer = savedEdit.manufacturer || mappedData.manufacturer;
+            mappedData.consigneeManufacturer = savedEdit.consigneeManufacturer || mappedData.consigneeManufacturer;
             mappedData.placeOfInspection = savedEdit.placeOfInspection || mappedData.placeOfInspection;
             mappedData.offeredInstNo = savedEdit.offeredInstNo || savedEdit.installmentNo || mappedData.offeredInstNo;
             mappedData.passedInstNo = savedEdit.passedInstNo || mappedData.passedInstNo;
@@ -416,8 +423,16 @@ export default function RailpadFinalProductCertificate({ call = {}, onBack, isVi
             mappedData.purchasingAuthority = savedEdit.purchasingAuthority || mappedData.purchasingAuthority;
             mappedData.description = savedEdit.description || mappedData.description;
             mappedData.drgNo = savedEdit.drgNo || mappedData.drgNo;
-            mappedData.specNo = savedEdit.specNo || mappedData.specNo;
-            mappedData.qapNo = savedEdit.qapNo || mappedData.qapNo;
+            if (savedEdit.qapNo) {
+              let finalQap = savedEdit.qapNo;
+              if (!finalQap.toUpperCase().includes("EFFECTIVE DATE") && fetchedData?.qapNo && fetchedData.qapNo.toUpperCase().includes("EFFECTIVE DATE")) {
+                const effMatch = fetchedData.qapNo.match(/Effective Date:\s*[\d./-]+/i);
+                if (effMatch) {
+                  finalQap = `${finalQap.replace(/,\s*$/, '')}, ${effMatch[0]}`;
+                }
+              }
+              mappedData.qapNo = finalQap;
+            }
             mappedData.chpClNo = savedEdit.chpClNo || mappedData.chpClNo;
             mappedData.lotNo = formatLotNo(savedEdit.lotNo || mappedData.lotNo);
             mappedData.qtyNowOffered = savedEdit.qtyNowOffered ?? mappedData.qtyNowOffered;

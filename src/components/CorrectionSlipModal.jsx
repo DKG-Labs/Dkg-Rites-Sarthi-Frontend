@@ -626,7 +626,7 @@ const HIDDEN_DROPDOWN_KEYS = [
 
 /* ─── main component ─── */
 const CorrectionSlipModal = ({ row, onClose, viewOnly = false, isViewOnly = false }) => {
-  const isViewMode = viewOnly || isViewOnly || row?.isClosed || row?.status === 'Closed' || row?.activeTab === 'closed';
+  const isViewMode = viewOnly || isViewOnly;
   const [icData, setIcData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [icError, setIcError] = useState('');

@@ -11,7 +11,7 @@ import AnnexureLoader from './annexures/AnnexureLoader';
 import AnnexureUploadModal from './AnnexureUploadModal';
 import CorrectionSlipModal from './CorrectionSlipModal';
 import Modal from './Modal';
-import { fetchCorrectionSlipDocument, getViewCorrectionSlipPdfUrl } from '../services/correctionSlipService';
+import { fetchCorrectionSlipDocument, fetchCorrectionSlip } from '../services/correctionSlipService';
 import axios from 'axios';
 import { getAuthHeaders, getStoredUser } from '../services/authService';
 import { API_BASE_URL } from '../services/apiConfig';
@@ -45,7 +45,9 @@ const ClosedCallsTab = ({ setSelectedCall, setCurrentPage }) => {
   const [isLoadingCalls, setIsLoadingCalls] = useState(true);
   const [selectedIbsDetail, setSelectedIbsDetail] = useState(null);
   const [selectedActionCall, setSelectedActionCall] = useState(null);
-  const [showCorrectionSlipModal, setShowCorrectionSlipModal] = useState(false);
+  const [correctionSlipModalCall, setCorrectionSlipModalCall] = useState(null);
+  const [isCorrectionSlipViewOnly, setIsCorrectionSlipViewOnly] = useState(false);
+  const [slipStatusMap, setSlipStatusMap] = useState({});
   const [pdfLoading, setPdfLoading] = useState(false);
   const [tcPdfLoading, setTcPdfLoading] = useState(false);
 
@@ -74,6 +76,40 @@ const ClosedCallsTab = ({ setSelectedCall, setCurrentPage }) => {
     };
     loadCalls();
   }, []);
+
+  // Pre-fetch correction slip existence for loaded closed calls
+  useEffect(() => {
+    if (closedCalls && closedCalls.length > 0) {
+      closedCalls.forEach(call => {
+        const callNo = call.call_no || call.callNumber || call.requestId;
+        if (callNo && slipStatusMap[callNo] === undefined) {
+          Promise.all([
+            fetchCorrectionSlipDocument(callNo).catch(() => ({ exists: false })),
+            fetchCorrectionSlip(callNo).catch(() => [])
+          ]).then(([doc, saved]) => {
+            const exists = Boolean((doc && doc.exists) || (Array.isArray(saved) && saved.length > 0));
+            setSlipStatusMap(prev => ({ ...prev, [callNo]: exists }));
+          }).catch(() => {});
+        }
+      });
+    }
+  }, [closedCalls, slipStatusMap]);
+
+  // Check correction slip existence when a specific call's action modal is opened
+  useEffect(() => {
+    if (selectedActionCall) {
+      const callNo = selectedActionCall.call_no || selectedActionCall.callNumber || selectedActionCall.requestId || '';
+      if (callNo && slipStatusMap[callNo] === undefined) {
+        Promise.all([
+          fetchCorrectionSlipDocument(callNo).catch(() => ({ exists: false })),
+          fetchCorrectionSlip(callNo).catch(() => [])
+        ]).then(([doc, saved]) => {
+          const exists = Boolean((doc && doc.exists) || (Array.isArray(saved) && saved.length > 0));
+          setSlipStatusMap(prev => ({ ...prev, [callNo]: exists }));
+        }).catch(() => {});
+      }
+    }
+  }, [selectedActionCall, slipStatusMap]);
 
   // Apply filters to data
   const filteredCalls = useMemo(() => {
@@ -588,48 +624,59 @@ const ClosedCallsTab = ({ setSelectedCall, setCurrentPage }) => {
                   <span style={{ fontWeight: '700', fontSize: '15px' }}>View IC</span>
                 </button>
 
-                {/* 2. Correction Slip */}
-                <button
-                  onClick={async () => {
-                    const row = selectedActionCall;
-                    const callNo = row?.call_no || row?.callNo || row?.requestId;
-                    setSelectedActionCall(null);
-                    try {
-                      const doc = await fetchCorrectionSlipDocument(callNo);
-                      if (doc && doc.exists) {
-                        window.open(getViewCorrectionSlipPdfUrl(callNo), '_blank');
-                      } else {
-                        setNotificationMessage(`Correction slip not found for ${callNo}`);
-                        setNotificationType('warning');
-                      }
-                    } catch (err) {
-                      setNotificationMessage(`Correction slip not found for ${callNo}`);
-                      setNotificationType('warning');
-                    }
-                  }}
-                  style={{
-                    display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '12px',
-                    padding: '24px 16px', background: 'linear-gradient(135deg, #fff7ed 0%, #ffedd5 100%)',
-                    border: '1px solid #fed7aa', borderRadius: '16px',
-                    cursor: 'pointer', transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-                    color: '#ea580c', width: '100%',
-                    boxShadow: '0 4px 6px -1px rgba(234, 88, 12, 0.1), 0 2px 4px -1px rgba(234, 88, 12, 0.06)'
-                  }}
-                  onMouseEnter={(e) => { 
-                    e.currentTarget.style.transform = 'translateY(-4px)';
-                    e.currentTarget.style.boxShadow = '0 10px 15px -3px rgba(234, 88, 12, 0.2), 0 4px 6px -2px rgba(234, 88, 12, 0.1)'; 
-                  }}
-                  onMouseLeave={(e) => { 
-                    e.currentTarget.style.transform = 'translateY(0)';
-                    e.currentTarget.style.boxShadow = '0 4px 6px -1px rgba(234, 88, 12, 0.1), 0 2px 4px -1px rgba(234, 88, 12, 0.06)'; 
-                  }}
-                  title="View Correction Slip"
-                >
-                  <div style={{ width: '48px', height: '48px', background: '#ffffff', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 2px 4px rgba(0,0,0,0.05)' }}>
-                    <EditNoteRoundedIcon style={{ fontSize: '26px', color: '#ea580c' }} />
-                  </div>
-                  <span style={{ fontWeight: '700', fontSize: '15px', textAlign: 'center', lineHeight: '1.2' }}>View Correction Slip</span>
-                </button>
+                {/* 2. Correction Slip (Issue or View) */}
+                {(() => {
+                  const currentCallNo = selectedActionCall?.call_no || selectedActionCall?.callNumber || selectedActionCall?.requestId || '';
+                  const hasCorrectionSlip = Boolean(slipStatusMap[currentCallNo]);
+
+                  return (
+                    <button
+                      onClick={() => {
+                        const row = selectedActionCall;
+                        const callNo = row?.call_no || row?.callNo || row?.requestId;
+                        const exists = Boolean(slipStatusMap[callNo]);
+                        setSelectedActionCall(null);
+                        setCorrectionSlipModalCall(row);
+                        setIsCorrectionSlipViewOnly(exists);
+                      }}
+                      style={{
+                        display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '12px',
+                        padding: '24px 16px',
+                        background: hasCorrectionSlip 
+                          ? 'linear-gradient(135deg, #fff7ed 0%, #ffedd5 100%)' 
+                          : 'linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%)',
+                        border: hasCorrectionSlip ? '1px solid #fed7aa' : '1px solid #fde68a',
+                        borderRadius: '16px',
+                        cursor: 'pointer', transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                        color: hasCorrectionSlip ? '#ea580c' : '#d97706',
+                        width: '100%',
+                        boxShadow: hasCorrectionSlip 
+                          ? '0 4px 6px -1px rgba(234, 88, 12, 0.1), 0 2px 4px -1px rgba(234, 88, 12, 0.06)' 
+                          : '0 4px 6px -1px rgba(217, 119, 6, 0.1), 0 2px 4px -1px rgba(217, 119, 6, 0.06)'
+                      }}
+                      onMouseEnter={(e) => { 
+                        e.currentTarget.style.transform = 'translateY(-4px)';
+                        e.currentTarget.style.boxShadow = hasCorrectionSlip 
+                          ? '0 10px 15px -3px rgba(234, 88, 12, 0.2), 0 4px 6px -2px rgba(234, 88, 12, 0.1)'
+                          : '0 10px 15px -3px rgba(217, 119, 6, 0.2), 0 4px 6px -2px rgba(217, 119, 6, 0.1)'; 
+                      }}
+                      onMouseLeave={(e) => { 
+                        e.currentTarget.style.transform = 'translateY(0)';
+                        e.currentTarget.style.boxShadow = hasCorrectionSlip 
+                          ? '0 4px 6px -1px rgba(234, 88, 12, 0.1), 0 2px 4px -1px rgba(234, 88, 12, 0.06)' 
+                          : '0 4px 6px -1px rgba(217, 119, 6, 0.1), 0 2px 4px -1px rgba(217, 119, 6, 0.06)'; 
+                      }}
+                      title={hasCorrectionSlip ? "View Correction Slip" : "Issue Correction Slip"}
+                    >
+                      <div style={{ width: '48px', height: '48px', background: '#ffffff', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 2px 4px rgba(0,0,0,0.05)' }}>
+                        <EditNoteRoundedIcon style={{ fontSize: '26px', color: hasCorrectionSlip ? '#ea580c' : '#d97706' }} />
+                      </div>
+                      <span style={{ fontWeight: '700', fontSize: '15px', textAlign: 'center', lineHeight: '1.2' }}>
+                        {hasCorrectionSlip ? 'View Correction Slip' : 'Issue Correction Slip'}
+                      </span>
+                    </button>
+                  );
+                })()}
 
                 {/* 3. Annexures */}
                 <button
@@ -787,13 +834,23 @@ const ClosedCallsTab = ({ setSelectedCall, setCurrentPage }) => {
       )}
 
       {/* Correction Slip Modal */}
-      {showCorrectionSlipModal && selectedActionCall && (
+      {correctionSlipModalCall && (
         <CorrectionSlipModal
-          isOpen={showCorrectionSlipModal}
-          onClose={() => setShowCorrectionSlipModal(false)}
-          callNumber={selectedActionCall.call_no || selectedActionCall.callNumber || selectedActionCall.icNumber}
-          row={selectedActionCall}
-          viewOnly={true}
+          row={correctionSlipModalCall}
+          viewOnly={isCorrectionSlipViewOnly}
+          onClose={() => {
+            const callNo = correctionSlipModalCall?.call_no || correctionSlipModalCall?.callNumber || correctionSlipModalCall?.requestId;
+            setCorrectionSlipModalCall(null);
+            if (callNo) {
+              Promise.all([
+                fetchCorrectionSlipDocument(callNo).catch(() => ({ exists: false })),
+                fetchCorrectionSlip(callNo).catch(() => [])
+              ]).then(([doc, saved]) => {
+                const exists = Boolean((doc && doc.exists) || (Array.isArray(saved) && saved.length > 0));
+                setSlipStatusMap(prev => ({ ...prev, [callNo]: exists }));
+              }).catch(() => {});
+            }
+          }}
         />
       )}
 

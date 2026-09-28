@@ -513,6 +513,11 @@ export const NCRGRSP_CATALOG = {
     { drawingNo: 'RT-10178', qtyPerSet: 1, description: 'Pocket Type Nylon Cord Reinforced GRSP' },
     { drawingNo: 'RT-10161', qtyPerSet: 16, description: 'Pocket Type Nylon Cord Reinforced GRSP' }
   ],
+  // RT-4865 (52 KG) – 1 in 8.5 / 52 KG Turnout (RDSO Drg. No. 4865) (Total 98 Pads / 2 Items)
+  'RT-4865 (52 KG)': [
+    { drawingNo: 'RT-8889', qtyPerSet: 26, description: 'Nylon Cord Reinforced GRSP (1 in 8.5 / 52 KG Turnout)' },
+    { drawingNo: 'RT-8887', qtyPerSet: 72, description: 'Nylon Cord Reinforced GRSP (1 in 8.5 / 52 KG Turnout)' }
+  ],
   // RT-4865 (Generic default fallback)
   'RT-4865': [
     { drawingNo: 'RT-8887', qtyPerSet: 116, description: 'Nylon Cord Reinforced GRSP' },
@@ -575,13 +580,16 @@ export const resolveNcrgrspCatalogKey = (dwgOrType, candidateDrawings = []) => {
     return 'RT-4218';
   }
   if (str.includes('4865')) {
+    if (str.includes('52 kg') || str.includes('52kg') || str.includes('52')) {
+      return 'RT-4865 (52 KG)';
+    }
     if (str.includes('alt-8') || str.includes('alt 8') || str.includes('alt.8') || str.includes('alt08') || str.includes('alt-08')) {
       return 'RT-4865 Alt-8';
     }
     if (str.includes('alt-9') || str.includes('alt 9') || str.includes('alt.9') || str.includes('alt09') || str.includes('alt-09')) {
       return 'RT-4865 Alt-9';
     }
-    return 'RT-4865';
+    return 'RT-4865 (52 KG)';
   }
   
   // 1. Direct key match

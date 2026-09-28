@@ -277,7 +277,7 @@ const ErcRmIC = ({ data = {}, isEditing = false, isBusy = false, onChange = () =
               <div className="font-semibold">
                 बिल अदायगी अधिकारी / Bill Paying officer
               </div>
-              <EditableField isEditing={false} value={billPayingOfficer} onChange={(val) => onChange("billPayingOfficer", val)} className="break-words dynamic-text leading-tight" />
+              <EditableField isEditing={isEditing} type="textarea" value={billPayingOfficer} onChange={(val) => onChange("billPayingOfficer", val)} className="break-words dynamic-text leading-tight" />
             </div>
           </div>
 

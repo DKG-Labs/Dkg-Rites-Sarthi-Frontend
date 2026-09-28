@@ -22,7 +22,7 @@ import {
 import { performTransitionAction } from "../../services/workflowService";
 import { getStoredUser } from "../../services/authService";
 import { finalInspectionLotResultsService } from "../../services/finalInspectionLotResultsService";
-import { generatePdfBase64, calculateSignatureCoords } from "../../utils/exportUtils";
+import { generatePdfBase64, calculateSignatureCoords, exportToPdf } from "../../utils/exportUtils";
 
 const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
@@ -122,9 +122,17 @@ export default function RailpadFinalProductCertificate({ call = {}, onBack, isVi
   const [notification, setNotification] = useState({ show: false, message: '', type: 'info' });
   const [bookSetValidation, setBookSetValidation] = useState({ isValid: null, message: null, isValidating: false });
   const [bookWarningModal, setBookWarningModal] = useState({ show: false, onProceed: null });
+  const [showSignMethodModal, setShowSignMethodModal] = useState(false);
+  const [showManualUploadModal, setShowManualUploadModal] = useState(false);
+  const [selectedManualFile, setSelectedManualFile] = useState(null);
+  const [isUploadingManual, setIsUploadingManual] = useState(false);
+  const [manualUploadError, setManualUploadError] = useState(null);
+  const [isDraggingManualFile, setIsDraggingManualFile] = useState(false);
+  const manualFileInputRef = useRef(null);
 
   const user = getStoredUser();
-  const isProcessCall = call?.callType === 'PROCESS' || call?.requestId?.startsWith('RPP-') || call?.callNo?.startsWith('RPP-');
+  const callIdentifier = String(call?.requestId || call?.callNo || call?.call_no || '');
+  const isProcessCall = (call?.callType && String(call.callType).toUpperCase() === 'PROCESS') || callIdentifier.toUpperCase().startsWith('RPP-');
 
   const dataRef = useRef(data);
   useEffect(() => {
@@ -824,6 +832,134 @@ export default function RailpadFinalProductCertificate({ call = {}, onBack, isVi
     }
   };
 
+  const handleDownloadForSigning = async () => {
+    if (!printAreaRef.current) return;
+    try {
+      showToast("Generating unsigned Process IC PDF...", "info");
+      const targetIcNo = data.certificateNo || call.callNo || call.requestId || "ProcessMaterialIC";
+      const sanitizedFilename = targetIcNo.replace(/[/\\?%*:|"<>]/g, '-');
+      await exportToPdf(printAreaRef.current, `${sanitizedFilename}_unsigned.pdf`);
+      showToast("Process IC downloaded. Please sign and upload below.", "success");
+    } catch (err) {
+      console.error("PDF generation error:", err);
+      showToast("Failed to download PDF for signing: " + err.message, "error");
+    }
+  };
+
+  const handleManualFileSelect = (file) => {
+    if (!file) return;
+    if (file.type !== "application/pdf" && !file.name.toLowerCase().endsWith(".pdf")) {
+      setManualUploadError("Only PDF files (.pdf) are supported.");
+      setSelectedManualFile(null);
+      return;
+    }
+    if (file.size === 0) {
+      setManualUploadError("Selected file is empty.");
+      setSelectedManualFile(null);
+      return;
+    }
+    if (file.size > 25 * 1024 * 1024) {
+      setManualUploadError("File size exceeds 25MB limit.");
+      setSelectedManualFile(null);
+      return;
+    }
+    setManualUploadError(null);
+    setSelectedManualFile(file);
+  };
+
+  const handleFinalizeManualSignedIC = async () => {
+    if (!selectedManualFile) {
+      setManualUploadError("Please select a signed PDF file before submitting.");
+      return;
+    }
+
+    if (!data?.bookNo || !data?.setNo) {
+      setManualUploadError("Please ensure both Book No. and Set No. are filled before finalizing.");
+      return;
+    }
+
+    setIsUploadingManual(true);
+    setManualUploadError(null);
+
+    try {
+      const callNo = call?.callNo || call?.call_no || call?.requestId;
+      const targetIcNo = data.certificateNo || callNo || "Railpad_Process_IC";
+      const fileName = `${targetIcNo.replace(/[/\\?%*:|"<>]/g, '_')}.pdf`;
+
+      // 1. Save IC edit details in backend
+      showToast("Saving IC details to database...", "info");
+      await saveProcessIcEditData({
+        ...data,
+        icNumber: targetIcNo,
+        installmentNo: data.offeredInstNo,
+        offeredInstNo: data.offeredInstNo,
+        passedInstNo: data.passedInstNo
+      });
+
+      // 2. Read file as base64
+      const base64Data = await new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = (err) => reject(err);
+        reader.readAsDataURL(selectedManualFile);
+      });
+
+      const cleanBase64 = typeof base64Data === 'string' && base64Data.includes(',') 
+        ? base64Data.split(',')[1] 
+        : base64Data;
+
+      // 3. Upload to Azure Blob Storage
+      showToast("Uploading signed Process IC to Azure...", "info");
+      await uploadSignedCertificate({
+        icNumber: targetIcNo,
+        signedData: cleanBase64,
+        fileName: fileName,
+        uploadedBy: user?.userName || getStoredUser()?.username || "Inspecting Engineer"
+      });
+
+      // 4. Auto-download signed copy for IE's records
+      try {
+        const blob = new Blob([selectedManualFile], { type: 'application/pdf' });
+        const blobUrl = URL.createObjectURL(blob);
+        const downloadLink = document.createElement('a');
+        downloadLink.href = blobUrl;
+        downloadLink.download = fileName;
+        document.body.appendChild(downloadLink);
+        downloadLink.click();
+        document.body.removeChild(downloadLink);
+        setTimeout(() => URL.revokeObjectURL(blobUrl), 1000);
+      } catch (e) {
+        console.warn("Auto-download error:", e);
+      }
+
+      // 5. Workflow transition
+      showToast("Updating workflow status...", "info");
+      try {
+        await performTransitionAction({
+          workflowTransitionId: call?.workflowTransitionId || call?.id,
+          requestId: call?.requestId || call?.call_no || call?.callNo,
+          action: 'GENERATE_IC',
+          remarks: 'Manual Process IC uploaded and stored in Azure',
+          actionBy: user?.userId || getStoredUser()?.userId || 1
+        });
+
+        showToast("Process IC uploaded & workflow updated successfully!", "success");
+        setShowManualUploadModal(false);
+        await delay(800);
+        onBack();
+      } catch (workflowErr) {
+        console.error('Workflow update failed:', workflowErr);
+        showToast("Certificate saved, but workflow transition failed: " + workflowErr.message, "error");
+      }
+    } catch (err) {
+      console.error("Manual IC upload error:", err);
+      setManualUploadError(err.message || "Failed to upload manual IC.");
+      showToast("Failed to upload manual IC: " + err.message, "error");
+    } finally {
+      setIsUploadingManual(false);
+    }
+  };
+
   const handleESign = () => {
     const bookNo = data.bookNo || '';
     const setNo = data.setNo || '';
@@ -843,15 +979,23 @@ export default function RailpadFinalProductCertificate({ call = {}, onBack, isVi
       return;
     }
 
+    const startSignFlow = () => {
+      if (isProcessCall) {
+        setShowSignMethodModal(true);
+      } else {
+        executeESign();
+      }
+    };
+
     if (bookNo.trim().length < 4) {
       setBookWarningModal({
         show: true,
-        onProceed: executeESign
+        onProceed: startSignFlow
       });
       return;
     }
 
-    executeESign();
+    startSignFlow();
   };
 
   if (loading) {
@@ -1235,6 +1379,588 @@ export default function RailpadFinalProductCertificate({ call = {}, onBack, isVi
                 }}
               >
                 Acknowledge &amp; Proceed
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ─── Modal 1: Select Signing Method (Digital vs Manual) ─── */}
+      {showSignMethodModal && (
+        <div style={{
+          position: 'fixed',
+          inset: 0,
+          background: 'rgba(15, 23, 42, 0.65)',
+          backdropFilter: 'blur(4px)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 10000,
+          padding: '20px'
+        }}>
+          <div style={{
+            background: '#ffffff',
+            borderRadius: '16px',
+            maxWidth: '560px',
+            width: '100%',
+            boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
+            border: '1px solid #e2e8f0',
+            overflow: 'hidden',
+            animation: 'fadeInUp 0.25s ease-out'
+          }}>
+            {/* Header */}
+            <div style={{
+              padding: '20px 24px',
+              borderBottom: '1px solid #f1f5f9',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              background: 'linear-gradient(to right, #f8fafc, #ffffff)'
+            }}>
+              <div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
+                  <span style={{ fontSize: '18px' }}>✒️</span>
+                  <h3 style={{ margin: 0, fontSize: '17px', fontWeight: '800', color: '#0f172a' }}>
+                    Choose Signing Method
+                  </h3>
+                  <span style={{
+                    fontSize: '11px',
+                    fontWeight: '700',
+                    color: '#0284c7',
+                    background: '#e0f2fe',
+                    padding: '2px 8px',
+                    borderRadius: '9999px'
+                  }}>
+                    Process IC
+                  </span>
+                </div>
+                <p style={{ margin: 0, fontSize: '12.5px', color: '#64748b' }}>
+                  Select how you want to sign and finalize this Inspection Certificate
+                </p>
+              </div>
+              <button
+                onClick={() => setShowSignMethodModal(false)}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  fontSize: '20px',
+                  color: '#94a3b8',
+                  cursor: 'pointer',
+                  padding: '4px',
+                  lineHeight: 1
+                }}
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Options Body */}
+            <div style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
+              {/* Option 1: Digital Sign */}
+              <div
+                onClick={() => {
+                  setShowSignMethodModal(false);
+                  executeESign();
+                }}
+                style={{
+                  padding: '18px 20px',
+                  borderRadius: '12px',
+                  border: '1.5px solid #e2e8f0',
+                  background: '#ffffff',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '16px',
+                  transition: 'all 0.2s ease',
+                  boxShadow: '0 2px 4px rgba(0,0,0,0.02)'
+                }}
+                onMouseEnter={e => {
+                  e.currentTarget.style.borderColor = '#0284c7';
+                  e.currentTarget.style.background = '#f0f9ff';
+                  e.currentTarget.style.transform = 'translateY(-2px)';
+                  e.currentTarget.style.boxShadow = '0 6px 16px rgba(2, 132, 199, 0.12)';
+                }}
+                onMouseLeave={e => {
+                  e.currentTarget.style.borderColor = '#e2e8f0';
+                  e.currentTarget.style.background = '#ffffff';
+                  e.currentTarget.style.transform = 'none';
+                  e.currentTarget.style.boxShadow = '0 2px 4px rgba(0,0,0,0.02)';
+                }}
+              >
+                <div style={{
+                  width: '46px',
+                  height: '46px',
+                  borderRadius: '12px',
+                  background: 'linear-gradient(135deg, #0284c7 0%, #0369a1 100%)',
+                  color: '#ffffff',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontSize: '22px',
+                  flexShrink: 0,
+                  boxShadow: '0 4px 10px rgba(2, 132, 199, 0.25)'
+                }}>
+                  ✒️
+                </div>
+                <div style={{ flex: 1 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <h4 style={{ margin: 0, fontSize: '14.5px', fontWeight: '800', color: '#0f172a' }}>
+                      Digital Sign (DSC / PKI)
+                    </h4>
+                    <span style={{ fontSize: '10.5px', fontWeight: '700', color: '#059669', background: '#d1fae5', padding: '1px 6px', borderRadius: '4px' }}>
+                      Automated
+                    </span>
+                  </div>
+                  <p style={{ margin: '4px 0 0 0', fontSize: '12px', color: '#64748b', lineHeight: 1.4 }}>
+                    Apply your digital signature directly via Capricorn PKI bridge and hardware USB Token.
+                  </p>
+                </div>
+                <div style={{ fontSize: '18px', color: '#94a3b8' }}>➔</div>
+              </div>
+
+              {/* Option 2: Manual Sign */}
+              <div
+                onClick={() => {
+                  setShowSignMethodModal(false);
+                  setShowManualUploadModal(true);
+                }}
+                style={{
+                  padding: '18px 20px',
+                  borderRadius: '12px',
+                  border: '1.5px solid #e2e8f0',
+                  background: '#ffffff',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '16px',
+                  transition: 'all 0.2s ease',
+                  boxShadow: '0 2px 4px rgba(0,0,0,0.02)'
+                }}
+                onMouseEnter={e => {
+                  e.currentTarget.style.borderColor = '#059669';
+                  e.currentTarget.style.background = '#f0fdf4';
+                  e.currentTarget.style.transform = 'translateY(-2px)';
+                  e.currentTarget.style.boxShadow = '0 6px 16px rgba(5, 150, 105, 0.12)';
+                }}
+                onMouseLeave={e => {
+                  e.currentTarget.style.borderColor = '#e2e8f0';
+                  e.currentTarget.style.background = '#ffffff';
+                  e.currentTarget.style.transform = 'none';
+                  e.currentTarget.style.boxShadow = '0 2px 4px rgba(0,0,0,0.02)';
+                }}
+              >
+                <div style={{
+                  width: '46px',
+                  height: '46px',
+                  borderRadius: '12px',
+                  background: 'linear-gradient(135deg, #059669 0%, #047857 100%)',
+                  color: '#ffffff',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontSize: '22px',
+                  flexShrink: 0,
+                  boxShadow: '0 4px 10px rgba(5, 150, 105, 0.25)'
+                }}>
+                  📄
+                </div>
+                <div style={{ flex: 1 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <h4 style={{ margin: 0, fontSize: '14.5px', fontWeight: '800', color: '#0f172a' }}>
+                      Manual Sign (Upload Signed IC)
+                    </h4>
+                    <span style={{ fontSize: '10.5px', fontWeight: '700', color: '#d97706', background: '#fef3c7', padding: '1px 6px', borderRadius: '4px' }}>
+                      Upload PDF
+                    </span>
+                  </div>
+                  <p style={{ margin: '4px 0 0 0', fontSize: '12px', color: '#64748b', lineHeight: 1.4 }}>
+                    Download the Process IC PDF, sign it manually or externally, and upload the signed document.
+                  </p>
+                </div>
+                <div style={{ fontSize: '18px', color: '#94a3b8' }}>➔</div>
+              </div>
+            </div>
+
+            {/* Footer */}
+            <div style={{
+              padding: '14px 24px',
+              borderTop: '1px solid #f1f5f9',
+              background: '#f8fafc',
+              display: 'flex',
+              justifyContent: 'flex-end'
+            }}>
+              <button
+                onClick={() => setShowSignMethodModal(false)}
+                style={{
+                  padding: '8px 18px',
+                  border: '1px solid #cbd5e1',
+                  borderRadius: '8px',
+                  background: '#ffffff',
+                  color: '#475569',
+                  fontWeight: '700',
+                  fontSize: '13px',
+                  cursor: 'pointer'
+                }}
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ─── Modal 2: Manual Sign & Upload Modal ─── */}
+      {showManualUploadModal && (
+        <div style={{
+          position: 'fixed',
+          inset: 0,
+          background: 'rgba(15, 23, 42, 0.65)',
+          backdropFilter: 'blur(4px)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 10000,
+          padding: '20px'
+        }}>
+          <div style={{
+            background: '#ffffff',
+            borderRadius: '16px',
+            maxWidth: '620px',
+            width: '100%',
+            boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
+            border: '1px solid #e2e8f0',
+            overflow: 'hidden',
+            maxHeight: '90vh',
+            display: 'flex',
+            flexDirection: 'column',
+            animation: 'fadeInUp 0.25s ease-out'
+          }}>
+            {/* Modal Header */}
+            <div style={{
+              padding: '18px 24px',
+              borderBottom: '1px solid #f1f5f9',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              background: 'linear-gradient(to right, #f8fafc, #ffffff)'
+            }}>
+              <div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <span style={{ fontSize: '18px' }}>📄</span>
+                  <h3 style={{ margin: 0, fontSize: '17px', fontWeight: '800', color: '#0f172a' }}>
+                    Upload Manually Signed Process IC
+                  </h3>
+                </div>
+                <p style={{ margin: '3px 0 0 0', fontSize: '12px', color: '#64748b' }}>
+                  IC No: <strong style={{ color: '#0284c7' }}>{data.certificateNo || call.callNo || call.requestId}</strong> | Book No: <strong>{data.bookNo}</strong> / Set No: <strong>{data.setNo}</strong>
+                </p>
+              </div>
+              <button
+                onClick={() => {
+                  if (!isUploadingManual) {
+                    setShowManualUploadModal(false);
+                    setSelectedManualFile(null);
+                    setManualUploadError(null);
+                  }
+                }}
+                disabled={isUploadingManual}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  fontSize: '20px',
+                  color: '#94a3b8',
+                  cursor: isUploadingManual ? 'not-allowed' : 'pointer',
+                  padding: '4px',
+                  lineHeight: 1
+                }}
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <div style={{ padding: '24px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '20px' }}>
+              
+              {/* Step 1: Download IC for Signing */}
+              <div style={{
+                background: '#f8fafc',
+                border: '1px solid #e2e8f0',
+                borderRadius: '12px',
+                padding: '16px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                gap: '16px'
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                  <div style={{
+                    width: '36px',
+                    height: '36px',
+                    borderRadius: '8px',
+                    background: '#e0f2fe',
+                    color: '#0284c7',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontSize: '15px',
+                    fontWeight: '800',
+                    flexShrink: 0
+                  }}>
+                    1
+                  </div>
+                  <div>
+                    <h4 style={{ margin: 0, fontSize: '13.5px', fontWeight: '700', color: '#0f172a' }}>
+                      Download Process IC PDF
+                    </h4>
+                    <p style={{ margin: '2px 0 0 0', fontSize: '11.5px', color: '#64748b' }}>
+                      Download the Process IC containing current details to sign manually or externally.
+                    </p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleDownloadForSigning}
+                  disabled={isUploadingManual}
+                  style={{
+                    padding: '8px 14px',
+                    background: '#ffffff',
+                    border: '1px solid #0284c7',
+                    color: '#0284c7',
+                    borderRadius: '8px',
+                    fontWeight: '700',
+                    fontSize: '12.5px',
+                    cursor: 'pointer',
+                    whiteSpace: 'nowrap',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    boxShadow: '0 1px 2px rgba(0,0,0,0.05)',
+                    transition: 'all 0.2s'
+                  }}
+                  onMouseEnter={e => e.currentTarget.style.background = '#f0f9ff'}
+                  onMouseLeave={e => e.currentTarget.style.background = '#ffffff'}
+                >
+                  <span>⬇️</span> Download PDF
+                </button>
+              </div>
+
+              {/* Step 2: Upload Signed IC */}
+              <div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '12px' }}>
+                  <div style={{
+                    width: '36px',
+                    height: '36px',
+                    borderRadius: '8px',
+                    background: '#f0fdf4',
+                    color: '#16a34a',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontSize: '15px',
+                    fontWeight: '800',
+                    flexShrink: 0
+                  }}>
+                    2
+                  </div>
+                  <div>
+                    <h4 style={{ margin: 0, fontSize: '13.5px', fontWeight: '700', color: '#0f172a' }}>
+                      Upload Signed Process IC Document
+                    </h4>
+                    <p style={{ margin: '2px 0 0 0', fontSize: '11.5px', color: '#64748b' }}>
+                      Upload the signed PDF copy. This will be stored as the official final Process IC.
+                    </p>
+                  </div>
+                </div>
+
+                {/* Dropzone */}
+                <input
+                  type="file"
+                  ref={manualFileInputRef}
+                  accept=".pdf,application/pdf"
+                  style={{ display: 'none' }}
+                  onChange={(e) => {
+                    if (e.target.files && e.target.files[0]) {
+                      handleManualFileSelect(e.target.files[0]);
+                    }
+                  }}
+                />
+
+                <div
+                  onClick={() => manualFileInputRef.current && manualFileInputRef.current.click()}
+                  onDragOver={(e) => {
+                    e.preventDefault();
+                    setIsDraggingManualFile(true);
+                  }}
+                  onDragLeave={() => setIsDraggingManualFile(false)}
+                  onDrop={(e) => {
+                    e.preventDefault();
+                    setIsDraggingManualFile(false);
+                    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+                      handleManualFileSelect(e.dataTransfer.files[0]);
+                    }
+                  }}
+                  style={{
+                    border: isDraggingManualFile ? '2px dashed #0284c7' : '2px dashed #cbd5e1',
+                    background: isDraggingManualFile ? '#f0f9ff' : '#f8fafc',
+                    borderRadius: '12px',
+                    padding: '28px 20px',
+                    textAlign: 'center',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s',
+                    position: 'relative'
+                  }}
+                >
+                  <div style={{ fontSize: '36px', marginBottom: '8px' }}>📄</div>
+                  <p style={{ margin: 0, fontSize: '13.5px', fontWeight: '700', color: '#1e293b' }}>
+                    Click to browse or drag &amp; drop signed PDF here
+                  </p>
+                  <p style={{ margin: '4px 0 0 0', fontSize: '11.5px', color: '#94a3b8' }}>
+                    Supports PDF format only (Max 25MB)
+                  </p>
+                </div>
+
+                {/* Selected File Card */}
+                {selectedManualFile && (
+                  <div style={{
+                    marginTop: '12px',
+                    background: '#f0fdf4',
+                    border: '1px solid #bbf7d0',
+                    borderRadius: '10px',
+                    padding: '12px 16px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    gap: '12px'
+                  }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px', overflow: 'hidden' }}>
+                      <span style={{ fontSize: '20px' }}>✅</span>
+                      <div style={{ overflow: 'hidden' }}>
+                        <p style={{ margin: 0, fontSize: '13px', fontWeight: '700', color: '#166534', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                          {selectedManualFile.name}
+                        </p>
+                        <p style={{ margin: '2px 0 0 0', fontSize: '11px', color: '#15803d' }}>
+                          {(selectedManualFile.size / (1024 * 1024)).toFixed(2)} MB
+                        </p>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setSelectedManualFile(null);
+                      }}
+                      disabled={isUploadingManual}
+                      style={{
+                        background: 'none',
+                        border: 'none',
+                        color: '#dc2626',
+                        fontSize: '16px',
+                        cursor: 'pointer',
+                        padding: '4px',
+                        fontWeight: 'bold'
+                      }}
+                      title="Remove file"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                )}
+
+                {/* Error Banner */}
+                {manualUploadError && (
+                  <div style={{
+                    marginTop: '12px',
+                    background: '#fee2e2',
+                    border: '1px solid #fca5a5',
+                    borderRadius: '8px',
+                    padding: '10px 14px',
+                    color: '#991b1b',
+                    fontSize: '12.5px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px'
+                  }}>
+                    <span>⚠️</span>
+                    <span>{manualUploadError}</span>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Modal Footer */}
+            <div style={{
+              padding: '16px 24px',
+              borderTop: '1px solid #f1f5f9',
+              background: '#f8fafc',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              gap: '12px'
+            }}>
+              <button
+                type="button"
+                onClick={() => {
+                  if (!isUploadingManual) {
+                    setShowManualUploadModal(false);
+                    setSelectedManualFile(null);
+                    setManualUploadError(null);
+                  }
+                }}
+                disabled={isUploadingManual}
+                style={{
+                  padding: '10px 20px',
+                  borderRadius: '8px',
+                  border: '1px solid #cbd5e1',
+                  background: '#ffffff',
+                  color: '#475569',
+                  fontWeight: '700',
+                  fontSize: '13px',
+                  cursor: isUploadingManual ? 'not-allowed' : 'pointer'
+                }}
+              >
+                Cancel
+              </button>
+
+              <button
+                type="button"
+                onClick={handleFinalizeManualSignedIC}
+                disabled={isUploadingManual || !selectedManualFile}
+                style={{
+                  padding: '10px 24px',
+                  borderRadius: '8px',
+                  border: 'none',
+                  background: (isUploadingManual || !selectedManualFile)
+                    ? '#94a3b8'
+                    : 'linear-gradient(135deg, #059669 0%, #047857 100%)',
+                  color: '#ffffff',
+                  fontWeight: '800',
+                  fontSize: '13.5px',
+                  cursor: (isUploadingManual || !selectedManualFile) ? 'not-allowed' : 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  boxShadow: (isUploadingManual || !selectedManualFile) ? 'none' : '0 4px 12px rgba(5, 150, 105, 0.25)',
+                  transition: 'all 0.2s'
+                }}
+              >
+                {isUploadingManual ? (
+                  <>
+                    <span style={{
+                      border: '2px solid #ffffff',
+                      borderTop: '2px solid transparent',
+                      borderRadius: '50%',
+                      width: '14px',
+                      height: '14px',
+                      display: 'inline-block',
+                      animation: 'spin 1s linear infinite'
+                    }}></span>
+                    Uploading &amp; Finalizing...
+                  </>
+                ) : (
+                  <>
+                    <span>📤</span> Submit &amp; Finalize Process IC
+                  </>
+                )}
               </button>
             </div>
           </div>

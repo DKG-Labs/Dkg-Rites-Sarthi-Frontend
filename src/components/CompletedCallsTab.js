@@ -10,7 +10,6 @@ import { fetchSignedCallsForIC, getCurrentUserId, deleteEsignTransition } from '
 import { performTransitionAction } from '../services/workflowService';
 import AnnexureLoader from './annexures/AnnexureLoader';
 import AnnexureUploadModal from './AnnexureUploadModal';
-import CorrectionSlipModal from './CorrectionSlipModal';
 import Modal from './Modal';
 import axios from 'axios';
 import { getAuthHeaders, getStoredUser } from '../services/authService';
@@ -22,7 +21,6 @@ import DescriptionRoundedIcon from '@mui/icons-material/DescriptionRounded';
 import AttachmentRoundedIcon from '@mui/icons-material/AttachmentRounded';
 import SendRoundedIcon from '@mui/icons-material/SendRounded';
 import AssignmentRoundedIcon from '@mui/icons-material/AssignmentRounded';
-import EditNoteRoundedIcon from '@mui/icons-material/EditNoteRounded';
 import PictureAsPdfRoundedIcon from '@mui/icons-material/PictureAsPdfRounded';
 import AssignmentReturnRoundedIcon from '@mui/icons-material/AssignmentReturnRounded';
 
@@ -47,7 +45,6 @@ const CompletedCallsTab = ({ setSelectedCall, setCurrentPage, onCallSentToIbs })
   const [completedCalls, setCompletedCalls] = useState([]);
   const [isLoadingCalls, setIsLoadingCalls] = useState(true);
   const [selectedActionCall, setSelectedActionCall] = useState(null);
-  const [correctionSlipRow, setCorrectionSlipRow] = useState(null);
   const [sendIbsCallRow, setSendIbsCallRow] = useState(null);
   const [isSendingIbs, setIsSendingIbs] = useState(false);
   const [revertIcCallRow, setRevertIcCallRow] = useState(null);
@@ -624,37 +621,7 @@ const CompletedCallsTab = ({ setSelectedCall, setCurrentPage, onCallSentToIbs })
                   <span style={{ fontWeight: '700', fontSize: '15px' }}>Annexures</span>
                 </button>
 
-                {/* 3. Correction Slip */}
-                <button
-                  onClick={() => {
-                    const row = selectedActionCall;
-                    setSelectedActionCall(null);
-                    setCorrectionSlipRow(row);
-                  }}
-                  style={{
-                    display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '12px',
-                    padding: '24px 16px', background: 'linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%)',
-                    border: '1px solid #fde68a', borderRadius: '16px',
-                    cursor: 'pointer', transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-                    color: '#d97706', width: '100%',
-                    boxShadow: '0 4px 6px -1px rgba(217, 119, 6, 0.1), 0 2px 4px -1px rgba(217, 119, 6, 0.06)'
-                  }}
-                  onMouseEnter={(e) => { 
-                    e.currentTarget.style.transform = 'translateY(-4px)';
-                    e.currentTarget.style.boxShadow = '0 10px 15px -3px rgba(217, 119, 6, 0.2), 0 4px 6px -2px rgba(217, 119, 6, 0.1)'; 
-                  }}
-                  onMouseLeave={(e) => { 
-                    e.currentTarget.style.transform = 'translateY(0)';
-                    e.currentTarget.style.boxShadow = '0 4px 6px -1px rgba(217, 119, 6, 0.1), 0 2px 4px -1px rgba(217, 119, 6, 0.06)'; 
-                  }}
-                >
-                  <div style={{ width: '48px', height: '48px', background: '#ffffff', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 2px 4px rgba(0,0,0,0.05)' }}>
-                    <EditNoteRoundedIcon style={{ fontSize: '26px', color: '#d97706' }} />
-                  </div>
-                  <span style={{ fontWeight: '700', fontSize: '15px' }}>Correction Slip</span>
-                </button>
-
-                {/* 4. Send call to IBS */}
+                {/* 3. Send call to IBS */}
                 <button
                   onClick={() => {
                     const row = selectedActionCall;
@@ -837,14 +804,6 @@ const CompletedCallsTab = ({ setSelectedCall, setCurrentPage, onCallSentToIbs })
             </div>
           </div>
         </div>
-      )}
-
-      {/* Correction Slip Modal */}
-      {correctionSlipRow && (
-        <CorrectionSlipModal
-          row={correctionSlipRow}
-          onClose={() => setCorrectionSlipRow(null)}
-        />
       )}
 
       {/* Send Call to IBS Confirmation Modal */}

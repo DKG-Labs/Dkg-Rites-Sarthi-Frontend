@@ -74,6 +74,7 @@ export const UserForm = ({ user, roles = [], rolesLoading = false, existingUsers
             pinCode: '',
             cin: '',
             address: '',
+            plantAddress: '',
             district: '',
             state: '',
             zonalRailway: '',
@@ -81,6 +82,7 @@ export const UserForm = ({ user, roles = [], rolesLoading = false, existingUsers
             contactPerson: '',
             contactPersonNumber: '',
             plantId: '',
+            ibsVendorCode: '',
             status: 'Active'
         }
     ]);
@@ -105,6 +107,7 @@ export const UserForm = ({ user, roles = [], rolesLoading = false, existingUsers
             pinCode: '',
             cin: '',
             address: '',
+            plantAddress: '',
             district: '',
             state: '',
             zonalRailway: '',
@@ -112,6 +115,7 @@ export const UserForm = ({ user, roles = [], rolesLoading = false, existingUsers
             contactPerson: '',
             contactPersonNumber: '',
             plantId: '',
+            ibsVendorCode: '',
             status: 'Active'
         }
     ]);
@@ -128,6 +132,7 @@ export const UserForm = ({ user, roles = [], rolesLoading = false, existingUsers
             contactPerson: '',
             contactPersonNumber: '',
             poiCode: '',
+            ibsVendorCode: '',
             rio: '',
             status: ''
         }
@@ -358,6 +363,7 @@ export const UserForm = ({ user, roles = [], rolesLoading = false, existingUsers
                     contactPerson: '',
                     contactPersonNumber: '',
                     poiCode: '',
+                    ibsVendorCode: '',
                     rio: '',
                     status: ''
                 }
@@ -369,6 +375,7 @@ export const UserForm = ({ user, roles = [], rolesLoading = false, existingUsers
                     pinCode: '',
                     cin: '',
                     address: '',
+                    plantAddress: '',
                     district: '',
                     state: '',
                     zonalRailway: '',
@@ -376,6 +383,7 @@ export const UserForm = ({ user, roles = [], rolesLoading = false, existingUsers
                     contactPerson: '',
                     contactPersonNumber: '',
                     plantId: '',
+                    ibsVendorCode: '',
                     status: 'Active'
                 }
             ]);
@@ -386,6 +394,7 @@ export const UserForm = ({ user, roles = [], rolesLoading = false, existingUsers
                     pinCode: '',
                     cin: '',
                     address: '',
+                    plantAddress: '',
                     district: '',
                     state: '',
                     zonalRailway: '',
@@ -393,6 +402,7 @@ export const UserForm = ({ user, roles = [], rolesLoading = false, existingUsers
                     contactPerson: '',
                     contactPersonNumber: '',
                     plantId: '',
+                    ibsVendorCode: '',
                     status: 'Active'
                 }
             ]);
@@ -423,6 +433,7 @@ export const UserForm = ({ user, roles = [], rolesLoading = false, existingUsers
                 contactPerson: '',
                 contactPersonNumber: '',
                 poiCode: '',
+                ibsVendorCode: '',
                 rio: '',
                 status: ''
             }
@@ -454,6 +465,7 @@ export const UserForm = ({ user, roles = [], rolesLoading = false, existingUsers
                 pinCode: '',
                 cin: '',
                 address: '',
+                plantAddress: '',
                 district: '',
                 state: '',
                 zonalRailway: '',
@@ -461,6 +473,7 @@ export const UserForm = ({ user, roles = [], rolesLoading = false, existingUsers
                 contactPerson: '',
                 contactPersonNumber: '',
                 plantId: '',
+                ibsVendorCode: '',
                 status: 'Active'
             }
         ]);
@@ -551,6 +564,7 @@ export const UserForm = ({ user, roles = [], rolesLoading = false, existingUsers
                 pinCode: '',
                 cin: '',
                 address: '',
+                plantAddress: '',
                 district: '',
                 state: '',
                 zonalRailway: '',
@@ -558,6 +572,7 @@ export const UserForm = ({ user, roles = [], rolesLoading = false, existingUsers
                 contactPerson: '',
                 contactPersonNumber: '',
                 plantId: '',
+                ibsVendorCode: '',
                 status: 'Active'
             }
         ]);
@@ -768,15 +783,7 @@ export const UserForm = ({ user, roles = [], rolesLoading = false, existingUsers
                     showValidationToast(`Plant #${i + 1}: RIO is required.`);
                     return;
                 }
-                if (!p.contactPerson || !p.contactPerson.trim()) {
-                    showValidationToast(`Plant #${i + 1}: Contact Person is required.`);
-                    return;
-                }
-                if (!p.contactPersonNumber || !p.contactPersonNumber.trim()) {
-                    showValidationToast(`Plant #${i + 1}: Contact Person Number is required.`);
-                    return;
-                }
-                if (!/^\d{10}$/.test(p.contactPersonNumber.trim())) {
+                if (p.contactPersonNumber && p.contactPersonNumber.trim() && !/^\d{10}$/.test(p.contactPersonNumber.trim())) {
                     showValidationToast(`Plant #${i + 1}: Contact Person Number must be exactly 10 digits (no spaces or alphabets).`);
                     return;
                 }
@@ -862,15 +869,7 @@ export const UserForm = ({ user, roles = [], rolesLoading = false, existingUsers
                     showValidationToast(`Plant #${i + 1}: RIO is required.`);
                     return;
                 }
-                if (!p.contactPerson || !p.contactPerson.trim()) {
-                    showValidationToast(`Plant #${i + 1}: Contact Person is required.`);
-                    return;
-                }
-                if (!p.contactPersonNumber || !p.contactPersonNumber.trim()) {
-                    showValidationToast(`Plant #${i + 1}: Contact Person Number is required.`);
-                    return;
-                }
-                if (!/^\d{10}$/.test(p.contactPersonNumber.trim())) {
+                if (p.contactPersonNumber && p.contactPersonNumber.trim() && !/^\d{10}$/.test(p.contactPersonNumber.trim())) {
                     showValidationToast(`Plant #${i + 1}: Contact Person Number must be exactly 10 digits (no spaces or alphabets).`);
                     return;
                 }
@@ -926,15 +925,7 @@ export const UserForm = ({ user, roles = [], rolesLoading = false, existingUsers
                     showValidationToast(`Unit #${i + 1}: Pin Code is required.`);
                     return;
                 }
-                if (!u.contactPerson || !u.contactPerson.trim()) {
-                    showValidationToast(`Unit #${i + 1}: Contact Person is required.`);
-                    return;
-                }
-                if (!u.contactPersonNumber || !u.contactPersonNumber.trim()) {
-                    showValidationToast(`Unit #${i + 1}: Contact Person Number is required.`);
-                    return;
-                }
-                if (!/^\d{10}$/.test(u.contactPersonNumber.trim())) {
+                if (u.contactPersonNumber && u.contactPersonNumber.trim() && !/^\d{10}$/.test(u.contactPersonNumber.trim())) {
                     showValidationToast(`Unit #${i + 1}: Contact Person Number must be exactly 10 digits (no spaces or alphabets).`);
                     return;
                 }
@@ -1379,6 +1370,26 @@ export const UserForm = ({ user, roles = [], rolesLoading = false, existingUsers
                                                         />
                                                     </div>
                                                     <div className="form-group">
+                                                        <label className="form-label">IBS Vendor Code</label>
+                                                        <input
+                                                            type="text"
+                                                            className="form-control"
+                                                            placeholder="e.g. 103066"
+                                                            value={plant.ibsVendorCode || ''}
+                                                            onChange={(e) => handleRailpadPlantChange(idx, 'ibsVendorCode', e.target.value)}
+                                                        />
+                                                    </div>
+                                                    <div className="form-group" style={{ gridColumn: 'span 2' }}>
+                                                        <label className="form-label">Plant Address</label>
+                                                        <input
+                                                            type="text"
+                                                            className="form-control"
+                                                            placeholder="Full address of the manufacturing plant"
+                                                            value={plant.plantAddress || ''}
+                                                            onChange={(e) => handleRailpadPlantChange(idx, 'plantAddress', e.target.value)}
+                                                        />
+                                                    </div>
+                                                    <div className="form-group">
                                                         <label className="form-label">Plant Pin Code <span className="required-star">*</span></label>
                                                         <input
                                                             type="text"
@@ -1432,7 +1443,7 @@ export const UserForm = ({ user, roles = [], rolesLoading = false, existingUsers
                                                     </div>
                                                     <div className="form-group" style={{ background: '#f0fdf4', padding: '10px', borderRadius: '8px', border: '1.5px solid #86efac' }}>
                                                         <label className="form-label" style={{ color: '#166534', fontWeight: 700 }}>
-                                                            👤 Contact Person <span className="required-star">*</span>
+                                                            👤 Contact Person
                                                         </label>
                                                         <input
                                                             type="text"
@@ -1440,13 +1451,12 @@ export const UserForm = ({ user, roles = [], rolesLoading = false, existingUsers
                                                             placeholder="Full name of plant contact person"
                                                             value={plant.contactPerson || ''}
                                                             onChange={(e) => handleRailpadPlantChange(idx, 'contactPerson', e.target.value)}
-                                                            required
                                                             style={{ borderColor: '#4ade80' }}
                                                         />
                                                     </div>
                                                     <div className="form-group" style={{ background: '#eff6ff', padding: '10px', borderRadius: '8px', border: '1.5px solid #93c5fd' }}>
                                                         <label className="form-label" style={{ color: '#1e40af', fontWeight: 700 }}>
-                                                            📞 Contact Person Number <span className="required-star">*</span>
+                                                            📞 Contact Person Number
                                                         </label>
                                                         <input
                                                             type="tel"
@@ -1457,7 +1467,6 @@ export const UserForm = ({ user, roles = [], rolesLoading = false, existingUsers
                                                             maxLength={10}
                                                             inputMode="numeric"
                                                             pattern="[0-9]{10}"
-                                                            required
                                                             style={{ borderColor: '#60a5fa' }}
                                                         />
                                                     </div>
@@ -1640,6 +1649,26 @@ export const UserForm = ({ user, roles = [], rolesLoading = false, existingUsers
                                                         />
                                                     </div>
                                                     <div className="form-group">
+                                                        <label className="form-label">IBS Vendor Code</label>
+                                                        <input
+                                                            type="text"
+                                                            className="form-control"
+                                                            placeholder="e.g. 103066"
+                                                            value={plant.ibsVendorCode || ''}
+                                                            onChange={(e) => handlePlantChange(idx, 'ibsVendorCode', e.target.value)}
+                                                        />
+                                                    </div>
+                                                    <div className="form-group" style={{ gridColumn: 'span 2' }}>
+                                                        <label className="form-label">Plant Address</label>
+                                                        <input
+                                                            type="text"
+                                                            className="form-control"
+                                                            placeholder="Full address of the manufacturing plant"
+                                                            value={plant.plantAddress || ''}
+                                                            onChange={(e) => handlePlantChange(idx, 'plantAddress', e.target.value)}
+                                                        />
+                                                    </div>
+                                                    <div className="form-group">
                                                         <label className="form-label">Plant Pin Code <span className="required-star">*</span></label>
                                                         <input
                                                             type="text"
@@ -1693,7 +1722,7 @@ export const UserForm = ({ user, roles = [], rolesLoading = false, existingUsers
                                                     </div>
                                                     <div className="form-group" style={{ background: '#f0fdf4', padding: '10px', borderRadius: '8px', border: '1.5px solid #86efac' }}>
                                                         <label className="form-label" style={{ color: '#166534', fontWeight: 700 }}>
-                                                            👤 Contact Person <span className="required-star">*</span>
+                                                            👤 Contact Person
                                                         </label>
                                                         <input
                                                             type="text"
@@ -1701,13 +1730,12 @@ export const UserForm = ({ user, roles = [], rolesLoading = false, existingUsers
                                                             placeholder="Full name of plant contact person"
                                                             value={plant.contactPerson || ''}
                                                             onChange={(e) => handlePlantChange(idx, 'contactPerson', e.target.value)}
-                                                            required
                                                             style={{ borderColor: '#4ade80' }}
                                                         />
                                                     </div>
                                                     <div className="form-group" style={{ background: '#eff6ff', padding: '10px', borderRadius: '8px', border: '1.5px solid #93c5fd' }}>
                                                         <label className="form-label" style={{ color: '#1e40af', fontWeight: 700 }}>
-                                                            📞 Contact Person Number <span className="required-star">*</span>
+                                                            📞 Contact Person Number
                                                         </label>
                                                         <input
                                                             type="tel"
@@ -1718,7 +1746,6 @@ export const UserForm = ({ user, roles = [], rolesLoading = false, existingUsers
                                                             maxLength={10}
                                                             inputMode="numeric"
                                                             pattern="[0-9]{10}"
-                                                            required
                                                             style={{ borderColor: '#60a5fa' }}
                                                         />
                                                     </div>
@@ -1843,6 +1870,16 @@ export const UserForm = ({ user, roles = [], rolesLoading = false, existingUsers
                                             />
                                         </div>
                                         <div className="form-group">
+                                            <label className="form-label">IBS Vendor Code</label>
+                                            <input
+                                                type="text"
+                                                className="form-control"
+                                                placeholder="e.g. 103066"
+                                                value={unit.ibsVendorCode || ''}
+                                                onChange={(e) => handleUnitChange(idx, 'ibsVendorCode', e.target.value)}
+                                            />
+                                        </div>
+                                        <div className="form-group">
                                             <label className="form-label">CIN (Corporate Identity No.)</label>
                                             <input
                                                 type="text"
@@ -1897,7 +1934,7 @@ export const UserForm = ({ user, roles = [], rolesLoading = false, existingUsers
                                         </div>
                                         <div className="form-group" style={{ background: '#f0fdf4', padding: '10px', borderRadius: '8px', border: '1.5px solid #86efac' }}>
                                             <label className="form-label" style={{ color: '#166534', fontWeight: 700 }}>
-                                                👤 Contact Person <span className="required-star">*</span>
+                                                👤 Contact Person
                                             </label>
                                             <input
                                                 type="text"
@@ -1905,13 +1942,12 @@ export const UserForm = ({ user, roles = [], rolesLoading = false, existingUsers
                                                 placeholder="Full name of unit contact person"
                                                 value={unit.contactPerson || ''}
                                                 onChange={(e) => handleUnitChange(idx, 'contactPerson', e.target.value)}
-                                                required
                                                 style={{ borderColor: '#60a5fa' }}
                                             />
                                         </div>
                                         <div className="form-group" style={{ background: '#eff6ff', padding: '10px', borderRadius: '8px', border: '1.5px solid #93c5fd' }}>
                                             <label className="form-label" style={{ color: '#1e40af', fontWeight: 700 }}>
-                                                📞 Contact Person Number <span className="required-star">*</span>
+                                                📞 Contact Person Number
                                             </label>
                                             <input
                                                 type="tel"
@@ -1922,7 +1958,6 @@ export const UserForm = ({ user, roles = [], rolesLoading = false, existingUsers
                                                 maxLength={10}
                                                 inputMode="numeric"
                                                 pattern="[0-9]{10}"
-                                                required
                                                 style={{ borderColor: '#60a5fa' }}
                                             />
                                         </div>

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { fetchSleeperRemapAvailableUsers, submitSleeperRemap } from '../services/remapIeApi';
+import SearchableEmployeeSelect from './SearchableEmployeeSelect';
 
 const styles = {
   overlay: {
@@ -190,20 +191,14 @@ const SleeperRemapIEModal = ({ callNo, plantId, currentIeUserId, currentIeName, 
               <div>
                 <div style={styles.sectionLabel}>Reassignment</div>
                 <div style={styles.formGroup}>
-                  <label style={styles.label}>Select New Rail Main IE</label>
-                  <select
-                    style={styles.select}
+                  <label style={styles.label}>Select New Sleeper Main IE</label>
+                  <SearchableEmployeeSelect
+                    options={availableUsers}
                     value={selectedNewUserId}
-                    onChange={(e) => setSelectedNewUserId(e.target.value)}
+                    onChange={(val) => setSelectedNewUserId(val)}
                     disabled={submitting}
-                  >
-                    <option value="">-- Select Employee --</option>
-                    {availableUsers.map(emp => (
-                      <option key={emp.userId} value={emp.userId}>
-                        {emp.fullName} ({emp.employeeCode}) - {emp.role}
-                      </option>
-                    ))}
-                  </select>
+                    placeholder="-- Select Employee --"
+                  />
                 </div>
               </div>
             </div>

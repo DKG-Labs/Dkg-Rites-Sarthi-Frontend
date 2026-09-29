@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { fetchRailpadRemapAvailableUsers, submitRailpadRemap } from '../services/remapIeApi';
+import SearchableEmployeeSelect from './SearchableEmployeeSelect';
 
 const styles = {
   overlay: {
@@ -191,19 +192,13 @@ const RailpadRemapIEModal = ({ callNo, plantId, currentIeUserId, currentIeName, 
                 <div style={styles.sectionLabel}>Reassignment</div>
                 <div style={styles.formGroup}>
                   <label style={styles.label}>Select New Railpad Main IE</label>
-                  <select
-                    style={styles.select}
+                  <SearchableEmployeeSelect
+                    options={availableUsers}
                     value={selectedNewUserId}
-                    onChange={(e) => setSelectedNewUserId(e.target.value)}
+                    onChange={(val) => setSelectedNewUserId(val)}
                     disabled={submitting}
-                  >
-                    <option value="">-- Select Employee --</option>
-                    {availableUsers.map(emp => (
-                      <option key={emp.userId} value={emp.userId}>
-                        {emp.fullName} ({emp.employeeCode}) - {emp.role}
-                      </option>
-                    ))}
-                  </select>
+                    placeholder="-- Select Employee --"
+                  />
                 </div>
               </div>
             </div>

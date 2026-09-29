@@ -402,15 +402,17 @@ export const updateSignedCertificate = async (payload) => {
  * @param {File} file 
  * @param {string} icNumber 
  * @param {string} uploadedBy 
+ * @param {string} icDate 
  * @returns {Promise<Object>}
  */
-export const uploadSignedCertificateFile = async (file, icNumber, uploadedBy) => {
+export const uploadSignedCertificateFile = async (file, icNumber, uploadedBy, icDate) => {
   try {
     const url = API_ENDPOINTS.CERTIFICATE_STORAGE || `${API_ENDPOINTS.CERTIFICATES.replace('/certificate', '/certificate-storage')}`;
     const formData = new FormData();
     formData.append('file', file);
     formData.append('icNumber', icNumber);
     if (uploadedBy) formData.append('uploadedBy', uploadedBy);
+    if (icDate) formData.append('icDate', icDate);
 
     const token = localStorage.getItem('token') || localStorage.getItem('jwtToken') || sessionStorage.getItem('token');
     const headers = {};
@@ -432,6 +434,75 @@ export const uploadSignedCertificateFile = async (file, icNumber, uploadedBy) =>
     return await response.json();
   } catch (error) {
     console.error('❌ Error uploading certificate file:', error);
+    throw error;
+  }
+};
+
+/**
+ * Update Signed Certificate as Multipart File
+ * @param {File} file 
+ * @param {string} icNumber 
+ * @param {string} uploadedBy 
+ * @param {string} icDate 
+ * @returns {Promise<Object>}
+ */
+export const updateSignedCertificateFile = async (file, icNumber, uploadedBy, icDate) => {
+  try {
+    const url = API_ENDPOINTS.CERTIFICATE_STORAGE || `${API_ENDPOINTS.CERTIFICATES.replace('/certificate', '/certificate-storage')}`;
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('icNumber', icNumber);
+    if (uploadedBy) formData.append('uploadedBy', uploadedBy);
+    if (icDate) formData.append('icDate', icDate);
+
+    const token = localStorage.getItem('token') || localStorage.getItem('jwtToken') || sessionStorage.getItem('token');
+    const headers = {};
+    if (token) {
+      headers['Authorization'] = token.startsWith('Bearer ') ? token : `Bearer ${token}`;
+    }
+
+    const response = await fetch(`${url}/update-file`, {
+      method: 'POST',
+      headers,
+      body: formData
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(errorText || `Failed to update file: ${response.status}`);
+    }
+
+    return await response.json();
+  } catch (error) {
+    console.error('❌ Error updating certificate file:', error);
+    throw error;
+  }
+};
+
+/**
+ * Update IC Date directly
+ * @param {string} icNumber 
+ * @param {string} icDate 
+ * @returns {Promise<Object>}
+ */
+export const updateCertificateDate = async (icNumber, icDate) => {
+  try {
+    console.log('📅 Updating IC Date for:', icNumber, 'to', icDate);
+    const url = API_ENDPOINTS.CERTIFICATE_STORAGE || `${API_ENDPOINTS.CERTIFICATES.replace('/certificate', '/certificate-storage')}`;
+    const response = await fetch(`${url}/update-ic-date`, {
+      method: 'POST',
+      headers: getAuthHeaders(),
+      body: JSON.stringify({ icNumber, icDate })
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(errorText || `Failed to update IC date: ${response.status}`);
+    }
+
+    return await response.json();
+  } catch (error) {
+    console.error('❌ Error updating IC date:', error);
     throw error;
   }
 };

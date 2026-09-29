@@ -24,7 +24,7 @@ export const isPlantIdMatching = (plantA, plantB) => {
   return false;
 };
 
-export const fetchPendingWorkflowTransitions = async (roleName, plantId = '', workflowId = '', moduleId = '') => {
+export const fetchPendingWorkflowTransitions = async (roleName, plantId = '', workflowId = '', moduleId = '', assignedTo = '') => {
   try {
     const formattedPlantId = normalizePlantId(plantId);
     let url = `${getBaseUrl()}${API_ENDPOINTS.RAILPAD_WORKFLOW.ALL_PENDING_TRANSITIONS}?roleName=${encodeURIComponent(roleName)}`;
@@ -36,6 +36,10 @@ export const fetchPendingWorkflowTransitions = async (roleName, plantId = '', wo
     }
     if (moduleId !== undefined && moduleId !== null && moduleId !== '') {
       url += `&moduleId=${encodeURIComponent(moduleId)}`;
+    }
+    const effectiveAssignedTo = assignedTo || getStoredUser()?.userId;
+    if (effectiveAssignedTo) {
+      url += `&assignedTo=${encodeURIComponent(effectiveAssignedTo)}`;
     }
     const response = await fetch(url);
     const data = await response.json();

@@ -3,7 +3,8 @@ import {
   uploadSignedCertificateFile,
   viewSignedCertificate,
   checkSignedCertificateExists,
-  deleteSignedCertificate
+  deleteSignedCertificate,
+  updateCertificateDate
 } from '../../services/certificateService';
 import { compressPdfFile } from '../../utils/pdfCompressor';
 
@@ -11,6 +12,7 @@ export const CertificateStorageManager = ({ onNotify }) => {
   // Upload Form State - Empty default uploader (mandatory field)
   const [icNumber, setIcNumber] = useState('');
   const [uploader, setUploader] = useState('');
+  const [icDate, setIcDate] = useState('');
   const [selectedFile, setSelectedFile] = useState(null);
   const [compressedFileInfo, setCompressedFileInfo] = useState(null);
   const [isDragOver, setIsDragOver] = useState(false);
@@ -22,6 +24,8 @@ export const CertificateStorageManager = ({ onNotify }) => {
   const [searchIc, setSearchIc] = useState('');
   const [searchLoading, setSearchLoading] = useState(false);
   const [certificateData, setCertificateData] = useState(null);
+  const [editIcDate, setEditIcDate] = useState('');
+  const [updatingDate, setUpdatingDate] = useState(false);
   const [pdfPreviewUrl, setPdfPreviewUrl] = useState(null);
   const [isDeleting, setIsDeleting] = useState(false);
 
@@ -127,7 +131,7 @@ export const CertificateStorageManager = ({ onNotify }) => {
       }
 
       setCompressProgressText('Uploading Certificate...');
-      const response = await uploadSignedCertificateFile(fileToUpload, cleanIc, cleanUploader);
+      const response = await uploadSignedCertificateFile(fileToUpload, cleanIc, cleanUploader, icDate);
       setUploadResult(response);
       notify(`Certificate for '${cleanIc}' uploaded successfully (${(fileToUpload.size / (1024 * 1024)).toFixed(2)} MB)!`, 'success');
       
@@ -154,6 +158,7 @@ export const CertificateStorageManager = ({ onNotify }) => {
     setSearchLoading(true);
     setCertificateData(null);
     setPdfPreviewUrl(null);
+    setEditIcDate('');
 
     try {
       const exists = await checkSignedCertificateExists(cleanIc);
@@ -165,6 +170,7 @@ export const CertificateStorageManager = ({ onNotify }) => {
 
       const cert = await viewSignedCertificate(cleanIc);
       setCertificateData(cert);
+      setEditIcDate(cert.icDate || '');
 
       if (cert.signedData) {
         const cleanBase64 = cert.signedData.startsWith('data:') 
@@ -184,6 +190,31 @@ export const CertificateStorageManager = ({ onNotify }) => {
     }
   };
 
+  // Update IC Date Handler
+  const handleUpdateIcDate = async () => {
+    const cleanIc = (certificateData?.icNumber || searchIc).trim();
+    if (!cleanIc) {
+      notify('Please specify an IC number.', 'warning');
+      return;
+    }
+    if (!editIcDate) {
+      notify('Please select a valid IC Date.', 'warning');
+      return;
+    }
+
+    setUpdatingDate(true);
+    try {
+      await updateCertificateDate(cleanIc, editIcDate);
+      setCertificateData(prev => ({ ...prev, icDate: editIcDate }));
+      notify(`IC Date successfully updated to '${editIcDate}' across records!`, 'success');
+    } catch (error) {
+      console.error('Failed to update IC date:', error);
+      notify(`Failed to update IC date: ${error.message}`, 'error');
+    } finally {
+      setUpdatingDate(false);
+    }
+  };
+
   // Delete Handler
   const handleDelete = async () => {
     const cleanIc = (certificateData?.icNumber || searchIc).trim();
@@ -199,6 +230,7 @@ export const CertificateStorageManager = ({ onNotify }) => {
       notify(`Certificate for '${cleanIc}' has been deleted.`, 'success');
       setCertificateData(null);
       setPdfPreviewUrl(null);
+      setEditIcDate('');
     } catch (error) {
       console.error('Delete failed:', error);
       notify(`Failed to delete certificate: ${error.message}`, 'error');
@@ -214,6 +246,9 @@ export const CertificateStorageManager = ({ onNotify }) => {
       setIcNumber(targetIc);
       if (certificateData?.uploadedBy) {
         setUploader(certificateData.uploadedBy);
+      }
+      if (certificateData?.icDate) {
+        setIcDate(certificateData.icDate);
       }
       // Open file browser automatically
       const fileInput = document.getElementById('cert-file-input');
@@ -395,6 +430,40 @@ export const CertificateStorageManager = ({ onNotify }) => {
                 value={uploader}
                 onChange={(e) => setUploader(e.target.value)}
                 required
+                style={{
+                  width: '100%',
+                  padding: '11px 14px',
+                  borderRadius: '10px',
+                  border: '1.5px solid #cbd5e1',
+                  background: '#f8fafc',
+                  fontSize: '14px',
+                  color: '#0f172a',
+                  outline: 'none',
+                  boxSizing: 'border-box',
+                  transition: 'all 0.2s ease'
+                }}
+                onFocus={(e) => {
+                  e.target.style.borderColor = '#0284c7';
+                  e.target.style.background = '#ffffff';
+                  e.target.style.boxShadow = '0 0 0 3px rgba(2, 132, 199, 0.12)';
+                }}
+                onBlur={(e) => {
+                  e.target.style.borderColor = '#cbd5e1';
+                  e.target.style.background = '#f8fafc';
+                  e.target.style.boxShadow = 'none';
+                }}
+              />
+            </div>
+
+            {/* IC Date Input */}
+            <div>
+              <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontWeight: 600, fontSize: '13.5px', color: '#334155', marginBottom: '6px' }}>
+                <span>📅</span> IC Date <span style={{ color: '#64748b', fontSize: '12px', fontWeight: 400 }}>(Sets date across inspection & IBS records)</span>
+              </label>
+              <input
+                type="date"
+                value={icDate}
+                onChange={(e) => setIcDate(e.target.value)}
                 style={{
                   width: '100%',
                   padding: '11px 14px',
@@ -761,6 +830,69 @@ export const CertificateStorageManager = ({ onNotify }) => {
                       }}
                     >
                       {isDeleting ? 'Deleting...' : '🗑️ Delete'}
+                    </button>
+                  </div>
+                </div>
+
+                {/* IC Date & Quick Edit Section */}
+                <div style={{
+                  background: '#f1f5f9',
+                  border: '1px solid #e2e8f0',
+                  borderRadius: '10px',
+                  padding: '12px 14px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  flexWrap: 'wrap',
+                  gap: '10px'
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <span style={{ fontSize: '18px' }}>📅</span>
+                    <div>
+                      <span style={{ fontSize: '11px', fontWeight: 700, color: '#64748b', textTransform: 'uppercase', display: 'block' }}>
+                        Inspection Certificate (IC) Date
+                      </span>
+                      <strong style={{ fontSize: '13.5px', color: '#0f172a' }}>
+                        {certificateData.icDate ? certificateData.icDate : 'Not specified'}
+                      </strong>
+                    </div>
+                  </div>
+
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <input
+                      type="date"
+                      value={editIcDate}
+                      onChange={(e) => setEditIcDate(e.target.value)}
+                      style={{
+                        padding: '6px 10px',
+                        borderRadius: '8px',
+                        border: '1.5px solid #cbd5e1',
+                        background: '#ffffff',
+                        fontSize: '13px',
+                        color: '#0f172a',
+                        outline: 'none'
+                      }}
+                    />
+                    <button
+                      type="button"
+                      onClick={handleUpdateIcDate}
+                      disabled={updatingDate || !editIcDate}
+                      style={{
+                        padding: '7px 14px',
+                        borderRadius: '8px',
+                        background: (updatingDate || !editIcDate) ? '#e2e8f0' : 'linear-gradient(135deg, #0284c7 0%, #0369a1 100%)',
+                        color: (updatingDate || !editIcDate) ? '#94a3b8' : '#ffffff',
+                        border: 'none',
+                        fontSize: '12.5px',
+                        fontWeight: 700,
+                        cursor: (updatingDate || !editIcDate) ? 'not-allowed' : 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '4px',
+                        boxShadow: (updatingDate || !editIcDate) ? 'none' : '0 2px 6px rgba(2, 132, 199, 0.25)'
+                      }}
+                    >
+                      {updatingDate ? 'Updating...' : 'Update Date'}
                     </button>
                   </div>
                 </div>

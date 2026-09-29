@@ -1,111 +1,11 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   fetchRemapPoiDetails,
   fetchRemapAssignedUser,
   fetchRemapAvailableEmployees,
   submitRemapIe,
 } from '../services/remapIeApi';
-
-// Custom searchable dropdown – avoids antd portal z-index issues inside custom modals
-const SearchableSelect = ({ options, value, onChange, placeholder }) => {
-  const [open, setOpen] = useState(false);
-  const [search, setSearch] = useState('');
-  const ref = useRef(null);
-
-  const selected = options.find(o => o.value === value);
-  const filtered = options.filter(o =>
-    `${o.empName} ${o.empCode}`.toLowerCase().includes(search.toLowerCase())
-  );
-
-  useEffect(() => {
-    const handler = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
-    document.addEventListener('mousedown', handler);
-    return () => document.removeEventListener('mousedown', handler);
-  }, []);
-
-  const handleSelect = (opt) => {
-    onChange(opt.value);
-    setOpen(false);
-    setSearch('');
-  };
-
-  return (
-    <div ref={ref} style={{ position: 'relative', width: '100%' }}>
-      {/* Trigger */}
-      <div
-        onClick={() => setOpen(o => !o)}
-        style={{
-          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-          padding: '10px 14px', border: `1.5px solid ${open ? '#2563eb' : '#e2e8f0'}`,
-          borderRadius: '10px', cursor: 'pointer', background: '#fff',
-          transition: 'border-color 0.2s', userSelect: 'none',
-          boxShadow: open ? '0 0 0 3px rgba(37,99,235,0.12)' : 'none',
-        }}
-      >
-        <span style={{ color: selected ? '#1e293b' : '#94a3b8', fontWeight: selected ? 600 : 400, fontSize: '0.875rem' }}>
-          {selected ? (
-            <span style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-              {selected.empName}
-              <span style={{ fontSize: '0.72rem', color: '#94a3b8', fontFamily: 'monospace', background: '#f1f5f9', padding: '2px 8px', borderRadius: '6px' }}>{selected.empCode}</span>
-            </span>
-          ) : placeholder}
-        </span>
-        <span style={{ color: '#94a3b8', transform: open ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s', fontSize: '0.8rem' }}>▾</span>
-      </div>
-
-      {/* Dropdown panel */}
-      {open && (
-        <div style={{
-          position: 'absolute', top: 'calc(100% + 6px)', left: 0, right: 0,
-          background: '#fff', border: '1.5px solid #e2e8f0', borderRadius: '12px',
-          boxShadow: '0 12px 40px rgba(0,0,0,0.15)', zIndex: 9999, overflow: 'hidden',
-        }}>
-          {/* Search input */}
-          <div style={{ padding: '10px', borderBottom: '1px solid #f1f5f9' }}>
-            <input
-              autoFocus
-              value={search}
-              onChange={e => setSearch(e.target.value)}
-              placeholder="Search by name or code..."
-              style={{
-                width: '100%', padding: '8px 12px', border: '1.5px solid #e2e8f0',
-                borderRadius: '8px', fontSize: '0.85rem', outline: 'none',
-                color: '#1e293b', background: '#f8fafc',
-                boxSizing: 'border-box',
-              }}
-            />
-          </div>
-
-          {/* Options list */}
-          <div style={{ maxHeight: '220px', overflowY: 'auto' }}>
-            {filtered.length === 0 ? (
-              <div style={{ padding: '16px', textAlign: 'center', color: '#94a3b8', fontSize: '0.85rem' }}>No employees found</div>
-            ) : (
-              filtered.map(opt => (
-                <div
-                  key={opt.key}
-                  onClick={() => handleSelect(opt)}
-                  style={{
-                    display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-                    padding: '10px 14px', cursor: 'pointer',
-                    background: value === opt.value ? '#eff6ff' : 'transparent',
-                    borderLeft: value === opt.value ? '3px solid #2563eb' : '3px solid transparent',
-                    transition: 'background 0.15s',
-                  }}
-                  onMouseEnter={e => { if (value !== opt.value) e.currentTarget.style.background = '#f8fafc'; }}
-                  onMouseLeave={e => { if (value !== opt.value) e.currentTarget.style.background = 'transparent'; }}
-                >
-                  <span style={{ fontWeight: 600, color: '#1e293b', fontSize: '0.875rem' }}>{opt.empName}</span>
-                  <span style={{ fontSize: '0.72rem', color: '#94a3b8', fontFamily: 'monospace', background: '#f1f5f9', padding: '2px 8px', borderRadius: '6px' }}>{opt.empCode}</span>
-                </div>
-              ))
-            )}
-          </div>
-        </div>
-      )}
-    </div>
-  );
-};
+import SearchableEmployeeSelect from './SearchableEmployeeSelect';
 
 
 const styles = {
@@ -387,19 +287,11 @@ const RemapIEModal = ({ callNo, stage, onClose, onSuccess }) => {
                   {error && <div style={styles.errorBox}>⚠ {error}</div>}
                   <div style={styles.selectWrapper}>
                     <div style={styles.selectLabel}>Select Available Employee</div>
-                    <SearchableSelect
+                    <SearchableEmployeeSelect
                       value={selectedNewEmpCode}
                       onChange={setSelectedNewEmpCode}
-                      placeholder="Click to select an employee..."
-                      options={sortedEmployees
-                        .filter(emp => emp.employeeCode && emp.employeeName)
-                        .map(emp => ({
-                          key: emp.userId,
-                          value: emp.employeeCode,
-                          empName: emp.employeeName,
-                          empCode: emp.employeeCode,
-                        }))
-                      }
+                      placeholder="-- Select Employee --"
+                      options={sortedEmployees.filter(emp => emp.employeeCode && emp.employeeName)}
                     />
                   </div>
                 </div>

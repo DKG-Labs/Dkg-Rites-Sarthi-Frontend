@@ -221,7 +221,20 @@ const AttendingCallsDashboard = ({
       let rpCompletedAll = completedDataAll.filter(c => c.requestId);
       let rpClosedAll = closedDataAll.filter(c => c.requestId);
 
-      if (mappedPlants && mappedPlants.length > 0) {
+      const empCode = user?.employeeCode || localStorage.getItem('employeeCode');
+      const isCallBelongingToUser = (c) => {
+        if (!uId && !empCode) return true;
+        const numUid = uId ? Number(uId) : null;
+        if (numUid && c.assignedToUser && Number(c.assignedToUser) === numUid) return true;
+        if (empCode && c.assignedToUserEmployeeCode && String(c.assignedToUserEmployeeCode).trim() === String(empCode).trim()) return true;
+        return false;
+      };
+
+      if (uId || empCode) {
+        rpPending = rpPending.filter(c => isCallBelongingToUser(c));
+        rpCompletedAll = rpCompletedAll.filter(c => isCallBelongingToUser(c));
+        rpClosedAll = rpClosedAll.filter(c => isCallBelongingToUser(c));
+      } else if (mappedPlants && mappedPlants.length > 0) {
         rpPending = rpPending.filter(c => c.plantId && mappedPlants.some(p => isPlantIdMatching(c.plantId, p)));
         rpCompletedAll = rpCompletedAll.filter(c => c.plantId && mappedPlants.some(p => isPlantIdMatching(c.plantId, p)));
         rpClosedAll = rpClosedAll.filter(c => c.plantId && mappedPlants.some(p => isPlantIdMatching(c.plantId, p)));

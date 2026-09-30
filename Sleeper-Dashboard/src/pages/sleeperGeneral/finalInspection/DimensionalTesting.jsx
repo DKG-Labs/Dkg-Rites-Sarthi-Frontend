@@ -41,17 +41,14 @@ const DimensionalTesting = ({ type }) => {
                 .map(batch => {
                     let percentage = Number(batch.testedPercentage ?? 0);
 
-                    // If the list response happens to include a sleepers array, derive percentage from it
+                    // If the list response happens to include a sleepers array, derive percentage from actual batch quantity
                     if (batch.sleepers && Array.isArray(batch.sleepers) && batch.sleepers.length > 0) {
-                        const total = batch.sleepers.length;
-                        const pendingCount = batch.sleepers.filter(s =>
-                            !s.status || s.status.toUpperCase() === 'PENDING'
+                        const batchTotal = Number(batch.totalBatchQty || batch.noOfSleepers || batch.totalSleepers || 0);
+                        const testedCount = batch.sleepers.filter(s =>
+                            s.status && s.status.toUpperCase() !== 'PENDING'
                         ).length;
-                        const testedCount = total - pendingCount;
-                        if (pendingCount === 0) {
-                            percentage = 100;
-                        } else {
-                            percentage = (testedCount / total) * 100;
+                        if (batchTotal > 0) {
+                            percentage = (testedCount / batchTotal) * 100;
                         }
                     }
 

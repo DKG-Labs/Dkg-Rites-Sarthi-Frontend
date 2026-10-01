@@ -9,7 +9,9 @@ import {
   saveCumulativeResults,
   saveInspectionSummary,
   saveLotResults,
-  getInspectionSummary
+  getInspectionSummary,
+  getLotResults,
+  updateLotSampleSize
 } from '../services/finalProductInspectionService';
 import { getHardnessToeLoadAQL, getDimensionWeightAQL, SAMPLE_SIZE_OPTIONS } from '../utils/is2500Calculations';
 import { normalizeErcType } from '../utils/ercUtils';
@@ -44,6 +46,8 @@ export default function FinalProductDashboard({ onBack, onNavigateToSubModule })
   const [pauseSuccessData, setPauseSuccessData] = useState(null); // for pause success modal
   const [pauseErrorData, setPauseErrorData] = useState(null);    // for pause failure modal
   const [showPauseConfirm, setShowPauseConfirm] = useState(false); // for pause confirmation modal
+  const [draftSuccessData, setDraftSuccessData] = useState(null); // for modern draft success modal
+  const [draftErrorData, setDraftErrorData] = useState(null);     // for modern draft error modal
 
   /* Custom sample size state for user override */
   const [customSampleSizes, setCustomSampleSizes] = useState(() => {
@@ -68,18 +72,29 @@ export default function FinalProductDashboard({ onBack, onNavigateToSubModule })
     });
   };
 
-  const handleConfirmSampleSize = () => {
+  const handleConfirmSampleSize = async () => {
     if (!sampleSizeConfirmData) return;
     const { lotNo, newSize } = sampleSizeConfirmData;
+    const callNo = selectedCall?.call_no;
+
     setCustomSampleSizes(prev => {
       const next = { ...prev, [lotNo]: newSize };
-      const callNo = selectedCall?.call_no;
       if (callNo) {
         localStorage.setItem(`fpCustomSampleSizes_${callNo}`, JSON.stringify(next));
       }
       return next;
     });
     setSampleSizeConfirmData(null);
+
+    // Save sample size directly to DB table final_inspection_lot_results
+    if (callNo) {
+      try {
+        await updateLotSampleSize(callNo, lotNo, newSize);
+        console.log(`✅ Sample size ${newSize} for lot ${lotNo} successfully saved to DB table final_inspection_lot_results`);
+      } catch (err) {
+        console.error('❌ Failed to save sample size to DB:', err);
+      }
+    }
   };
 
   const handleCancelSampleSize = () => {
@@ -1097,7 +1112,7 @@ export default function FinalProductDashboard({ onBack, onNavigateToSubModule })
           console.log('✅ Cleaned with coating state restored from localStorage');
         }
 
-        // Fetch inspection summary from backend if not present in local storage
+        // Fetch inspection summary and saved lot results from backend
         const fetchSummary = async () => {
           try {
             const summary = await getInspectionSummary(callNo);
@@ -1121,6 +1136,29 @@ export default function FinalProductDashboard({ onBack, onNavigateToSubModule })
             }
           } catch (e) {
             console.log('ℹ️ No paused inspection summary found in backend:', e.message);
+          }
+
+          // Fetch saved lot results to restore custom sample sizes from DB
+          try {
+            const savedLotResults = await getLotResults(callNo);
+            if (savedLotResults && Array.isArray(savedLotResults)) {
+              const dbSampleSizes = {};
+              savedLotResults.forEach(r => {
+                if (r.lotNo && r.sampleSize) {
+                  dbSampleSizes[r.lotNo] = r.sampleSize;
+                }
+              });
+              if (Object.keys(dbSampleSizes).length > 0) {
+                setCustomSampleSizes(prev => {
+                  const merged = { ...dbSampleSizes, ...prev };
+                  localStorage.setItem(`fpCustomSampleSizes_${callNo}`, JSON.stringify(merged));
+                  return merged;
+                });
+                console.log('✅ Restored sample sizes from DB:', dbSampleSizes);
+              }
+            }
+          } catch (e) {
+            console.log('ℹ️ No saved lot results found in backend:', e.message);
           }
         };
         fetchSummary();
@@ -1337,7 +1375,7 @@ export default function FinalProductDashboard({ onBack, onNavigateToSubModule })
   const handleSaveDraft = useCallback(async () => {
     const callNo = selectedCall?.call_no;
     if (!callNo) {
-      alert('❌ Call number not found. Cannot save draft.');
+      setDraftErrorData('Call number not found. Cannot save draft.');
       return;
     }
 
@@ -1408,6 +1446,7 @@ export default function FinalProductDashboard({ onBack, onNavigateToSubModule })
           inspectionCallNo: callNo,
           lotNo: lot.lotNo,
           heatNo: lot.heatNo,
+          sampleSize: lot.sampleSize,
           calibrationStatus: tests.calibration || 'PENDING',
           visualDimStatus: tests.visualDim || 'PENDING',
           hardnessStatus: tests.hardness || 'PENDING',
@@ -1449,16 +1488,16 @@ export default function FinalProductDashboard({ onBack, onNavigateToSubModule })
 
       // Step 3: LocalStorage draft persistence removed
       // Data is now saved exclusively via backend APIs to prevent quota issues
-      
-      let summaryMsg = `✅ Draft saved successfully to the backend at ${new Date().toLocaleTimeString()}!\n\n`;
-      summaryMsg += `Saved submodules: ${results.success.length}\n`;
-      if (results.failed.length > 0) {
-        summaryMsg += `⚠️ Failed submodules: ${results.failed.length} (${results.failed.map(f => f.module).join(', ')})`;
-      }
-      alert(summaryMsg);
+      setDraftSuccessData({
+        callNo,
+        savedTime: new Date().toLocaleTimeString(),
+        lotCount: lotsWithSampling.length,
+        successModules: results?.success || [],
+        failedModules: results?.failed || []
+      });
     } catch (error) {
       console.error('Error saving draft:', error);
-      alert(`❌ Failed to save draft: ${getCleanErrorMessage(error)}`);
+      setDraftErrorData(getCleanErrorMessage(error));
     } finally {
       setIsSavingDraft(false);
     }
@@ -1614,6 +1653,7 @@ export default function FinalProductDashboard({ onBack, onNavigateToSubModule })
           inspectionCallNo: callNo,
           lotNo: lot.lotNo,
           heatNo: lot.heatNo,
+          sampleSize: lot.sampleSize,
           calibrationStatus: tests.calibration || 'PENDING',
           visualDimStatus: tests.visualDim || 'PENDING',
           hardnessStatus: tests.hardness || 'PENDING',
@@ -1802,6 +1842,7 @@ export default function FinalProductDashboard({ onBack, onNavigateToSubModule })
           inspectionCallNo: callNo,
           lotNo: lot.lotNo,
           heatNo: lot.heatNo,
+          sampleSize: lot.sampleSize,
           calibrationStatus: tests.calibration || 'PENDING',
           visualDimStatus: tests.visualDim || 'PENDING',
           hardnessStatus: tests.hardness || 'PENDING',
@@ -2640,6 +2681,128 @@ export default function FinalProductDashboard({ onBack, onNavigateToSubModule })
               }}
             >
               OK
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* DRAFT SUCCESS MODAL */}
+      {draftSuccessData && (
+        <div style={{
+          position: 'fixed', inset: 0, background: 'rgba(15, 23, 42, 0.65)',
+          backdropFilter: 'blur(4px)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999
+        }}>
+          <div style={{
+            background: '#fff', borderRadius: '16px', padding: '32px 36px',
+            maxWidth: '460px', width: '90%', boxShadow: '0 20px 50px rgba(0,0,0,0.25)',
+            textAlign: 'center', animation: 'fpModalIn 0.25s cubic-bezier(0.16, 1, 0.3, 1)'
+          }}>
+            {/* Green checkmark icon badge */}
+            <div style={{
+              width: '64px', height: '64px', borderRadius: '50%',
+              background: '#dcfce7', display: 'flex', alignItems: 'center',
+              justifyContent: 'center', margin: '0 auto 16px',
+              boxShadow: '0 0 0 6px #f0fdf4'
+            }}>
+              <span style={{ fontSize: '30px', color: '#16a34a', fontWeight: 'bold' }}>✓</span>
+            </div>
+
+            <h2 style={{ margin: '0 0 6px', fontSize: '20px', fontWeight: '700', color: '#0f172a' }}>
+              Draft Saved Successfully!
+            </h2>
+            <p style={{ margin: '0 0 18px', fontSize: '13px', color: '#64748b' }}>
+              Saved to backend at <strong style={{ color: '#0f172a' }}>{draftSuccessData.savedTime}</strong>
+            </p>
+
+            <div style={{
+              background: '#f8fafc', borderRadius: '10px', padding: '16px',
+              textAlign: 'left', marginBottom: '22px', fontSize: '13px', color: '#334155',
+              lineHeight: '1.6', border: '1px solid #e2e8f0'
+            }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px', paddingBottom: '8px', borderBottom: '1px solid #e2e8f0' }}>
+                <span style={{ color: '#64748b' }}>Call Number:</span>
+                <strong style={{ color: '#0f172a' }}>{draftSuccessData.callNo}</strong>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
+                <span style={{ color: '#64748b' }}>Lots Updated:</span>
+                <span style={{ fontWeight: '600', color: '#0f172a' }}>{draftSuccessData.lotCount} lots</span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                <span style={{ color: '#64748b' }}>Saved Submodules:</span>
+                <span style={{ fontWeight: '600', color: '#16a34a' }}>✓ {draftSuccessData.successModules?.length || 0} modules</span>
+              </div>
+              {draftSuccessData.failedModules?.length > 0 && (
+                <div style={{ marginTop: '8px', paddingTop: '8px', borderTop: '1px dashed #cbd5e1', color: '#b45309', fontSize: '12px' }}>
+                  ⚠️ Failed submodules: {draftSuccessData.failedModules.map(f => f.module).join(', ')}
+                </div>
+              )}
+            </div>
+
+            <button
+              onClick={() => setDraftSuccessData(null)}
+              style={{
+                background: '#0d9488', color: '#fff', border: 'none',
+                borderRadius: '8px', padding: '11px 24px', fontSize: '15px',
+                fontWeight: '600', cursor: 'pointer', width: '100%',
+                boxShadow: '0 4px 12px rgba(13, 148, 136, 0.25)',
+                transition: 'background 0.2s'
+              }}
+              onMouseOver={(e) => e.currentTarget.style.background = '#0f766e'}
+              onMouseOut={(e) => e.currentTarget.style.background = '#0d9488'}
+            >
+              OK
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* DRAFT ERROR MODAL */}
+      {draftErrorData && (
+        <div style={{
+          position: 'fixed', inset: 0, background: 'rgba(15, 23, 42, 0.65)',
+          backdropFilter: 'blur(4px)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999
+        }}>
+          <div style={{
+            background: '#fff', borderRadius: '16px', padding: '32px 36px',
+            maxWidth: '440px', width: '90%', boxShadow: '0 20px 50px rgba(0,0,0,0.25)',
+            textAlign: 'center', animation: 'fpModalIn 0.25s cubic-bezier(0.16, 1, 0.3, 1)'
+          }}>
+            {/* Red X icon */}
+            <div style={{
+              width: '64px', height: '64px', borderRadius: '50%',
+              background: '#fee2e2', display: 'flex', alignItems: 'center',
+              justifyContent: 'center', margin: '0 auto 16px',
+              boxShadow: '0 0 0 6px #fef2f2'
+            }}>
+              <span style={{ fontSize: '28px', color: '#dc2626', fontWeight: 'bold' }}>✕</span>
+            </div>
+
+            <h2 style={{ margin: '0 0 8px', fontSize: '20px', fontWeight: '700', color: '#991b1b' }}>
+              Failed to Save Draft
+            </h2>
+            <p style={{ margin: '0 0 20px', fontSize: '13px', color: '#64748b' }}>
+              An error occurred while saving the draft to the backend.
+            </p>
+
+            <div style={{
+              background: '#fff1f2', borderRadius: '10px', padding: '14px',
+              textAlign: 'center', marginBottom: '22px', fontSize: '13px', color: '#b91c1c',
+              border: '1px solid #fecdd3', lineHeight: '1.5'
+            }}>
+              {draftErrorData}
+            </div>
+
+            <button
+              onClick={() => setDraftErrorData(null)}
+              style={{
+                background: '#475569', color: '#fff', border: 'none',
+                borderRadius: '8px', padding: '11px 24px', fontSize: '15px',
+                fontWeight: '600', cursor: 'pointer', width: '100%'
+              }}
+            >
+              Close
             </button>
           </div>
         </div>

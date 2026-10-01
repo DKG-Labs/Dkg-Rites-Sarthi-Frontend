@@ -734,18 +734,20 @@ const AttendingCallDashboard = ({ mode }) => {
     const handleIssueIC = async (call) => {
         try {
             const currentStatus = (call.jobStatus || call.status || call.action || '').toUpperCase();
-            let updatedCall = call;
+            let updatedCall = { ...call };
             
             // Only trigger performTransitionAction if status is not already IC_ISSUE
             if (currentStatus !== 'IC_ISSUE') {
                 const user = getStoredUser();
+                const effectiveUserId = Number(user?.userId || localStorage.getItem('userId') || call.assignedToUser || 1);
+                const rawTransitionId = call.workflowTransitionId || call.transitionId || (call.id && Number(call.id) > 100 ? call.id : 0);
                 const payload = {
-                    workflowTransitionId: call.id || call.workflowTransitionId,
-                    moduleId: call.moduleId || 0,
-                    requestId: call.requestId || call.callNo,
+                    workflowTransitionId: rawTransitionId ? Number(rawTransitionId) : 0,
+                    moduleId: Number(call.moduleId || 0),
+                    requestId: call.requestId || call.callNo || call.call_no,
                     action: 'IC_ISSUE',
                     remarks: 'System updated status to IC_ISSUE',
-                    actionBy: Number(user?.userId || 0)
+                    actionBy: effectiveUserId
                 };
                 
                 try {
@@ -754,7 +756,8 @@ const AttendingCallDashboard = ({ mode }) => {
                         updatedCall = {
                             ...call,
                             ...res.responseData,
-                            id: res.responseData.workflowTransitionId || call.id
+                            id: res.responseData.workflowTransitionId || call.id,
+                            workflowTransitionId: res.responseData.workflowTransitionId || call.workflowTransitionId || call.id
                         };
                     }
                 } catch (e) {

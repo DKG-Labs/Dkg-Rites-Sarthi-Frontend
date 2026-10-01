@@ -32,11 +32,11 @@ window.abc = async function (xmlRequest, certificateNo, fileName) {
         isSigning = true;
         notify("info", "Please connect USB token and enter PIN in popup");
 
-        // Open preview window early to bypass popup blockers
-        previewTab = window.open("about:blank", "_blank");
-        if (!previewTab) {
-            throw new Error("Popup blocked. Please allow popups for this site to sign PDFs.");
-        }
+        // DISABLED: Auto preview window - disabled to prevent popup blockers & auto preview
+        // previewTab = window.open("about:blank", "_blank");
+        // if (!previewTab) {
+        //     throw new Error("Popup blocked. Please allow popups for this site to sign PDFs.");
+        // }
 
         // 1. Mandatory Schema Validation
         if (!xmlRequest || !xmlRequest.includes("<request>") || (!xmlRequest.includes("<fileData>") && !xmlRequest.includes("<data>"))) {
@@ -92,30 +92,33 @@ window.abc = async function (xmlRequest, certificateNo, fileName) {
             throw new Error("Invalid signed PDF received: Missing JVBER header.");
         }
 
-        // 6. Base64 -> Blob -> URL
-        const byteCharacters = atob(signedData);
-        const byteNumbers = new Array(byteCharacters.length);
-        for (let i = 0; i < byteCharacters.length; i++) {
-            byteNumbers[i] = byteCharacters.charCodeAt(i);
-        }
-        const byteArray = new Uint8Array(byteNumbers);
-        const blob = new Blob([byteArray], { type: "application/pdf" });
-        const url = URL.createObjectURL(blob);
+        // Auto-download disabled: users can download the eSigned IC from the Completed Calls tab
+        // =========================================================================
+        // 6. Base64 -> Blob -> URL & Auto-Download (COMMENTED OUT)
+        // const byteCharacters = atob(signedData);
+        // const byteNumbers = new Array(byteCharacters.length);
+        // for (let i = 0; i < byteCharacters.length; i++) {
+        //     byteNumbers[i] = byteCharacters.charCodeAt(i);
+        // }
+        // const byteArray = new Uint8Array(byteNumbers);
+        // const blob = new Blob([byteArray], { type: "application/pdf" });
+        // const url = URL.createObjectURL(blob);
+        //
+        // // 7. Preview & Download
+        // if (previewTab) previewTab.location.href = url;
+        //
+        // const link = document.createElement("a");
+        // link.href = url;
+        // link.download = safeFileName;
+        //
+        // setTimeout(() => {
+        //     document.body.appendChild(link);
+        //     link.click();
+        //     document.body.removeChild(link);
+        // }, 500);
+        // =========================================================================
 
-        // 7. Preview & Download
-        previewTab.location.href = url;
-
-        const link = document.createElement("a");
-        link.href = url;
-        link.download = safeFileName;
-        
-        // Wait slightly for browser to register the blob URL
-        setTimeout(() => {
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-            notify("success", "Digital Signature Applied Successfully", signedData);
-        }, 500);
+        notify("success", "Digital Signature Applied Successfully", signedData);
 
     } catch (err) {
         console.error("[PKI BRIDGE ERROR]:", err);

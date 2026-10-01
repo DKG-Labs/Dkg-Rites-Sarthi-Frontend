@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import ExcelJS from 'exceljs/dist/exceljs.min.js';
 import { API_ENDPOINTS, getAuthHeaders, handleResponse } from '../services/apiConfig';
 import { formatDate } from '../utils/helpers';
@@ -73,6 +73,77 @@ const sortAccessors = {
     coating: (s) => Number(s.finishingDefects?.ercCoating ?? 0)
 };
 
+const PRODUCTION_STAGES = [
+    { key: 'shearing', label: 'Shearing', prodField: 'shearingManufactured', rejField: 'shearingRejected', rejKey: 'shearing', icon: '✂️', activeTab: 'shearing', defaultField: 'lengthCutBarRejected' },
+    { key: 'turning', label: 'Turning', prodField: 'turningManufactured', rejField: 'turningRejected', rejKey: 'turning', icon: '⚙️', activeTab: 'turning', defaultField: 'parallelLengthRejected' },
+    { key: 'mpi', label: 'MPI', prodField: 'mpiManufactured', rejField: 'mpiRejected', rejKey: 'mpi', icon: '🧲', activeTab: 'mpi', defaultField: 'mpiRejected' },
+    { key: 'forging', label: 'Forging', prodField: 'forgingManufactured', rejField: 'forgingRejected', rejKey: 'forging', icon: '🔨', activeTab: 'forging', defaultField: 'improperForgingRejected' },
+    { key: 'quenching', label: 'Quenching', prodField: 'quenchingManufactured', rejField: 'quenchingRejected', rejKey: 'quenching', icon: '🌊', activeTab: 'quenching', defaultField: 'quenchingHardnessRejected' },
+    { key: 'tempering', label: 'Tempering', prodField: 'temperingManufactured', rejField: 'temperingRejected', rejKey: 'temperingStage', icon: '🔥', activeTab: 'temperingBase', defaultField: 'temperingTemperatureRejected', isRollup: true }
+];
+
+const SECTION_TABS = [
+    { id: 'shearing', label: 'Shearing', badgeKey: 'shearing', stageKey: 'shearing' },
+    { id: 'turning', label: 'Turning', badgeKey: 'turning', stageKey: 'turning' },
+    { id: 'mpi', label: 'MPI', badgeKey: 'mpi', stageKey: 'mpi' },
+    { id: 'forging', label: 'Forging', badgeKey: 'forging', stageKey: 'forging' },
+    { id: 'quenching', label: 'Quenching', badgeKey: 'quenching', stageKey: 'quenching' },
+    { id: 'temperingBase', label: 'Tempering (Base)', badgeKey: 'temperingBase', stageKey: 'tempering' },
+    { id: 'finalCheck', label: 'Final Check (Dims & Visual)', badgeKey: 'finalCheck', stageKey: 'tempering' },
+    { id: 'testingFinishing', label: 'Testing & Finishing', badgeKey: 'testingFinishing', stageKey: 'tempering' }
+];
+
+const SECTION_DEFECT_FIELDS = {
+    shearing: [
+        { key: 'lengthCutBarRejected', label: 'Cut Bar Length' },
+        { key: 'improperDiaRejected', label: 'Ovality / Dia at End' },
+        { key: 'sharpEdgesRejected', label: 'Sharp Edges' },
+        { key: 'crackedEdgesRejected', label: 'Cracked Edges' }
+    ],
+    turning: [
+        { key: 'parallelLengthRejected', label: 'Parallel Length' },
+        { key: 'fullTurningLengthRejected', label: 'Full Turning Length' },
+        { key: 'turningDiaRejected', label: 'Turning Dia' }
+    ],
+    mpi: [
+        { key: 'mpiRejected', label: 'MPI Defect (Surface Cracks / Seams / Laps)' }
+    ],
+    forging: [
+        { key: 'forgingTempRejected', label: 'Forging Temp' },
+        { key: 'forgingStabilisationRejectionRejected', label: 'Stabilisation' },
+        { key: 'improperForgingRejected', label: 'Improper Forging' },
+        { key: 'forgingDefectRejected', label: 'Marks / Notches' },
+        { key: 'forgingEmbossingRejected', label: 'Forging Embossing' }
+    ],
+    quenching: [
+        { key: 'quenchingTemperatureRejected', label: 'Quench Temp' },
+        { key: 'quenchingDurationRejected', label: 'Quench Duration' },
+        { key: 'quenchingHardnessRejected', label: 'Quench Hardness' },
+        { key: 'quenchingBoxGaugeRejected', label: 'Box Gauge' },
+        { key: 'quenchingFlatBearingAreaRejected', label: 'Bearing Area' },
+        { key: 'quenchingFallingGaugeRejected', label: 'Falling Gauge' }
+    ],
+    temperingBase: [
+        { key: 'temperingTemperatureRejected', label: 'Tempering Temp' },
+        { key: 'temperingDurationRejected', label: 'Tempering Duration' }
+    ],
+    finalCheck: [
+        { key: 'surfaceDefectRejected', label: 'Visual: Surface Defect' },
+        { key: 'embossingDefectRejected', label: 'Visual: Embossing' },
+        { key: 'markingRejected', label: 'Visual: Marking' },
+        { key: 'finalBoxGaugeRejected', label: 'Dims: Box Gauge' },
+        { key: 'finalFlatBearingAreaRejected', label: 'Dims: Bearing Area' },
+        { key: 'finalFallingGaugeRejected', label: 'Dims: Falling Gauge' },
+        { key: 'temperingHardnessRejected', label: 'Hardness: Tempering' }
+    ],
+    testingFinishing: [
+        { key: 'toeLoadRejected', label: 'Testing: Toe Load' },
+        { key: 'weightRejected', label: 'Testing: Weight' },
+        { key: 'paintIdentificationRejected', label: 'Finishing: Paint ID' },
+        { key: 'ercCoatingRejected', label: 'Finishing: ERC Coating' }
+    ]
+};
+
 export default function ProcessDefectSummaryPage() {
     const [callNoInput, setCallNoInput] = useState('');
     const [submittedCallNo, setSubmittedCallNo] = useState('');
@@ -86,6 +157,41 @@ export default function ProcessDefectSummaryPage() {
     const [sortConfig, setSortConfig] = useState({ key: '', direction: 'desc' });
     const [currentPage, setCurrentPage] = useState(1);
     const [pageSize, setPageSize] = useState(10);
+
+    // Edit modal states
+    const [editModalOpen, setEditModalOpen] = useState(false);
+    const [hourlyLoading, setHourlyLoading] = useState(false);
+    const [hourlyDetails, setHourlyDetails] = useState(null);
+    const [activeSectionTab, setActiveSectionTab] = useState('shearing');
+    const [saveLoading, setSaveLoading] = useState(false);
+    const [saveError, setSaveError] = useState('');
+    const [saveSuccess, setSaveSuccess] = useState('');
+    const defectGridRef = useRef(null);
+    const modalBodyRef = useRef(null);
+
+    const jumpToHour = (hIdx) => {
+        const el = document.getElementById(`hour-row-${hIdx}`);
+        if (el) {
+            el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            el.style.transition = 'all 0.3s ease';
+            el.style.backgroundColor = '#fef08a';
+            el.style.outline = '2px solid #ef4444';
+            setTimeout(() => {
+                el.style.backgroundColor = '';
+                el.style.outline = '';
+            }, 1800);
+        }
+    };
+
+    const handleSelectStageCard = (stage) => {
+        setActiveSectionTab(stage.activeTab);
+    };
+
+    // Delete modal states
+    const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+    const [shiftToDelete, setShiftToDelete] = useState(null);
+    const [deleteLoading, setDeleteLoading] = useState(false);
+    const [deleteError, setDeleteError] = useState('');
 
     // Fetch IC numbers list for the logged-in user
     const fetchIcNumbersList = async () => {
@@ -193,6 +299,479 @@ export default function ProcessDefectSummaryPage() {
             return [1, '...', totalPages - 4, totalPages - 3, totalPages - 2, totalPages - 1, totalPages];
         }
         return [1, '...', safeCurrentPage - 1, safeCurrentPage, safeCurrentPage + 1, '...', totalPages];
+    };
+
+    // Helper to check if a date value corresponds to today
+    const isSameDateAsToday = (val) => {
+        if (!val) return false;
+        const now = new Date();
+        const todayYear = now.getFullYear();
+        const todayMonth = now.getMonth() + 1;
+        const todayDay = now.getDate();
+
+        const yest = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1);
+        const yestYear = yest.getFullYear();
+        const yestMonth = yest.getMonth() + 1;
+        const yestDay = yest.getDate();
+
+        if (Array.isArray(val) && val.length >= 3) {
+            const yr = Number(val[0]);
+            const mo = Number(val[1]);
+            const dy = Number(val[2]);
+            return (yr === todayYear && mo === todayMonth && dy === todayDay) ||
+                   (yr === yestYear && mo === yestMonth && dy === yestDay);
+        }
+
+        if (typeof val === 'string') {
+            const trimmed = val.trim();
+            const ymdMatch = trimmed.match(/^(\d{4})-(\d{2})-(\d{2})/);
+            if (ymdMatch) {
+                const y = parseInt(ymdMatch[1], 10);
+                const m = parseInt(ymdMatch[2], 10);
+                const d = parseInt(ymdMatch[3], 10);
+                return (y === todayYear && m === todayMonth && d === todayDay) ||
+                       (y === yestYear && m === yestMonth && d === yestDay);
+            }
+            const dmyMatch = trimmed.match(/^(\d{2})[-/](\d{2})[-/](\d{4})/);
+            if (dmyMatch) {
+                const d = parseInt(dmyMatch[1], 10);
+                const m = parseInt(dmyMatch[2], 10);
+                const y = parseInt(dmyMatch[3], 10);
+                return (y === todayYear && m === todayMonth && d === todayDay) ||
+                       (y === yestYear && m === yestMonth && d === yestDay);
+            }
+        }
+
+        const d = new Date(val);
+        if (!isNaN(d.getTime())) {
+            const yr = d.getFullYear();
+            const mo = d.getMonth() + 1;
+            const dy = d.getDate();
+            return (yr === todayYear && mo === todayMonth && dy === todayDay) ||
+                   (yr === yestYear && mo === yestMonth && dy === yestDay);
+        }
+        return false;
+    };
+
+    // Helper to check if record was created today or yesterday (e.g. 30 and 29)
+    const isCreatedToday = (record) => {
+        if (!record) return false;
+        const raw = record?.basicDetails?.createdAt || record?.createdAt;
+        if (raw) return isSameDateAsToday(raw);
+        const alt = record?.basicDetails?.date || record?.date || record?.dateOfInspection;
+        if (alt) return isSameDateAsToday(alt);
+        return false;
+    };
+
+    // Open Edit Modal and load hourly details
+    const handleOpenEditModal = async (shiftRow) => {
+        if (!isCreatedToday(shiftRow)) {
+            alert('Edit functionality is disabled. Records created before yesterday cannot be edited.');
+            return;
+        }
+        let finalResultId = shiftRow.basicDetails?.id || shiftRow.id;
+
+        if (!finalResultId) {
+            // Attempt auto-lookup by callNo, shift, lotNumber, lineNo
+            try {
+                const callNo = submittedCallNo || shiftRow.basicDetails?.callNo || '';
+                const shift = shiftRow.basicDetails?.shift || '';
+                const lotNo = shiftRow.basicDetails?.lotNumber || '';
+                const lineNo = shiftRow.basicDetails?.lineNo || '';
+                const lookupRes = await fetch(
+                    `${API_ENDPOINTS.REPORTS}/process-defect-summary/lookup?callNo=${encodeURIComponent(callNo)}&shift=${encodeURIComponent(shift)}&lotNo=${encodeURIComponent(lotNo)}&lineNo=${encodeURIComponent(lineNo)}`,
+                    { headers: getAuthHeaders() }
+                );
+                const lookupJson = await handleResponse(lookupRes);
+                const lookedUpId = lookupJson?.responseData ?? lookupJson;
+                if (lookedUpId) {
+                    finalResultId = lookedUpId;
+                    if (!shiftRow.basicDetails) shiftRow.basicDetails = {};
+                    shiftRow.basicDetails.id = lookedUpId;
+                    shiftRow.id = lookedUpId;
+                }
+            } catch (err) {
+                console.warn('Lookup failed:', err);
+            }
+        }
+
+        if (!finalResultId) {
+            alert('Record ID was not found in the current cached view. Refreshing data for call ' + (submittedCallNo || '') + '...');
+            if (submittedCallNo) {
+                fetchData(submittedCallNo);
+            }
+            return;
+        }
+
+        setEditModalOpen(true);
+        setHourlyLoading(true);
+        setSaveError('');
+        setSaveSuccess('');
+        setActiveSectionTab('shearing');
+        try {
+            const res = await fetch(`${API_ENDPOINTS.REPORTS}/process-defect-summary/${finalResultId}/hourly`, {
+                headers: getAuthHeaders()
+            });
+            const json = await handleResponse(res);
+            const d = json?.responseData ?? json;
+            if (!d.lineNo) d.lineNo = shiftRow.basicDetails?.lineNo || 'Line-1';
+            if (!d.shift) d.shift = shiftRow.basicDetails?.shift || 'A';
+            if (!d.lotNumber) d.lotNumber = shiftRow.basicDetails?.lotNumber || '';
+            if (!d.dateOfInspection) d.dateOfInspection = shiftRow.basicDetails?.date || '';
+            if (d.dateOfInspection && d.dateOfInspection.includes('T')) {
+                d.dateOfInspection = d.dateOfInspection.split('T')[0];
+            }
+            // Engineer name in brackets (e.g. RAMASETTY RUDRA SATYANARAYANA (104486))
+            const eng = shiftRow.basicDetails?.engineer || d.engineer || d.createdBy || '';
+            d.engineer = eng;
+            if (!d.createdBy) d.createdBy = shiftRow.basicDetails?.createdBy || '';
+
+            // Shift and Stage production quantities
+            if (d.totalAccepted == null) d.totalAccepted = shiftRow.basicDetails?.totalAcceptedQty ?? 0;
+            if (d.totalManufactured == null) d.totalManufactured = (shiftRow.basicDetails?.totalAcceptedQty ?? 0) + (shiftRow.basicDetails?.totalRejectionQty ?? 0);
+            if (!d.callNo) d.callNo = shiftRow.basicDetails?.callNo || submittedCallNo || '';
+
+            if (d.shearingManufactured == null) d.shearingManufactured = shiftRow.processQty?.shearingProductionQty ?? 0;
+            if (d.turningManufactured == null) d.turningManufactured = shiftRow.processQty?.turningProductionQty ?? 0;
+            if (d.mpiManufactured == null) d.mpiManufactured = shiftRow.processQty?.mpiProductionQty ?? 0;
+            if (d.forgingManufactured == null) d.forgingManufactured = shiftRow.processQty?.forgingProductionQty ?? 0;
+            if (d.quenchingManufactured == null) d.quenchingManufactured = shiftRow.processQty?.quenchingProductionQty ?? 0;
+            if (d.temperingManufactured == null) d.temperingManufactured = shiftRow.processQty?.temperingProductionQty ?? 0;
+
+            // Rejection quantities fallback from shiftRow only if null/undefined
+            if (d.shearingRejected == null) d.shearingRejected = shiftRow.processQty?.shearingRejectionQty ?? shiftRow.rejections?.shearing ?? 0;
+            if (d.turningRejected == null) d.turningRejected = shiftRow.processQty?.turningRejectionQty ?? shiftRow.rejections?.turning ?? 0;
+            if (d.mpiRejected == null) d.mpiRejected = shiftRow.processQty?.mpiRejectionQty ?? shiftRow.rejections?.mpi ?? 0;
+            if (d.forgingRejected == null) d.forgingRejected = shiftRow.processQty?.forgingRejectionQty ?? shiftRow.rejections?.forging ?? 0;
+            if (d.quenchingRejected == null) d.quenchingRejected = shiftRow.processQty?.quenchingRejectionQty ?? shiftRow.rejections?.quenching ?? 0;
+            if (d.temperingRejected == null) d.temperingRejected = shiftRow.processQty?.temperingRejectionQty ?? shiftRow.rejections?.tempering ?? 0;
+
+            // Fallback: Ensure 8 rows always exist
+            if (!d.hourlyRows || d.hourlyRows.length === 0) {
+                const defaultLabels = ['06:00-07:00', '07:00-08:00', '08:00-09:00', '09:00-10:00', '10:00-11:00', '11:00-12:00', '12:00-13:00', '13:00-14:00'];
+                d.hourlyRows = Array.from({ length: 8 }, (_, i) => ({
+                    hourIndex: i,
+                    hourLabel: defaultLabels[i] || `Hour ${i + 1}`
+                }));
+            }
+
+            setHourlyDetails(d);
+        } catch (err) {
+            setSaveError(err?.message || 'Failed to fetch hourly breakdown');
+        } finally {
+            setHourlyLoading(false);
+        }
+    };
+
+    // Open Delete Confirmation Modal
+    const handleOpenDeleteModal = async (shiftRow) => {
+        if (!isCreatedToday(shiftRow)) {
+            alert('Delete functionality is disabled. Records created before yesterday cannot be deleted.');
+            return;
+        }
+        let finalResultId = shiftRow.basicDetails?.id || shiftRow.id;
+        if (!finalResultId) {
+            try {
+                const callNo = submittedCallNo || shiftRow.basicDetails?.callNo || '';
+                const shift = shiftRow.basicDetails?.shift || '';
+                const lotNo = shiftRow.basicDetails?.lotNumber || '';
+                const lineNo = shiftRow.basicDetails?.lineNo || '';
+                const lookupRes = await fetch(
+                    `${API_ENDPOINTS.REPORTS}/process-defect-summary/lookup?callNo=${encodeURIComponent(callNo)}&shift=${encodeURIComponent(shift)}&lotNo=${encodeURIComponent(lotNo)}&lineNo=${encodeURIComponent(lineNo)}`,
+                    { headers: getAuthHeaders() }
+                );
+                const lookupJson = await handleResponse(lookupRes);
+                const lookedUpId = lookupJson?.responseData ?? lookupJson;
+                if (lookedUpId) {
+                    finalResultId = lookedUpId;
+                    if (!shiftRow.basicDetails) shiftRow.basicDetails = {};
+                    shiftRow.basicDetails.id = lookedUpId;
+                    shiftRow.id = lookedUpId;
+                }
+            } catch (err) {
+                console.warn('Lookup failed:', err);
+            }
+        }
+        setShiftToDelete(shiftRow);
+        setDeleteError('');
+        setDeleteModalOpen(true);
+    };
+
+    // Confirm Delete
+    const handleConfirmDelete = async () => {
+        if (!shiftToDelete) return;
+        if (!isCreatedToday(shiftToDelete)) {
+            setDeleteError('Delete functionality is disabled. Records created before yesterday cannot be deleted.');
+            return;
+        }
+        const finalResultId = shiftToDelete.basicDetails?.id || shiftToDelete.id;
+        if (!finalResultId) return;
+        const userId = localStorage.getItem('userId') || '';
+        setDeleteLoading(true);
+        setDeleteError('');
+        try {
+            const res = await fetch(`${API_ENDPOINTS.REPORTS}/process-defect-summary/${finalResultId}?userId=${encodeURIComponent(userId)}`, {
+                method: 'DELETE',
+                headers: getAuthHeaders()
+            });
+            await handleResponse(res);
+            setDeleteModalOpen(false);
+            setShiftToDelete(null);
+            if (submittedCallNo) {
+                fetchData(submittedCallNo);
+            }
+        } catch (err) {
+            setDeleteError(err?.message || 'Failed to delete record');
+        } finally {
+            setDeleteLoading(false);
+        }
+    };
+
+    // Helper to calculate total shift rejections from any rows array
+    const computeTotalShiftRejFromRows = (rows) => {
+        if (!rows || !Array.isArray(rows)) return 0;
+        return rows.reduce((acc, r) => {
+            const sh = (Number(r.lengthCutBarRejected) || 0) + (Number(r.improperDiaRejected) || 0) + (Number(r.sharpEdgesRejected) || 0) + (Number(r.crackedEdgesRejected) || 0);
+            const tu = (Number(r.parallelLengthRejected) || 0) + (Number(r.fullTurningLengthRejected) || 0) + (Number(r.turningDiaRejected) || 0);
+            const mp = (Number(r.mpiRejected) || 0);
+            const fo = (Number(r.forgingTempRejected) || 0) + (Number(r.forgingStabilisationRejectionRejected) || 0) + (Number(r.improperForgingRejected) || 0) + (Number(r.forgingDefectRejected) || 0) + (Number(r.forgingEmbossingRejected) || 0);
+            const qu = (Number(r.quenchingTemperatureRejected) || 0) + (Number(r.quenchingDurationRejected) || 0) + (Number(r.quenchingHardnessRejected) || 0) + (Number(r.quenchingBoxGaugeRejected) || 0) + (Number(r.quenchingFlatBearingAreaRejected) || 0) + (Number(r.quenchingFallingGaugeRejected) || 0);
+            const tm = (Number(r.temperingTemperatureRejected) || 0) + (Number(r.temperingDurationRejected) || 0) +
+                       (Number(r.surfaceDefectRejected) || 0) + (Number(r.embossingDefectRejected) || 0) + (Number(r.markingRejected) || 0) +
+                       (Number(r.finalBoxGaugeRejected) || 0) + (Number(r.finalFlatBearingAreaRejected) || 0) + (Number(r.finalFallingGaugeRejected) || 0) +
+                       (Number(r.temperingHardnessRejected) || 0) +
+                       (Number(r.toeLoadRejected) || 0) + (Number(r.weightRejected) || 0) + (Number(r.paintIdentificationRejected) || 0) + (Number(r.ercCoatingRejected) || 0);
+            return acc + sh + tu + mp + fo + qu + tm;
+        }, 0);
+    };
+
+    // Helper to update hourly row in hourlyDetails
+    const handleHourlyFieldChange = (hourIndex, field, value) => {
+        if (!hourlyDetails || !hourlyDetails.hourlyRows) return;
+        const numVal = value === '' ? 0 : parseInt(value, 10);
+        const safeVal = isNaN(numVal) ? 0 : Math.max(0, numVal);
+
+        setHourlyDetails(prev => {
+            const updatedRows = prev.hourlyRows.map((r, idx) => {
+                if (idx === hourIndex) {
+                    return { ...r, [field]: safeVal };
+                }
+                return r;
+            });
+            const newTotalRej = computeTotalShiftRejFromRows(updatedRows);
+            const mfg = Number(prev.totalManufactured) || 0;
+            const newAccepted = Math.max(0, mfg - newTotalRej);
+            return {
+                ...prev,
+                hourlyRows: updatedRows,
+                totalAccepted: newAccepted
+            };
+        });
+    };
+
+    // Helper to allow direct modification of Stage Rejection on the stage cards
+    const handleStageRejectionChange = (stageKey, value) => {
+        if (!hourlyDetails || !hourlyDetails.hourlyRows) return;
+        const numVal = value === '' ? 0 : parseInt(value, 10);
+        const safeVal = isNaN(numVal) ? 0 : Math.max(0, numVal);
+
+        const stageConfig = PRODUCTION_STAGES.find(s => s.key === stageKey);
+        if (!stageConfig) return;
+
+        const currentTotal = sectionTotals[stageConfig.rejKey] ?? 0;
+        const diff = safeVal - currentTotal;
+        if (diff === 0) return;
+
+        setHourlyDetails(prev => {
+            if (!prev.hourlyRows || prev.hourlyRows.length === 0) return prev;
+
+            let newRows = prev.hourlyRows.map(r => ({ ...r }));
+
+            if (safeVal === 0) {
+                // Clear all defect fields for this stage across all 8 hours
+                let stageTabIds = [stageConfig.activeTab];
+                if (stageKey === 'tempering') {
+                    stageTabIds = ['temperingBase', 'finalCheck', 'testingFinishing'];
+                }
+                stageTabIds.forEach(tabId => {
+                    const cols = SECTION_DEFECT_FIELDS[tabId] || [];
+                    newRows.forEach(r => {
+                        cols.forEach(c => {
+                            r[c.key] = 0;
+                        });
+                    });
+                });
+            } else if (currentTotal === 0) {
+                // If currently 0, allocate safeVal to hour 0 of defaultField
+                const field = stageConfig.defaultField;
+                if (newRows[0]) {
+                    newRows[0][field] = safeVal;
+                }
+            } else {
+                // Adjust difference into defaultField of the first row that has defects, or row 0
+                const field = stageConfig.defaultField;
+                let targetIdx = 0;
+                for (let i = 0; i < newRows.length; i++) {
+                    if ((newRows[i][field] || 0) > 0) {
+                        targetIdx = i;
+                        break;
+                    }
+                }
+                const currentFieldVal = newRows[targetIdx][field] || 0;
+                if (diff < 0) {
+                    let toDeduct = Math.abs(diff);
+                    for (let i = newRows.length - 1; i >= 0 && toDeduct > 0; i--) {
+                        let stageTabIds = [stageConfig.activeTab];
+                        if (stageKey === 'tempering') {
+                            stageTabIds = ['temperingBase', 'finalCheck', 'testingFinishing'];
+                        }
+                        for (let tId of stageTabIds) {
+                            const cols = SECTION_DEFECT_FIELDS[tId] || [];
+                            for (let c of cols) {
+                                if (toDeduct <= 0) break;
+                                const curVal = newRows[i][c.key] || 0;
+                                if (curVal > 0) {
+                                    const deductAmount = Math.min(curVal, toDeduct);
+                                    newRows[i][c.key] = curVal - deductAmount;
+                                    toDeduct -= deductAmount;
+                                }
+                            }
+                        }
+                    }
+                } else {
+                    newRows[targetIdx][field] = currentFieldVal + diff;
+                }
+            }
+
+            const newTotalRej = computeTotalShiftRejFromRows(newRows);
+            const mfg = Number(prev.totalManufactured) || 0;
+            const newAccepted = Math.max(0, mfg - newTotalRej);
+
+            return {
+                ...prev,
+                [stageConfig.rejField]: safeVal,
+                hourlyRows: newRows,
+                totalAccepted: newAccepted
+            };
+        });
+    };
+
+    // Helper to allow updating Accepted Qty, which automatically updates rejections
+    const handleAcceptedQtyChange = (val) => {
+        if (!hourlyDetails || !hourlyDetails.hourlyRows) return;
+        const numVal = val === '' ? 0 : parseInt(val, 10);
+        const safeAccepted = isNaN(numVal) ? 0 : Math.max(0, numVal);
+
+        const currentMfg = Number(hourlyDetails.totalManufactured) || 0;
+        const targetRej = Math.max(0, currentMfg - safeAccepted);
+        const currentRej = sectionTotals.totalShiftRej || 0;
+        const diff = targetRej - currentRej;
+
+        if (diff === 0) {
+            setHourlyDetails(prev => ({ ...prev, totalAccepted: safeAccepted }));
+            return;
+        }
+
+        // Apply difference to the currently active stage (or shearing by default)
+        let targetStageKey = activeSectionTab;
+        if (['temperingBase', 'finalCheck', 'testingFinishing'].includes(activeSectionTab)) {
+            targetStageKey = 'tempering';
+        }
+        const stageConfig = PRODUCTION_STAGES.find(s => s.key === targetStageKey) || PRODUCTION_STAGES[0];
+        const currentStageRej = sectionTotals[stageConfig.rejKey] ?? 0;
+        const newStageRej = Math.max(0, currentStageRej + diff);
+
+        handleStageRejectionChange(stageConfig.key, newStageRej);
+        setHourlyDetails(prev => ({ ...prev, totalAccepted: safeAccepted }));
+    };
+
+    // Calculate section totals and overall totals live from hourlyRows
+    const sectionTotals = useMemo(() => {
+        if (!hourlyDetails || !hourlyDetails.hourlyRows) {
+            return {
+                shearing: 0, turning: 0, mpi: 0, forging: 0, quenching: 0,
+                temperingBase: 0, visualCheck: 0, dimsCheck: 0, hardnessCheck: 0,
+                finalCheck: 0, testingFinishing: 0, temperingStage: 0, totalShiftRej: 0
+            };
+        }
+        const rows = hourlyDetails.hourlyRows;
+        const shearing = rows.reduce((acc, r) => acc + (r.lengthCutBarRejected || 0) + (r.improperDiaRejected || 0) + (r.sharpEdgesRejected || 0) + (r.crackedEdgesRejected || 0), 0);
+        const turning = rows.reduce((acc, r) => acc + (r.parallelLengthRejected || 0) + (r.fullTurningLengthRejected || 0) + (r.turningDiaRejected || 0), 0);
+        const mpi = rows.reduce((acc, r) => acc + (r.mpiRejected || 0), 0);
+        const forging = rows.reduce((acc, r) => acc + (r.forgingTempRejected || 0) + (r.forgingStabilisationRejectionRejected || 0) + (r.improperForgingRejected || 0) + (r.forgingDefectRejected || 0) + (r.forgingEmbossingRejected || 0), 0);
+        const quenching = rows.reduce((acc, r) => acc + (r.quenchingTemperatureRejected || 0) + (r.quenchingDurationRejected || 0) + (r.quenchingHardnessRejected || 0) + (r.quenchingBoxGaugeRejected || 0) + (r.quenchingFlatBearingAreaRejected || 0) + (r.quenchingFallingGaugeRejected || 0), 0);
+        const temperingBase = rows.reduce((acc, r) => acc + (r.temperingTemperatureRejected || 0) + (r.temperingDurationRejected || 0), 0);
+        const visualCheck = rows.reduce((acc, r) => acc + (r.surfaceDefectRejected || 0) + (r.embossingDefectRejected || 0) + (r.markingRejected || 0), 0);
+        const dimsCheck = rows.reduce((acc, r) => acc + (r.finalBoxGaugeRejected || 0) + (r.finalFlatBearingAreaRejected || 0) + (r.finalFallingGaugeRejected || 0), 0);
+        const hardnessCheck = rows.reduce((acc, r) => acc + (r.temperingHardnessRejected || 0), 0);
+        const finalCheck = visualCheck + dimsCheck + hardnessCheck;
+        const testingFinishing = rows.reduce((acc, r) => acc + (r.toeLoadRejected || 0) + (r.weightRejected || 0) + (r.paintIdentificationRejected || 0) + (r.ercCoatingRejected || 0), 0);
+
+        // Tempering Stage Rejection Rollup (Base + Final Check + Testing/Finishing)
+        const temperingStage = temperingBase + finalCheck + testingFinishing;
+        const totalShiftRej = shearing + turning + mpi + forging + quenching + temperingStage;
+
+        return {
+            shearing, turning, mpi, forging, quenching,
+            temperingBase, visualCheck, dimsCheck, hardnessCheck,
+            finalCheck, testingFinishing, temperingStage, totalShiftRej
+        };
+    }, [hourlyDetails]);
+
+    // Save Defect Summary
+    const handleSaveDefectSummary = async () => {
+        if (!hourlyDetails) return;
+        if (!isCreatedToday(hourlyDetails)) {
+            setSaveError('Edit functionality is disabled. Records created before yesterday cannot be edited.');
+            return;
+        }
+        setSaveLoading(true);
+        setSaveError('');
+        setSaveSuccess('');
+        const userId = localStorage.getItem('userId') || '';
+        const payload = {
+            finalResultId: hourlyDetails.finalResultId,
+            updatedBy: userId,
+            lineNo: hourlyDetails.lineNo,
+            shift: hourlyDetails.shift,
+            dateOfInspection: hourlyDetails.dateOfInspection,
+            createdBy: hourlyDetails.createdBy,
+            engineer: hourlyDetails.engineer || hourlyDetails.createdBy || '',
+            totalManufactured: Number(hourlyDetails.totalManufactured || 0),
+            totalAccepted: Number(hourlyDetails.totalAccepted || 0),
+            totalRejected: sectionTotals.totalShiftRej,
+            shearingManufactured: Number(hourlyDetails.shearingManufactured || 0),
+            shearingRejected: sectionTotals.shearing,
+            turningManufactured: Number(hourlyDetails.turningManufactured || 0),
+            turningRejected: sectionTotals.turning,
+            mpiManufactured: Number(hourlyDetails.mpiManufactured || 0),
+            mpiRejected: sectionTotals.mpi,
+            forgingManufactured: Number(hourlyDetails.forgingManufactured || 0),
+            forgingRejected: sectionTotals.forging,
+            quenchingManufactured: Number(hourlyDetails.quenchingManufactured || 0),
+            quenchingRejected: sectionTotals.quenching,
+            temperingManufactured: Number(hourlyDetails.temperingManufactured || 0),
+            temperingRejected: sectionTotals.temperingStage,
+            hourlyRows: hourlyDetails.hourlyRows
+        };
+
+        try {
+            const res = await fetch(`${API_ENDPOINTS.REPORTS}/process-defect-summary/${hourlyDetails.finalResultId}`, {
+                method: 'PUT',
+                headers: getAuthHeaders(),
+                body: JSON.stringify(payload)
+            });
+            await handleResponse(res);
+            setSaveSuccess('Defect summary and process quantities updated successfully!');
+            setTimeout(() => {
+                setEditModalOpen(false);
+                if (submittedCallNo) fetchData(submittedCallNo);
+            }, 800);
+        } catch (err) {
+            setSaveError(err?.message || 'Failed to update record');
+        } finally {
+            setSaveLoading(false);
+        }
     };
 
     const renderSortIcon = (key) => {
@@ -738,6 +1317,7 @@ export default function ProcessDefectSummaryPage() {
                                     <th colSpan={2} style={TH.proc}>Tempering</th>
                                     {/* Rejection Classification */}
                                     <th colSpan={26} style={TH.rej}>Rejection Classification</th>
+                                    <th rowSpan={3} style={{ ...TH.base, minWidth: 120, textAlign: 'center' }}>Action</th>
                                 </tr>
                                 {/* ── Row 2: sub-group labels ── */}
                                 <tr>
@@ -798,7 +1378,7 @@ export default function ProcessDefectSummaryPage() {
                             <tbody>
                                 {sortedData.length === 0 ? (
                                     <tr>
-                                        <td colSpan={45} style={{ padding: '72px 20px', textAlign: 'center', background: '#fafbfc' }}>
+                                        <td colSpan={46} style={{ padding: '72px 20px', textAlign: 'center', background: '#fafbfc' }}>
                                             <div style={{
                                                 display: 'inline-flex', flexDirection: 'column', alignItems: 'center', gap: 12,
                                                 padding: '32px 48px',
@@ -824,6 +1404,7 @@ export default function ProcessDefectSummaryPage() {
                                         const even = idx % 2 === 0;
                                         const rejQty = shift.basicDetails?.totalRejectionQty ?? 0;
                                         const globalSl = startIndex + idx + 1;
+                                        const canModify = isCreatedToday(shift);
                                         return (
                                             <tr key={idx} className={`pds-tr ${even ? 'row-odd' : 'row-even'}`}>
                                                 <td style={{ whiteSpace: 'nowrap', fontWeight: 500 }}>{shift.basicDetails?.date ? formatDate(shift.basicDetails.date) : '—'}</td>
@@ -885,6 +1466,88 @@ export default function ProcessDefectSummaryPage() {
                                                 <td>{shift.testingDefects?.weight ?? 0}</td>
                                                 <td>{shift.finishingDefects?.paintIdentification ?? 0}</td>
                                                 <td>{shift.finishingDefects?.ercCoating ?? 0}</td>
+                                                <td style={{ textAlign: 'center', whiteSpace: 'nowrap' }}>
+                                                    <div style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => canModify && handleOpenEditModal(shift)}
+                                                            disabled={!canModify}
+                                                            title={canModify ? "Edit Shift Defect Breakdown" : "Editing is disabled for records created before yesterday"}
+                                                            style={{
+                                                                display: 'inline-flex',
+                                                                alignItems: 'center',
+                                                                gap: 4,
+                                                                padding: '4px 8px',
+                                                                borderRadius: 6,
+                                                                border: canModify ? '1px solid #0284c7' : '1px solid #cbd5e1',
+                                                                background: canModify ? '#f0f9ff' : '#f1f5f9',
+                                                                color: canModify ? '#0284c7' : '#94a3b8',
+                                                                fontSize: '11px',
+                                                                fontWeight: 700,
+                                                                cursor: canModify ? 'pointer' : 'not-allowed',
+                                                                opacity: canModify ? 1 : 0.55,
+                                                                transition: 'all 0.15s ease'
+                                                            }}
+                                                            onMouseEnter={e => {
+                                                                if (canModify) {
+                                                                    e.currentTarget.style.background = '#0284c7';
+                                                                    e.currentTarget.style.color = '#fff';
+                                                                }
+                                                            }}
+                                                            onMouseLeave={e => {
+                                                                if (canModify) {
+                                                                    e.currentTarget.style.background = '#f0f9ff';
+                                                                    e.currentTarget.style.color = '#0284c7';
+                                                                }
+                                                            }}
+                                                        >
+                                                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                                                                <path d="M12 20h9"/>
+                                                                <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/>
+                                                            </svg>
+                                                            Edit
+                                                        </button>
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => canModify && handleOpenDeleteModal(shift)}
+                                                            disabled={!canModify}
+                                                            title={canModify ? "Delete Shift Record" : "Deletion is disabled for records created before yesterday"}
+                                                            style={{
+                                                                display: 'inline-flex',
+                                                                alignItems: 'center',
+                                                                gap: 4,
+                                                                padding: '4px 8px',
+                                                                borderRadius: 6,
+                                                                border: canModify ? '1px solid #f87171' : '1px solid #cbd5e1',
+                                                                background: canModify ? '#fef2f2' : '#f1f5f9',
+                                                                color: canModify ? '#dc2626' : '#94a3b8',
+                                                                fontSize: '11px',
+                                                                fontWeight: 700,
+                                                                cursor: canModify ? 'pointer' : 'not-allowed',
+                                                                opacity: canModify ? 1 : 0.55,
+                                                                transition: 'all 0.15s ease'
+                                                            }}
+                                                            onMouseEnter={e => {
+                                                                if (canModify) {
+                                                                    e.currentTarget.style.background = '#dc2626';
+                                                                    e.currentTarget.style.color = '#fff';
+                                                                }
+                                                            }}
+                                                            onMouseLeave={e => {
+                                                                if (canModify) {
+                                                                    e.currentTarget.style.background = '#fef2f2';
+                                                                    e.currentTarget.style.color = '#dc2626';
+                                                                }
+                                                            }}
+                                                        >
+                                                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                                                                <polyline points="3 6 5 6 21 6"/>
+                                                                <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+                                                            </svg>
+                                                            Delete
+                                                        </button>
+                                                    </div>
+                                                </td>
                                             </tr>
                                         );
                                     })
@@ -1050,6 +1713,1098 @@ export default function ProcessDefectSummaryPage() {
                     </div>
                 )}
             </div>
+
+            {/* ═══════════════════════════════════════════════════
+                EDIT DEFECT BREAKDOWN MODAL
+                Only displayed when editModalOpen === true
+            ═══════════════════════════════════════════════════ */}
+            {editModalOpen && (
+                <div style={{
+                    position: 'fixed',
+                    inset: 0,
+                    zIndex: 9999,
+                    background: 'rgba(15, 23, 42, 0.65)',
+                    backdropFilter: 'blur(4px)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    padding: '16px',
+                    animation: 'pds-fade-in 0.2s ease-out'
+                }}>
+                    <div style={{
+                        background: '#ffffff',
+                        borderRadius: '16px',
+                        width: '100%',
+                        maxWidth: '1280px',
+                        maxHeight: '94vh',
+                        height: '92vh',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        minHeight: 0,
+                        boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
+                        border: '1px solid #cbd5e1',
+                        overflow: 'hidden',
+                        animation: 'pds-scale-in 0.25s cubic-bezier(0.16, 1, 0.3, 1)'
+                    }}>
+                        {/* Modal Header (Compact) */}
+                        <div style={{
+                            padding: '10px 18px',
+                            background: 'linear-gradient(135deg, #052e16 0%, #15803d 100%)',
+                            color: '#ffffff',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'space-between',
+                            flexShrink: 0
+                        }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                                <div style={{
+                                    width: 32,
+                                    height: 32,
+                                    borderRadius: '8px',
+                                    background: 'rgba(255, 255, 255, 0.15)',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center'
+                                }}>
+                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                                        <path d="M12 20h9"/>
+                                        <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/>
+                                    </svg>
+                                </div>
+                                <div>
+                                    <h3 style={{ margin: 0, fontSize: '15px', fontWeight: 800, letterSpacing: '-0.01em' }}>
+                                        Edit Shift Defect Breakdown — All 8 Shift Hours
+                                    </h3>
+                                    <div style={{ fontSize: '11px', opacity: 0.88, marginTop: 1, display: 'flex', gap: 10 }}>
+                                        <span>Call: <strong>{hourlyDetails?.callNo || submittedCallNo || '—'}</strong></span>
+                                        <span>•</span>
+                                        <span>Lot: <strong>{hourlyDetails?.lotNumber || '—'}</strong></span>
+                                        <span>•</span>
+                                        <span>Shift ID: <strong>#{hourlyDetails?.finalResultId || '—'}</strong></span>
+                                    </div>
+                                </div>
+                            </div>
+                            <button
+                                type="button"
+                                onClick={() => setEditModalOpen(false)}
+                                style={{
+                                    border: 'none',
+                                    background: 'rgba(255, 255, 255, 0.15)',
+                                    borderRadius: '6px',
+                                    width: 28,
+                                    height: 28,
+                                    color: '#ffffff',
+                                    cursor: 'pointer',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    fontSize: '16px',
+                                    lineHeight: 1
+                                }}
+                                onMouseEnter={e => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.3)'}
+                                onMouseLeave={e => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.15)'}
+                            >
+                                ✕
+                            </button>
+                        </div>
+
+                        {/* Modal Body */}
+                        <div
+                            ref={modalBodyRef}
+                            style={{
+                                padding: '8px 14px',
+                                overflowY: 'auto',
+                                overflowX: 'hidden',
+                                flex: '1 1 auto',
+                                minHeight: 0,
+                                position: 'relative',
+                                background: '#f8fafc',
+                                display: 'flex',
+                                flexDirection: 'column',
+                                gap: 6,
+                                scrollbarWidth: 'thin',
+                                scrollbarColor: '#059669 #f1f5f9'
+                            }}
+                        >
+                            {/* Alert Messages */}
+                            {saveError && (
+                                <div style={{
+                                    padding: '6px 12px',
+                                    background: '#fef2f2',
+                                    border: '1px solid #fecdd3',
+                                    borderRadius: '6px',
+                                    color: '#991b1b',
+                                    fontSize: '11px',
+                                    fontWeight: 600
+                                }}>
+                                    ⚠️ {saveError}
+                                </div>
+                            )}
+                            {saveSuccess && (
+                                <div style={{
+                                    padding: '6px 12px',
+                                    background: '#f0fdf4',
+                                    border: '1px solid #bbf7d0',
+                                    borderRadius: '6px',
+                                    color: '#166534',
+                                    fontSize: '11px',
+                                    fontWeight: 600
+                                }}>
+                                    ✓ {saveSuccess}
+                                </div>
+                            )}
+
+                            {hourlyLoading && (
+                                <div style={{ padding: '40px 20px', textAlign: 'center' }}>
+                                    <div style={{
+                                        display: 'inline-block',
+                                        width: 28,
+                                        height: 28,
+                                        borderRadius: '50%',
+                                        border: '3px solid #e2e8f0',
+                                        borderTopColor: '#059669',
+                                        animation: 'pds-spin 0.8s linear infinite',
+                                        marginBottom: 8
+                                    }} />
+                                    <div style={{ color: '#64748b', fontSize: '12px', fontWeight: 600 }}>Loading 8-hour shift defect records…</div>
+                                </div>
+                            )}
+
+                            {!hourlyLoading && hourlyDetails && (
+                                <>
+                                    {/* ── Compact Shift Metadata & Production Summary Bar ── */}
+                                    <div style={{
+                                        background: '#ffffff',
+                                        borderRadius: '8px',
+                                        padding: '6px 12px',
+                                        border: '1px solid #cbd5e1',
+                                        boxShadow: '0 1px 2px rgba(0,0,0,0.03)',
+                                        display: 'flex',
+                                        flexDirection: 'column',
+                                        gap: 5,
+                                        flexShrink: 0
+                                    }}>
+                                        {/* Row 1: Shift Inputs */}
+                                        <div style={{
+                                            display: 'grid',
+                                            gridTemplateColumns: 'repeat(4, 1fr)',
+                                            gap: 12,
+                                            alignItems: 'center'
+                                        }}>
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0 }}>
+                                                <span style={{ fontSize: '9px', fontWeight: 800, color: '#475569', textTransform: 'uppercase', whiteSpace: 'nowrap', flexShrink: 0 }}>Line:</span>
+                                                <select
+                                                    value={hourlyDetails.lineNo || 'Line-1'}
+                                                    onChange={e => setHourlyDetails(p => ({ ...p, lineNo: e.target.value }))}
+                                                    style={{
+                                                        flex: 1,
+                                                        minWidth: 0,
+                                                        padding: '2px 6px',
+                                                        borderRadius: '4px',
+                                                        border: '1px solid #cbd5e1',
+                                                        fontSize: '11px',
+                                                        fontWeight: 700,
+                                                        color: '#0f172a',
+                                                        background: '#f8fafc'
+                                                    }}
+                                                >
+                                                    <option value="Line-1">Line-1</option>
+                                                    <option value="Line-2">Line-2</option>
+                                                    <option value="Line-3">Line-3</option>
+                                                    <option value="Line-4">Line-4</option>
+                                                    <option value="Line-5">Line-5</option>
+                                                </select>
+                                            </div>
+
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0 }}>
+                                                <span style={{ fontSize: '9px', fontWeight: 800, color: '#475569', textTransform: 'uppercase', whiteSpace: 'nowrap', flexShrink: 0 }}>Shift:</span>
+                                                <select
+                                                    value={hourlyDetails.shift || 'A'}
+                                                    onChange={e => setHourlyDetails(p => ({ ...p, shift: e.target.value }))}
+                                                    style={{
+                                                        flex: 1,
+                                                        minWidth: 0,
+                                                        padding: '2px 6px',
+                                                        borderRadius: '4px',
+                                                        border: '1px solid #cbd5e1',
+                                                        fontSize: '11px',
+                                                        fontWeight: 700,
+                                                        color: '#0f172a',
+                                                        background: '#f8fafc'
+                                                    }}
+                                                >
+                                                    <option value="A">Shift A</option>
+                                                    <option value="B">Shift B</option>
+                                                    <option value="C">Shift C</option>
+                                                    <option value="G">Gen Shift</option>
+                                                </select>
+                                            </div>
+
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0 }}>
+                                                <span style={{ fontSize: '9px', fontWeight: 800, color: '#475569', textTransform: 'uppercase', whiteSpace: 'nowrap', flexShrink: 0 }}>Date:</span>
+                                                <input
+                                                    type="date"
+                                                    value={hourlyDetails.dateOfInspection ? hourlyDetails.dateOfInspection.split('T')[0] : ''}
+                                                    onChange={e => setHourlyDetails(p => ({ ...p, dateOfInspection: e.target.value }))}
+                                                    style={{
+                                                        flex: 1,
+                                                        minWidth: 0,
+                                                        padding: '2px 6px',
+                                                        borderRadius: '4px',
+                                                        border: '1px solid #cbd5e1',
+                                                        fontSize: '11px',
+                                                        fontWeight: 700,
+                                                        color: '#0f172a',
+                                                        background: '#f8fafc'
+                                                    }}
+                                                />
+                                            </div>
+
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0 }}>
+                                                <span style={{ fontSize: '9px', fontWeight: 800, color: '#475569', textTransform: 'uppercase', whiteSpace: 'nowrap', flexShrink: 0 }}>Engineer:</span>
+                                                <input
+                                                    type="text"
+                                                    readOnly
+                                                    value={hourlyDetails.engineer || hourlyDetails.createdBy || '—'}
+                                                    title="Engineer name is read-only"
+                                                    style={{
+                                                        flex: 1,
+                                                        minWidth: 0,
+                                                        padding: '2px 6px',
+                                                        borderRadius: '4px',
+                                                        border: '1px solid #e2e8f0',
+                                                        fontSize: '11px',
+                                                        fontWeight: 700,
+                                                        color: '#475569',
+                                                        background: '#f1f5f9',
+                                                        cursor: 'not-allowed'
+                                                    }}
+                                                />
+                                            </div>
+                                        </div>
+
+                                        {/* Row 2: Shift Totals Inline */}
+                                        <div style={{
+                                            display: 'grid',
+                                            gridTemplateColumns: 'repeat(4, 1fr)',
+                                            gap: 8,
+                                            paddingTop: 4,
+                                            borderTop: '1px dashed #e2e8f0',
+                                            alignItems: 'center'
+                                        }}>
+                                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#f0f9ff', padding: '3px 8px', borderRadius: '4px', border: '1px solid #bae6fd' }}>
+                                                <span style={{ fontSize: '9px', fontWeight: 800, color: '#0369a1', textTransform: 'uppercase' }}>Shift Mfg:</span>
+                                                <div style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
+                                                    <input
+                                                        type="number"
+                                                        min="0"
+                                                        value={hourlyDetails.totalManufactured ?? 0}
+                                                        onWheel={e => e.currentTarget.blur()}
+                                                        onChange={e => {
+                                                            const val = Math.max(0, parseInt(e.target.value, 10) || 0);
+                                                            const curRej = sectionTotals.totalShiftRej || 0;
+                                                            setHourlyDetails(p => ({
+                                                                ...p,
+                                                                totalManufactured: val,
+                                                                shearingManufactured: val,
+                                                                totalAccepted: Math.max(0, val - curRej)
+                                                            }));
+                                                        }}
+                                                        style={{
+                                                            width: '56px',
+                                                            padding: '1px 3px',
+                                                            borderRadius: '3px',
+                                                            border: '1px solid #7dd3fc',
+                                                            fontSize: '11px',
+                                                            fontWeight: 800,
+                                                            color: '#0284c7',
+                                                            textAlign: 'center'
+                                                        }}
+                                                    />
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => {
+                                                            const autoMfg = (Number(hourlyDetails.totalAccepted || 0) + sectionTotals.totalShiftRej);
+                                                            setHourlyDetails(p => ({
+                                                                ...p,
+                                                                totalManufactured: autoMfg,
+                                                                shearingManufactured: autoMfg
+                                                            }));
+                                                        }}
+                                                        title="Auto-sum"
+                                                        style={{
+                                                            padding: '1px 4px',
+                                                            background: '#e0f2fe',
+                                                            border: '1px solid #7dd3fc',
+                                                            borderRadius: '3px',
+                                                            fontSize: '8px',
+                                                            fontWeight: 800,
+                                                            color: '#0369a1',
+                                                            cursor: 'pointer'
+                                                        }}
+                                                    >
+                                                        ⚡
+                                                    </button>
+                                                </div>
+                                            </div>
+
+                                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#fef2f2', padding: '3px 8px', borderRadius: '4px', border: '1px solid #fecdd3' }}>
+                                                <span style={{ fontSize: '9px', fontWeight: 800, color: '#991b1b', textTransform: 'uppercase' }}>Shift Rej:</span>
+                                                <strong style={{ fontSize: '12px', fontWeight: 900, color: '#dc2626' }}>
+                                                    {sectionTotals.totalShiftRej} pcs
+                                                </strong>
+                                            </div>
+
+                                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#f0fdf4', padding: '3px 8px', borderRadius: '4px', border: '1px solid #bbf7d0' }}>
+                                                <span style={{ fontSize: '9px', fontWeight: 800, color: '#166534', textTransform: 'uppercase' }}>Accepted:</span>
+                                                <input
+                                                    type="number"
+                                                    min="0"
+                                                    value={hourlyDetails.totalAccepted ?? 0}
+                                                    onWheel={e => e.currentTarget.blur()}
+                                                    onChange={e => handleAcceptedQtyChange(e.target.value)}
+                                                    style={{
+                                                        width: '56px',
+                                                        padding: '1px 3px',
+                                                        borderRadius: '3px',
+                                                        border: '1px solid #86efac',
+                                                        fontSize: '11px',
+                                                        fontWeight: 800,
+                                                        color: '#15803d',
+                                                        textAlign: 'center'
+                                                    }}
+                                                />
+                                            </div>
+
+                                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#f8fafc', padding: '3px 8px', borderRadius: '4px', border: '1px solid #e2e8f0' }}>
+                                                <span style={{ fontSize: '9px', fontWeight: 800, color: '#475569', textTransform: 'uppercase' }}>Yield:</span>
+                                                <strong style={{ fontSize: '11px', fontWeight: 900, color: '#334155' }}>
+                                                    {(() => {
+                                                        const mfg = Number(hourlyDetails.totalManufactured) || (Number(hourlyDetails.totalAccepted || 0) + sectionTotals.totalShiftRej);
+                                                        const acc = Number(hourlyDetails.totalAccepted || 0);
+                                                        return mfg > 0 ? ((acc / mfg) * 100).toFixed(1) : '0.0';
+                                                    })()}%
+                                                </strong>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {/* ── Section Selector Deck: 6 Manufacturing Stages (Compact) ── */}
+                                    <div style={{
+                                        display: 'grid',
+                                        gridTemplateColumns: 'repeat(6, 1fr)',
+                                        gap: 6,
+                                        flexShrink: 0
+                                    }}>
+                                        {PRODUCTION_STAGES.map(stage => {
+                                            const rejCount = sectionTotals[stage.rejKey] ?? 0;
+                                            const mfgVal = hourlyDetails[stage.prodField] ?? 0;
+                                            const isCurrentActive = stage.key === 'tempering'
+                                                ? ['temperingBase', 'finalCheck', 'testingFinishing'].includes(activeSectionTab)
+                                                : activeSectionTab === stage.key;
+
+                                            return (
+                                                <div
+                                                    key={stage.key}
+                                                    onClick={() => handleSelectStageCard(stage)}
+                                                    style={{
+                                                        borderRadius: '6px',
+                                                        border: isCurrentActive ? '2px solid #059669' : '1px solid #cbd5e1',
+                                                        background: isCurrentActive ? '#ecfdf5' : '#ffffff',
+                                                        padding: '4px 6px',
+                                                        cursor: 'pointer',
+                                                        transition: 'all 0.15s ease',
+                                                        boxShadow: isCurrentActive ? '0 1px 4px rgba(5, 150, 105, 0.15)' : 'none'
+                                                    }}
+                                                >
+                                                    {/* Stage Header */}
+                                                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 2 }}>
+                                                        <div style={{ display: 'flex', alignItems: 'center', gap: 3, overflow: 'hidden' }}>
+                                                            <span style={{ fontSize: '11px' }}>{stage.icon}</span>
+                                                            <span style={{ fontSize: '10px', fontWeight: 800, color: isCurrentActive ? '#065f46' : '#1e293b', whiteSpace: 'nowrap' }}>
+                                                                {stage.label}
+                                                            </span>
+                                                        </div>
+                                                        <span style={{
+                                                            fontSize: '8px',
+                                                            fontWeight: 800,
+                                                            padding: '0px 4px',
+                                                            borderRadius: '4px',
+                                                            background: rejCount > 0 ? '#fee2e2' : '#f1f5f9',
+                                                            color: rejCount > 0 ? '#dc2626' : '#64748b'
+                                                        }}>
+                                                            {rejCount}
+                                                        </span>
+                                                    </div>
+
+                                                    {/* Compact inputs */}
+                                                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 3 }}>
+                                                        <div>
+                                                            <span style={{ display: 'block', fontSize: '7px', fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>Prod</span>
+                                                            <input
+                                                                type="number"
+                                                                min="0"
+                                                                value={mfgVal}
+                                                                onWheel={e => e.currentTarget.blur()}
+                                                                onClick={e => e.stopPropagation()}
+                                                                onChange={e => {
+                                                                    const val = Math.max(0, parseInt(e.target.value, 10) || 0);
+                                                                    setHourlyDetails(p => {
+                                                                        if (stage.key === 'shearing') {
+                                                                            const currentRej = sectionTotals.totalShiftRej || 0;
+                                                                            const newAccepted = Math.max(0, val - currentRej);
+                                                                            return {
+                                                                                ...p,
+                                                                                [stage.prodField]: val,
+                                                                                totalManufactured: val,
+                                                                                totalAccepted: newAccepted
+                                                                            };
+                                                                        }
+                                                                        return { ...p, [stage.prodField]: val };
+                                                                    });
+                                                                }}
+                                                                style={{
+                                                                    width: '100%',
+                                                                    padding: '1px 3px',
+                                                                    borderRadius: '3px',
+                                                                    border: '1px solid #cbd5e1',
+                                                                    fontSize: '10px',
+                                                                    fontWeight: 700,
+                                                                    color: '#0284c7',
+                                                                    boxSizing: 'border-box'
+                                                                }}
+                                                            />
+                                                        </div>
+                                                        <div>
+                                                            <span style={{ display: 'block', fontSize: '7px', fontWeight: 700, color: '#991b1b', textTransform: 'uppercase' }}>Rej</span>
+                                                            <div
+                                                                style={{
+                                                                    width: '100%',
+                                                                    padding: '1px 3px',
+                                                                    borderRadius: '3px',
+                                                                    border: rejCount > 0 ? '1px solid #fca5a5' : '1px solid #e2e8f0',
+                                                                    background: rejCount > 0 ? '#fef2f2' : '#f8fafc',
+                                                                    fontSize: '10px',
+                                                                    fontWeight: 800,
+                                                                    color: rejCount > 0 ? '#dc2626' : '#64748b',
+                                                                    textAlign: 'center',
+                                                                    height: '21px',
+                                                                    display: 'flex',
+                                                                    alignItems: 'center',
+                                                                    justifyContent: 'center',
+                                                                    boxSizing: 'border-box',
+                                                                    userSelect: 'none',
+                                                                    cursor: 'default'
+                                                                }}
+                                                                title={`Rejections calculated from hourly defect table (${rejCount} pcs)`}
+                                                            >
+                                                                {rejCount}
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+
+                                    {/* ── Sub-navigation for Tempering Stage (Compact) ── */}
+                                    {['temperingBase', 'finalCheck', 'testingFinishing'].includes(activeSectionTab) && (
+                                        <div style={{
+                                            background: '#f5f3ff',
+                                            borderRadius: '6px',
+                                            padding: '4px 10px',
+                                            border: '1px solid #ddd6fe',
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            justifyContent: 'space-between',
+                                            flexWrap: 'wrap',
+                                            gap: 4,
+                                            flexShrink: 0
+                                        }}>
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: '10px', fontWeight: 800, color: '#5b21b6' }}>
+                                                <span>🔥</span> Tempering Sub-Sections (Total: {sectionTotals.temperingStage}):
+                                            </div>
+                                            <div style={{ display: 'flex', gap: 4 }}>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setActiveSectionTab('temperingBase')}
+                                                    style={{
+                                                        padding: '2px 8px',
+                                                        borderRadius: '4px',
+                                                        border: activeSectionTab === 'temperingBase' ? '1.5px solid #7c3aed' : '1px solid #c4b5fd',
+                                                        background: activeSectionTab === 'temperingBase' ? '#7c3aed' : '#ffffff',
+                                                        color: activeSectionTab === 'temperingBase' ? '#ffffff' : '#5b21b6',
+                                                        fontSize: '10px',
+                                                        fontWeight: 700,
+                                                        cursor: 'pointer'
+                                                    }}
+                                                >
+                                                    Base ({sectionTotals.temperingBase})
+                                                </button>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setActiveSectionTab('finalCheck')}
+                                                    style={{
+                                                        padding: '2px 8px',
+                                                        borderRadius: '4px',
+                                                        border: activeSectionTab === 'finalCheck' ? '1.5px solid #7c3aed' : '1px solid #c4b5fd',
+                                                        background: activeSectionTab === 'finalCheck' ? '#7c3aed' : '#ffffff',
+                                                        color: activeSectionTab === 'finalCheck' ? '#ffffff' : '#5b21b6',
+                                                        fontSize: '10px',
+                                                        fontWeight: 700,
+                                                        cursor: 'pointer'
+                                                    }}
+                                                >
+                                                    Final Check ({sectionTotals.finalCheck})
+                                                </button>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setActiveSectionTab('testingFinishing')}
+                                                    style={{
+                                                        padding: '2px 8px',
+                                                        borderRadius: '4px',
+                                                        border: activeSectionTab === 'testingFinishing' ? '1.5px solid #7c3aed' : '1px solid #c4b5fd',
+                                                        background: activeSectionTab === 'testingFinishing' ? '#7c3aed' : '#ffffff',
+                                                        color: activeSectionTab === 'testingFinishing' ? '#ffffff' : '#5b21b6',
+                                                        fontSize: '10px',
+                                                        fontWeight: 700,
+                                                        cursor: 'pointer'
+                                                    }}
+                                                >
+                                                    Testing ({sectionTotals.testingFinishing})
+                                                </button>
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {/* ── 8-Hour Defect Grid (Hour 1 to Hour 8) ── */}
+                                    <div
+                                        ref={defectGridRef}
+                                        style={{
+                                            background: '#ffffff',
+                                            borderRadius: '8px',
+                                            border: '2px solid #059669',
+                                            overflow: 'hidden',
+                                            boxShadow: '0 2px 8px rgba(5, 150, 105, 0.1)',
+                                            scrollMarginTop: '6px'
+                                        }}
+                                    >
+                                        {/* Card Header & Controls Bar */}
+                                        <div style={{
+                                            padding: '6px 12px',
+                                            background: 'linear-gradient(135deg, #f0fdf4 0%, #e0f2fe 100%)',
+                                            borderBottom: '1.5px solid #a7f3d0',
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            justifyContent: 'space-between',
+                                            flexWrap: 'wrap',
+                                            gap: 6
+                                        }}>
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                                                <span style={{ fontSize: '15px' }}>
+                                                    {PRODUCTION_STAGES.find(s => s.activeTab === activeSectionTab || (s.key === 'tempering' && ['temperingBase', 'finalCheck', 'testingFinishing'].includes(activeSectionTab)))?.icon}
+                                                </span>
+                                                <span style={{ fontSize: '12px', fontWeight: 900, color: '#064e3b', textTransform: 'uppercase' }}>
+                                                    {activeSectionTab === 'mpi' ? '🧲 MPI' : `${SECTION_TABS.find(t => t.id === activeSectionTab)?.label || 'Section'}`} — 8 Shift Hours
+                                                </span>
+                                                <span style={{
+                                                    padding: '1px 6px',
+                                                    borderRadius: '8px',
+                                                    background: (sectionTotals[activeSectionTab] ?? 0) > 0 ? '#fee2e2' : '#f1f5f9',
+                                                    color: (sectionTotals[activeSectionTab] ?? 0) > 0 ? '#dc2626' : '#64748b',
+                                                    fontSize: '10px',
+                                                    fontWeight: 900
+                                                }}>
+                                                    Rejections: {sectionTotals[activeSectionTab] ?? 0}
+                                                </span>
+
+                                                {/* Detected Defects inline tag */}
+                                                {(() => {
+                                                    const activeCols = SECTION_DEFECT_FIELDS[activeSectionTab] || [];
+                                                    const activeRows = hourlyDetails.hourlyRows || [];
+                                                    const defectFindings = [];
+                                                    activeRows.forEach((r, hIdx) => {
+                                                        activeCols.forEach(col => {
+                                                            const cnt = Number(r[col.key]) || 0;
+                                                            if (cnt > 0) {
+                                                                defectFindings.push({
+                                                                    hour: hIdx + 1,
+                                                                    time: r.hourLabel,
+                                                                    defect: col.label,
+                                                                    count: cnt
+                                                                });
+                                                            }
+                                                        });
+                                                    });
+
+                                                    if (defectFindings.length > 0) {
+                                                        return (
+                                                            <div style={{ display: 'inline-flex', alignItems: 'center', gap: 4, flexWrap: 'wrap' }}>
+                                                                {defectFindings.map((f, i) => (
+                                                                    <span
+                                                                        key={i}
+                                                                        onClick={() => jumpToHour(f.hour - 1)}
+                                                                        title={`Click to highlight Hour ${f.hour}`}
+                                                                        style={{
+                                                                            background: '#fff1f2',
+                                                                            padding: '1px 5px',
+                                                                            borderRadius: '3px',
+                                                                            border: '1px solid #fecdd3',
+                                                                            fontSize: '9px',
+                                                                            color: '#991b1b',
+                                                                            fontWeight: 700,
+                                                                            cursor: 'pointer'
+                                                                        }}
+                                                                    >
+                                                                        H{f.hour}: <strong>{f.count}</strong> in {f.defect} ↗
+                                                                    </span>
+                                                                ))}
+                                                            </div>
+                                                        );
+                                                    }
+                                                    return null;
+                                                })()}
+                                            </div>
+
+                                            {/* Right Controls: Shift Indicator Badge */}
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                                                <div style={{
+                                                    fontSize: '10px',
+                                                    fontWeight: 800,
+                                                    color: '#065f46',
+                                                    background: '#ecfdf5',
+                                                    padding: '2px 8px',
+                                                    borderRadius: '4px',
+                                                    border: '1px solid #a7f3d0'
+                                                }}>
+                                                    🕒 Hours 1 to 8 (Direct View)
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        {/* All 8-Hour Table Container (Fully Expanded, Horizontally Scrollable) */}
+                                        <div style={{ overflowX: 'auto', position: 'relative' }}>
+                                            <table style={{ width: '100%', minWidth: '700px', borderCollapse: 'separate', borderSpacing: 0, fontSize: '11px' }}>
+                                                <thead>
+                                                    <tr>
+                                                        <th style={{
+                                                            position: 'sticky',
+                                                            top: 0,
+                                                            zIndex: 10,
+                                                            background: '#f1f5f9',
+                                                            borderBottom: '2px solid #94a3b8',
+                                                            padding: '6px 10px',
+                                                            textAlign: 'left',
+                                                            fontWeight: 900,
+                                                            color: '#0f172a',
+                                                            width: 155,
+                                                            minWidth: 155
+                                                        }}>
+                                                            Shift Hour & Interval
+                                                        </th>
+                                                        {SECTION_DEFECT_FIELDS[activeSectionTab]?.map(col => (
+                                                            <th key={col.key} style={{
+                                                                position: 'sticky',
+                                                                top: 0,
+                                                                zIndex: 10,
+                                                                background: '#f1f5f9',
+                                                                borderBottom: '2px solid #94a3b8',
+                                                                padding: '6px 8px',
+                                                                textAlign: 'center',
+                                                                fontWeight: 900,
+                                                                color: '#0f172a',
+                                                                fontSize: '11px',
+                                                                minWidth: 105
+                                                            }}>
+                                                                {col.label}
+                                                            </th>
+                                                        ))}
+                                                        <th style={{
+                                                            position: 'sticky',
+                                                            top: 0,
+                                                            zIndex: 10,
+                                                            background: '#fee2e2',
+                                                            borderBottom: '2px solid #f87171',
+                                                            padding: '6px 10px',
+                                                            textAlign: 'center',
+                                                            fontWeight: 900,
+                                                            color: '#991b1b',
+                                                            width: 80,
+                                                            minWidth: 80
+                                                        }}>
+                                                            Hour Total
+                                                        </th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    {hourlyDetails.hourlyRows?.map((row, hIdx) => {
+                                                        const activeCols = SECTION_DEFECT_FIELDS[activeSectionTab] || [];
+                                                        const rowSum = activeCols.reduce((acc, c) => acc + (Number(row[c.key]) || 0), 0);
+                                                        return (
+                                                            <tr
+                                                                key={hIdx}
+                                                                id={`hour-row-${hIdx}`}
+                                                                style={{
+                                                                    background: rowSum > 0 ? '#fff5f5' : (hIdx % 2 === 0 ? '#ffffff' : '#f8fafc'),
+                                                                    transition: 'background 0.2s ease, outline 0.2s ease'
+                                                                }}
+                                                            >
+                                                                <td style={{ padding: '3px 10px', fontWeight: 700, color: '#1e293b', whiteSpace: 'nowrap', borderBottom: '1px solid #e2e8f0' }}>
+                                                                    <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                                                                        <span style={{
+                                                                            display: 'inline-flex',
+                                                                            alignItems: 'center',
+                                                                            justifyContent: 'center',
+                                                                            width: 24,
+                                                                            height: 20,
+                                                                            borderRadius: '4px',
+                                                                            background: rowSum > 0 ? '#fee2e2' : '#e2e8f0',
+                                                                            color: rowSum > 0 ? '#dc2626' : '#475569',
+                                                                            fontSize: '9px',
+                                                                            fontWeight: 800
+                                                                        }}>
+                                                                            H{hIdx + 1}
+                                                                        </span>
+                                                                        <span style={{ fontSize: '11px', fontWeight: 800, color: '#0f172a' }}>
+                                                                            Hour {hIdx + 1}
+                                                                        </span>
+                                                                        <span style={{ fontSize: '9px', color: '#64748b', fontWeight: 600 }}>
+                                                                            ({row.hourLabel || ''})
+                                                                        </span>
+                                                                        {rowSum > 0 && (
+                                                                            <span style={{
+                                                                                fontSize: '8px',
+                                                                                fontWeight: 800,
+                                                                                color: '#b91c1c',
+                                                                                background: '#fee2e2',
+                                                                                padding: '0px 4px',
+                                                                                borderRadius: '3px'
+                                                                            }}>
+                                                                                ⚠️{rowSum}
+                                                                            </span>
+                                                                        )}
+                                                                    </div>
+                                                                </td>
+                                                                {activeCols.map(col => {
+                                                                    const val = row[col.key] ?? 0;
+                                                                    return (
+                                                                        <td key={col.key} style={{ padding: '2px 6px', textAlign: 'center', borderBottom: '1px solid #e2e8f0' }}>
+                                                                            <input
+                                                                                type="number"
+                                                                                min="0"
+                                                                                value={val}
+                                                                                onWheel={e => e.currentTarget.blur()}
+                                                                                onChange={e => handleHourlyFieldChange(hIdx, col.key, e.target.value)}
+                                                                                style={{
+                                                                                    width: '60px',
+                                                                                    height: '24px',
+                                                                                    padding: '1px 4px',
+                                                                                    borderRadius: '4px',
+                                                                                    border: val > 0 ? '1.5px solid #ef4444' : '1px solid #cbd5e1',
+                                                                                    background: val > 0 ? '#fef2f2' : '#ffffff',
+                                                                                    color: val > 0 ? '#dc2626' : '#0f172a',
+                                                                                    fontWeight: val > 0 ? 800 : 600,
+                                                                                    textAlign: 'center',
+                                                                                    fontSize: '11px',
+                                                                                    boxSizing: 'border-box'
+                                                                                }}
+                                                                            />
+                                                                        </td>
+                                                                    );
+                                                                })}
+                                                                <td style={{
+                                                                    padding: '2px 8px',
+                                                                    textAlign: 'center',
+                                                                    fontWeight: 900,
+                                                                    color: rowSum > 0 ? '#dc2626' : '#94a3b8',
+                                                                    background: rowSum > 0 ? '#fee2e2' : '#f8fafc',
+                                                                    fontSize: '11px',
+                                                                    borderBottom: '1px solid #e2e8f0'
+                                                                }}>
+                                                                    {rowSum}
+                                                                </td>
+                                                            </tr>
+                                                        );
+                                                    })}
+                                                </tbody>
+                                                <tfoot>
+                                                    <tr>
+                                                        <td style={{
+                                                            background: '#f1f5f9',
+                                                            borderTop: '2px solid #94a3b8',
+                                                            padding: '6px 10px',
+                                                            color: '#0f172a',
+                                                            fontWeight: 900,
+                                                            fontSize: '11px'
+                                                        }}>
+                                                            Shift Total (8 Hours):
+                                                        </td>
+                                                        {SECTION_DEFECT_FIELDS[activeSectionTab]?.map(col => {
+                                                            const colSum = (hourlyDetails.hourlyRows || []).reduce((acc, r) => acc + (Number(r[col.key]) || 0), 0);
+                                                            return (
+                                                                <td key={col.key} style={{
+                                                                    background: '#f1f5f9',
+                                                                    borderTop: '2px solid #94a3b8',
+                                                                    padding: '6px 8px',
+                                                                    textAlign: 'center',
+                                                                    color: colSum > 0 ? '#dc2626' : '#475569',
+                                                                    fontWeight: 900,
+                                                                    fontSize: '11px'
+                                                                }}>
+                                                                    {colSum}
+                                                                </td>
+                                                            );
+                                                        })}
+                                                        <td style={{
+                                                            background: '#fee2e2',
+                                                            borderTop: '2px solid #f87171',
+                                                            padding: '6px 10px',
+                                                            textAlign: 'center',
+                                                            color: '#dc2626',
+                                                            fontSize: '12px',
+                                                            fontWeight: 900
+                                                        }}>
+                                                            {SECTION_DEFECT_FIELDS[activeSectionTab]?.reduce((acc, col) => {
+                                                                return acc + (hourlyDetails.hourlyRows || []).reduce((s, r) => s + (Number(r[col.key]) || 0), 0);
+                                                            }, 0)}
+                                                        </td>
+                                                    </tr>
+                                                </tfoot>
+                                            </table>
+                                        </div>
+                                    </div>
+                                </>
+                            )}
+                        </div>
+
+                        {/* Modal Footer */}
+                        <div style={{
+                            padding: '10px 18px',
+                            background: '#ffffff',
+                            borderTop: '1px solid #e2e8f0',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'space-between',
+                            flexShrink: 0
+                        }}>
+                            <div style={{ fontSize: '13px', color: '#64748b' }}>
+                                Total Shift Defects: <strong style={{ color: '#dc2626', fontSize: '15px' }}>{sectionTotals.totalShiftRej}</strong> across all sections
+                            </div>
+                            <div style={{ display: 'flex', gap: 12 }}>
+                                <button
+                                    type="button"
+                                    onClick={() => setEditModalOpen(false)}
+                                    disabled={saveLoading}
+                                    style={{
+                                        padding: '8px 16px',
+                                        borderRadius: '8px',
+                                        border: '1px solid #cbd5e1',
+                                        background: '#f1f5f9',
+                                        color: '#334155',
+                                        fontSize: '13px',
+                                        fontWeight: 600,
+                                        cursor: 'pointer'
+                                    }}
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={handleSaveDefectSummary}
+                                    disabled={saveLoading || !hourlyDetails || !isCreatedToday(hourlyDetails)}
+                                    title={!isCreatedToday(hourlyDetails) ? 'Editing is disabled. Records created before yesterday cannot be edited.' : 'Save changes'}
+                                    style={{
+                                        padding: '8px 20px',
+                                        borderRadius: '8px',
+                                        border: 'none',
+                                        background: (!isCreatedToday(hourlyDetails) || saveLoading) ? '#94a3b8' : '#059669',
+                                        color: '#ffffff',
+                                        fontSize: '13px',
+                                        fontWeight: 700,
+                                        cursor: (!isCreatedToday(hourlyDetails) || saveLoading) ? 'not-allowed' : 'pointer',
+                                        display: 'inline-flex',
+                                        alignItems: 'center',
+                                        gap: 8,
+                                        boxShadow: (!isCreatedToday(hourlyDetails) || saveLoading) ? 'none' : '0 2px 6px rgba(5, 150, 105, 0.25)'
+                                    }}
+                                >
+                                    {saveLoading && (
+                                        <div style={{
+                                            width: 14,
+                                            height: 14,
+                                            borderRadius: '50%',
+                                            border: '2px solid #ffffff',
+                                            borderTopColor: 'transparent',
+                                            animation: 'pds-spin 0.8s linear infinite'
+                                        }} />
+                                    )}
+                                    {saveLoading ? 'Saving & Syncing...' : 'Save & Sync Process IE Qty'}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* ═══════════════════════════════════════════════════
+                DELETE CONFIRMATION MODAL
+                Only displayed when deleteModalOpen === true
+            ═══════════════════════════════════════════════════ */}
+            {deleteModalOpen && shiftToDelete && (
+                <div style={{
+                    position: 'fixed',
+                    inset: 0,
+                    zIndex: 9999,
+                    background: 'rgba(15, 23, 42, 0.65)',
+                    backdropFilter: 'blur(4px)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    padding: '20px',
+                    animation: 'pds-fade-in 0.2s ease-out'
+                }}>
+                    <div style={{
+                        background: '#ffffff',
+                        borderRadius: '16px',
+                        width: '100%',
+                        maxWidth: '520px',
+                        boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
+                        border: '1px solid #fee2e2',
+                        overflow: 'hidden',
+                        animation: 'pds-scale-in 0.2s cubic-bezier(0.16, 1, 0.3, 1)'
+                    }}>
+                        <div style={{
+                            padding: '20px 24px',
+                            background: '#fff1f2',
+                            borderBottom: '1px solid #fecdd3',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: 14
+                        }}>
+                            <div style={{
+                                width: 44,
+                                height: 44,
+                                borderRadius: '12px',
+                                background: '#fee2e2',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                color: '#e11d48',
+                                flexShrink: 0
+                            }}>
+                                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
+                                    <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+                                    <line x1="12" y1="9" x2="12" y2="13"/>
+                                    <line x1="12" y1="17" x2="12.01" y2="17"/>
+                                </svg>
+                            </div>
+                            <div>
+                                <h3 style={{ margin: 0, fontSize: '17px', fontWeight: 800, color: '#9f1239' }}>
+                                    Confirm Shift Deletion
+                                </h3>
+                                <p style={{ margin: '2px 0 0', fontSize: '13px', color: '#be123c' }}>
+                                    This action cannot be undone. Please acknowledge below.
+                                </p>
+                            </div>
+                        </div>
+
+                        <div style={{ padding: '24px' }}>
+                            <div style={{
+                                background: '#f8fafc',
+                                borderRadius: '10px',
+                                padding: '14px 16px',
+                                border: '1px solid #e2e8f0',
+                                marginBottom: 16,
+                                fontSize: '13px',
+                                display: 'grid',
+                                gridTemplateColumns: 'repeat(2, 1fr)',
+                                gap: '10px 16px'
+                            }}>
+                                <div><span style={{ color: '#64748b' }}>Call No:</span> <strong>{shiftToDelete.basicDetails?.callNo || submittedCallNo || '—'}</strong></div>
+                                <div><span style={{ color: '#64748b' }}>Shift:</span> <strong style={{ color: '#0369a1' }}>{shiftToDelete.basicDetails?.shift || '—'}</strong></div>
+                                <div><span style={{ color: '#64748b' }}>Line:</span> <strong>{shiftToDelete.basicDetails?.lineNo || '—'}</strong></div>
+                                <div><span style={{ color: '#64748b' }}>Date:</span> <strong>{shiftToDelete.basicDetails?.date ? formatDate(shiftToDelete.basicDetails.date) : '—'}</strong></div>
+                                <div><span style={{ color: '#64748b' }}>Accepted Qty:</span> <strong style={{ color: '#16a34a' }}>{shiftToDelete.basicDetails?.totalAcceptedQty ?? 0}</strong></div>
+                                <div><span style={{ color: '#64748b' }}>Rejected Qty:</span> <strong style={{ color: '#dc2626' }}>{shiftToDelete.basicDetails?.totalRejectionQty ?? 0}</strong></div>
+                            </div>
+
+                            <div style={{ fontSize: '13px', color: '#475569', lineHeight: 1.6, marginBottom: 16 }}>
+                                Are you sure you want to remove this shift? This will:
+                                <ul style={{ margin: '6px 0 0', paddingLeft: 20, color: '#64748b' }}>
+                                    <li>Permanently remove this shift inspection record from the report</li>
+                                    <li>Remove all hourly production and defect logs recorded for this shift</li>
+                                    <li>Automatically adjust the total inspected and accepted quantities for this call</li>
+                                </ul>
+                            </div>
+
+                            {deleteError && (
+                                <div style={{
+                                    padding: '10px 14px',
+                                    background: '#fef2f2',
+                                    border: '1px solid #fecdd3',
+                                    borderRadius: '8px',
+                                    color: '#991b1b',
+                                    fontSize: '13px',
+                                    marginBottom: 16
+                                }}>
+                                    ⚠️ {deleteError}
+                                </div>
+                            )}
+
+                            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 12 }}>
+                                <button
+                                    type="button"
+                                    onClick={() => { setDeleteModalOpen(false); setShiftToDelete(null); }}
+                                    disabled={deleteLoading}
+                                    style={{
+                                        padding: '9px 18px',
+                                        background: '#f1f5f9',
+                                        border: '1px solid #cbd5e1',
+                                        borderRadius: '8px',
+                                        fontSize: '13px',
+                                        fontWeight: 600,
+                                        color: '#334155',
+                                        cursor: 'pointer'
+                                    }}
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={handleConfirmDelete}
+                                    disabled={deleteLoading}
+                                    style={{
+                                        padding: '9px 20px',
+                                        background: '#dc2626',
+                                        border: 'none',
+                                        borderRadius: '8px',
+                                        fontSize: '13px',
+                                        fontWeight: 700,
+                                        color: '#ffffff',
+                                        cursor: deleteLoading ? 'not-allowed' : 'pointer',
+                                        display: 'inline-flex',
+                                        alignItems: 'center',
+                                        gap: 8,
+                                        boxShadow: '0 2px 6px rgba(220, 38, 38, 0.35)'
+                                    }}
+                                >
+                                    {deleteLoading && (
+                                        <div style={{
+                                            width: 14,
+                                            height: 14,
+                                            border: '2px solid #fff',
+                                            borderTopColor: 'transparent',
+                                            borderRadius: '50%',
+                                            animation: 'pds-spin 0.8s linear infinite'
+                                        }} />
+                                    )}
+                                    {deleteLoading ? 'Deleting...' : 'Confirm & Delete Shift'}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div >
     );
 }

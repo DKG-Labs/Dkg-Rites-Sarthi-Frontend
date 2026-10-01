@@ -304,8 +304,8 @@ const ProfessionalCardSection = ({
                         }
                     }
                 } else {
-                    const response = isRailPad 
-                        ? await reportService.getRailPadZonalRailways() 
+                    const response = isRailPad
+                        ? await reportService.getRailPadZonalRailways()
                         : await reportService.getAllZonalRailways();
                     const data = response.responseData || response.data || response;
                     if (Array.isArray(data)) {
@@ -1057,8 +1057,8 @@ const ProfessionalCardSection = ({
                                                         const label = isSleeper
                                                             ? (vp.companyName || vp.unitName)
                                                             : isRailPad
-                                                            ? (vp.unitName || vp.companyName)
-                                                            : (vp.unitName && vp.unitName !== vp.companyName ? `${vp.companyName} - ${vp.unitName}` : (vp.unitName || vp.companyName));
+                                                                ? (vp.unitName || vp.companyName)
+                                                                : (vp.unitName && vp.unitName !== vp.companyName ? `${vp.companyName} - ${vp.unitName}` : (vp.unitName || vp.companyName));
                                                         return (
                                                             <Option
                                                                 key={i}
@@ -1543,303 +1543,303 @@ const ProfessionalCardSection = ({
 
                                             <div className="sec-title" style={{ fontSize: '14px', marginBottom: '10px' }}>Railway Quality Surveillance · ERC Defect Analysis</div>
 
-                                    {/* KPI Row exactly from Index 5, adjusted to hide Total Defects */}
-                                    {(() => {
-                                        const pAcc = localProcessOverallRejection?.accepted || 0;
-                                        const pRej = localProcessOverallRejection?.rejected || 0;
-                                        const pInsp = pAcc + pRej;
-                                        const pRejPct = pInsp > 0 ? (pRej * 100) / pInsp : 0;
+                                            {/* KPI Row exactly from Index 5, adjusted to hide Total Defects */}
+                                            {(() => {
+                                                const pAcc = localProcessOverallRejection?.accepted || 0;
+                                                const pRej = localProcessOverallRejection?.rejected || 0;
+                                                const pInsp = pAcc + pRej;
+                                                const pRejPct = pInsp > 0 ? (pRej * 100) / pInsp : 0;
 
-                                        return (
-                                            <div className="g3 mb">
-                                                <div className="prof-card" style={{ textAlign: 'center', background: '#fef2f2', border: '1px solid #fee2e2' }}>
-                                                    <div className="kpi-lbl" style={{ color: '#991b1b' }}>Process Overall Rejection %</div>
-                                                    <div className="kpi-val" style={{ color: '#dc2626' }}>{formatDecimal(pRejPct)}%</div>
+                                                return (
+                                                    <div className="g3 mb">
+                                                        <div className="prof-card" style={{ textAlign: 'center', background: '#fef2f2', border: '1px solid #fee2e2' }}>
+                                                            <div className="kpi-lbl" style={{ color: '#991b1b' }}>Process Overall Rejection %</div>
+                                                            <div className="kpi-val" style={{ color: '#dc2626' }}>{formatDecimal(pRejPct)}%</div>
+                                                        </div>
+                                                        <div className="prof-card card-mint" style={{ textAlign: 'center' }}>
+                                                            <div className="kpi-lbl" style={{ color: '#15803d' }}>Top Defect</div>
+                                                            <div style={{ fontSize: '16px', fontWeight: '800', marginTop: '8px', color: '#166534' }}>{paretoAnalysisData?.[0]?.name || 'Turning Length'}</div>
+                                                        </div>
+                                                        <div className="prof-card" style={{ textAlign: 'center', background: '#fffbeb', border: '1px solid #fef3c7' }}>
+                                                            <div className="kpi-lbl" style={{ color: '#92400e' }}>Plant with Max Rejection</div>
+                                                            <div style={{ fontSize: '12px', fontWeight: '800', marginTop: '8px', color: '#78350f', lineHeight: '1.2' }}>
+                                                                {processPerformanceData?.worstPerforming?.length > 0 ? processPerformanceData.worstPerforming[0]?.name : manufacturerRejectionData?.length > 0 ? [...manufacturerRejectionData].sort((a, b) => b.value - a.value)[0]?.name : 'Adinath Industries'}
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                );
+                                            })()}
+
+                                            {/* Analysis Grid (3x2) exactly from Index 5 */}
+                                            <div className="g2 mb">
+                                                <div className="prof-card">
+                                                    <div className="sec-title">Defect Distribution</div>
+                                                    <div className="chart-wrap" style={{ height: '210px' }}>
+                                                        <ResponsiveContainer width="100%" height="100%">
+                                                            <PieChart>
+                                                                <Pie
+                                                                    data={[...(stepWiseRejectionData || [])].sort((a, b) => (b.value || 0) - (a.value || 0))}
+                                                                    innerRadius={60}
+                                                                    outerRadius={90}
+                                                                    paddingAngle={3}
+                                                                    dataKey="value"
+                                                                >
+                                                                    {[...(stepWiseRejectionData || [])].sort((a, b) => (b.value || 0) - (a.value || 0)).map((entry, i) => {
+                                                                        const colors = ['#3b82f6', '#f59e0b', '#8b5cf6', '#ef4444', '#10b981', '#06b6d4', '#f43f5e', '#14b8a6', '#64748b', '#84cc16'];
+                                                                        return <Cell key={`cell-${i}`} fill={entry.color || colors[i % colors.length]} />;
+                                                                    })}
+                                                                </Pie>
+                                                                <Tooltip formatter={(v) => `${v}%`} />
+                                                                <Legend
+                                                                    layout="vertical"
+                                                                    align="right"
+                                                                    verticalAlign="middle"
+                                                                    content={({ payload }) => {
+                                                                        const sorted = [...(payload || [])].sort(
+                                                                            (a, b) => (b.payload?.value || 0) - (a.payload?.value || 0)
+                                                                        );
+                                                                        return (
+                                                                            <div style={{ paddingLeft: '20px', lineHeight: '28px', fontSize: '14px', fontWeight: 'bold' }}>
+                                                                                {sorted.map((entry, i) => (
+                                                                                    <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                                                                        <div style={{ width: '10px', height: '10px', borderRadius: '50%', background: entry.color, flexShrink: 0 }} />
+                                                                                        <span style={{ color: entry.color, fontWeight: '700', display: 'inline-flex', justifyContent: 'space-between', width: '160px' }}>
+                                                                                            <span>{entry.value}</span>
+                                                                                            <span>{entry.payload?.value}%</span>
+                                                                                        </span>
+                                                                                    </div>
+                                                                                ))}
+                                                                            </div>
+                                                                        );
+                                                                    }}
+                                                                />
+                                                            </PieChart>
+                                                        </ResponsiveContainer>
+                                                    </div>
                                                 </div>
-                                                <div className="prof-card card-mint" style={{ textAlign: 'center' }}>
-                                                    <div className="kpi-lbl" style={{ color: '#15803d' }}>Top Defect</div>
-                                                    <div style={{ fontSize: '16px', fontWeight: '800', marginTop: '8px', color: '#166534' }}>{paretoAnalysisData?.[0]?.name || 'Turning Length'}</div>
+                                                <div className="prof-card">
+                                                    <div className="sec-title">Pareto Analysis</div>
+                                                    <div className="chart-wrap" style={{ height: '380px' }}>
+                                                        <ResponsiveContainer width="100%" height="100%">
+                                                            <ComposedChart data={paretoAnalysisData?.length ? paretoAnalysisData.map(d => ({
+                                                                ...d,
+                                                                count: d.value || 0,
+                                                                percentage: d.percentage || 0,
+                                                                cumulativePercentage: d.cumulative || 0
+                                                            })) : []} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
+                                                                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                                                                <XAxis
+                                                                    dataKey="name"
+                                                                    axisLine={false}
+                                                                    tickLine={false}
+                                                                    interval={0}
+                                                                    height={100}
+                                                                    tick={({ x, y, payload }) => (
+                                                                        <g transform={`translate(${x},${y + 10})`}>
+                                                                            <text
+                                                                                x={0}
+                                                                                y={0}
+                                                                                dy={3.5}
+                                                                                transform="rotate(-45)"
+                                                                                textAnchor="end"
+                                                                                fill="#475569"
+                                                                                style={{ fontSize: '12px', fontWeight: 'bold', fontFamily: 'sans-serif' }}
+                                                                            >
+                                                                                {payload.value.length > 22
+                                                                                    ? payload.value.substring(0, 20) + '…'
+                                                                                    : payload.value}
+                                                                            </text>
+                                                                        </g>
+                                                                    )}
+                                                                />
+                                                                <YAxis yAxisId="left" axisLine={false} tickLine={false} style={{ fontSize: '12px', fontWeight: 'bold' }} />
+                                                                <YAxis
+                                                                    yAxisId="right"
+                                                                    orientation="right"
+                                                                    axisLine={false}
+                                                                    tickLine={false}
+                                                                    unit="%"
+                                                                    style={{ fontSize: '12px', fontWeight: 'bold' }}
+                                                                    domain={[0, 100]}
+                                                                />
+                                                                <Tooltip />
+                                                                <Bar yAxisId="left" dataKey="count" fill="#16a34a" radius={[2, 2, 0, 0]} barSize={20} />
+                                                                <Line
+                                                                    yAxisId="right"
+                                                                    type="monotone"
+                                                                    dataKey="percentage"
+                                                                    stroke="#ef4444"
+                                                                    strokeWidth={2}
+                                                                    dot={{ r: 4, fill: '#ef4444', strokeWidth: 1, stroke: '#fff' }}
+                                                                    activeDot={{ r: 6 }}
+                                                                />
+                                                            </ComposedChart>
+                                                        </ResponsiveContainer>
+                                                    </div>
                                                 </div>
-                                                <div className="prof-card" style={{ textAlign: 'center', background: '#fffbeb', border: '1px solid #fef3c7' }}>
-                                                    <div className="kpi-lbl" style={{ color: '#92400e' }}>Plant with Max Rejection</div>
-                                                    <div style={{ fontSize: '12px', fontWeight: '800', marginTop: '8px', color: '#78350f', lineHeight: '1.2' }}>
-                                                        {processPerformanceData?.worstPerforming?.length > 0 ? processPerformanceData.worstPerforming[0]?.name : manufacturerRejectionData?.length > 0 ? [...manufacturerRejectionData].sort((a, b) => b.value - a.value)[0]?.name : 'Adinath Industries'}
+                                                <div className="prof-card">
+                                                    <div className="sec-title">Stage-wise Rejection %</div>
+                                                    <div className="chart-wrap" style={{ height: '170px' }}>
+                                                        <ResponsiveContainer width="100%" height="100%">
+                                                            <BarChart data={qualityRejectionData?.length ? qualityRejectionData : [{ name: 'Raw Material', value: 0.8 }, { name: 'Process', value: 1.6 }, { name: 'Final', value: 0.9 }]}>
+                                                                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f0fdf4" />
+                                                                <XAxis dataKey="name" axisLine={false} tickLine={false} style={{ fontSize: '12px', fontWeight: 'bold' }} />
+                                                                <YAxis axisLine={false} tickLine={false} unit="%" style={{ fontSize: '12px', fontWeight: 'bold' }} />
+                                                                <Tooltip />
+                                                                <Bar dataKey="value" radius={[4, 4, 0, 0]} barSize={40}>
+                                                                    {qualityRejectionData?.map((entry, index) => (
+                                                                        <Cell key={`cell-${index}`} fill={index === 0 ? '#22c55e' : index === 1 ? '#f59e0b' : '#ef4444'} />
+                                                                    )) || [<Cell fill="#22c55e" />, <Cell fill="#f59e0b" />, <Cell fill="#ef4444" />]}
+                                                                </Bar>
+                                                            </BarChart>
+                                                        </ResponsiveContainer>
+                                                    </div>
+                                                </div>
+                                                <div className="prof-card">
+                                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '8px' }}>
+                                                        <div className="sec-title" style={{ marginBottom: 0 }}>Rejection % by RM Manufacturer</div>
+                                                    </div>
+                                                    <div className="chart-wrap" style={{ height: '170px' }}>
+                                                        <ResponsiveContainer width="100%" height="100%">
+                                                            <BarChart data={manufacturerRejectionData?.length ? [...manufacturerRejectionData].sort((a, b) => b.value - a.value).slice(0, 5) : [
+                                                                { name: 'JSPL', value: 0.9 },
+                                                                { name: 'RINL', value: 1.2 },
+                                                                { name: 'Neco Jaiswal', value: 1.8 },
+                                                                { name: 'Bhushan', value: 1.1 },
+                                                                { name: 'Surya', value: 0.7 }
+                                                            ]}>
+                                                                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                                                                <XAxis
+                                                                    dataKey="name"
+                                                                    axisLine={false}
+                                                                    tickLine={false}
+                                                                    style={{ fontSize: '12px', fontWeight: 'bold' }}
+                                                                    tickFormatter={(name) => name.length > 12 ? name.substring(0, 10) + '...' : name}
+                                                                />
+                                                                <YAxis axisLine={false} tickLine={false} unit="%" style={{ fontSize: '12px', fontWeight: 'bold' }} />
+                                                                <Tooltip formatter={(v) => `${v}%`} />
+                                                                <Bar dataKey="value" fill="#166534" radius={[4, 4, 0, 0]} barSize={24}>
+                                                                    <LabelList dataKey="value" position="top" formatter={(v) => `${formatDecimal(v)}%`} style={{ fontSize: '12px', fill: '#166534', fontWeight: 'bold' }} />
+                                                                </Bar>
+                                                            </BarChart>
+                                                        </ResponsiveContainer>
+                                                    </div>
+                                                </div>
+                                                <div className="prof-card">
+                                                    <div className="sec-title">Monthly Rejection Trend</div>
+                                                    <div className="chart-wrap" style={{ height: '170px' }}>
+                                                        <ResponsiveContainer width="100%" height="100%">
+                                                            <AreaChart data={monthlyRejectionTrendData?.length ? monthlyRejectionTrendData : [
+                                                                { name: 'Apr', value: 1.4 }, { name: 'May', value: 1.2 },
+                                                                { name: 'Jun', value: 1.6 }, { name: 'Jul', value: 1.3 },
+                                                                { name: 'Aug', value: 1.1 }, { name: 'Sep', value: 0.9 }
+                                                            ]}>
+                                                                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f0fdf4" />
+                                                                <XAxis dataKey="name" axisLine={false} tickLine={false} style={{ fontSize: '12px', fontWeight: 'bold' }} />
+                                                                <YAxis axisLine={false} tickLine={false} style={{ fontSize: '12px', fontWeight: 'bold' }} />
+                                                                <Tooltip />
+                                                                <Area type="monotone" dataKey="value" stroke="#16a34a" fill="rgba(22,163,74,0.1)" strokeWidth={3} dot={{ r: 4, fill: '#16a34a' }} />
+                                                            </AreaChart>
+                                                        </ResponsiveContainer>
+                                                    </div>
+                                                </div>
+                                                <div className="prof-card">
+                                                    <div className="sec-title">Stage vs Defect Contribution</div>
+                                                    <div className="chart-wrap" style={{ height: '170px' }}>
+                                                        <ResponsiveContainer width="100%" height="100%">
+                                                            <BarChart data={stageVsDefectTop3} margin={{ bottom: 5 }}>
+                                                                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f0fdf4" />
+                                                                <XAxis dataKey="name" axisLine={false} tickLine={false} style={{ fontSize: '12px', fontWeight: 'bold' }} />
+                                                                <YAxis axisLine={false} tickLine={false} style={{ fontSize: '12px', fontWeight: 'bold' }} />
+                                                                <Tooltip />
+                                                                <Legend iconType="circle" wrapperStyle={{ fontSize: '12px', fontWeight: 'bold', paddingTop: '10px' }} />
+                                                                {top3DefectNames.map((name, i) => (
+                                                                    <Bar
+                                                                        key={name}
+                                                                        dataKey={name}
+                                                                        fill={i === 0 ? '#3b82f6' : i === 1 ? '#f59e0b' : '#ef4444'}
+                                                                        radius={[4, 4, 0, 0]}
+                                                                        barSize={20}
+                                                                    />
+                                                                ))}
+                                                            </BarChart>
+                                                        </ResponsiveContainer>
                                                     </div>
                                                 </div>
                                             </div>
-                                        );
-                                    })()}
 
-                                    {/* Analysis Grid (3x2) exactly from Index 5 */}
-                                    <div className="g2 mb">
-                                        <div className="prof-card">
-                                            <div className="sec-title">Defect Distribution</div>
-                                            <div className="chart-wrap" style={{ height: '210px' }}>
-                                                <ResponsiveContainer width="100%" height="100%">
-                                                    <PieChart>
-                                                        <Pie
-                                                            data={[...(stepWiseRejectionData || [])].sort((a, b) => (b.value || 0) - (a.value || 0))}
-                                                            innerRadius={60}
-                                                            outerRadius={90}
-                                                            paddingAngle={3}
-                                                            dataKey="value"
-                                                        >
-                                                            {[...(stepWiseRejectionData || [])].sort((a, b) => (b.value || 0) - (a.value || 0)).map((entry, i) => {
-                                                                const colors = ['#3b82f6', '#f59e0b', '#8b5cf6', '#ef4444', '#10b981', '#06b6d4', '#f43f5e', '#14b8a6', '#64748b', '#84cc16'];
-                                                                return <Cell key={`cell-${i}`} fill={entry.color || colors[i % colors.length]} />;
-                                                            })}
-                                                        </Pie>
-                                                        <Tooltip formatter={(v) => `${v}%`} />
-                                                        <Legend
-                                                            layout="vertical"
-                                                            align="right"
-                                                            verticalAlign="middle"
-                                                            content={({ payload }) => {
-                                                                const sorted = [...(payload || [])].sort(
-                                                                    (a, b) => (b.payload?.value || 0) - (a.payload?.value || 0)
-                                                                );
-                                                                return (
-                                                                    <div style={{ paddingLeft: '20px', lineHeight: '28px', fontSize: '14px', fontWeight: 'bold' }}>
-                                                                        {sorted.map((entry, i) => (
-                                                                            <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                                                                                <div style={{ width: '10px', height: '10px', borderRadius: '50%', background: entry.color, flexShrink: 0 }} />
-                                                                                <span style={{ color: entry.color, fontWeight: '700', display: 'inline-flex', justifyContent: 'space-between', width: '160px' }}>
-                                                                                    <span>{entry.value}</span>
-                                                                                    <span>{entry.payload?.value}%</span>
-                                                                                </span>
-                                                                            </div>
-                                                                        ))}
-                                                                    </div>
-                                                                );
-                                                            }}
-                                                        />
-                                                    </PieChart>
-                                                </ResponsiveContainer>
+                                            {/* Benchmark Row: Top vs Worst Performers using processPerformance API */}
+                                            <div className="g2">
+                                                <div className="prof-card">
+                                                    <div className="sec-title" style={{ fontSize: '11px', color: '#166534' }}>Top 5 Performing Companies (Process Rejection %)</div>
+                                                    <div className="chart-wrap" style={{ height: '220px' }}>
+                                                        <ResponsiveContainer width="100%" height="100%">
+                                                            <BarChart
+                                                                data={processPerformanceData?.topPerforming?.length > 0
+                                                                    ? processPerformanceData.topPerforming.slice(0, 5)
+                                                                    : [
+                                                                        { name: 'JSPL', value: 0.15 }, { name: 'Surya Steel', value: 0.22 },
+                                                                        { name: 'RINL', value: 0.28 }, { name: 'Bhushan Steel', value: 0.32 },
+                                                                        { name: 'Surya', value: 0.45 }
+                                                                    ]
+                                                                }
+                                                                layout="vertical"
+                                                                margin={{ left: 5, right: 45, top: 10, bottom: 10 }}
+                                                            >
+                                                                <XAxis type="number" hide />
+                                                                <YAxis
+                                                                    dataKey="name"
+                                                                    type="category"
+                                                                    axisLine={false}
+                                                                    tickLine={false}
+                                                                    style={{ fontSize: '12px', fontWeight: 'bold', fill: '#475569' }}
+                                                                    width={90}
+                                                                    tickFormatter={(name) => name.length > 15 ? name.substring(0, 12) + '...' : name}
+                                                                />
+                                                                <Tooltip formatter={(v) => `${v}%`} />
+                                                                <Bar dataKey="value" fill="#10b981" barSize={16} radius={[0, 4, 4, 0]}>
+                                                                    <LabelList dataKey="value" position="right" formatter={(v) => `${formatDecimal(v)}%`} style={{ fontSize: '12px', fontWeight: 'bold', fill: '#059669' }} />
+                                                                </Bar>
+                                                            </BarChart>
+                                                        </ResponsiveContainer>
+                                                    </div>
+                                                </div>
+                                                <div className="prof-card">
+                                                    <div className="sec-title" style={{ fontSize: '11px', color: '#991b1b' }}>Worst 5 Performing Companies (Process Rejection %)</div>
+                                                    <div className="chart-wrap" style={{ height: '220px' }}>
+                                                        <ResponsiveContainer width="100%" height="100%">
+                                                            <BarChart
+                                                                data={processPerformanceData?.worstPerforming?.length > 0
+                                                                    ? processPerformanceData.worstPerforming.slice(0, 5)
+                                                                    : [
+                                                                        { name: 'Adinath Ind.', value: 1.85 }, { name: 'Nova Jaiswal', value: 1.62 },
+                                                                        { name: 'Prakash Met.', value: 1.45 }, { name: 'Kalimata Ind.', value: 1.32 },
+                                                                        { name: 'Royal Comp.', value: 1.15 }
+                                                                    ]
+                                                                }
+                                                                layout="vertical"
+                                                                margin={{ left: 5, right: 45, top: 10, bottom: 10 }}
+                                                            >
+                                                                <XAxis type="number" hide />
+                                                                <YAxis
+                                                                    dataKey="name"
+                                                                    type="category"
+                                                                    axisLine={false}
+                                                                    tickLine={false}
+                                                                    style={{ fontSize: '12px', fontWeight: 'bold', fill: '#475569' }}
+                                                                    width={90}
+                                                                    tickFormatter={(name) => name.length > 15 ? name.substring(0, 12) + '...' : name}
+                                                                />
+                                                                <Tooltip formatter={(v) => `${v}%`} />
+                                                                <Bar dataKey="value" fill="#ef4444" barSize={16} radius={[0, 4, 4, 0]}>
+                                                                    <LabelList dataKey="value" position="right" formatter={(v) => `${formatDecimal(v)}%`} style={{ fontSize: '12px', fontWeight: 'bold', fill: '#dc2626' }} />
+                                                                </Bar>
+                                                            </BarChart>
+                                                        </ResponsiveContainer>
+                                                    </div>
+                                                </div>
                                             </div>
-                                        </div>
-                                        <div className="prof-card">
-                                            <div className="sec-title">Pareto Analysis</div>
-                                            <div className="chart-wrap" style={{ height: '380px' }}>
-                                                <ResponsiveContainer width="100%" height="100%">
-                                                    <ComposedChart data={paretoAnalysisData?.length ? paretoAnalysisData.map(d => ({
-                                                        ...d,
-                                                        count: d.value || 0,
-                                                        percentage: d.percentage || 0,
-                                                        cumulativePercentage: d.cumulative || 0
-                                                    })) : []} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
-                                                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                                                        <XAxis
-                                                            dataKey="name"
-                                                            axisLine={false}
-                                                            tickLine={false}
-                                                            interval={0}
-                                                            height={100}
-                                                            tick={({ x, y, payload }) => (
-                                                                <g transform={`translate(${x},${y + 10})`}>
-                                                                    <text
-                                                                        x={0}
-                                                                        y={0}
-                                                                        dy={3.5}
-                                                                        transform="rotate(-45)"
-                                                                        textAnchor="end"
-                                                                        fill="#475569"
-                                                                        style={{ fontSize: '12px', fontWeight: 'bold', fontFamily: 'sans-serif' }}
-                                                                    >
-                                                                        {payload.value.length > 22
-                                                                            ? payload.value.substring(0, 20) + '…'
-                                                                            : payload.value}
-                                                                    </text>
-                                                                </g>
-                                                            )}
-                                                        />
-                                                        <YAxis yAxisId="left" axisLine={false} tickLine={false} style={{ fontSize: '12px', fontWeight: 'bold' }} />
-                                                        <YAxis
-                                                            yAxisId="right"
-                                                            orientation="right"
-                                                            axisLine={false}
-                                                            tickLine={false}
-                                                            unit="%"
-                                                            style={{ fontSize: '12px', fontWeight: 'bold' }}
-                                                            domain={[0, 100]}
-                                                        />
-                                                        <Tooltip />
-                                                        <Bar yAxisId="left" dataKey="count" fill="#16a34a" radius={[2, 2, 0, 0]} barSize={20} />
-                                                        <Line
-                                                            yAxisId="right"
-                                                            type="monotone"
-                                                            dataKey="percentage"
-                                                            stroke="#ef4444"
-                                                            strokeWidth={2}
-                                                            dot={{ r: 4, fill: '#ef4444', strokeWidth: 1, stroke: '#fff' }}
-                                                            activeDot={{ r: 6 }}
-                                                        />
-                                                    </ComposedChart>
-                                                </ResponsiveContainer>
-                                            </div>
-                                        </div>
-                                        <div className="prof-card">
-                                            <div className="sec-title">Stage-wise Rejection %</div>
-                                            <div className="chart-wrap" style={{ height: '170px' }}>
-                                                <ResponsiveContainer width="100%" height="100%">
-                                                    <BarChart data={qualityRejectionData?.length ? qualityRejectionData : [{ name: 'Raw Material', value: 0.8 }, { name: 'Process', value: 1.6 }, { name: 'Final', value: 0.9 }]}>
-                                                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f0fdf4" />
-                                                        <XAxis dataKey="name" axisLine={false} tickLine={false} style={{ fontSize: '12px', fontWeight: 'bold' }} />
-                                                        <YAxis axisLine={false} tickLine={false} unit="%" style={{ fontSize: '12px', fontWeight: 'bold' }} />
-                                                        <Tooltip />
-                                                        <Bar dataKey="value" radius={[4, 4, 0, 0]} barSize={40}>
-                                                            {qualityRejectionData?.map((entry, index) => (
-                                                                <Cell key={`cell-${index}`} fill={index === 0 ? '#22c55e' : index === 1 ? '#f59e0b' : '#ef4444'} />
-                                                            )) || [<Cell fill="#22c55e" />, <Cell fill="#f59e0b" />, <Cell fill="#ef4444" />]}
-                                                        </Bar>
-                                                    </BarChart>
-                                                </ResponsiveContainer>
-                                            </div>
-                                        </div>
-                                        <div className="prof-card">
-                                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '8px' }}>
-                                                <div className="sec-title" style={{ marginBottom: 0 }}>Rejection % by RM Manufacturer</div>
-                                            </div>
-                                            <div className="chart-wrap" style={{ height: '170px' }}>
-                                                <ResponsiveContainer width="100%" height="100%">
-                                                    <BarChart data={manufacturerRejectionData?.length ? [...manufacturerRejectionData].sort((a, b) => b.value - a.value).slice(0, 5) : [
-                                                        { name: 'JSPL', value: 0.9 },
-                                                        { name: 'RINL', value: 1.2 },
-                                                        { name: 'Neco Jaiswal', value: 1.8 },
-                                                        { name: 'Bhushan', value: 1.1 },
-                                                        { name: 'Surya', value: 0.7 }
-                                                    ]}>
-                                                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                                                        <XAxis
-                                                            dataKey="name"
-                                                            axisLine={false}
-                                                            tickLine={false}
-                                                            style={{ fontSize: '12px', fontWeight: 'bold' }}
-                                                            tickFormatter={(name) => name.length > 12 ? name.substring(0, 10) + '...' : name}
-                                                        />
-                                                        <YAxis axisLine={false} tickLine={false} unit="%" style={{ fontSize: '12px', fontWeight: 'bold' }} />
-                                                        <Tooltip formatter={(v) => `${v}%`} />
-                                                        <Bar dataKey="value" fill="#166534" radius={[4, 4, 0, 0]} barSize={24}>
-                                                            <LabelList dataKey="value" position="top" formatter={(v) => `${formatDecimal(v)}%`} style={{ fontSize: '12px', fill: '#166534', fontWeight: 'bold' }} />
-                                                        </Bar>
-                                                    </BarChart>
-                                                </ResponsiveContainer>
-                                            </div>
-                                        </div>
-                                        <div className="prof-card">
-                                            <div className="sec-title">Monthly Rejection Trend</div>
-                                            <div className="chart-wrap" style={{ height: '170px' }}>
-                                                <ResponsiveContainer width="100%" height="100%">
-                                                    <AreaChart data={monthlyRejectionTrendData?.length ? monthlyRejectionTrendData : [
-                                                        { name: 'Apr', value: 1.4 }, { name: 'May', value: 1.2 },
-                                                        { name: 'Jun', value: 1.6 }, { name: 'Jul', value: 1.3 },
-                                                        { name: 'Aug', value: 1.1 }, { name: 'Sep', value: 0.9 }
-                                                    ]}>
-                                                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f0fdf4" />
-                                                        <XAxis dataKey="name" axisLine={false} tickLine={false} style={{ fontSize: '12px', fontWeight: 'bold' }} />
-                                                        <YAxis axisLine={false} tickLine={false} style={{ fontSize: '12px', fontWeight: 'bold' }} />
-                                                        <Tooltip />
-                                                        <Area type="monotone" dataKey="value" stroke="#16a34a" fill="rgba(22,163,74,0.1)" strokeWidth={3} dot={{ r: 4, fill: '#16a34a' }} />
-                                                    </AreaChart>
-                                                </ResponsiveContainer>
-                                            </div>
-                                        </div>
-                                        <div className="prof-card">
-                                            <div className="sec-title">Stage vs Defect Contribution</div>
-                                            <div className="chart-wrap" style={{ height: '170px' }}>
-                                                <ResponsiveContainer width="100%" height="100%">
-                                                    <BarChart data={stageVsDefectTop3} margin={{ bottom: 5 }}>
-                                                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f0fdf4" />
-                                                        <XAxis dataKey="name" axisLine={false} tickLine={false} style={{ fontSize: '12px', fontWeight: 'bold' }} />
-                                                        <YAxis axisLine={false} tickLine={false} style={{ fontSize: '12px', fontWeight: 'bold' }} />
-                                                        <Tooltip />
-                                                        <Legend iconType="circle" wrapperStyle={{ fontSize: '12px', fontWeight: 'bold', paddingTop: '10px' }} />
-                                                        {top3DefectNames.map((name, i) => (
-                                                            <Bar
-                                                                key={name}
-                                                                dataKey={name}
-                                                                fill={i === 0 ? '#3b82f6' : i === 1 ? '#f59e0b' : '#ef4444'}
-                                                                radius={[4, 4, 0, 0]}
-                                                                barSize={20}
-                                                            />
-                                                        ))}
-                                                    </BarChart>
-                                                </ResponsiveContainer>
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    {/* Benchmark Row: Top vs Worst Performers using processPerformance API */}
-                                    <div className="g2">
-                                        <div className="prof-card">
-                                            <div className="sec-title" style={{ fontSize: '11px', color: '#166534' }}>Top 5 Performing Companies (Process Rejection %)</div>
-                                            <div className="chart-wrap" style={{ height: '220px' }}>
-                                                <ResponsiveContainer width="100%" height="100%">
-                                                    <BarChart
-                                                        data={processPerformanceData?.topPerforming?.length > 0
-                                                            ? processPerformanceData.topPerforming.slice(0, 5)
-                                                            : [
-                                                                { name: 'JSPL', value: 0.15 }, { name: 'Surya Steel', value: 0.22 },
-                                                                { name: 'RINL', value: 0.28 }, { name: 'Bhushan Steel', value: 0.32 },
-                                                                { name: 'Surya', value: 0.45 }
-                                                            ]
-                                                        }
-                                                        layout="vertical"
-                                                        margin={{ left: 5, right: 45, top: 10, bottom: 10 }}
-                                                    >
-                                                        <XAxis type="number" hide />
-                                                        <YAxis
-                                                            dataKey="name"
-                                                            type="category"
-                                                            axisLine={false}
-                                                            tickLine={false}
-                                                            style={{ fontSize: '12px', fontWeight: 'bold', fill: '#475569' }}
-                                                            width={90}
-                                                            tickFormatter={(name) => name.length > 15 ? name.substring(0, 12) + '...' : name}
-                                                        />
-                                                        <Tooltip formatter={(v) => `${v}%`} />
-                                                        <Bar dataKey="value" fill="#10b981" barSize={16} radius={[0, 4, 4, 0]}>
-                                                            <LabelList dataKey="value" position="right" formatter={(v) => `${formatDecimal(v)}%`} style={{ fontSize: '12px', fontWeight: 'bold', fill: '#059669' }} />
-                                                        </Bar>
-                                                    </BarChart>
-                                                </ResponsiveContainer>
-                                            </div>
-                                        </div>
-                                        <div className="prof-card">
-                                            <div className="sec-title" style={{ fontSize: '11px', color: '#991b1b' }}>Worst 5 Performing Companies (Process Rejection %)</div>
-                                            <div className="chart-wrap" style={{ height: '220px' }}>
-                                                <ResponsiveContainer width="100%" height="100%">
-                                                    <BarChart
-                                                        data={processPerformanceData?.worstPerforming?.length > 0
-                                                            ? processPerformanceData.worstPerforming.slice(0, 5)
-                                                            : [
-                                                                { name: 'Adinath Ind.', value: 1.85 }, { name: 'Nova Jaiswal', value: 1.62 },
-                                                                { name: 'Prakash Met.', value: 1.45 }, { name: 'Kalimata Ind.', value: 1.32 },
-                                                                { name: 'Royal Comp.', value: 1.15 }
-                                                            ]
-                                                        }
-                                                        layout="vertical"
-                                                        margin={{ left: 5, right: 45, top: 10, bottom: 10 }}
-                                                    >
-                                                        <XAxis type="number" hide />
-                                                        <YAxis
-                                                            dataKey="name"
-                                                            type="category"
-                                                            axisLine={false}
-                                                            tickLine={false}
-                                                            style={{ fontSize: '12px', fontWeight: 'bold', fill: '#475569' }}
-                                                            width={90}
-                                                            tickFormatter={(name) => name.length > 15 ? name.substring(0, 12) + '...' : name}
-                                                        />
-                                                        <Tooltip formatter={(v) => `${v}%`} />
-                                                        <Bar dataKey="value" fill="#ef4444" barSize={16} radius={[0, 4, 4, 0]}>
-                                                            <LabelList dataKey="value" position="right" formatter={(v) => `${formatDecimal(v)}%`} style={{ fontSize: '12px', fontWeight: 'bold', fill: '#dc2626' }} />
-                                                        </Bar>
-                                                    </BarChart>
-                                                </ResponsiveContainer>
-                                            </div>
-                                        </div>
-                                    </div>
-                                    </>
+                                        </>
                                     )}
                                 </div>
                             );

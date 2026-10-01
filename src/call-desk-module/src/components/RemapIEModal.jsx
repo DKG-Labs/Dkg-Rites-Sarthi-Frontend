@@ -290,6 +290,7 @@ const RemapIEModal = ({ callNo, stage, onClose, onSuccess }) => {
                     <SearchableEmployeeSelect
                       value={selectedNewEmpCode}
                       onChange={setSelectedNewEmpCode}
+                      valueKey="employeeCode"
                       placeholder="-- Select Employee --"
                       options={sortedEmployees.filter(emp => emp.employeeCode && emp.employeeName)}
                     />

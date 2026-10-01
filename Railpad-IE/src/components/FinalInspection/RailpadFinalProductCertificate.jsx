@@ -170,30 +170,34 @@ export default function RailpadFinalProductCertificate({ call = {}, onBack, isVi
             await saveFinalIcEditData({ ...currentData, icNumber: targetIcNo });
           }
 
-          // Step 1: Auto-download the signed IC PDF first
+          // Extract clean base64 data for Azure upload
           const cleanBase64 = typeof signedData === 'string' && signedData.includes(',') ? signedData.split(',')[1] : signedData;
-          if (cleanBase64 && cleanBase64.startsWith('JVBER')) {
-            try {
-              const byteCharacters = atob(cleanBase64);
-              const byteNumbers = new Array(byteCharacters.length);
-              for (let i = 0; i < byteCharacters.length; i++) {
-                byteNumbers[i] = byteCharacters.charCodeAt(i);
-              }
-              const byteArray = new Uint8Array(byteNumbers);
-              const blob = new Blob([byteArray], { type: 'application/pdf' });
-              const blobUrl = URL.createObjectURL(blob);
-              const downloadLink = document.createElement('a');
-              downloadLink.href = blobUrl;
-              downloadLink.download = fileName || `${(certificateNo || callNo).replace(/[/\\?%*:|"<>]/g, '_')}.pdf`;
-              document.body.appendChild(downloadLink);
-              downloadLink.click();
-              document.body.removeChild(downloadLink);
-              setTimeout(() => URL.revokeObjectURL(blobUrl), 1000);
-              showToast("E-Signed IC PDF downloaded successfully!", "success");
-            } catch (dlErr) {
-              console.warn("⚠️ Auto-download PDF error:", dlErr);
-            }
-          }
+
+          // =========================================================================
+          // Auto-download disabled: users can download from Completed Calls tab
+          // if (cleanBase64 && cleanBase64.startsWith('JVBER')) {
+          //   try {
+          //     const byteCharacters = atob(cleanBase64);
+          //     const byteNumbers = new Array(byteCharacters.length);
+          //     for (let i = 0; i < byteCharacters.length; i++) {
+          //       byteNumbers[i] = byteCharacters.charCodeAt(i);
+          //     }
+          //     const byteArray = new Uint8Array(byteNumbers);
+          //     const blob = new Blob([byteArray], { type: 'application/pdf' });
+          //     const blobUrl = URL.createObjectURL(blob);
+          //     const downloadLink = document.createElement('a');
+          //     downloadLink.href = blobUrl;
+          //     downloadLink.download = fileName || `${(certificateNo || callNo).replace(/[/\\?%*:|"<>]/g, '_')}.pdf`;
+          //     document.body.appendChild(downloadLink);
+          //     downloadLink.click();
+          //     document.body.removeChild(downloadLink);
+          //     setTimeout(() => URL.revokeObjectURL(blobUrl), 1000);
+          //     showToast("E-Signed IC PDF downloaded successfully!", "success");
+          //   } catch (dlErr) {
+          //     console.warn("⚠️ Auto-download PDF error:", dlErr);
+          //   }
+          // }
+          // =========================================================================
 
           // Step 2: Store the valid PDF in Azure Blob Storage
           showToast("Uploading signed certificate to Azure...", "info");

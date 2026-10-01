@@ -92,12 +92,20 @@ export default function SleeperFinalProductCertificate() {
   const [bookSetValidation, setBookSetValidation] = useState({ isValid: null, message: null, isValidating: false });
   const [bookWarningModal, setBookWarningModal] = useState({ show: false, onProceed: null });
   const [call, setCall] = useState({});
+  const callRef = useRef(call);
+  const dataRef = useRef(null);
+
+  useEffect(() => {
+    callRef.current = call;
+  }, [call]);
 
   useEffect(() => {
     try {
         const storedCallStr = localStorage.getItem('selectedICCall') || sessionStorage.getItem('activeInspectionCall');
         if (storedCallStr) {
-            setCall(JSON.parse(storedCallStr));
+            const parsed = JSON.parse(storedCallStr);
+            setCall(parsed);
+            callRef.current = parsed;
         }
     } catch (e) {
         console.error('Error parsing stored call:', e);
@@ -358,6 +366,11 @@ export default function SleeperFinalProductCertificate() {
       }
   }, [call]);
 
+  // Keep dataRef synchronized with the latest data state
+  useEffect(() => {
+    dataRef.current = data;
+  }, [data]);
+
   // PKI Digital Signature Status Listener
   useEffect(() => {
     const handlePkiStatus = async (event) => {
@@ -367,32 +380,49 @@ export default function SleeperFinalProductCertificate() {
       if (status === 'success' && signedData) {
         try {
           const user = getStoredUser();
-          const targetIcNo = certificateNo || data.certificateNo || call.callNo || call.call_no || call.requestId;
+          const latestCall = (callRef.current && Object.keys(callRef.current).length > 0)
+            ? callRef.current
+            : (call && Object.keys(call).length > 0
+                ? call
+                : (() => {
+                    try {
+                      return JSON.parse(localStorage.getItem('selectedICCall') || sessionStorage.getItem('activeInspectionCall') || '{}');
+                    } catch (_) {
+                      return {};
+                    }
+                  })());
+
+          const currentData = dataRef.current || data;
+          const targetIcNo = certificateNo || currentData?.certificateNo || latestCall?.certificateNo || latestCall?.icNo || latestCall?.callNo || latestCall?.call_no || latestCall?.requestId || "Sleeper_IC";
+
+          // Extract clean base64 data for Azure upload
           const cleanBase64 = typeof signedData === 'string' && signedData.includes(',') ? signedData.split(',')[1] : signedData;
           const outFileName = fileName || `${(targetIcNo || "Sleeper_IC").replace(/[/\\?%*:|"<>]/g, '_')}.pdf`;
 
-          // Step 1: Auto-download the signed IC PDF locally
-          if (cleanBase64 && cleanBase64.startsWith('JVBER')) {
-            try {
-              const byteCharacters = atob(cleanBase64);
-              const byteNumbers = new Array(byteCharacters.length);
-              for (let i = 0; i < byteCharacters.length; i++) {
-                byteNumbers[i] = byteCharacters.charCodeAt(i);
-              }
-              const byteArray = new Uint8Array(byteNumbers);
-              const blob = new Blob([byteArray], { type: 'application/pdf' });
-              const blobUrl = URL.createObjectURL(blob);
-              const downloadLink = document.createElement('a');
-              downloadLink.href = blobUrl;
-              downloadLink.download = outFileName;
-              document.body.appendChild(downloadLink);
-              downloadLink.click();
-              document.body.removeChild(downloadLink);
-              setTimeout(() => URL.revokeObjectURL(blobUrl), 1000);
-            } catch (dlErr) {
-              console.warn("⚠️ Auto-download PDF error:", dlErr);
-            }
-          }
+          // =========================================================================
+          // Auto-download disabled: users can download from Completed Calls tab
+          // if (cleanBase64 && cleanBase64.startsWith('JVBER')) {
+          //   try {
+          //     const byteCharacters = atob(cleanBase64);
+          //     const byteNumbers = new Array(byteCharacters.length);
+          //     for (let i = 0; i < byteCharacters.length; i++) {
+          //       byteNumbers[i] = byteCharacters.charCodeAt(i);
+          //     }
+          //     const byteArray = new Uint8Array(byteNumbers);
+          //     const blob = new Blob([byteArray], { type: 'application/pdf' });
+          //     const blobUrl = URL.createObjectURL(blob);
+          //     const downloadLink = document.createElement('a');
+          //     downloadLink.href = blobUrl;
+          //     downloadLink.download = outFileName;
+          //     document.body.appendChild(downloadLink);
+          //     downloadLink.click();
+          //     document.body.removeChild(downloadLink);
+          //     setTimeout(() => URL.revokeObjectURL(blobUrl), 1000);
+          //   } catch (dlErr) {
+          //     console.warn("⚠️ Auto-download PDF error:", dlErr);
+          //   }
+          // }
+          // =========================================================================
 
           // Step 2: Save IC edit changes to DB
           setNotification({ open: true, message: "Saving IC details...", severity: "info" });
@@ -400,26 +430,26 @@ export default function SleeperFinalProductCertificate() {
             await saveFinalIcEditData({
               icNumber: targetIcNo,
               certificateId: null,
-              bookNo: data.bookNo,
-              setNo: data.setNo,
-              offeredInstallmentNo: data.offeredInstNo,
-              passedInstallmentNo: data.passedInstNo,
-              consignee: data.consignee,
-              cummQtyOfferedPrev: data.qtyOfferedPreviously,
-              qtyPrevPassed: data.qtyPassedPreviously,
-              qtyStillDue: data.qtyStillDue,
-              maNumberAndDate: data.maNumberAndDate,
-              billPayingOfficer: data.billPayingOfficer,
-              purchasingAuthority: data.purchasingAuthority,
-              description: data.description,
-              manufacturer: data.contractor || data.placeOfInspection,
-              trRecDate: data.trRecDate,
-              noOfVisits: data.noOfVisits,
-              datesOfInspection: data.datesOfInspection,
-              sealingPattern: data.sealingPattern,
-              reasonsForRejection: data.reasonsForRejection,
-              facsimileText: data.facsimileText,
-              inspectingEngineer: data.inspectingEngineer,
+              bookNo: currentData.bookNo,
+              setNo: currentData.setNo,
+              offeredInstallmentNo: currentData.offeredInstNo,
+              passedInstallmentNo: currentData.passedInstNo,
+              consignee: currentData.consignee,
+              cummQtyOfferedPrev: currentData.qtyOfferedPreviously,
+              qtyPrevPassed: currentData.qtyPassedPreviously,
+              qtyStillDue: currentData.qtyStillDue,
+              maNumberAndDate: currentData.maNumberAndDate,
+              billPayingOfficer: currentData.billPayingOfficer,
+              purchasingAuthority: currentData.purchasingAuthority,
+              description: currentData.description,
+              manufacturer: currentData.contractor || currentData.placeOfInspection,
+              trRecDate: currentData.trRecDate,
+              noOfVisits: currentData.noOfVisits,
+              datesOfInspection: currentData.datesOfInspection,
+              sealingPattern: currentData.sealingPattern,
+              reasonsForRejection: currentData.reasonsForRejection,
+              facsimileText: currentData.facsimileText,
+              inspectingEngineer: currentData.inspectingEngineer,
               createdBy: user?.userId ? String(user.userId) : "Inspecting Engineer",
               updatedBy: user?.userId ? String(user.userId) : "Inspecting Engineer"
             });
@@ -427,21 +457,43 @@ export default function SleeperFinalProductCertificate() {
             console.warn("⚠️ Failed to persist final IC edits:", saveErr);
           }
 
-          // Step 3: Trigger workflow transition API to IC_GENERATION
+          // Step 3: Trigger workflow transition API to IC_GENERATION / GENERATE_IC
           setNotification({ open: true, message: "Updating workflow status...", severity: "info" });
-          console.log('🔄 Triggering workflow transition to IC_GENERATION');
+          
+          const rawTransitionId = latestCall?.workflowTransitionId || latestCall?.transitionId || (latestCall?.id && Number(latestCall.id) > 100 ? latestCall.id : 0);
+          const transitionId = rawTransitionId ? Number(rawTransitionId) : 0;
+          const reqId = latestCall?.requestId || latestCall?.callNo || latestCall?.call_no || targetIcNo;
+          const effectiveUserId = Number(user?.userId || localStorage.getItem('userId') || latestCall?.assignedToUser || 1);
+
           const payload = {
-            workflowTransitionId: call.id || call.workflowTransitionId || call.transitionId,
-            moduleId: call.moduleId || 0,
-            requestId: call.requestId || call.callNo || call.call_no,
+            workflowTransitionId: transitionId,
+            moduleId: Number(latestCall?.moduleId || 0),
+            requestId: reqId,
             action: 'IC_GENERATION',
-            bookNo: data.bookNo,
-            setNo: data.setNo,
+            bookNo: currentData.bookNo || '',
+            setNo: currentData.setNo || '',
             remarks: 'Digital signature applied and IC generated',
-            actionBy: Number(user?.userId || 0)
+            actionBy: effectiveUserId
           };
-          await apiService.performTransitionAction(payload);
-          console.log('✅ Workflow transition to IC_GENERATION succeeded');
+
+          let transitionSuccess = false;
+          try {
+            console.log('🔄 Triggering workflow transition to IC_GENERATION:', payload);
+            await apiService.performTransitionAction(payload);
+            console.log('✅ Workflow transition to IC_GENERATION succeeded');
+            transitionSuccess = true;
+          } catch (transErr) {
+            console.warn('⚠️ performTransitionAction with IC_GENERATION failed, trying fallback GENERATE_IC:', transErr);
+            try {
+              payload.action = 'GENERATE_IC';
+              await apiService.performTransitionAction(payload);
+              console.log('✅ Workflow transition to GENERATE_IC succeeded');
+              transitionSuccess = true;
+            } catch (fallbackErr) {
+              console.error('❌ Both IC_GENERATION and GENERATE_IC transition actions failed:', fallbackErr);
+              throw new Error("Workflow transition action failed: " + (fallbackErr.response?.data?.message || fallbackErr.message || "Unknown error"));
+            }
+          }
 
           // Step 4: When workflow API is successful, save signed PDF to Azure Blob Storage
           setNotification({ open: true, message: "Workflow updated. Storing signed certificate in Azure...", severity: "info" });
@@ -454,14 +506,19 @@ export default function SleeperFinalProductCertificate() {
 
           setNotification({ open: true, message: "Certificate e-Signed, Generated & Saved to Azure Successfully!", severity: "success" });
 
-          setTimeout(() => {
-            sessionStorage.setItem('attendingCallActiveTab', 'completed');
-            const navEvent = new CustomEvent('navigate', { detail: { target: 'Completed Calls' } });
-            window.dispatchEvent(navEvent);
-          }, 1500);
+          // Only navigate to Completed Calls when the transition action definitely succeeded
+          if (transitionSuccess) {
+            setTimeout(() => {
+              sessionStorage.setItem('attendingCallActiveTab', 'completed');
+              const navEvent = new CustomEvent('navigate', { detail: { target: 'Completed Calls' } });
+              window.dispatchEvent(navEvent);
+            }, 1500);
+          }
         } catch (err) {
           console.error("E-Sign processing error:", err);
           setNotification({ open: true, message: "Failed during E-Sign processing: " + err.message, severity: "error" });
+          // Note: When transition action fails, we stay on the current screen so the user can retry or address the issue,
+          // rather than prematurely transferring them to Completed Calls where the un-transitioned call won't appear properly.
         } finally {
           setIsESigning(false);
         }

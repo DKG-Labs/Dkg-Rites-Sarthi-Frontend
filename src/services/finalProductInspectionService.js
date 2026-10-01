@@ -371,3 +371,27 @@ export const getLotResults = async (callNo) => {
   }
 };
 
+/**
+ * Update sample size for a specific lot
+ * PATCH /api/final-inspection/dashboard-results/lot-results/sample-size
+ */
+export const updateLotSampleSize = async (callNo, lotNo, sampleSize) => {
+  try {
+    console.log(`📤 Updating sample size in DB for call: ${callNo}, lot: ${lotNo} to ${sampleSize}`);
+    const url = `${API_BASE_URL}/api/final-inspection/dashboard-results/lot-results/sample-size?callNo=${encodeURIComponent(callNo)}&lotNo=${encodeURIComponent(lotNo)}&sampleSize=${encodeURIComponent(sampleSize)}`;
+
+    const response = await fetch(url, {
+      method: 'PATCH',
+      headers: getAuthHeaders()
+    });
+
+    const result = await handleResponse(response);
+    console.log('✅ Lot sample size updated in DB:', result.responseData);
+    return result.responseData;
+  } catch (error) {
+    console.error('❌ Error updating lot sample size in DB:', error);
+    throw error;
+  }
+};
+
+

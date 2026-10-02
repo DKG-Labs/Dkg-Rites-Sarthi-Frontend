@@ -604,17 +604,20 @@ const AttendingCallsDashboard = ({
   };
 
   const handleViewSignedIC = async (call) => {
-    const icNumber = call.icNumber || call.icNo || call.requestId || call.callNo;
+    if (!call) return;
+    const icNumber = call.certificateNo || call.icNumber || call.icNo || call.requestId || call.call_no || call.callNo || call.id;
     if (!icNumber) {
       setNotification({ message: 'Call / IC number not found.', type: 'error' });
       return;
     }
 
-    setNotification({ message: 'Retrieving signed Inspection Certificate from Azure...', type: 'info' });
+    setPdfLoading(true);
+    setNotification({ message: 'Retrieving signed Inspection Certificate...', type: 'info' });
 
     try {
       const response = await viewSignedCertificate(icNumber);
       const signedData = response?.signedData || response?.responseData?.signedData;
+      const fileName = response?.fileName || `${String(icNumber).replace(/[/\\?%*:|"<>]/g, '_')}_signed_IC.pdf`;
 
       if (signedData) {
         const byteCharacters = atob(signedData);
@@ -625,26 +628,39 @@ const AttendingCallsDashboard = ({
         const byteArray = new Uint8Array(byteNumbers);
         const blob = new Blob([byteArray], { type: 'application/pdf' });
         const url = URL.createObjectURL(blob);
+
+        // Open in a new tab for preview
         window.open(url, '_blank');
-        setNotification({ message: '', type: 'info' });
+
+        // Trigger file download
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = fileName;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+
+        setNotification({ message: 'Inspection certificate downloaded successfully', type: 'success' });
         return;
       }
 
-      // Fallback: try opening direct PDF URL
-      const directUrl = `${getBaseUrl()}/certificate-storage/view/${encodeURIComponent(icNumber)}.pdf`;
-      window.open(directUrl, '_blank');
-      setNotification({ message: '', type: 'info' });
+      throw new Error('Inspection Certificate PDF data was not found in storage response.');
     } catch (err) {
-      console.warn('viewSignedCertificate error, attempting direct view URL:', err);
-      try {
-        const directUrl = `${getBaseUrl()}/certificate-storage/view/${encodeURIComponent(icNumber)}.pdf`;
-        window.open(directUrl, '_blank');
-        setNotification({ message: '', type: 'info' });
-      } catch (fallbackErr) {
-        setNotification({ message: 'Signed Inspection Certificate is not available in Azure storage.', type: 'error' });
+      console.warn('viewSignedCertificate error:', err);
+      const errMsg = err?.message || '';
+      if (errMsg.includes('download') || errMsg.includes('Azure') || errMsg.includes('fetch')) {
+        setNotification({ message: 'The signed Inspection Certificate is temporarily unavailable. Please try again in a few moments.', type: 'error' });
+      } else if (errMsg.includes('No signed certificate found')) {
+        setNotification({ message: 'The signed Inspection Certificate is not yet available for this call.', type: 'error' });
+      } else {
+        setNotification({ message: errMsg || 'Unable to retrieve the signed Inspection Certificate.', type: 'error' });
       }
+    } finally {
+      setPdfLoading(false);
     }
   };
+
+  const handleDownloadSignedIC = handleViewSignedIC;
 
   const handleDownloadAnnexures = (call) => {
     setNotification({ message: `Annexure generation and download for call ${call.requestId || call.callNo || call.id} is being prepared.`, type: 'info' });
@@ -2007,21 +2023,24 @@ const AttendingCallsDashboard = ({
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '16px' }}>
                 {/* 1. View IC */}
                 <button
+                  disabled={pdfLoading}
                   onClick={() => {
                     const row = selectedActionCall;
-                    handleDownloadSignedIC(row);
+                    handleViewSignedIC(row);
                   }}
                   style={{
                     display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '8px',
-                    padding: '16px 12px', background: 'linear-gradient(135deg, #ecfeff 0%, #cffafe 100%)',
+                    padding: '16px 12px', background: pdfLoading ? '#f1f5f9' : 'linear-gradient(135deg, #ecfeff 0%, #cffafe 100%)',
                     border: '1px solid #a5f3fc', borderRadius: '14px',
-                    cursor: 'pointer', transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-                    color: '#0891b2', width: '100%',
+                    cursor: pdfLoading ? 'not-allowed' : 'pointer', transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                    color: pdfLoading ? '#94a3b8' : '#0891b2', width: '100%',
                     boxShadow: '0 4px 6px -1px rgba(8, 145, 178, 0.1), 0 2px 4px -1px rgba(8, 145, 178, 0.06)'
                   }}
                   onMouseEnter={(e) => { 
-                    e.currentTarget.style.transform = 'translateY(-3px)';
-                    e.currentTarget.style.boxShadow = '0 10px 15px -3px rgba(8, 145, 178, 0.2), 0 4px 6px -2px rgba(8, 145, 178, 0.1)'; 
+                    if (!pdfLoading) {
+                      e.currentTarget.style.transform = 'translateY(-3px)';
+                      e.currentTarget.style.boxShadow = '0 10px 15px -3px rgba(8, 145, 178, 0.2), 0 4px 6px -2px rgba(8, 145, 178, 0.1)'; 
+                    }
                   }}
                   onMouseLeave={(e) => { 
                     e.currentTarget.style.transform = 'translateY(0)';
@@ -2031,7 +2050,7 @@ const AttendingCallsDashboard = ({
                   <div style={{ width: '42px', height: '42px', background: '#ffffff', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 2px 4px rgba(0,0,0,0.05)' }}>
                     <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#0891b2" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
                   </div>
-                  <span style={{ fontWeight: '700', fontSize: '14px' }}>View IC</span>
+                  <span style={{ fontWeight: '700', fontSize: '14px' }}>{pdfLoading ? 'Loading IC...' : 'View IC'}</span>
                 </button>
 
                 {/* 2. Send call to IBS (Completed Calls only) */}

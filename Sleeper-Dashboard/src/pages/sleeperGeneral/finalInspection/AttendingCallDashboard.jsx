@@ -836,20 +836,16 @@ const AttendingCallDashboard = ({ mode }) => {
                 return;
             }
 
-            if (response?.url) {
-                window.open(response.url, '_blank');
-                return;
-            }
-
             throw new Error('No signed PDF data found in storage response.');
         } catch (err) {
-            console.warn('Error fetching signed certificate, attempting direct view URL:', err);
-            try {
-                const cleanBase = (API_BASE_URL || 'http://localhost:8080/sarthi-backend/api').replace(/\/api\/?$/, '');
-                const directUrl = `${cleanBase}/api/certificate-storage/view/${encodeURIComponent(icNumber)}.pdf`;
-                window.open(directUrl, '_blank');
-            } catch (fallbackErr) {
-                showNotification('Signed Inspection Certificate is not available: ' + (err.message || 'Not found in storage.'), 'error');
+            console.warn('Error fetching signed certificate:', err);
+            const errMsg = err?.message || '';
+            if (errMsg.includes('download') || errMsg.includes('Azure') || errMsg.includes('fetch')) {
+                showNotification('The signed Inspection Certificate is temporarily unavailable. Please try again in a few moments.', 'error');
+            } else if (errMsg.includes('No signed certificate found')) {
+                showNotification('The signed Inspection Certificate is not yet available for this call.', 'error');
+            } else {
+                showNotification(errMsg || 'Unable to retrieve the signed Inspection Certificate.', 'error');
             }
         } finally {
             setDownloadingIcId(null);

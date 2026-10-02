@@ -2,6 +2,11 @@
 
 import { API_BASE_URL } from './api';
 
+const isLocal = typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
+const CERTIFICATE_STORAGE_URL = isLocal
+  ? 'https://api.ritesqasarthi.com/sarthi-backend/api/certificate-storage'
+  : `${API_BASE_URL.replace('/api', '')}/api/certificate-storage`;
+
 const getAuthHeaders = () => ({
   'Content-Type': 'application/json',
   ...(localStorage.getItem('authToken') || localStorage.getItem('token')
@@ -22,7 +27,7 @@ const getBaseUrl = () => {
 export const uploadSignedCertificate = async (payload) => {
   try {
     console.log('🔍 Uploading signed certificate to Azure for IC:', payload.icNumber);
-    const url = `${getBaseUrl()}/certificate-storage/upload`;
+    const url = `${CERTIFICATE_STORAGE_URL}/upload`;
     const response = await fetch(url, {
       method: 'POST',
       headers: getAuthHeaders(),
@@ -64,7 +69,7 @@ export const uploadSignedCertificateFile = async (file, icNumber, uploadedBy) =>
       headers['Authorization'] = `Bearer ${token}`;
     }
 
-    const url = `${getBaseUrl()}/certificate-storage/upload-file`;
+    const url = `${CERTIFICATE_STORAGE_URL}/upload-file`;
     const response = await fetch(url, {
       method: 'POST',
       headers,
@@ -93,7 +98,7 @@ export const uploadSignedCertificateFile = async (file, icNumber, uploadedBy) =>
 export const viewSignedCertificate = async (icNumber) => {
   try {
     console.log('🔍 Fetching signed certificate from Azure for IC:', icNumber);
-    const url = `${getBaseUrl()}/certificate-storage/view?icNumber=${encodeURIComponent(icNumber)}`;
+    const url = `${CERTIFICATE_STORAGE_URL}/view?icNumber=${encodeURIComponent(icNumber)}`;
     const response = await fetch(url, {
       method: 'GET',
       headers: getAuthHeaders()

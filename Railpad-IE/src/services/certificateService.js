@@ -6,7 +6,7 @@
 // Helper to simulate network latency
 const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
-import { getBaseUrl } from './apiConfig';
+import { getBaseUrl, getCertificateStorageUrl } from './apiConfig';
 
 // Helper to get stored edits/drafts
 const getStorageKey = (icNumber, type) => `railpad_ic_${type}_${icNumber}`;
@@ -297,7 +297,7 @@ export const validateBookSetNo = async (empNo, bookNo, setNo, status = "F") => {
 export const uploadSignedCertificate = async (payload) => {
   try {
     console.log('📤 Uploading signed certificate to Azure for IC:', payload.icNumber);
-    const response = await fetch(`${getBaseUrl()}/certificate-storage/upload`, {
+    const response = await fetch(`${getCertificateStorageUrl()}/upload`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -328,7 +328,7 @@ export const uploadSignedCertificate = async (payload) => {
 export const viewSignedCertificate = async (icNumber) => {
   try {
     console.log('🔍 Fetching signed certificate from Azure for IC:', icNumber);
-    const response = await fetch(`${getBaseUrl()}/certificate-storage/view?icNumber=${encodeURIComponent(icNumber)}`, {
+    const response = await fetch(`${getCertificateStorageUrl()}/view?icNumber=${encodeURIComponent(icNumber)}`, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
@@ -356,7 +356,7 @@ export const viewSignedCertificate = async (icNumber) => {
  */
 export const checkSignedCertificateExists = async (icNumber) => {
   try {
-    const response = await fetch(`${getBaseUrl()}/certificate-storage/check?icNumber=${encodeURIComponent(icNumber)}`, {
+    const response = await fetch(`${getCertificateStorageUrl()}/check?icNumber=${encodeURIComponent(icNumber)}`, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
@@ -384,7 +384,7 @@ export const checkSignedCertificateExists = async (icNumber) => {
 export const updateSignedCertificate = async (payload) => {
   try {
     console.log('🔄 Updating signed certificate in Azure for IC:', payload.icNumber);
-    const response = await fetch(`${getBaseUrl()}/certificate-storage/update`, {
+    const response = await fetch(`${getCertificateStorageUrl()}/update`, {
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json',
@@ -421,7 +421,7 @@ export const uploadSignedCertificateFile = async (file, icNumber, uploadedBy) =>
     formData.append('icNumber', icNumber);
     if (uploadedBy) formData.append('uploadedBy', uploadedBy);
 
-    const response = await fetch(`${getBaseUrl()}/certificate-storage/upload-file`, {
+    const response = await fetch(`${getCertificateStorageUrl()}/upload-file`, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${localStorage.getItem('authToken') || ''}`
@@ -449,7 +449,7 @@ export const uploadSignedCertificateFile = async (file, icNumber, uploadedBy) =>
 export const deleteSignedCertificate = async (icNumber) => {
   try {
     console.log('🗑️ Deleting signed certificate from Azure for IC:', icNumber);
-    const response = await fetch(`${getBaseUrl()}/certificate-storage/delete?icNumber=${encodeURIComponent(icNumber)}`, {
+    const response = await fetch(`${getCertificateStorageUrl()}/delete?icNumber=${encodeURIComponent(icNumber)}`, {
       method: 'DELETE',
       headers: {
         'Content-Type': 'application/json',

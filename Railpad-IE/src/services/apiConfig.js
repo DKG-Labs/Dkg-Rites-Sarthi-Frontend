@@ -7,6 +7,14 @@ export const getBaseUrl = () => {
     ? "http://localhost:8080/sarthi-backend/api"
     : "https://sarthibackendservice-bfe2eag3byfkbsa6.canadacentral-01.azurewebsites.net/sarthi-backend/api";
 };
+
+export const getCertificateStorageUrl = () => {
+  const isLocal = typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
+  return isLocal
+    ? "https://api.ritesqasarthi.com/sarthi-backend/api/certificate-storage"
+    : `${getBaseUrl()}/certificate-storage`;
+};
+
 // export const API_BASE_URL = "https://api.ritesqasarthi.com/sarthi-backend/api";
 // API Endpoints configuration
 export const API_ENDPOINTS = {

@@ -813,6 +813,17 @@ const AttendingCallDashboard = ({ mode }) => {
             const signedData = response?.signedData || response?.responseData?.signedData;
             const fileName = response?.fileName || `${String(icNumber).replace(/[/\\?%*:|"<>]/g, '_')}_signed_IC.pdf`;
 
+            // Sanity check: Ensure returned certificate actually belongs to the requested call/IC
+            const reqCallToken = String(call.requestId || call.call_no || call.callNo || icNumber)
+                .replace(/[/\\_]/g, '-')
+                .split('-')
+                .filter(t => t.length >= 6 && /\d/.test(t))[0];
+            const respIc = String(response?.icNumber || response?.fileName || '').replace(/[/\\_]/g, '-');
+            if (reqCallToken && respIc && !respIc.includes(reqCallToken)) {
+                console.warn(`[handleDownloadSignedIC] Mismatched certificate: requested ${reqCallToken}, received ${respIc}`);
+                throw new Error('No signed certificate found for this call.');
+            }
+
             if (signedData) {
                 const byteCharacters = atob(signedData);
                 const byteNumbers = new Array(byteCharacters.length);

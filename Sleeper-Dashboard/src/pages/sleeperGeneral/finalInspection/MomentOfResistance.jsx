@@ -279,9 +279,31 @@ const MomentOfResistance = () => {
                     }
                 }
 
-                // 4. Match candidate by plant and casting date
+                // 4. Match candidate by drawingNo / sleeperType (critical when multiple products share the same batch number on the same date)
+                const targetDwg = normalizeDwg(extractDrawingNo(record, declaredMatch) || record?.sleeperType || declaredMatch?.sleeperType);
                 const targetCast = normDate(extractCastDate(record) || extractCastDate(declaredMatch));
                 const targetPlant = String(record?.plantId || declaredMatch?.plantId || '').replace(':', '').trim();
+
+                if (targetDwg) {
+                    const dwgMatches = candidates.filter(cand => {
+                        const candDwg = normalizeDwg(extractDrawingNo(cand) || cand?.sleeperType);
+                        return candDwg && (candDwg === targetDwg || candDwg.includes(targetDwg) || targetDwg.includes(candDwg));
+                    });
+                    if (dwgMatches.length === 1) return dwgMatches[0];
+                    if (dwgMatches.length > 1) {
+                        const filteredDwg = dwgMatches.filter(cand => {
+                            const cCast = normDate(cand.castingDate || cand.dateOfCasting || cand.date);
+                            const cPlant = String(cand.plantId || '').replace(':', '').trim();
+                            const plantOk = !targetPlant || !cPlant || targetPlant === cPlant;
+                            const castOk = !targetCast || !cCast || targetCast === cCast;
+                            return plantOk && castOk;
+                        });
+                        if (filteredDwg.length > 0) return filteredDwg[0];
+                        return dwgMatches[0];
+                    }
+                }
+
+                // 5. Fallback: Match candidate by plant and casting date
                 const filtered = candidates.filter(cand => {
                     const cCast = normDate(cand.castingDate || cand.dateOfCasting || cand.date);
                     const cPlant = String(cand.plantId || '').replace(':', '').trim();
@@ -318,13 +340,16 @@ const MomentOfResistance = () => {
                 .forEach(t => {
                     const declaredMatch = mrData.find(d => d.id === t.monmentOfResistanceId);
                     const declId = getDeclId(t, declaredMatch);
-                    if (declId) {
-                        completedDeclIds.add(String(declId));
+                    const res = String(t.testResult || '').toLowerCase();
+                    if (res === 'pass' || res === 'fail') {
+                        if (declId) {
+                            completedDeclIds.add(String(declId));
+                        }
                     }
                     const itemKey = makeItemKey(t.batchNumber, extractDrawingNo(t, declaredMatch), extractCastDate(t, null, declaredMatch));
-                    if (String(t.testResult).toLowerCase() === 'pass') {
+                    if (res === 'pass') {
                         passedItemKeys.add(itemKey);
-                    } else if (String(t.testResult).toLowerCase() === 'fail') {
+                    } else if (res === 'fail') {
                         failedItemKeys.add(itemKey);
                     }
                 });
@@ -334,7 +359,14 @@ const MomentOfResistance = () => {
             const declaredDeclIds = new Set();
             const declaredItemKeys = new Set();
             mrData
-                .filter(d => isSamePlant(d.plantId, params.plantId) && (!d.testResult || d.testResult === 'Pending' || d.status !== 'COMPLETED'))
+                .filter(d => isSamePlant(d.plantId, params.plantId))
+                .filter(d => {
+                    const res = String(d.testResult || '').toLowerCase();
+                    if (res === 'retest') return false;
+                    const hasTest = testData.some(t => t.monmentOfResistanceId === d.id);
+                    if (hasTest) return false;
+                    return (!d.testResult || d.testResult === 'Pending');
+                })
                 .forEach(d => {
                     const declId = getDeclId(d);
                     if (declId) {
@@ -543,10 +575,20 @@ const MomentOfResistance = () => {
                 .filter(item => {
                     const decl = findDeclaration(item);
                     const declId = decl ? String(decl.id) : (item.productionDeclarationId ? String(item.productionDeclarationId) : null);
-                    if (declId && (completedDeclIds.has(declId) || declaredDeclIds.has(declId))) return false;
+                    if (declId && completedDeclIds.has(declId)) return false;
+
+                    const hasActiveRetestDeclaration = mrData.some(d => 
+                        isSamePlant(d.plantId, params.plantId) &&
+                        (String(d.batchNumber || '').trim() === String(item.batchNumber || '').trim()) &&
+                        d.mrTestType === 'Retest' &&
+                        (!d.testResult || d.testResult === 'Pending') &&
+                        !testData.some(t => t.monmentOfResistanceId === d.id)
+                    );
+                    if (hasActiveRetestDeclaration) return false;
+
                     const castDate = extractCastDate(item, decl);
                     const itemKey = makeItemKey(item.batchNumber, extractDrawingNo(item, decl), castDate);
-                    return !declaredItemKeys.has(itemKey) && !passedItemKeys.has(itemKey);
+                    return !passedItemKeys.has(itemKey);
                 })
                 .map(item => {
                     const decl = findDeclaration(item);

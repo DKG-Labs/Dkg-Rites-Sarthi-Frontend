@@ -1183,17 +1183,30 @@ const DeclareSampleModal = ({ batch, onClose, onSave, isEdit }) => {
     const isMultiBatch = Array.isArray(batch);
     const targetBatches = useMemo(() => isMultiBatch ? batch : [batch], [isMultiBatch, batch]);
 
-    // Single selected sleeper state for all declared batches
-    const [selectedSleeper, setSelectedSleeper] = useState(() => {
+    // Two sample slots: Sample 1 and Sample 2
+    const [selectedSleepers, setSelectedSleepers] = useState(() => {
+        const empty = { bench: '', no: '', batchNo: '' };
+        if (isEdit && targetBatches[0]?.declaredSamples?.length >= 2) {
+            const s1 = targetBatches[0].declaredSamples[0];
+            const s2 = targetBatches[0].declaredSamples[1];
+            return [
+                { bench: s1.bench || '1', no: s1.no || '', batchNo: targetBatches[0].batchNo || '' },
+                { bench: s2.bench || '1', no: s2.no || '', batchNo: targetBatches[0].batchNo || '' }
+            ];
+        }
         if (isEdit && targetBatches[0]?.declaredSamples?.[0]) {
             const first = targetBatches[0].declaredSamples[0];
-            return { bench: first.bench || '1', no: first.no || '', batchNo: targetBatches[0].batchNo || '' };
+            return [{ bench: first.bench || '1', no: first.no || '', batchNo: targetBatches[0].batchNo || '' }, empty];
         }
         if (isEdit && targetBatches[0]?.sleeperNo) {
-            return { bench: targetBatches[0].benchNumber || '1', no: targetBatches[0].sleeperNo || '', batchNo: targetBatches[0].batchNo || '' };
+            return [{ bench: targetBatches[0].benchNumber || '1', no: targetBatches[0].sleeperNo || '', batchNo: targetBatches[0].batchNo || '' }, empty];
         }
-        return { bench: '', no: '', batchNo: '' };
+        return [empty, empty];
     });
+
+    // Per-sample dropdown/search state
+    const [searchTerms, setSearchTerms] = useState(['', '']);
+    const [openDropdowns, setOpenDropdowns] = useState([false, false]);
 
     const [isSaving, setIsSaving] = useState(false);
     const [allSleepers, setAllSleepers] = useState([]);
@@ -1331,39 +1344,139 @@ const DeclareSampleModal = ({ batch, onClose, onSave, isEdit }) => {
         };
     }, [targetBatches]);
 
-    const handleSelectSleeperItem = (item) => {
-        setSelectedSleeper({
-            bench: item.bench || '1',
-            no: item.no,
-            batchNo: item.batchNo
-        });
-        setSearchTerm('');
-        setIsOpenDropdown(false);
+    const handleSelectSleeperItem = (idx, item) => {
+        setSelectedSleepers(prev => prev.map((s, i) => i === idx ? { bench: item.bench || '1', no: item.no, batchNo: item.batchNo } : s));
+        setSearchTerms(prev => prev.map((t, i) => i === idx ? '' : t));
+        setOpenDropdowns(prev => prev.map((o, i) => i === idx ? false : o));
     };
 
-    const handleManualInputChange = (val) => {
-        setSearchTerm(val);
+    const handleManualInputChange = (idx, val) => {
+        setSearchTerms(prev => prev.map((t, i) => i === idx ? val : t));
         const match = String(val).match(/^(\d+)/);
-        setSelectedSleeper({
-            bench: match ? match[1] : (selectedSleeper.bench || '1'),
-            no: val,
-            batchNo: ''
-        });
+        setSelectedSleepers(prev => prev.map((s, i) => i === idx ? { bench: match ? match[1] : (s.bench || '1'), no: val, batchNo: '' } : s));
     };
 
-    const isReadyToSave = Boolean(selectedSleeper.no && selectedSleeper.no.trim());
+    const isReadyToSave = Boolean(selectedSleepers[0]?.no && selectedSleepers[0].no.trim());
+
+    // Reusable sleeper dropdown renderer for a given sample index
+    const renderSleeperDropdown = (idx, label, required) => {
+        const sel = selectedSleepers[idx];
+        const term = searchTerms[idx];
+        const isOpen = openDropdowns[idx];
+        const sampleLabel = idx === 0 ? 'Sample 1' : 'Sample 2';
+        const accentColor = idx === 0 ? '#0f766e' : '#7c3aed';
+        const accentBg = idx === 0 ? '#f0fdfa' : '#f5f3ff';
+        const borderActive = idx === 0 ? '#42818c' : '#7c3aed';
+
+        // Exclude sleeper already selected in the OTHER slot
+        const otherSelected = selectedSleepers[idx === 0 ? 1 : 0]?.no?.trim().toLowerCase();
+        const filtered = allSleepers.filter(item => {
+            if (otherSelected && item.no.trim().toLowerCase() === otherSelected) return false;
+            return (
+                item.no.toLowerCase().includes(term.toLowerCase()) ||
+                String(item.batchNo || '').toLowerCase().includes(term.toLowerCase()) ||
+                item.displayLabel.toLowerCase().includes(term.toLowerCase())
+            );
+        });
+
+        return (
+            <div key={idx} style={{
+                background: '#fff', padding: '18px', borderRadius: '12px',
+                border: `1.5px solid ${isOpen ? borderActive : '#e2e8f0'}`,
+                boxShadow: '0 2px 6px rgba(0,0,0,0.03)',
+                marginBottom: idx === 0 ? '14px' : 0,
+                transition: 'border-color 0.2s'
+            }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+                    <h4 style={{ margin: 0, fontSize: '13px', color: '#13343b', fontWeight: '800', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <span style={{ background: accentColor, color: '#fff', borderRadius: '6px', padding: '2px 9px', fontSize: '11px', fontWeight: '800', letterSpacing: '0.5px' }}>{sampleLabel}</span>
+                        {label}
+                    </h4>
+                    {sel?.no && (
+                        <span style={{ fontSize: '11px', color: accentColor, fontWeight: '700', background: accentBg, padding: '3px 10px', borderRadius: '4px' }}>
+                            ✓ {sel.no}
+                        </span>
+                    )}
+                </div>
+
+                <div className="input-group" style={{ position: 'relative', marginTop: '4px' }}>
+                    <label style={{ fontSize: '11px', fontWeight: '700', color: '#475569' }}>
+                        Select Sleeper {required && <span className="required">*</span>}
+                        {!required && <span style={{ color: '#94a3b8', fontWeight: '400', marginLeft: '4px' }}>(optional)</span>}
+                    </label>
+                    <div className="searchable-dropdown-wrapper">
+                        <input
+                            type="text"
+                            placeholder={isLoadingSleepers ? 'Loading sleepers...' : 'Type or click to search (e.g. 176A)...'}
+                            value={isOpen ? term : (sel?.no ? (sel.batchNo && targetBatches.length > 1 ? `${sel.no} (Batch: ${sel.batchNo})` : sel.no) : '')}
+                            onFocus={() => setOpenDropdowns(prev => prev.map((o, i) => i === idx ? true : false))}
+                            onBlur={() => setTimeout(() => setOpenDropdowns(prev => prev.map((o, i) => i === idx ? false : o)), 200)}
+                            onChange={(e) => handleManualInputChange(idx, e.target.value)}
+                            style={{ paddingRight: '36px', borderColor: isOpen ? borderActive : '#cbd5e1', transition: 'border-color 0.2s' }}
+                        />
+                        <div style={{ position: 'absolute', right: '12px', top: '50%', transform: 'translateY(15%)', color: '#64748b', pointerEvents: 'none' }}>
+                            {isLoadingSleepers ? (
+                                <div className="spinner-mini"></div>
+                            ) : (
+                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                                    <path d="M6 9l6 6 6-6"/>
+                                </svg>
+                            )}
+                        </div>
+
+                        {isOpen && (
+                            <div className="dropdown-options-list" style={{
+                                position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 200,
+                                background: 'white', border: '1px solid #cbd5e1', borderRadius: '8px',
+                                marginTop: '4px', maxHeight: '200px', overflowY: 'auto',
+                                boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)'
+                            }}>
+                                {allSleepers.length === 0 ? (
+                                    <div style={{ padding: '12px', fontSize: '12px', color: '#64748b', textAlign: 'center' }}>
+                                        {isLoadingSleepers ? 'Fetching sleepers...' : 'No sleepers found for selected batch(es)'}
+                                    </div>
+                                ) : (
+                                    <>
+                                        {filtered.slice(0, 60).map((item, sIdx) => (
+                                            <div
+                                                key={sIdx}
+                                                style={{ padding: '10px 16px', cursor: 'pointer', borderBottom: '1px solid #f1f5f9', fontSize: '13px', color: '#334155', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
+                                                onMouseDown={() => handleSelectSleeperItem(idx, item)}
+                                                onMouseEnter={(e) => e.currentTarget.style.background = '#f8fafc'}
+                                                onMouseLeave={(e) => e.currentTarget.style.background = 'white'}
+                                            >
+                                                <span style={{ fontWeight: '600' }}>{item.no}</span>
+                                                {targetBatches.length > 1 && item.batchNo && (
+                                                    <span style={{ fontSize: '11px', color: '#0369a1', background: '#e0f2fe', padding: '2px 8px', borderRadius: '4px', fontWeight: '700' }}>
+                                                        Batch: {item.batchNo} {item.bench ? `• Bench: ${item.bench}` : ''}
+                                                    </span>
+                                                )}
+                                            </div>
+                                        ))}
+                                        {filtered.length === 0 && (
+                                            <div style={{ padding: '12px', textAlign: 'center', fontSize: '12px', color: '#94a3b8' }}>No matching sleepers found</div>
+                                        )}
+                                    </>
+                                )}
+                            </div>
+                        )}
+                    </div>
+                </div>
+            </div>
+        );
+    };
 
     return (
         <div className="form-modal-overlay" onClick={onClose}>
             <div className="form-modal-container" onClick={e => e.stopPropagation()} style={{ maxWidth: '650px' }}>
                 <div className="form-modal-header">
                     <span className="form-modal-header-title">
-                        {targetBatches.length > 1 ? `Declare Sleeper Sample for MR Testing (${targetBatches.length} Batches)` : 'Declare Sleeper Sample for MR Testing'}
+                        {targetBatches.length > 1 ? `Declare Sleeper Samples for MR Testing (${targetBatches.length} Batches)` : 'Declare Sleeper Samples for MR Testing'}
                     </span>
                     <button className="form-modal-close" onClick={onClose}>×</button>
                 </div>
                 <div className="form-modal-body" style={{ maxHeight: '75vh', overflowY: 'auto' }}>
-                    {/* Multi-Batch Overview Card */}
+                    {/* Batch Info Card */}
                     {targetBatches.length > 1 ? (
                         <div style={{ background: '#f8fafc', padding: '16px', borderRadius: '12px', border: '1px solid #e2e8f0', marginBottom: '20px' }}>
                             <div style={{ fontSize: '11px', fontWeight: '800', color: '#0f766e', textTransform: 'uppercase', marginBottom: '8px' }}>
@@ -1386,131 +1499,32 @@ const DeclareSampleModal = ({ batch, onClose, onSave, isEdit }) => {
                         </div>
                     )}
 
-                    {/* Single Combined Sleeper Selection */}
-                    <div style={{ 
-                        background: '#fff', padding: '18px', borderRadius: '12px', 
-                        border: '1.5px solid #e2e8f0', boxShadow: '0 2px 6px rgba(0,0,0,0.03)' 
-                    }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-                            <h4 style={{ margin: 0, fontSize: '13px', color: '#13343b', fontWeight: '800' }}>
-                                Select Sleeper Sample
-                            </h4>
-                            <span style={{ fontSize: '11px', color: '#0f766e', fontWeight: '700', background: '#f0fdfa', padding: '3px 10px', borderRadius: '4px' }}>
-                                1 sample for {targetBatches.length > 1 ? `all ${targetBatches.length} batches` : 'batch'}
-                            </span>
-                        </div>
-
-                        <div className="input-group" style={{ position: 'relative', marginTop: '8px' }}>
-                            <label style={{ fontSize: '11px', fontWeight: '700', color: '#475569' }}>
-                                Select Sleeper <span className="required">*</span>
-                            </label>
-                            <div className="searchable-dropdown-wrapper">
-                                <input 
-                                    type="text" 
-                                    placeholder={isLoadingSleepers ? "Loading sleepers..." : "Type or click to search sleeper (e.g. 176A)..."}
-                                    value={isOpenDropdown ? searchTerm : (selectedSleeper.no ? (selectedSleeper.batchNo && targetBatches.length > 1 ? `${selectedSleeper.no} (Batch: ${selectedSleeper.batchNo})` : selectedSleeper.no) : '')}
-                                    onFocus={() => {
-                                        setIsOpenDropdown(true);
-                                        setSearchTerm('');
-                                    }}
-                                    onChange={(e) => handleManualInputChange(e.target.value)}
-                                    style={{ 
-                                        paddingRight: '36px',
-                                        borderColor: isOpenDropdown ? '#42818c' : '#cbd5e1'
-                                    }}
-                                />
-                                <div style={{ 
-                                    position: 'absolute', 
-                                    right: '12px', 
-                                    top: '50%', 
-                                    transform: 'translateY(15%)',
-                                    color: '#64748b',
-                                    pointerEvents: 'none'
-                                }}>
-                                    {isLoadingSleepers ? (
-                                        <div className="spinner-mini"></div>
-                                    ) : (
-                                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
-                                            <path d="M6 9l6 6 6-6"/>
-                                        </svg>
-                                    )}
-                                </div>
-
-                                {isOpenDropdown && (
-                                    <div className="dropdown-options-list" style={{
-                                        position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 100,
-                                        background: 'white', border: '1px solid #cbd5e1', borderRadius: '8px',
-                                        marginTop: '4px', maxHeight: '200px', overflowY: 'auto',
-                                        boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)'
-                                    }}>
-                                        {allSleepers.length === 0 ? (
-                                            <div style={{ padding: '12px', fontSize: '12px', color: '#64748b', textAlign: 'center' }}>
-                                                {isLoadingSleepers ? 'Fetching sleepers across batches...' : 'No sleepers found for selected batch(es)'}
-                                            </div>
-                                        ) : (
-                                            <>
-                                                {allSleepers
-                                                    .filter(item => 
-                                                        item.no.toLowerCase().includes(searchTerm.toLowerCase()) || 
-                                                        String(item.batchNo || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-                                                        item.displayLabel.toLowerCase().includes(searchTerm.toLowerCase())
-                                                    )
-                                                    .slice(0, 60)
-                                                    .map((item, sIdx) => (
-                                                        <div 
-                                                            key={sIdx} 
-                                                            style={{ 
-                                                                padding: '10px 16px', cursor: 'pointer', borderBottom: '1px solid #f1f5f9',
-                                                                fontSize: '13px', color: '#334155', display: 'flex', justifyContent: 'space-between', alignItems: 'center'
-                                                            }}
-                                                            onMouseDown={() => handleSelectSleeperItem(item)}
-                                                            onMouseEnter={(e) => e.currentTarget.style.background = '#f8fafc'}
-                                                            onMouseLeave={(e) => e.currentTarget.style.background = 'white'}
-                                                        >
-                                                            <span style={{ fontWeight: '600' }}>{item.no}</span>
-                                                            {targetBatches.length > 1 && item.batchNo && (
-                                                                <span style={{ fontSize: '11px', color: '#0369a1', background: '#e0f2fe', padding: '2px 8px', borderRadius: '4px', fontWeight: '700' }}>
-                                                                    Batch: {item.batchNo} {item.bench ? `• Bench: ${item.bench}` : ''}
-                                                                </span>
-                                                            )}
-                                                        </div>
-                                                    ))
-                                                }
-                                                {allSleepers.filter(item => 
-                                                    item.no.toLowerCase().includes(searchTerm.toLowerCase()) || 
-                                                    String(item.batchNo || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-                                                    item.displayLabel.toLowerCase().includes(searchTerm.toLowerCase())
-                                                ).length === 0 && (
-                                                    <div style={{ padding: '12px', textAlign: 'center', fontSize: '12px', color: '#94a3b8' }}>
-                                                        No matching sleepers found
-                                                    </div>
-                                                )}
-                                            </>
-                                        )}
-                                    </div>
-                                )}
-                            </div>
-                        </div>
-                    </div>
+                    {/* Sample 1 */}
+                    {renderSleeperDropdown(0, 'Select Sleeper Sample', true)}
+                    {/* Sample 2 */}
+                    {renderSleeperDropdown(1, 'Select Sleeper Sample', false)}
 
                     <div style={{ display: 'flex', gap: '12px', marginTop: '24px' }}>
-                        <button 
-                            className="btn-verify" 
-                            style={{ 
-                                flex: 1, 
-                                opacity: isSaving || !isReadyToSave ? 0.7 : 1, 
+                        <button
+                            className="btn-verify"
+                            style={{
+                                flex: 1,
+                                opacity: isSaving || !isReadyToSave ? 0.7 : 1,
                                 cursor: (isSaving || !isReadyToSave) ? 'not-allowed' : 'pointer',
                                 background: '#0f766e',
                                 padding: '12px'
-                            }} 
+                            }}
                             disabled={isSaving || !isReadyToSave}
                             onClick={() => {
                                 if (!isReadyToSave) {
-                                    alert("Please select a sleeper sample.");
+                                    alert('Please select at least Sample 1.');
                                     return;
                                 }
                                 setIsSaving(true);
-                                onSave(targetBatches, [{ bench: selectedSleeper.bench || '1', no: selectedSleeper.no.trim() }]);
+                                const samples = selectedSleepers
+                                    .filter(s => s?.no && s.no.trim())
+                                    .map(s => ({ bench: s.bench || '1', no: s.no.trim(), batchNo: s.batchNo || '' }));
+                                onSave(targetBatches, samples);
                             }}
                         >
                             {isSaving ? 'Saving Declaration...' : `Save Declaration (${targetBatches.length} Batch${targetBatches.length > 1 ? 'es' : ''})`}
@@ -1546,13 +1560,32 @@ const TestDetailsModal = ({ batch, onClose, onSave }) => {
         return normDate(batch?.dateOfTesting || batch?.testingDate) || new Date().toISOString().split('T')[0];
     });
     
-    // Prepare single unified test result field for the form
+    // One result row per declared sample
     const [manualResults, setManualResults] = useState(() => {
+        const samples = batch?.declaredSamples?.filter(s => s?.no) || [];
+
+        // If we have existing test details, map them back to each sample
         if (batch.details && batch.details.length > 0) {
+            if (samples.length > 1) {
+                // Map details by index; fall back to first detail if fewer details than samples
+                return samples.map((s, i) => {
+                    const d = batch.details[i] || batch.details[0];
+                    return {
+                        ...d,
+                        bench: s.bench || d.bench || '',
+                        no: s.no || d.no || '',
+                        ct: d.ct || '',
+                        cb: d.cb || '',
+                        rs1: d.rs1 || d.rs || '',
+                        rs2: d.rs2 || d.rs || '',
+                        isScada: d.dataType === 'SCADA'
+                    };
+                });
+            }
             return [{
                 ...batch.details[0],
                 bench: batch.benchNumber || batch.details[0].bench || '',
-                no: batch.sleeperNo || batch.details[0].no || '',
+                no: samples[0]?.no || batch.sleeperNo || batch.details[0].no || '',
                 ct: batch.details[0].ct || '',
                 cb: batch.details[0].cb || '',
                 rs1: batch.details[0].rs1 || batch.details[0].rs || '',
@@ -1560,13 +1593,22 @@ const TestDetailsModal = ({ batch, onClose, onSave }) => {
                 isScada: batch.details[0].dataType === 'SCADA'
             }];
         }
+
+        // Fresh form: one row per declared sample
+        if (samples.length > 0) {
+            return samples.map(s => ({
+                bench: s.bench || '',
+                no: s.no,
+                ct: '', cb: '', rs1: '', rs2: '',
+                date: new Date().toISOString().split('T')[0]
+            }));
+        }
+
+        // Fallback: single row
         return [{
-            bench: batch.benchNumber || batch.declaredSamples?.[0]?.bench || '',
-            no: batch.sleeperNo || batch.declaredSamples?.map(s => s.no).filter(Boolean).join(', ') || '',
-            ct: '',
-            cb: '',
-            rs1: '',
-            rs2: '',
+            bench: batch.benchNumber || '',
+            no: batch.sleeperNo || '',
+            ct: '', cb: '', rs1: '', rs2: '',
             date: new Date().toISOString().split('T')[0]
         }];
     });
@@ -1683,8 +1725,13 @@ const TestDetailsModal = ({ batch, onClose, onSave }) => {
                     {manualResults.map((res, idx) => (
                         <div key={idx} style={{ marginBottom: '24px', padding: '20px', background: '#fff', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
                             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '16px', alignItems: 'center' }}>
-                                <h4 style={{ margin: 0, color: '#42818c', fontSize: '14px', fontWeight: '800' }}>
-                                    Test for Sleeper Sample: {displaySleeperNo}
+                                <h4 style={{ margin: 0, color: '#42818c', fontSize: '14px', fontWeight: '800', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                    <span style={{
+                                        background: idx === 0 ? '#0f766e' : '#7c3aed',
+                                        color: '#fff', borderRadius: '6px', padding: '2px 10px',
+                                        fontSize: '11px', fontWeight: '800'
+                                    }}>{idx === 0 ? 'Sample 1' : 'Sample 2'}</span>
+                                    Test for Sleeper: {res.no || displaySleeperNo}
                                 </h4>
                                 <button className="btn-verify" style={{ fontSize: '11px', padding: '6px 14px' }} onClick={() => handleWitness(idx)}>
                                     Witness through SCADA

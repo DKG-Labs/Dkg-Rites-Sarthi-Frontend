@@ -716,14 +716,22 @@ const AttendingCallsDashboard = ({
           const user = getStoredUser();
           const userId = user?.userId || user?.id || 0;
           await revertToInspection(callNo, userId);
+          setConfirmDialog(prev => ({ ...prev, isOpen: false }));
           localStorage.setItem('railpad_attending_calls_tab', 'pending');
           setNotification({ message: `Call ${callNo} reverted back to Inspection stage successfully. Refreshing...`, type: 'success' });
           setTimeout(() => {
             window.location.reload();
-          }, 500);
+          }, 600);
         } catch (err) {
           console.error('Failed to revert to inspection:', err);
-          setNotification({ message: `Failed to revert call: ${err.message || 'Server error'}`, type: 'error' });
+          let errMsg = err.message || 'Server error';
+          try {
+            const parsed = JSON.parse(errMsg);
+            if (parsed?.responseStatus?.message) {
+              errMsg = parsed.responseStatus.message;
+            }
+          } catch (_) {}
+          setNotification({ message: `Failed to revert call: ${errMsg}`, type: 'error' });
           setLoading(false);
           setConfirmDialog(prev => ({ ...prev, isOpen: false }));
         }
@@ -751,14 +759,22 @@ const AttendingCallsDashboard = ({
           const userId = user?.userId || user?.id || 0;
           await revertToIcIssuance(callNo, userId);
           setSelectedActionCall(null);
+          setConfirmDialog(prev => ({ ...prev, isOpen: false }));
           localStorage.setItem('railpad_attending_calls_tab', 'issuance');
           setNotification({ message: `Call ${callNo} reverted back to IC Issuance stage successfully. Refreshing...`, type: 'success' });
           setTimeout(() => {
             window.location.reload();
-          }, 500);
+          }, 600);
         } catch (err) {
           console.error('Failed to revert to IC issuance:', err);
-          setNotification({ message: `Failed to revert call: ${err.message || 'Server error'}`, type: 'error' });
+          let errMsg = err.message || 'Server error';
+          try {
+            const parsed = JSON.parse(errMsg);
+            if (parsed?.responseStatus?.message) {
+              errMsg = parsed.responseStatus.message;
+            }
+          } catch (_) {}
+          setNotification({ message: `Failed to revert call: ${errMsg}`, type: 'error' });
           setLoading(false);
           setConfirmDialog(prev => ({ ...prev, isOpen: false }));
         }
@@ -2689,6 +2705,7 @@ const AttendingCallsDashboard = ({
             }}>
               <button
                 type="button"
+                disabled={loading}
                 onClick={() => setConfirmDialog(prev => ({ ...prev, isOpen: false }))}
                 style={{
                   padding: '9px 18px',
@@ -2698,7 +2715,8 @@ const AttendingCallsDashboard = ({
                   color: '#475569',
                   fontWeight: '600',
                   fontSize: '13px',
-                  cursor: 'pointer',
+                  cursor: loading ? 'not-allowed' : 'pointer',
+                  opacity: loading ? 0.6 : 1,
                   transition: 'all 0.15s'
                 }}
               >
@@ -2706,8 +2724,9 @@ const AttendingCallsDashboard = ({
               </button>
               <button
                 type="button"
+                disabled={loading}
                 onClick={() => {
-                  if (typeof confirmDialog.onConfirm === 'function') {
+                  if (typeof confirmDialog.onConfirm === 'function' && !loading) {
                     confirmDialog.onConfirm();
                   }
                 }}
@@ -2721,12 +2740,13 @@ const AttendingCallsDashboard = ({
                   color: '#ffffff',
                   fontWeight: '700',
                   fontSize: '13px',
-                  cursor: 'pointer',
+                  cursor: loading ? 'not-allowed' : 'pointer',
+                  opacity: loading ? 0.7 : 1,
                   boxShadow: '0 2px 6px rgba(234, 88, 12, 0.3)',
                   transition: 'all 0.15s'
                 }}
               >
-                {confirmDialog.confirmText || 'Confirm'}
+                {loading ? 'Reverting...' : (confirmDialog.confirmText || 'Confirm')}
               </button>
             </div>
           </div>

@@ -8,6 +8,7 @@ import { CalibrationForm } from './CalibrationForm';
 import { IEMapping } from './IEMapping';
 import { IEFieldsForm } from './IEFieldsForm';
 import { CertificateStorageManager } from './CertificateStorageManager';
+import { IbsInspectionDataView } from './IbsInspectionDataView';
 import { Modal } from './Modal';
 import { API_BASE_URL } from '../../services/apiConfig';
 import { getStoredUser } from '../../services/authService';
@@ -479,6 +480,15 @@ export const AdminDashboard = () => {
                             <span>Inspection Certificates</span>
                         </button>
                     </li>
+                    <li className="nav-item">
+                        <button
+                            className={`nav-link ${activeModule === 'ibs-data' ? 'active' : ''}`}
+                            onClick={() => handleModuleSelect('ibs-data')}
+                        >
+                            <span>📋</span>
+                            <span>IBS Call Inspection Data</span>
+                        </button>
+                    </li>
                 </ul>
             </aside>
 
@@ -530,6 +540,12 @@ export const AdminDashboard = () => {
 
                     {activeModule === 'certificates' && (
                         <CertificateStorageManager
+                            onNotify={(msg, severity) => setSnackbar({ open: true, message: msg, severity: severity || 'info' })}
+                        />
+                    )}
+
+                    {activeModule === 'ibs-data' && (
+                        <IbsInspectionDataView
                             onNotify={(msg, severity) => setSnackbar({ open: true, message: msg, severity: severity || 'info' })}
                         />
                     )}

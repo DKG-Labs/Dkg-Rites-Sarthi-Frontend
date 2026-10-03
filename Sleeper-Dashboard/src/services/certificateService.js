@@ -2,10 +2,12 @@
 
 import { API_BASE_URL } from './api';
 
-const isLocal = typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
-const CERTIFICATE_STORAGE_URL = isLocal
-  ? 'https://api.ritesqasarthi.com/sarthi-backend/api/certificate-storage'
-  : `${API_BASE_URL.replace('/api', '')}/api/certificate-storage`;
+const getBaseUrl = () => {
+  const base = (API_BASE_URL || 'https://api.ritesqasarthi.com/sarthi-backend/api').replace(/\/+$/, '');
+  return base.endsWith('/api') ? base : `${base}/api`;
+};
+
+const CERTIFICATE_STORAGE_URL = `${getBaseUrl()}/certificate-storage`;
 
 const getAuthHeaders = () => ({
   'Content-Type': 'application/json',
@@ -13,11 +15,6 @@ const getAuthHeaders = () => ({
     ? { 'Authorization': `Bearer ${localStorage.getItem('authToken') || localStorage.getItem('token')}` }
     : {})
 });
-
-const getBaseUrl = () => {
-  const base = (API_BASE_URL || '').replace(/\/+$/, '');
-  return base;
-};
 
 /**
  * Upload Signed Certificate (Base64) to Azure Blob Storage
@@ -110,6 +107,11 @@ export const viewSignedCertificate = async (icNumber) => {
       }
       const errorText = await response.text();
       throw new Error(errorText || `Failed to fetch certificate: ${response.status}`);
+    }
+
+    const contentType = response.headers.get('content-type') || '';
+    if (!contentType.includes('application/json')) {
+      throw new Error('Signed certificate is not available or returned an unexpected format.');
     }
 
     const data = await response.json();
@@ -226,7 +228,7 @@ export const uploadAnnexureDocument = async (file, callNo, icNumber, moduleType,
     headers['Authorization'] = `Bearer ${token}`;
   }
 
-  const base = API_BASE_URL.endsWith('/api') ? API_BASE_URL : `${API_BASE_URL}/api`;
+  const base = getBaseUrl();
   const url = `${base}/ic-annexures/upload`;
   const response = await fetch(url, {
     method: 'POST',
@@ -260,7 +262,7 @@ export const getAnnexureDocuments = async (callNo, moduleType) => {
       'Content-Type': 'application/json',
       ...(token ? { 'Authorization': `Bearer ${token}` } : {})
     };
-    const base = API_BASE_URL.endsWith('/api') ? API_BASE_URL : `${API_BASE_URL}/api`;
+    const base = getBaseUrl();
     const url = `${base}/ic-annexures/list?callNo=${encodeURIComponent(callNo)}&moduleType=${encodeURIComponent(moduleType || 'SLEEPER')}`;
     const response = await fetch(url, { method: 'GET', headers });
     if (!response.ok) {
@@ -288,7 +290,7 @@ export const deleteAnnexureDocument = async (id, requestedBy) => {
     'Content-Type': 'application/json',
     ...(token ? { 'Authorization': `Bearer ${token}` } : {})
   };
-  const base = API_BASE_URL.endsWith('/api') ? API_BASE_URL : `${API_BASE_URL}/api`;
+  const base = getBaseUrl();
   const url = `${base}/ic-annexures/${id}?requestedBy=${encodeURIComponent(requestedBy || '')}`;
   const response = await fetch(url, { method: 'DELETE', headers });
   const contentType = response.headers.get('content-type') || '';
@@ -311,7 +313,7 @@ export const deleteAnnexureDocument = async (id, requestedBy) => {
  */
 export const viewAnnexureDocument = async (id, fileName) => {
   const token = localStorage.getItem('authToken') || localStorage.getItem('token');
-  const base = API_BASE_URL.endsWith('/api') ? API_BASE_URL : `${API_BASE_URL}/api`;
+  const base = getBaseUrl();
   const url = `${base}/ic-annexures/download/${id}`;
   const response = await fetch(url, {
     method: 'GET',

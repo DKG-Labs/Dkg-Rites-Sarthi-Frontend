@@ -595,23 +595,42 @@ export const resolveNcrgrspCatalogKey = (dwgOrType, candidateDrawings = []) => {
   // 1. Direct key match
   if (NCRGRSP_CATALOG[dwgOrType]) return dwgOrType;
 
-  // 2. Exact / normalized match on key names
+  // 2. Exact / normalized match on key names from dwgOrType
   const norm = normalizeDwg(dwgOrType);
   for (const key of Object.keys(NCRGRSP_CATALOG)) {
-    if (normalizeDwg(key) === norm || key.toLowerCase().includes(String(dwgOrType).toLowerCase()) || String(dwgOrType).toLowerCase().includes(key.toLowerCase())) {
+    const cleanKey = key.replace(/^(RT|T)[\/-]?/i, '').trim();
+    if (
+      normalizeDwg(key) === norm ||
+      key.toLowerCase() === str ||
+      str.includes(key.toLowerCase()) ||
+      str.includes(cleanKey.toLowerCase())
+    ) {
       return key;
     }
   }
 
-  // 3. Search drawing numbers inside catalog items
-  const allCandidates = [dwgOrType, ...(Array.isArray(candidateDrawings) ? candidateDrawings : [])];
-  for (const d of allCandidates) {
-    if (!d) continue;
-    const normD = normalizeDwg(d);
+  // 3. Search drawing numbers inside catalog items (Fallback when call drawing is not a main turnout key)
+  const candidateList = Array.isArray(candidateDrawings) ? candidateDrawings.filter(Boolean) : [];
+  if (candidateList.length > 0) {
+    let bestKey = null;
+    let maxMatches = 0;
+
     for (const [key, items] of Object.entries(NCRGRSP_CATALOG)) {
-      if (items.some(item => normalizeDwg(item.drawingNo) === normD || normalizeDwg(item.drawingNo).includes(normD) || normD.includes(normalizeDwg(item.drawingNo)))) {
-        return key;
+      const itemDwgSet = new Set(items.map(item => normalizeDwg(item.drawingNo)));
+      let matchCount = 0;
+      for (const cd of candidateList) {
+        if (itemDwgSet.has(normalizeDwg(cd))) {
+          matchCount++;
+        }
       }
+      if (matchCount > maxMatches) {
+        maxMatches = matchCount;
+        bestKey = key;
+      }
+    }
+
+    if (bestKey && maxMatches > 0) {
+      return bestKey;
     }
   }
 

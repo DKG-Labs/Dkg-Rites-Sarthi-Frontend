@@ -755,6 +755,13 @@
     box-shadow: 0 1px 2px rgba(16, 185, 129, 0.05);
 }
 
+.ibs-reg-status-pill.failed {
+    background: #fef2f2;
+    color: #991b1b;
+    border: 1px solid #fecaca;
+    box-shadow: 0 1px 2px rgba(239, 68, 68, 0.05);
+}
+
 .ibs-status-dot {
     width: 6px;
     height: 6px;
@@ -764,6 +771,64 @@
 
 .ibs-status-dot.success {
     background-color: #10b981;
+}
+
+.ibs-status-dot.failed {
+    background-color: #ef4444;
+}
+
+.ibs-reason-box {
+    display: flex;
+    align-items: flex-start;
+    gap: 5px;
+    font-size: 11px;
+    color: #b91c1c;
+    background: #fff5f5;
+    border: 1px solid #fecaca;
+    border-radius: 5px;
+    padding: 3px 7px;
+    max-width: 250px;
+    line-height: 1.35;
+    word-break: break-word;
+}
+
+.ibs-reason-icon {
+    font-size: 11px;
+    flex-shrink: 0;
+    margin-top: 1px;
+}
+
+.ibs-reason-text {
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.ibs-reason-box:hover .ibs-reason-text {
+    -webkit-line-clamp: unset;
+}
+
+.ibs-modal-reason-alert {
+    background: #fef2f2;
+    border: 1px solid #fca5a5;
+    border-left: 4px solid #ef4444;
+    padding: 10px 14px;
+    border-radius: 6px;
+    margin: 10px 0 14px 0;
+    color: #991b1b;
+    font-size: 13px;
+    line-height: 1.45;
+}
+
+.ibs-ack-badge.failed {
+    background: #ef4444 !important;
+}
+
+.ibs-modal-ack-banner.failed-banner {
+    background: #fff5f5;
+    border-color: #fecaca;
 }
 
 .ibs-billing-status-pill {

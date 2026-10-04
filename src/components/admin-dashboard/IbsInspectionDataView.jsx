@@ -234,6 +234,28 @@ export const IbsInspectionDataView = ({ onNotify }) => {
     const [selectedCall, setSelectedCall] = useState(null);
     const [copiedField, setCopiedField] = useState(null);
 
+    // View Mode State: 'CARDS' (mobile friendly, zero horizontal scrolling) | 'TABLE' (spreadsheet table)
+    const [viewMode, setViewMode] = useState(() => {
+        return (typeof window !== 'undefined' && window.innerWidth <= 768) ? 'CARDS' : 'TABLE';
+    });
+
+    useEffect(() => {
+        const handleResize = () => {
+            const isSmall = window.innerWidth <= 768;
+            const hasUserSwitched = sessionStorage.getItem('ibs_user_switched_view');
+            if (!hasUserSwitched) {
+                setViewMode(isSmall ? 'CARDS' : 'TABLE');
+            }
+        };
+        window.addEventListener('resize', handleResize);
+        return () => window.removeEventListener('resize', handleResize);
+    }, []);
+
+    const switchViewMode = (mode) => {
+        sessionStorage.setItem('ibs_user_switched_view', 'true');
+        setViewMode(mode);
+    };
+
     const notify = (msg, severity = 'info') => {
         if (onNotify) {
             onNotify(msg, severity);
@@ -1243,24 +1265,44 @@ export const IbsInspectionDataView = ({ onNotify }) => {
                         </span>
                     )}
                 </div>
-                <div className="ibs-page-size-selector">
-                    <label>Rows per page:</label>
-                    <select
-                        value={pageSize}
-                        onChange={(e) => {
-                            setPageSize(Number(e.target.value));
-                            setCurrentPage(1);
-                        }}
-                    >
-                        <option value={10}>10</option>
-                        <option value={25}>25</option>
-                        <option value={50}>50</option>
-                        <option value={100}>100</option>
-                    </select>
+                <div className="ibs-count-bar-right">
+                    {/* View Switcher: Cards vs Table */}
+                    <div className="ibs-view-mode-toggle" title="Toggle between Cards and Table view">
+                        <button
+                            type="button"
+                            className={`ibs-view-toggle-btn ${viewMode === 'CARDS' ? 'active' : ''}`}
+                            onClick={() => switchViewMode('CARDS')}
+                        >
+                            <span>📱</span> Cards
+                        </button>
+                        <button
+                            type="button"
+                            className={`ibs-view-toggle-btn ${viewMode === 'TABLE' ? 'active' : ''}`}
+                            onClick={() => switchViewMode('TABLE')}
+                        >
+                            <span>📊</span> Table
+                        </button>
+                    </div>
+
+                    <div className="ibs-page-size-selector">
+                        <label>Rows:</label>
+                        <select
+                            value={pageSize}
+                            onChange={(e) => {
+                                setPageSize(Number(e.target.value));
+                                setCurrentPage(1);
+                            }}
+                        >
+                            <option value={10}>10</option>
+                            <option value={25}>25</option>
+                            <option value={50}>50</option>
+                            <option value={100}>100</option>
+                        </select>
+                    </div>
                 </div>
             </div>
 
-            {/* Data Table */}
+            {/* Data Table or Cards */}
             <div className="ibs-table-card">
                 {loading ? (
                     <div className="ibs-loading-state">
@@ -1273,8 +1315,221 @@ export const IbsInspectionDataView = ({ onNotify }) => {
                         <h3>No inspection calls found</h3>
                         <p>No records matched your search and filter criteria in the {activeTab.toLowerCase()} tab.</p>
                     </div>
+                ) : viewMode === 'CARDS' ? (
+                    <div className="ibs-mobile-cards-list">
+                        {paginatedCalls.map((call, idx) => {
+                            const rowNum = (currentPage - 1) * pageSize + idx + 1;
+                            const category = getCallCategory(call.callNumber, call.icNumber, call.typeOfCall);
+                            const region = getRegionInfo(call.icNumber, call.caseNumber);
+                            const isBlocked = call.is_blocked === 1 || call.cancellation_charges > 0 || call.rejection_charges > 0;
+                            const isCompleted = activeTab === 'COMPLETED';
+
+                            return (
+                                <div key={call.callNumber ? `${call.callNumber}-${idx}` : idx} className={`ibs-mobile-card ${isBlocked && !isCompleted ? 'card-blocked' : ''}`}>
+                                    {/* Card Header: Category + Call Number + SR / Index */}
+                                    <div className="ibs-mcard-header">
+                                        <div className="ibs-mcard-header-left">
+                                            <span
+                                                className="ibs-category-tag"
+                                                style={{
+                                                    color: category.color,
+                                                    background: category.bg,
+                                                    borderColor: category.border
+                                                }}
+                                                title={category.label}
+                                            >
+                                                <span className="ibs-category-tag-icon">{category.icon}</span>
+                                                <span className="ibs-category-tag-code">{category.code}</span>
+                                            </span>
+                                            <div className="ibs-call-no-cell">
+                                                <span className="ibs-call-no-text">{call.callNumber || '-'}</span>
+                                                {call.callNumber && (
+                                                    <button
+                                                        type="button"
+                                                        className="ibs-btn-copy"
+                                                        title="Copy Call Number"
+                                                        onClick={() => handleCopy(call.callNumber, `call-${rowNum}`)}
+                                                    >
+                                                        {copiedField === `call-${rowNum}` ? '✓' : '📋'}
+                                                    </button>
+                                                )}
+                                            </div>
+                                        </div>
+                                        <div className="ibs-mcard-header-right">
+                                            {isCompleted && call.srNo ? (
+                                                <div className="ibs-sr-cell">
+                                                    <span className="ibs-sr-badge" title={`IBS SR No: ${call.srNo}`}>
+                                                        #{call.srNo}
+                                                    </span>
+                                                    <button
+                                                        type="button"
+                                                        className="ibs-btn-copy"
+                                                        title="Copy IBS SR Number"
+                                                        onClick={() => handleCopy(call.srNo, `sr-${rowNum}`)}
+                                                    >
+                                                        {copiedField === `sr-${rowNum}` ? '✓' : '📋'}
+                                                    </button>
+                                                </div>
+                                            ) : (
+                                                <span className="ibs-mcard-idx">#{rowNum}</span>
+                                            )}
+                                        </div>
+                                    </div>
+
+                                    {/* Case and Certificate */}
+                                    <div className="ibs-mcard-meta-row">
+                                        <div className="ibs-mcard-meta-item">
+                                            <span className="ibs-mcard-label">Case:</span>
+                                            <div className="ibs-case-cell">
+                                                {region.code !== '-' && (
+                                                    <span
+                                                        className="ibs-region-badge"
+                                                        style={{ color: region.color, background: region.bg, borderColor: region.color }}
+                                                        title={`Region: ${region.name}`}
+                                                    >
+                                                        {region.code}
+                                                    </span>
+                                                )}
+                                                <span className="ibs-case-text">{call.caseNumber || <em style={{ color: '#94a3b8' }}>None</em>}</span>
+                                            </div>
+                                        </div>
+                                        {call.icNumber && (
+                                            <div className="ibs-mcard-meta-item">
+                                                <span className="ibs-mcard-label">IC:</span>
+                                                <span className="ibs-ic-no-text">{call.icNumber}</span>
+                                            </div>
+                                        )}
+                                    </div>
+
+                                    {/* 2-Column Details Grid using full card width */}
+                                    <div className="ibs-mcard-details-grid">
+                                        <div className="ibs-mcard-detail-item">
+                                            <span className="ibs-mcard-label">📅 {isCompleted ? 'Ack / Call Date' : 'Call Date'}</span>
+                                            <div className="ibs-mcard-val" style={{ fontWeight: 700, color: '#0f172a' }}>
+                                                {call.acknowledgedAt || call.callDate || '-'}
+                                            </div>
+                                            {call.icDate && call.acknowledgedAt && (
+                                                <div style={{ fontSize: '11px', color: '#64748b' }}>IC: {call.icDate}</div>
+                                            )}
+                                        </div>
+
+                                        <div className="ibs-mcard-detail-item">
+                                            <span className="ibs-mcard-label">👤 IE Inspector</span>
+                                            <div>
+                                                <span className="ibs-ie-badge" style={{ fontSize: '12px', fontWeight: 600 }}>
+                                                    {call.ieEmployeeNumber || '-'}
+                                                </span>
+                                            </div>
+                                        </div>
+
+                                        <div className="ibs-mcard-detail-item">
+                                            <span className="ibs-mcard-label">🏢 POI Code</span>
+                                            <div>
+                                                <span className="ibs-poi-badge" style={{ fontSize: '12px' }} title={call.placeOfInspection}>
+                                                    {call.placeOfInspection || '-'}
+                                                </span>
+                                            </div>
+                                        </div>
+
+                                        <div className="ibs-mcard-detail-item">
+                                            <span className="ibs-mcard-label">🔬 Product & Stage</span>
+                                            <div
+                                                className="ibs-mcard-val"
+                                                style={{
+                                                    color: category.color,
+                                                    fontWeight: 700,
+                                                    fontSize: '12px'
+                                                }}
+                                                title={category.label}
+                                            >
+                                                {category.label}
+                                            </div>
+                                            {call.ibsManufacturedCode && (
+                                                <div style={{ fontSize: '11px', color: '#64748b' }}>
+                                                    Mfg: {call.ibsManufacturedCode}
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
+
+                                    {/* Quantities Bar */}
+                                    <div className="ibs-mcard-quantities-bar">
+                                        <div className="ibs-mcard-qty-item">
+                                            <span className="ibs-mcard-qty-lbl">Offered</span>
+                                            <span className="ibs-mcard-qty-num">{Number(call.quantityOffered || 0).toLocaleString('en-IN')}</span>
+                                        </div>
+                                        <div className="ibs-mcard-qty-item passed">
+                                            <span className="ibs-mcard-qty-lbl">Passed</span>
+                                            <span className="ibs-mcard-qty-num">{Number(call.quantityPassed || 0).toLocaleString('en-IN')}</span>
+                                        </div>
+                                        <div className="ibs-mcard-qty-item rejected">
+                                            <span className="ibs-mcard-qty-lbl">Rejected</span>
+                                            <span className="ibs-mcard-qty-num">
+                                                {call.quantityRejected > 0 ? Number(call.quantityRejected).toLocaleString('en-IN') : '0'}
+                                            </span>
+                                        </div>
+                                    </div>
+
+                                    {/* Status & Actions Footer */}
+                                    <div className="ibs-mcard-footer">
+                                        <div className="ibs-mcard-status">
+                                            {isCompleted ? (
+                                                <div className="ibs-status-stack">
+                                                    <div className="ibs-reg-status-pill">
+                                                        <span className="ibs-status-dot success"></span>
+                                                        <span>IBS Synced</span>
+                                                    </div>
+                                                    {(() => {
+                                                        const bInfo = getBillingDisplayInfo(call.billingStatus);
+                                                        return (
+                                                            <div className={`ibs-billing-status-pill ${bInfo.className}`} title={bInfo.tooltip}>
+                                                                <span className="ibs-billing-icon">{bInfo.icon}</span>
+                                                                <span className="ibs-billing-val">{bInfo.label}</span>
+                                                            </div>
+                                                        );
+                                                    })()}
+                                                </div>
+                                            ) : (
+                                                isBlocked ? (
+                                                    <span className="ibs-badge-blocked" title={`Cancel: ₹${call.cancellation_charges || 0} | Rej: ₹${call.rejection_charges || 0}`}>
+                                                        🚫 Blocked
+                                                    </span>
+                                                ) : (
+                                                    <span className="ibs-badge-active">Active</span>
+                                                )
+                                            )}
+                                        </div>
+                                        <div className="ibs-mcard-actions">
+                                            {call.icFileLink && (
+                                                <a
+                                                    href={call.icFileLink}
+                                                    target="_blank"
+                                                    rel="noopener noreferrer"
+                                                    className="ibs-action-btn ibs-btn-pdf"
+                                                    title="Open Inspection Certificate PDF"
+                                                >
+                                                    📄 PDF
+                                                </a>
+                                            )}
+                                            <button
+                                                type="button"
+                                                className="ibs-action-btn ibs-btn-details"
+                                                onClick={() => setSelectedCall(call)}
+                                                title="View Call Details"
+                                            >
+                                                👁️ Details
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            );
+                        })}
+                    </div>
                 ) : (
                     <div className="ibs-table-responsive">
+                        <div className="ibs-mobile-scroll-hint">
+                            <span>👉 Swipe horizontally to view all columns</span>
+                        </div>
                         <table className="ibs-table">
                             <thead>
                                 <tr>
@@ -1472,35 +1727,53 @@ export const IbsInspectionDataView = ({ onNotify }) => {
                         <div className="ibs-page-info">
                             Page <strong>{currentPage}</strong> of <strong>{totalPages}</strong> ({filteredCalls.length} items)
                         </div>
-                        <div className="ibs-page-buttons">
+                        <div className="ibs-pagination-controls">
                             <button
-                                className="btn btn-sm btn-secondary"
+                                type="button"
+                                className="ibs-page-nav-btn"
                                 onClick={() => setCurrentPage(1)}
                                 disabled={currentPage === 1}
+                                title="First Page"
                             >
-                                « First
+                                <span className="ibs-page-nav-icon">«</span>
+                                <span className="ibs-page-nav-text">First</span>
                             </button>
                             <button
-                                className="btn btn-sm btn-secondary"
+                                type="button"
+                                className="ibs-page-nav-btn"
                                 onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
                                 disabled={currentPage === 1}
+                                title="Previous Page"
                             >
-                                ‹ Prev
+                                <span className="ibs-page-nav-icon">‹</span>
+                                <span className="ibs-page-nav-text">Prev</span>
                             </button>
-                            <span className="ibs-current-page-num">{currentPage}</span>
+
+                            <div className="ibs-page-indicator-pill">
+                                <span className="ibs-page-num-active">{currentPage}</span>
+                                <span className="ibs-page-sep">/</span>
+                                <span className="ibs-page-num-total">{totalPages}</span>
+                            </div>
+
                             <button
-                                className="btn btn-sm btn-secondary"
+                                type="button"
+                                className="ibs-page-nav-btn"
                                 onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
                                 disabled={currentPage === totalPages}
+                                title="Next Page"
                             >
-                                Next ›
+                                <span className="ibs-page-nav-text">Next</span>
+                                <span className="ibs-page-nav-icon">›</span>
                             </button>
                             <button
-                                className="btn btn-sm btn-secondary"
+                                type="button"
+                                className="ibs-page-nav-btn"
                                 onClick={() => setCurrentPage(totalPages)}
                                 disabled={currentPage === totalPages}
+                                title="Last Page"
                             >
-                                Last »
+                                <span className="ibs-page-nav-text">Last</span>
+                                <span className="ibs-page-nav-icon">»</span>
                             </button>
                         </div>
                     </div>

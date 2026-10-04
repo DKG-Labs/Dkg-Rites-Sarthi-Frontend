@@ -58,10 +58,12 @@ export const AdminDashboard = () => {
     const [activeModule, setActiveModule] = useState(() => {
         return localStorage.getItem('adminActiveModule') || 'users';
     });
+    const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
 
     const handleModuleSelect = (moduleName) => {
         localStorage.setItem('adminActiveModule', moduleName);
         setActiveModule(moduleName);
+        setIsMobileNavOpen(false);
     };
     const [modalOpen, setModalOpen] = useState(false);
     const [modalTitle, setModalTitle] = useState('');
@@ -412,13 +414,32 @@ export const AdminDashboard = () => {
 
     return (
         <div className="admin-container">
+            {/* Mobile Sidebar Backdrop */}
+            {isMobileNavOpen && (
+                <div
+                    className="admin-sidebar-overlay"
+                    onClick={() => setIsMobileNavOpen(false)}
+                    aria-hidden="true"
+                />
+            )}
+
             {/* Sidebar Navigation */}
-            <aside className="admin-sidebar">
-                <div style={{ padding: '0 16px', marginBottom: '24px' }}>
-                    <h3 style={{ fontSize: '14px', fontWeight: '700', color: '#17a2b8', letterSpacing: '1px' }}>
-                        SARTHI
-                    </h3>
-                    <p style={{ fontSize: '11px', color: '#999', marginTop: '4px' }}>Admin Module</p>
+            <aside className={`admin-sidebar ${isMobileNavOpen ? 'mobile-open' : ''}`}>
+                <div className="admin-sidebar-header">
+                    <div>
+                        <h3 style={{ fontSize: '15px', fontWeight: '700', color: '#17a2b8', letterSpacing: '1px', margin: 0 }}>
+                            SARTHI
+                        </h3>
+                        <p style={{ fontSize: '11px', color: '#999', marginTop: '4px', margin: 0 }}>Admin Module</p>
+                    </div>
+                    <button
+                        type="button"
+                        className="admin-sidebar-close-btn"
+                        onClick={() => setIsMobileNavOpen(false)}
+                        aria-label="Close sidebar"
+                    >
+                        ✕
+                    </button>
                 </div>
                 <ul className="nav-menu">
                     <li className="nav-item">
@@ -482,7 +503,24 @@ export const AdminDashboard = () => {
 
             {/* Main Content */}
             <div className="admin-main">
-
+                {/* Mobile Topbar */}
+                <div className="admin-mobile-topbar">
+                    <button
+                        type="button"
+                        className="admin-mobile-toggle-btn"
+                        onClick={() => setIsMobileNavOpen(prev => !prev)}
+                        aria-label="Toggle navigation menu"
+                    >
+                        <span>☰</span>
+                        <span>Menu</span>
+                    </button>
+                    <div className="admin-mobile-active-title">
+                        {activeModule === 'users' && '👥 User Management'}
+                        {activeModule === 'mapping' && '🗺️ IE Mapping'}
+                        {activeModule === 'certificates' && '🛡️ Inspection Certificates'}
+                        {activeModule === 'ibs-data' && '📋 IBS Inspection Data'}
+                    </div>
+                </div>
 
                 <div className="admin-content">
                     {activeModule === 'users' && (

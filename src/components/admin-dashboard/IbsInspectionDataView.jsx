@@ -215,7 +215,7 @@ export const IbsInspectionDataView = ({ onNotify }) => {
     const [searchTerm, setSearchTerm] = useState('');
     const [regionFilter, setRegionFilter] = useState('ALL');
     const [blockedFilter, setBlockedFilter] = useState('ALL');
-    const [billingFilter, setBillingFilter] = useState('ALL');
+    const [statusFilter, setStatusFilter] = useState('ALL');
 
     // Date Range Filter
     const [startDate, setStartDate] = useState('');
@@ -233,6 +233,28 @@ export const IbsInspectionDataView = ({ onNotify }) => {
     // Detail Modal State
     const [selectedCall, setSelectedCall] = useState(null);
     const [copiedField, setCopiedField] = useState(null);
+
+    // View Mode State: 'CARDS' (mobile friendly, zero horizontal scrolling) | 'TABLE' (spreadsheet table)
+    const [viewMode, setViewMode] = useState(() => {
+        return (typeof window !== 'undefined' && window.innerWidth <= 768) ? 'CARDS' : 'TABLE';
+    });
+
+    useEffect(() => {
+        const handleResize = () => {
+            const isSmall = window.innerWidth <= 768;
+            const hasUserSwitched = sessionStorage.getItem('ibs_user_switched_view');
+            if (!hasUserSwitched) {
+                setViewMode(isSmall ? 'CARDS' : 'TABLE');
+            }
+        };
+        window.addEventListener('resize', handleResize);
+        return () => window.removeEventListener('resize', handleResize);
+    }, []);
+
+    const switchViewMode = (mode) => {
+        sessionStorage.setItem('ibs_user_switched_view', 'true');
+        setViewMode(mode);
+    };
 
     const notify = (msg, severity = 'info') => {
         if (onNotify) {
@@ -266,7 +288,7 @@ export const IbsInspectionDataView = ({ onNotify }) => {
             case 'quantityOffered': return 'Offered Qty';
             case 'quantityPassed': return 'Passed Qty';
             case 'quantityRejected': return 'Rejected Qty';
-            case 'status': return activeTab === 'COMPLETED' ? 'IBS / Billing Status' : 'Status / Block';
+            case 'status': return activeTab === 'COMPLETED' ? 'IBS Status' : 'Status / Block';
             default: return key;
         }
     };
@@ -366,7 +388,7 @@ export const IbsInspectionDataView = ({ onNotify }) => {
         setProductFilter('ALL');
         setRegionFilter('ALL');
         setBlockedFilter('ALL');
-        setBillingFilter('ALL');
+        setStatusFilter('ALL');
         setStartDate('');
         setEndDate('');
         setQuickDatePreset('ALL');
@@ -468,10 +490,10 @@ export const IbsInspectionDataView = ({ onNotify }) => {
                 }
             }
 
-            // Billing Status filter (Completed tab only)
-            if (activeTab === 'COMPLETED' && billingFilter !== 'ALL') {
-                const bStatus = (call.billingStatus || 'PENDING').toUpperCase();
-                if (bStatus !== billingFilter) return false;
+            // Status filter (Completed tab only: SUCCESS | FAILED)
+            if (activeTab === 'COMPLETED' && statusFilter !== 'ALL') {
+                const s = (call.ibsStatus || call.callStatus || call.status || 'SUCCESS').toUpperCase();
+                if (s !== statusFilter) return false;
             }
 
             // Date Range filter
@@ -524,6 +546,7 @@ export const IbsInspectionDataView = ({ onNotify }) => {
                 const bkNo = (call.bkNumber || '').toLowerCase();
                 const setNo = (call.setNumber || '').toLowerCase();
                 const catLabel = (cat.label || '').toLowerCase();
+                const reason = (call.reason || '').toLowerCase();
 
                 return callNo.includes(term) ||
                     caseNo.includes(term) ||
@@ -534,12 +557,13 @@ export const IbsInspectionDataView = ({ onNotify }) => {
                     vendorCode.includes(term) ||
                     bkNo.includes(term) ||
                     setNo.includes(term) ||
-                    catLabel.includes(term);
+                    catLabel.includes(term) ||
+                    reason.includes(term);
             }
 
             return true;
         });
-    }, [calls, categoryFilter, productFilter, regionFilter, blockedFilter, billingFilter, startDate, endDate, dateField, searchTerm, activeTab]);
+    }, [calls, categoryFilter, productFilter, regionFilter, blockedFilter, statusFilter, startDate, endDate, dateField, searchTerm, activeTab]);
 
     // Sorted Calls
     const sortedCalls = useMemo(() => {
@@ -614,8 +638,8 @@ export const IbsInspectionDataView = ({ onNotify }) => {
                 }
                 case 'status':
                     if (activeTab === 'COMPLETED') {
-                        valA = `${a.billingStatus || ''} ${a.ibsStatus || ''}`.trim().toLowerCase();
-                        valB = `${b.billingStatus || ''} ${b.ibsStatus || ''}`.trim().toLowerCase();
+                        valA = (a.ibsStatus || a.callStatus || a.status || '').toLowerCase();
+                        valB = (b.ibsStatus || b.callStatus || b.status || '').toLowerCase();
                     } else {
                         const blockA = (a.is_blocked === 1 || a.cancellation_charges > 0 || a.rejection_charges > 0) ? 1 : 0;
                         const blockB = (b.is_blocked === 1 || b.cancellation_charges > 0 || b.rejection_charges > 0) ? 1 : 0;
@@ -667,7 +691,7 @@ export const IbsInspectionDataView = ({ onNotify }) => {
         const isCompleted = activeTab === 'COMPLETED';
 
         const headers = [
-            ...(isCompleted ? ['IBS SR No', 'IBS Status', 'Billing Status', 'Acknowledged Date'] : []),
+            ...(isCompleted ? ['IBS SR No', 'IBS Status', 'Failure Reason', 'Acknowledged Date'] : []),
             'Category',
             'Product',
             'Stage',
@@ -698,8 +722,8 @@ export const IbsInspectionDataView = ({ onNotify }) => {
             return [
                 ...(isCompleted ? [
                     `"${c.srNo || ''}"`,
-                    `"${c.ibsStatus || 'SUCCESS'}"`,
-                    `"${c.billingStatus || 'PENDING'}"`,
+                    `"${c.ibsStatus || c.callStatus || c.status || 'SUCCESS'}"`,
+                    `"${(c.reason || '').replace(/"/g, '""')}"`,
                     `"${c.acknowledgedAt || ''}"`
                 ] : []),
                 `"${cat.key}"`,
@@ -1040,18 +1064,15 @@ export const IbsInspectionDataView = ({ onNotify }) => {
                     </div>
                 ) : (
                     <div className="ibs-filter-group">
-                        <label>Billing Status:</label>
+                        <label>Status:</label>
                         <select
-                            value={billingFilter}
-                            onChange={(e) => { setBillingFilter(e.target.value); setCurrentPage(1); }}
+                            value={statusFilter}
+                            onChange={(e) => { setStatusFilter(e.target.value); setCurrentPage(1); }}
                             className="ibs-select"
                         >
-                            <option value="ALL">All Billing Stages</option>
-                            <option value="COMPLETED">✅ Reconciled (Completed)</option>
-                            <option value="BILL_FETCHED">📄 Bill Generated</option>
-                            <option value="PAYMENT_FETCHED">💳 Payment Verified</option>
-                            <option value="FAILED">⏳ Awaiting Bill (Not Issued)</option>
-                            <option value="PENDING">🕒 Pending Sync</option>
+                            <option value="ALL">All Status</option>
+                            <option value="SUCCESS">✅ Success</option>
+                            <option value="FAILED">❌ Failed</option>
                         </select>
                     </div>
                 )}
@@ -1170,7 +1191,7 @@ export const IbsInspectionDataView = ({ onNotify }) => {
                     </div>
 
                     {/* Reset All Filters */}
-                    {(searchTerm || categoryFilter !== 'ALL' || productFilter !== 'ALL' || regionFilter !== 'ALL' || blockedFilter !== 'ALL' || billingFilter !== 'ALL' || startDate || endDate || sortConfig.key) && (
+                    {(searchTerm || categoryFilter !== 'ALL' || productFilter !== 'ALL' || regionFilter !== 'ALL' || blockedFilter !== 'ALL' || statusFilter !== 'ALL' || startDate || endDate || sortConfig.key) && (
                         <button
                             type="button"
                             className="btn btn-sm btn-secondary ibs-btn-reset-all"
@@ -1180,7 +1201,7 @@ export const IbsInspectionDataView = ({ onNotify }) => {
                                 setProductFilter('ALL');
                                 setRegionFilter('ALL');
                                 setBlockedFilter('ALL');
-                                setBillingFilter('ALL');
+                                setStatusFilter('ALL');
                                 setStartDate('');
                                 setEndDate('');
                                 setQuickDatePreset('ALL');
@@ -1212,10 +1233,10 @@ export const IbsInspectionDataView = ({ onNotify }) => {
                             <button onClick={() => setProductFilter('ALL')}>✕</button>
                         </span>
                     )}
-                    {activeTab === 'COMPLETED' && billingFilter !== 'ALL' && (
+                    {activeTab === 'COMPLETED' && statusFilter !== 'ALL' && (
                         <span className="ibs-active-filter-chip">
-                            Billing: <strong>{getBillingDisplayInfo(billingFilter).label}</strong>
-                            <button onClick={() => setBillingFilter('ALL')}>✕</button>
+                            Status: <strong>{statusFilter === 'SUCCESS' ? '✅ Success' : '❌ Failed'}</strong>
+                            <button onClick={() => setStatusFilter('ALL')}>✕</button>
                         </span>
                     )}
                     {(startDate || endDate) && (
@@ -1243,24 +1264,44 @@ export const IbsInspectionDataView = ({ onNotify }) => {
                         </span>
                     )}
                 </div>
-                <div className="ibs-page-size-selector">
-                    <label>Rows per page:</label>
-                    <select
-                        value={pageSize}
-                        onChange={(e) => {
-                            setPageSize(Number(e.target.value));
-                            setCurrentPage(1);
-                        }}
-                    >
-                        <option value={10}>10</option>
-                        <option value={25}>25</option>
-                        <option value={50}>50</option>
-                        <option value={100}>100</option>
-                    </select>
+                <div className="ibs-count-bar-right">
+                    {/* View Switcher: Cards vs Table */}
+                    <div className="ibs-view-mode-toggle" title="Toggle between Cards and Table view">
+                        <button
+                            type="button"
+                            className={`ibs-view-toggle-btn ${viewMode === 'CARDS' ? 'active' : ''}`}
+                            onClick={() => switchViewMode('CARDS')}
+                        >
+                            <span>📱</span> Cards
+                        </button>
+                        <button
+                            type="button"
+                            className={`ibs-view-toggle-btn ${viewMode === 'TABLE' ? 'active' : ''}`}
+                            onClick={() => switchViewMode('TABLE')}
+                        >
+                            <span>📊</span> Table
+                        </button>
+                    </div>
+
+                    <div className="ibs-page-size-selector">
+                        <label>Rows:</label>
+                        <select
+                            value={pageSize}
+                            onChange={(e) => {
+                                setPageSize(Number(e.target.value));
+                                setCurrentPage(1);
+                            }}
+                        >
+                            <option value={10}>10</option>
+                            <option value={25}>25</option>
+                            <option value={50}>50</option>
+                            <option value={100}>100</option>
+                        </select>
+                    </div>
                 </div>
             </div>
 
-            {/* Data Table */}
+            {/* Data Table or Cards */}
             <div className="ibs-table-card">
                 {loading ? (
                     <div className="ibs-loading-state">
@@ -1273,8 +1314,233 @@ export const IbsInspectionDataView = ({ onNotify }) => {
                         <h3>No inspection calls found</h3>
                         <p>No records matched your search and filter criteria in the {activeTab.toLowerCase()} tab.</p>
                     </div>
+                ) : viewMode === 'CARDS' ? (
+                    <div className="ibs-mobile-cards-list">
+                        {paginatedCalls.map((call, idx) => {
+                            const rowNum = (currentPage - 1) * pageSize + idx + 1;
+                            const category = getCallCategory(call.callNumber, call.icNumber, call.typeOfCall);
+                            const region = getRegionInfo(call.icNumber, call.caseNumber);
+                            const isBlocked = call.is_blocked === 1 || call.cancellation_charges > 0 || call.rejection_charges > 0;
+                            const isCompleted = activeTab === 'COMPLETED';
+
+                            return (
+                                <div key={call.callNumber ? `${call.callNumber}-${idx}` : idx} className={`ibs-mobile-card ${isBlocked && !isCompleted ? 'card-blocked' : ''}`}>
+                                    {/* Card Header: Category + Call Number + SR / Index */}
+                                    <div className="ibs-mcard-header">
+                                        <div className="ibs-mcard-header-left">
+                                            <span
+                                                className="ibs-category-tag"
+                                                style={{
+                                                    color: category.color,
+                                                    background: category.bg,
+                                                    borderColor: category.border
+                                                }}
+                                                title={category.label}
+                                            >
+                                                <span className="ibs-category-tag-icon">{category.icon}</span>
+                                                <span className="ibs-category-tag-code">{category.code}</span>
+                                            </span>
+                                            <div className="ibs-call-no-cell">
+                                                <span className="ibs-call-no-text">{call.callNumber || '-'}</span>
+                                                {call.callNumber && (
+                                                    <button
+                                                        type="button"
+                                                        className="ibs-btn-copy"
+                                                        title="Copy Call Number"
+                                                        onClick={() => handleCopy(call.callNumber, `call-${rowNum}`)}
+                                                    >
+                                                        {copiedField === `call-${rowNum}` ? '✓' : '📋'}
+                                                    </button>
+                                                )}
+                                            </div>
+                                        </div>
+                                        <div className="ibs-mcard-header-right">
+                                            {isCompleted && call.srNo ? (
+                                                <div className="ibs-sr-cell">
+                                                    <span className="ibs-sr-badge" title={`IBS SR No: ${call.srNo}`}>
+                                                        #{call.srNo}
+                                                    </span>
+                                                    <button
+                                                        type="button"
+                                                        className="ibs-btn-copy"
+                                                        title="Copy IBS SR Number"
+                                                        onClick={() => handleCopy(call.srNo, `sr-${rowNum}`)}
+                                                    >
+                                                        {copiedField === `sr-${rowNum}` ? '✓' : '📋'}
+                                                    </button>
+                                                </div>
+                                            ) : (
+                                                <span className="ibs-mcard-idx">#{rowNum}</span>
+                                            )}
+                                        </div>
+                                    </div>
+
+                                    {/* Case and Certificate */}
+                                    <div className="ibs-mcard-meta-row">
+                                        <div className="ibs-mcard-meta-item">
+                                            <span className="ibs-mcard-label">Case:</span>
+                                            <div className="ibs-case-cell">
+                                                {region.code !== '-' && (
+                                                    <span
+                                                        className="ibs-region-badge"
+                                                        style={{ color: region.color, background: region.bg, borderColor: region.color }}
+                                                        title={`Region: ${region.name}`}
+                                                    >
+                                                        {region.code}
+                                                    </span>
+                                                )}
+                                                <span className="ibs-case-text">{call.caseNumber || <em style={{ color: '#94a3b8' }}>None</em>}</span>
+                                            </div>
+                                        </div>
+                                        {call.icNumber && (
+                                            <div className="ibs-mcard-meta-item">
+                                                <span className="ibs-mcard-label">IC:</span>
+                                                <span className="ibs-ic-no-text">{call.icNumber}</span>
+                                            </div>
+                                        )}
+                                    </div>
+
+                                    {/* 2-Column Details Grid using full card width */}
+                                    <div className="ibs-mcard-details-grid">
+                                        <div className="ibs-mcard-detail-item">
+                                            <span className="ibs-mcard-label">📅 {isCompleted ? 'Ack / Call Date' : 'Call Date'}</span>
+                                            <div className="ibs-mcard-val" style={{ fontWeight: 700, color: '#0f172a' }}>
+                                                {call.acknowledgedAt || call.callDate || '-'}
+                                            </div>
+                                            {call.icDate && call.acknowledgedAt && (
+                                                <div style={{ fontSize: '11px', color: '#64748b' }}>IC: {call.icDate}</div>
+                                            )}
+                                        </div>
+
+                                        <div className="ibs-mcard-detail-item">
+                                            <span className="ibs-mcard-label">👤 IE Inspector</span>
+                                            <div>
+                                                <span className="ibs-ie-badge" style={{ fontSize: '12px', fontWeight: 600 }}>
+                                                    {call.ieEmployeeNumber || '-'}
+                                                </span>
+                                            </div>
+                                        </div>
+
+                                        <div className="ibs-mcard-detail-item">
+                                            <span className="ibs-mcard-label">🏢 POI Code</span>
+                                            <div>
+                                                <span className="ibs-poi-badge" style={{ fontSize: '12px' }} title={call.placeOfInspection}>
+                                                    {call.placeOfInspection || '-'}
+                                                </span>
+                                            </div>
+                                        </div>
+
+                                        <div className="ibs-mcard-detail-item">
+                                            <span className="ibs-mcard-label">🔬 Product & Stage</span>
+                                            <div
+                                                className="ibs-mcard-val"
+                                                style={{
+                                                    color: category.color,
+                                                    fontWeight: 700,
+                                                    fontSize: '12px'
+                                                }}
+                                                title={category.label}
+                                            >
+                                                {category.label}
+                                            </div>
+                                            {call.ibsManufacturedCode && (
+                                                <div style={{ fontSize: '11px', color: '#64748b' }}>
+                                                    Mfg: {call.ibsManufacturedCode}
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
+
+                                    {/* Quantities Bar */}
+                                    <div className="ibs-mcard-quantities-bar">
+                                        <div className="ibs-mcard-qty-item">
+                                            <span className="ibs-mcard-qty-lbl">Offered</span>
+                                            <span className="ibs-mcard-qty-num">{Number(call.quantityOffered || 0).toLocaleString('en-IN')}</span>
+                                        </div>
+                                        <div className="ibs-mcard-qty-item passed">
+                                            <span className="ibs-mcard-qty-lbl">Passed</span>
+                                            <span className="ibs-mcard-qty-num">{Number(call.quantityPassed || 0).toLocaleString('en-IN')}</span>
+                                        </div>
+                                        <div className="ibs-mcard-qty-item rejected">
+                                            <span className="ibs-mcard-qty-lbl">Rejected</span>
+                                            <span className="ibs-mcard-qty-num">
+                                                {call.quantityRejected > 0 ? Number(call.quantityRejected).toLocaleString('en-IN') : '0'}
+                                            </span>
+                                        </div>
+                                    </div>
+
+                                    {/* Status & Actions Footer */}
+                                    <div className="ibs-mcard-footer">
+                                        <div className="ibs-mcard-status">
+                                            {isCompleted ? (
+                                                (() => {
+                                                    const statusVal = (call.ibsStatus || call.callStatus || call.status || 'SUCCESS').toUpperCase();
+                                                    const isFailed = statusVal === 'FAILED';
+                                                    return (
+                                                        <div className="ibs-status-stack">
+                                                            <div
+                                                                className={`ibs-reg-status-pill ${isFailed ? 'failed' : 'success'}`}
+                                                                title={`IBS Status: ${statusVal}`}
+                                                            >
+                                                                <span className={`ibs-status-dot ${isFailed ? 'failed' : 'success'}`}></span>
+                                                                <span>{isFailed ? 'FAILED' : 'SUCCESS'}</span>
+                                                            </div>
+                                                            {isFailed && call.reason ? (
+                                                                <div className="ibs-reason-box" title={call.reason}>
+                                                                    <span className="ibs-reason-icon">⚠️</span>
+                                                                    <span className="ibs-reason-text">{call.reason}</span>
+                                                                </div>
+                                                            ) : (
+                                                                call.srNo ? (
+                                                                    <span style={{ fontSize: '11px', color: '#059669', fontWeight: 600 }}>
+                                                                        SR: #{call.srNo}
+                                                                    </span>
+                                                                ) : null
+                                                            )}
+                                                        </div>
+                                                    );
+                                                })()
+                                            ) : (
+                                                isBlocked ? (
+                                                    <span className="ibs-badge-blocked" title={`Cancel: ₹${call.cancellation_charges || 0} | Rej: ₹${call.rejection_charges || 0}`}>
+                                                        🚫 Blocked
+                                                    </span>
+                                                ) : (
+                                                    <span className="ibs-badge-active">Active</span>
+                                                )
+                                            )}
+                                        </div>
+                                        <div className="ibs-mcard-actions">
+                                            {call.icFileLink && (
+                                                <a
+                                                    href={call.icFileLink}
+                                                    target="_blank"
+                                                    rel="noopener noreferrer"
+                                                    className="ibs-action-btn ibs-btn-pdf"
+                                                    title="Open Inspection Certificate PDF"
+                                                >
+                                                    📄 PDF
+                                                </a>
+                                            )}
+                                            <button
+                                                type="button"
+                                                className="ibs-action-btn ibs-btn-details"
+                                                onClick={() => setSelectedCall(call)}
+                                                title="View Call Details"
+                                            >
+                                                👁️ Details
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            );
+                        })}
+                    </div>
                 ) : (
                     <div className="ibs-table-responsive">
+                        <div className="ibs-mobile-scroll-hint">
+                            <span>👉 Swipe horizontally to view all columns</span>
+                        </div>
                         <table className="ibs-table">
                             <thead>
                                 <tr>
@@ -1292,7 +1558,7 @@ export const IbsInspectionDataView = ({ onNotify }) => {
                                     {renderSortableTh('quantityOffered', 'Offered')}
                                     {renderSortableTh('quantityPassed', 'Passed')}
                                     {renderSortableTh('quantityRejected', 'Rejected')}
-                                    {renderSortableTh('status', activeTab === 'COMPLETED' ? 'IBS & Billing Status' : 'Status / Block')}
+                                    {renderSortableTh('status', activeTab === 'COMPLETED' ? 'IBS Status' : 'Status / Block')}
                                     <th style={{ textAlign: 'center' }}>Actions</th>
                                 </tr>
                             </thead>
@@ -1406,25 +1672,27 @@ export const IbsInspectionDataView = ({ onNotify }) => {
                                             </td>
                                             <td>
                                                 {isCompleted ? (
-                                                    <div className="ibs-status-stack">
-                                                        <div className="ibs-reg-status-pill" title={`IBS Call Registration: ${call.ibsStatus || 'SUCCESS'}`}>
-                                                            <span className="ibs-status-dot success"></span>
-                                                            <span>IBS Synced</span>
-                                                        </div>
-                                                        {(() => {
-                                                            const bInfo = getBillingDisplayInfo(call.billingStatus);
-                                                            return (
+                                                    (() => {
+                                                        const statusVal = (call.ibsStatus || call.callStatus || call.status || 'SUCCESS').toUpperCase();
+                                                        const isFailed = statusVal === 'FAILED';
+                                                        return (
+                                                            <div className="ibs-status-stack">
                                                                 <div
-                                                                    className={`ibs-billing-status-pill ${bInfo.className}`}
-                                                                    title={bInfo.tooltip}
+                                                                    className={`ibs-reg-status-pill ${isFailed ? 'failed' : 'success'}`}
+                                                                    title={`IBS Status: ${statusVal}`}
                                                                 >
-                                                                    <span className="ibs-billing-icon">{bInfo.icon}</span>
-                                                                    <span className="ibs-billing-caption">Billing:</span>
-                                                                    <span className="ibs-billing-val">{bInfo.label}</span>
+                                                                    <span className={`ibs-status-dot ${isFailed ? 'failed' : 'success'}`}></span>
+                                                                    <span>{isFailed ? 'FAILED' : 'SUCCESS'}</span>
                                                                 </div>
-                                                            );
-                                                        })()}
-                                                    </div>
+                                                                {isFailed && call.reason ? (
+                                                                    <div className="ibs-reason-box" title={call.reason}>
+                                                                        <span className="ibs-reason-icon">⚠️</span>
+                                                                        <span className="ibs-reason-text">{call.reason}</span>
+                                                                    </div>
+                                                                ) : null}
+                                                            </div>
+                                                        );
+                                                    })()
                                                 ) : (
                                                     isBlocked ? (
                                                         <span className="ibs-badge-blocked" title={`Cancel: ₹${call.cancellation_charges || 0} | Rej: ₹${call.rejection_charges || 0}`}>
@@ -1472,35 +1740,53 @@ export const IbsInspectionDataView = ({ onNotify }) => {
                         <div className="ibs-page-info">
                             Page <strong>{currentPage}</strong> of <strong>{totalPages}</strong> ({filteredCalls.length} items)
                         </div>
-                        <div className="ibs-page-buttons">
+                        <div className="ibs-pagination-controls">
                             <button
-                                className="btn btn-sm btn-secondary"
+                                type="button"
+                                className="ibs-page-nav-btn"
                                 onClick={() => setCurrentPage(1)}
                                 disabled={currentPage === 1}
+                                title="First Page"
                             >
-                                « First
+                                <span className="ibs-page-nav-icon">«</span>
+                                <span className="ibs-page-nav-text">First</span>
                             </button>
                             <button
-                                className="btn btn-sm btn-secondary"
+                                type="button"
+                                className="ibs-page-nav-btn"
                                 onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
                                 disabled={currentPage === 1}
+                                title="Previous Page"
                             >
-                                ‹ Prev
+                                <span className="ibs-page-nav-icon">‹</span>
+                                <span className="ibs-page-nav-text">Prev</span>
                             </button>
-                            <span className="ibs-current-page-num">{currentPage}</span>
+
+                            <div className="ibs-page-indicator-pill">
+                                <span className="ibs-page-num-active">{currentPage}</span>
+                                <span className="ibs-page-sep">/</span>
+                                <span className="ibs-page-num-total">{totalPages}</span>
+                            </div>
+
                             <button
-                                className="btn btn-sm btn-secondary"
+                                type="button"
+                                className="ibs-page-nav-btn"
                                 onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
                                 disabled={currentPage === totalPages}
+                                title="Next Page"
                             >
-                                Next ›
+                                <span className="ibs-page-nav-text">Next</span>
+                                <span className="ibs-page-nav-icon">›</span>
                             </button>
                             <button
-                                className="btn btn-sm btn-secondary"
+                                type="button"
+                                className="ibs-page-nav-btn"
                                 onClick={() => setCurrentPage(totalPages)}
                                 disabled={currentPage === totalPages}
+                                title="Last Page"
                             >
-                                Last »
+                                <span className="ibs-page-nav-text">Last</span>
+                                <span className="ibs-page-nav-icon">»</span>
                             </button>
                         </div>
                     </div>
@@ -1529,49 +1815,56 @@ export const IbsInspectionDataView = ({ onNotify }) => {
                                 </button>
                             </div>
                             <div className="ibs-modal-body">
-                                {/* IBS Acknowledgment Banner (if completed or has SR No) */}
-                                {hasIbsAck && (
-                                    <div className="ibs-modal-ack-banner">
-                                        <div className="ibs-modal-ack-header">
-                                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                                <span className="ibs-ack-badge">✓ IBS ACKNOWLEDGED</span>
-                                                <span className="ibs-ack-sr">SR No: #{selectedCall.srNo || '-'}</span>
-                                            </div>
-                                            {(() => {
-                                                const bInfo = getBillingDisplayInfo(selectedCall.billingStatus);
-                                                return (
-                                                    <span className={`ibs-billing-status-pill ${bInfo.className}`} title={bInfo.tooltip}>
-                                                        <span>{bInfo.icon}</span>
-                                                        <span className="ibs-billing-caption">Billing:</span>
-                                                        <span className="ibs-billing-val">{bInfo.label}</span>
+                                {/* IBS Acknowledgment Banner (if completed or has SR No or IBS Status) */}
+                                {hasIbsAck && (() => {
+                                    const statusVal = (selectedCall.ibsStatus || selectedCall.callStatus || selectedCall.status || 'SUCCESS').toUpperCase();
+                                    const isFailed = statusVal === 'FAILED';
+                                    return (
+                                        <div className={`ibs-modal-ack-banner ${isFailed ? 'failed-banner' : ''}`}>
+                                            <div className="ibs-modal-ack-header">
+                                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                                                    <span className={`ibs-ack-badge ${isFailed ? 'failed' : ''}`}>
+                                                        {isFailed ? '❌ REGISTRATION FAILED' : '✓ IBS ACKNOWLEDGED'}
                                                     </span>
-                                                );
-                                            })()}
+                                                    {selectedCall.srNo && (
+                                                        <span className="ibs-ack-sr">SR No: #{selectedCall.srNo}</span>
+                                                    )}
+                                                </div>
+                                            </div>
+                                            {isFailed && selectedCall.reason && (
+                                                <div className="ibs-modal-reason-alert">
+                                                    <strong>Failure Reason:</strong> {selectedCall.reason}
+                                                </div>
+                                            )}
+                                            <div className="ibs-modal-ack-grid">
+                                                <div>
+                                                    <small>IBS Status</small>
+                                                    <strong style={{ color: isFailed ? '#dc2626' : '#059669' }}>
+                                                        {statusVal}
+                                                    </strong>
+                                                </div>
+                                                <div>
+                                                    <small>SR Number</small>
+                                                    <strong>{selectedCall.srNo || '-'}</strong>
+                                                </div>
+                                                <div>
+                                                    <small>Acknowledged Date/Time</small>
+                                                    <strong>{selectedCall.acknowledgedAt || '-'}</strong>
+                                                </div>
+                                                <div>
+                                                    <small>API Version</small>
+                                                    <strong>{selectedCall.version || '1.0'}</strong>
+                                                </div>
+                                                {!isFailed && selectedCall.reason && (
+                                                    <div>
+                                                        <small>Response Reason / Notes</small>
+                                                        <span style={{ fontSize: '12px', color: '#475569' }}>{selectedCall.reason}</span>
+                                                    </div>
+                                                )}
+                                            </div>
                                         </div>
-                                        <div className="ibs-modal-ack-grid">
-                                            <div>
-                                                <small>IBS Call Registration</small>
-                                                <strong style={{ color: '#059669' }}>{selectedCall.ibsStatus || 'SUCCESS'} (Acknowledged)</strong>
-                                            </div>
-                                            <div>
-                                                <small>Billing Stage</small>
-                                                <strong>{getBillingDisplayInfo(selectedCall.billingStatus).label}</strong>
-                                            </div>
-                                            <div>
-                                                <small>Acknowledged Date/Time</small>
-                                                <strong>{selectedCall.acknowledgedAt || '-'}</strong>
-                                            </div>
-                                            <div>
-                                                <small>API Version</small>
-                                                <strong>{selectedCall.version || '1.0'}</strong>
-                                            </div>
-                                            <div>
-                                                <small>Response Reason / Notes</small>
-                                                <span style={{ fontSize: '12px', color: '#475569' }}>{selectedCall.reason || 'None'}</span>
-                                            </div>
-                                        </div>
-                                    </div>
-                                )}
+                                    );
+                                })()}
 
                                 {/* Category Banner */}
                                 <div

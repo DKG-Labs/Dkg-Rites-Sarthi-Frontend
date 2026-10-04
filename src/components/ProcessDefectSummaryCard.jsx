@@ -260,12 +260,61 @@ export default function ProcessDefectSummaryPage() {
         });
     };
 
-    const sortedData = useMemo(() => {
-        if (!data || data.length === 0 || !sortConfig.key) return data;
-        const accessor = sortAccessors[sortConfig.key];
-        if (!accessor) return data;
+    // Helper to determine if a shift record has any actual production, rejection, or defect data
+    const hasShiftData = (shift) => {
+        if (!shift) return false;
 
-        return [...data].sort((a, b) => {
+        // 1. Accepted or Rejected Qty
+        const accepted = Number(shift.basicDetails?.totalAcceptedQty || 0);
+        const rejected = Number(shift.basicDetails?.totalRejectionQty || 0);
+        if (accepted > 0 || rejected > 0) return true;
+
+        // 2. Process Stage Quantities (Prod or Rej)
+        const pq = shift.processQty || {};
+        const stageValues = [
+            pq.shearingProductionQty, pq.shearingRejectionQty,
+            pq.turningProductionQty, pq.turningRejectionQty,
+            pq.mpiProductionQty, pq.mpiRejectionQty,
+            pq.forgingProductionQty, pq.forgingRejectionQty,
+            pq.quenchingProductionQty, pq.quenchingRejectionQty,
+            pq.temperingProductionQty, pq.temperingRejectionQty,
+        ];
+        if (stageValues.some(v => Number(v || 0) > 0)) return true;
+
+        // 3. Any Defect Groups
+        const defectGroups = [
+            shift.shearingDefects,
+            shift.turningDefects,
+            shift.forgingDefects,
+            shift.quenchingDefects,
+            shift.temperingDefects,
+            shift.dimensionalDefects,
+            shift.visualDefects,
+            shift.testingDefects,
+            shift.finishingDefects,
+        ];
+        for (const group of defectGroups) {
+            if (group && typeof group === 'object') {
+                for (const val of Object.values(group)) {
+                    if (Number(val || 0) > 0) return true;
+                }
+            }
+        }
+
+        return false;
+    };
+
+    const activeData = useMemo(() => {
+        if (!Array.isArray(data)) return [];
+        return data.filter(hasShiftData);
+    }, [data]);
+
+    const sortedData = useMemo(() => {
+        if (!activeData || activeData.length === 0 || !sortConfig.key) return activeData;
+        const accessor = sortAccessors[sortConfig.key];
+        if (!accessor) return activeData;
+
+        return [...activeData].sort((a, b) => {
             let valA = accessor(a);
             let valB = accessor(b);
 
@@ -277,7 +326,7 @@ export default function ProcessDefectSummaryPage() {
             if (valA > valB) return sortConfig.direction === 'asc' ? 1 : -1;
             return 0;
         });
-    }, [data, sortConfig]);
+    }, [activeData, sortConfig]);
 
     const totalItems = sortedData.length;
     const totalPages = pageSize === 'all' ? 1 : (Math.ceil(totalItems / pageSize) || 1);
@@ -363,8 +412,51 @@ export default function ProcessDefectSummaryPage() {
         return false;
     };
 
+    // Helper to check if record was created/inspected by the currently logged-in user
+    const isUserShift = (record) => {
+        if (!record) return false;
+
+        const currentUserId = String(localStorage.getItem('userId') || '').trim().toLowerCase();
+        const currentEmpCode = String(localStorage.getItem('employeeCode') || '').trim().toLowerCase();
+        const currentUserName = String(localStorage.getItem('userName') || '').trim().toLowerCase();
+        const currentLoginId = String(localStorage.getItem('loginId') || '').trim().toLowerCase();
+
+        const createdBy = String(record?.basicDetails?.createdBy || record?.createdBy || '').trim().toLowerCase();
+        const engineer = String(record?.basicDetails?.engineer || record?.engineer || '').trim().toLowerCase();
+
+        // 1. Direct createdBy check against current user identifiers
+        if (createdBy) {
+            if (currentUserId && createdBy === currentUserId) return true;
+            if (currentEmpCode && createdBy === currentEmpCode) return true;
+            if (currentLoginId && createdBy === currentLoginId) return true;
+            if (currentUserName && createdBy === currentUserName) return true;
+        }
+
+        // 2. Engineer display string check (e.g. "ASHOK HALDER (104553)")
+        if (engineer) {
+            if (currentEmpCode && (engineer.includes(`(${currentEmpCode})`) || engineer.includes(currentEmpCode))) {
+                return true;
+            }
+            if (currentUserId && (engineer.includes(`(${currentUserId})`) || engineer.includes(currentUserId))) {
+                return true;
+            }
+            if (currentUserName && engineer.includes(currentUserName)) {
+                return true;
+            }
+            if (currentLoginId && engineer.includes(currentLoginId)) {
+                return true;
+            }
+        }
+
+        return false;
+    };
+
     // Open Edit Modal and load hourly details
     const handleOpenEditModal = async (shiftRow) => {
+        if (!isUserShift(shiftRow)) {
+            alert("You cannot edit another user's shift records. You can only edit your own shifts.");
+            return;
+        }
         if (!isCreatedToday(shiftRow)) {
             alert('Edit functionality is disabled. Records created before yesterday cannot be edited.');
             return;
@@ -465,6 +557,10 @@ export default function ProcessDefectSummaryPage() {
 
     // Open Delete Confirmation Modal
     const handleOpenDeleteModal = async (shiftRow) => {
+        if (!isUserShift(shiftRow)) {
+            alert("You cannot delete another user's shift records. You can only delete your own shifts.");
+            return;
+        }
         if (!isCreatedToday(shiftRow)) {
             alert('Delete functionality is disabled. Records created before yesterday cannot be deleted.');
             return;
@@ -500,6 +596,10 @@ export default function ProcessDefectSummaryPage() {
     // Confirm Delete
     const handleConfirmDelete = async () => {
         if (!shiftToDelete) return;
+        if (!isUserShift(shiftToDelete)) {
+            setDeleteError("You cannot delete another user's shift records.");
+            return;
+        }
         if (!isCreatedToday(shiftToDelete)) {
             setDeleteError('Delete functionality is disabled. Records created before yesterday cannot be deleted.');
             return;
@@ -721,6 +821,10 @@ export default function ProcessDefectSummaryPage() {
     // Save Defect Summary
     const handleSaveDefectSummary = async () => {
         if (!hourlyDetails) return;
+        if (!isUserShift(hourlyDetails)) {
+            setSaveError("You cannot edit another user's shift records.");
+            return;
+        }
         if (!isCreatedToday(hourlyDetails)) {
             setSaveError('Edit functionality is disabled. Records created before yesterday cannot be edited.');
             return;
@@ -890,15 +994,15 @@ export default function ProcessDefectSummaryPage() {
         document.body.removeChild(link);
     };
 
-    const totalAccepted = data.reduce((s, r) => s + (r.basicDetails?.totalAcceptedQty ?? 0), 0);
-    const totalRejected = data.reduce((s, r) => s + (r.basicDetails?.totalRejectionQty ?? 0), 0);
+    const totalAccepted = activeData.reduce((s, r) => s + (r.basicDetails?.totalAcceptedQty ?? 0), 0);
+    const totalRejected = activeData.reduce((s, r) => s + (r.basicDetails?.totalRejectionQty ?? 0), 0);
     const totalProduced = totalAccepted + totalRejected;
     const rejPct = totalProduced > 0 ? ((totalRejected / totalProduced) * 100).toFixed(1) : '0.0';
 
     /* ── KPI config ── */
     // eslint-disable-next-line no-unused-vars
     const kpis = [
-        { label: 'Shifts Recorded', value: data.length, icon: '📅', gradient: 'linear-gradient(135deg,#1e40af,#3b82f6)', accent: '#dbeafe' },
+        { label: 'Shifts Recorded', value: sortedData.length, icon: '📅', gradient: 'linear-gradient(135deg,#1e40af,#3b82f6)', accent: '#dbeafe' },
         { label: 'Total Produced', value: totalProduced.toLocaleString(), icon: '🏭', gradient: 'linear-gradient(135deg,#4f46e5,#8b5cf6)', accent: '#ede9fe' },
         { label: 'Total Accepted', value: totalAccepted.toLocaleString(), icon: '✅', gradient: 'linear-gradient(135deg,#065f46,#10b981)', accent: '#d1fae5' },
         { label: 'Total Rejected', value: totalRejected.toLocaleString(), icon: '❌', gradient: totalRejected > 0 ? 'linear-gradient(135deg,#991b1b,#ef4444)' : 'linear-gradient(135deg,#065f46,#10b981)', accent: totalRejected > 0 ? '#fee2e2' : '#d1fae5' },
@@ -1251,10 +1355,10 @@ export default function ProcessDefectSummaryPage() {
                             Shift-wise Defect Breakdown
                         </span>
                     </div>
-                    {data.length > 0 && (
+                    {sortedData.length > 0 && (
                         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                             <div style={{ padding: '3px 12px', background: '#eff6ff', borderRadius: 20, fontSize: '11px', fontWeight: 700, color: '#1d4ed8' }}>
-                                {data.length} shift{data.length !== 1 ? 's' : ''}
+                                {sortedData.length} shift{sortedData.length !== 1 ? 's' : ''}
                             </div>
                             <button
                                 onClick={downloadExcel}
@@ -1404,7 +1508,21 @@ export default function ProcessDefectSummaryPage() {
                                         const even = idx % 2 === 0;
                                         const rejQty = shift.basicDetails?.totalRejectionQty ?? 0;
                                         const globalSl = startIndex + idx + 1;
-                                        const canModify = isCreatedToday(shift);
+                                        const isOwnShift = isUserShift(shift);
+                                        const isRecent = isCreatedToday(shift);
+                                        const canModify = isOwnShift && isRecent;
+
+                                        const editTitle = !isOwnShift
+                                            ? "Editing is disabled for another user's shift. You can only edit your own shifts."
+                                            : (!isRecent
+                                                ? "Editing is disabled for records created before yesterday"
+                                                : "Edit Shift Defect Breakdown");
+
+                                        const deleteTitle = !isOwnShift
+                                            ? "Deletion is disabled for another user's shift. You can only delete your own shifts."
+                                            : (!isRecent
+                                                ? "Deletion is disabled for records created before yesterday"
+                                                : "Delete Shift Record");
                                         return (
                                             <tr key={idx} className={`pds-tr ${even ? 'row-odd' : 'row-even'}`}>
                                                 <td style={{ whiteSpace: 'nowrap', fontWeight: 500 }}>{shift.basicDetails?.date ? formatDate(shift.basicDetails.date) : '—'}</td>
@@ -1472,7 +1590,7 @@ export default function ProcessDefectSummaryPage() {
                                                             type="button"
                                                             onClick={() => canModify && handleOpenEditModal(shift)}
                                                             disabled={!canModify}
-                                                            title={canModify ? "Edit Shift Defect Breakdown" : "Editing is disabled for records created before yesterday"}
+                                                            title={editTitle}
                                                             style={{
                                                                 display: 'inline-flex',
                                                                 alignItems: 'center',
@@ -1511,7 +1629,7 @@ export default function ProcessDefectSummaryPage() {
                                                             type="button"
                                                             onClick={() => canModify && handleOpenDeleteModal(shift)}
                                                             disabled={!canModify}
-                                                            title={canModify ? "Delete Shift Record" : "Deletion is disabled for records created before yesterday"}
+                                                            title={deleteTitle}
                                                             style={{
                                                                 display: 'inline-flex',
                                                                 alignItems: 'center',
@@ -2611,21 +2729,21 @@ export default function ProcessDefectSummaryPage() {
                                 <button
                                     type="button"
                                     onClick={handleSaveDefectSummary}
-                                    disabled={saveLoading || !hourlyDetails || !isCreatedToday(hourlyDetails)}
-                                    title={!isCreatedToday(hourlyDetails) ? 'Editing is disabled. Records created before yesterday cannot be edited.' : 'Save changes'}
+                                    disabled={saveLoading || !hourlyDetails || !isCreatedToday(hourlyDetails) || !isUserShift(hourlyDetails)}
+                                    title={!isUserShift(hourlyDetails) ? "You cannot edit another user's shift records." : (!isCreatedToday(hourlyDetails) ? 'Editing is disabled. Records created before yesterday cannot be edited.' : 'Save changes')}
                                     style={{
                                         padding: '8px 20px',
                                         borderRadius: '8px',
                                         border: 'none',
-                                        background: (!isCreatedToday(hourlyDetails) || saveLoading) ? '#94a3b8' : '#059669',
+                                        background: (!isCreatedToday(hourlyDetails) || !isUserShift(hourlyDetails) || saveLoading) ? '#94a3b8' : '#059669',
                                         color: '#ffffff',
                                         fontSize: '13px',
                                         fontWeight: 700,
-                                        cursor: (!isCreatedToday(hourlyDetails) || saveLoading) ? 'not-allowed' : 'pointer',
+                                        cursor: (!isCreatedToday(hourlyDetails) || !isUserShift(hourlyDetails) || saveLoading) ? 'not-allowed' : 'pointer',
                                         display: 'inline-flex',
                                         alignItems: 'center',
                                         gap: 8,
-                                        boxShadow: (!isCreatedToday(hourlyDetails) || saveLoading) ? 'none' : '0 2px 6px rgba(5, 150, 105, 0.25)'
+                                        boxShadow: (!isCreatedToday(hourlyDetails) || !isUserShift(hourlyDetails) || saveLoading) ? 'none' : '0 2px 6px rgba(5, 150, 105, 0.25)'
                                     }}
                                 >
                                     {saveLoading && (

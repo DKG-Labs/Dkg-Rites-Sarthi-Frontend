@@ -3,6 +3,7 @@ import { useSearchParams } from 'react-router-dom';
 import Pagination from '../Pagination';
 import { useInspection } from '../../context/InspectionContext';
 import AnnexurePage from '../../pages/AnnexurePage';
+import AnnexureUploadModal from '../AnnexureUploadModal';
 import { API_ENDPOINTS, getAuthHeaders, handleResponse } from '../../services/apiConfig';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
@@ -47,6 +48,12 @@ const DownloadIcAnnexures = ({ selectedProduct = 'ERC', fromDate: initialFromDat
     const [records, setRecords] = useState([]);
     const [loading, setLoading] = useState(false);
     const [isViewingAnnexures, setIsViewingAnnexures] = useState(false);
+    const [viewAnnexureModal, setViewAnnexureModal] = useState({
+        isOpen: false,
+        callNo: '',
+        icNumber: '',
+        moduleType: 'SLEEPER'
+    });
     const { setSelectedCall, getIcAnnexuresCachedData, updateIcAnnexuresCache, clearIcAnnexuresCache } = useInspection();
     const [, setSearchParams] = useSearchParams();
 
@@ -397,6 +404,18 @@ const DownloadIcAnnexures = ({ selectedProduct = 'ERC', fromDate: initialFromDat
 
     // Real Download Annexures sequence which triggers the Annexures view
     const handleDownloadAnnexures = (record) => {
+        const normProduct = (selectedProduct || '').toUpperCase();
+        if (normProduct.includes('SLEEPER') || normProduct.includes('RAIL')) {
+            setViewAnnexureModal({
+                isOpen: true,
+                callNo: record.callNumber || '',
+                icNumber: record.icNumber || '',
+                moduleType: normProduct.includes('SLEEPER') ? 'SLEEPER' : 'RAILPAD'
+            });
+            return;
+        }
+
+        // For ERC, continue with the standard tabular AnnexurePage
         const callObj = {
             call_no: record.callNumber,
             vendor_name: record.vendorName,
@@ -905,6 +924,18 @@ const DownloadIcAnnexures = ({ selectedProduct = 'ERC', fromDate: initialFromDat
                         </div>
                     </div>
                 </div>
+            )}
+
+            {/* View Annexure Modal for Sleeper / Railpad uploaded documents */}
+            {viewAnnexureModal.isOpen && (
+                <AnnexureUploadModal
+                    isOpen={viewAnnexureModal.isOpen}
+                    onClose={() => setViewAnnexureModal({ isOpen: false, callNo: '', icNumber: '', moduleType: 'SLEEPER' })}
+                    callNo={viewAnnexureModal.callNo}
+                    icNumber={viewAnnexureModal.icNumber}
+                    moduleType={viewAnnexureModal.moduleType}
+                    mode="view"
+                />
             )}
         </div>
     );

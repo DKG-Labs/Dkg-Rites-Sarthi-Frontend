@@ -309,10 +309,18 @@ const RailpadProcessInspectionDashboard = ({ user, call, currentShift, onBack, o
   const handleAcceptedQtyChange = (batchId, val) => {
     setSelectedBatches(prev => {
       if (!prev[batchId]) return prev;
-      const avail = prev[batchId].availableQty !== undefined ? prev[batchId].availableQty : prev[batchId].qtyManufactured;
-      const rej = prev[batchId].qtyRejected || 0;
+      const originalBatch = batches.find(b => b.declarationBatchId.toString() === batchId.toString()) || {};
+      const avail = prev[batchId].availableQty !== undefined ? prev[batchId].availableQty : (originalBatch.availableQty || prev[batchId].qtyManufactured);
+      const rej = prev[batchId].qtyRejected !== undefined ? prev[batchId].qtyRejected : (originalBatch.verificationRejectedQty || 0);
       const maxAllowed = Math.max(0, avail - rej);
-      const parsed = val === '' ? '' : parseInt(val, 10);
+      let parsed = val === '' ? '' : parseInt(val, 10);
+      if (typeof parsed === 'number' && !isNaN(parsed)) {
+        if (parsed > maxAllowed) {
+          parsed = maxAllowed;
+        } else if (parsed < 0) {
+          parsed = 0;
+        }
+      }
       const num = typeof parsed === 'number' && !isNaN(parsed) ? parsed : 0;
       const rem = typeof parsed === 'number' ? Math.max(0, avail - num - rej) : Math.max(0, avail - rej);
       return {
@@ -334,15 +342,16 @@ const RailpadProcessInspectionDashboard = ({ user, call, currentShift, onBack, o
     let hasInvalidQty = false;
 
     Object.values(selectedBatches).forEach(b => {
-      const avail = b.availableQty !== undefined ? b.availableQty : b.qtyManufactured;
-      const rej = b.qtyRejected || 0;
+      const originalBatch = batches.find(orig => orig.declarationBatchId.toString() === (b.declarationBatchId || '').toString()) || {};
+      const avail = b.availableQty !== undefined ? b.availableQty : (originalBatch.availableQty || b.qtyManufactured);
+      const rej = b.qtyRejected !== undefined ? b.qtyRejected : (originalBatch.verificationRejectedQty || 0);
       const maxAllowed = Math.max(0, avail - rej);
       totalManufactured += (b.qtyManufactured || avail);
       totalRejected += rej;
 
       const rawAcc = (b.acceptedQty !== undefined && b.acceptedQty !== null) ? b.acceptedQty : maxAllowed;
       const acc = typeof rawAcc === 'number' ? rawAcc : (rawAcc === '' ? NaN : parseInt(rawAcc, 10));
-      if (rawAcc === '' || isNaN(acc) || acc < 0 || acc > maxAllowed) {
+      if (rawAcc === '' || isNaN(acc) || (maxAllowed > 0 ? (acc <= 0 || acc > maxAllowed) : acc < 0)) {
         hasInvalidQty = true;
       }
       totalAccepted += (!isNaN(acc) && acc > 0 ? acc : 0);
@@ -351,7 +360,7 @@ const RailpadProcessInspectionDashboard = ({ user, call, currentShift, onBack, o
     const totalOffered = totalAccepted + totalRejected;
 
     return { totalManufactured, totalRejected, totalAccepted, totalOffered, hasInvalidQty };
-  }, [selectedBatches]);
+  }, [selectedBatches, batches]);
 
   const formatDate = (dateStr) => {
     if (!dateStr || dateStr === 'N/A') return 'N/A';
@@ -467,14 +476,17 @@ const RailpadProcessInspectionDashboard = ({ user, call, currentShift, onBack, o
       const matchingBatches = Object.values(selectedBatches).filter(
         b => normalizeDwg(b.drawingNo) === normTarget
       ).map(b => {
-        const avail = b.availableQty !== undefined ? b.availableQty : b.qtyManufactured;
-        const acc = typeof b.acceptedQty === 'number' ? b.acceptedQty : (parseInt(b.acceptedQty, 10) || avail);
+        const originalBatch = batches.find(orig => orig.declarationBatchId.toString() === (b.declarationBatchId || '').toString()) || {};
+        const avail = b.availableQty !== undefined ? b.availableQty : (originalBatch.availableQty || b.qtyManufactured);
+        const rej = b.qtyRejected !== undefined ? b.qtyRejected : (originalBatch.verificationRejectedQty || 0);
+        const maxAllowed = Math.max(0, avail - rej);
+        const acc = typeof b.acceptedQty === 'number' ? b.acceptedQty : (parseInt(b.acceptedQty, 10) || maxAllowed);
         return {
           ...b,
           acceptedQty: acc,
           availableQty: avail,
-          qtyRejected: b.qtyRejected !== undefined ? b.qtyRejected : (b.verificationRejectedQty || 0),
-          remainingQty: Math.max(0, avail - acc)
+          qtyRejected: rej,
+          remainingQty: Math.max(0, avail - acc - rej)
         };
       });
 
@@ -521,17 +533,19 @@ const RailpadProcessInspectionDashboard = ({ user, call, currentShift, onBack, o
         map[dwg] = { drawingNo: dwg, selectedCount: 0, totalAvailable: 0, acceptedQty: 0, rejectedQty: 0, remainingQty: 0, selectedBatchesList: [] };
       }
       map[dwg].selectedCount += 1;
+      const originalBatch = batches.find(orig => orig.declarationBatchId.toString() === (b.declarationBatchId || '').toString()) || {};
+      const avail = b.availableQty !== undefined ? b.availableQty : (originalBatch.availableQty || b.qtyManufactured);
+      const rej = b.qtyRejected !== undefined ? b.qtyRejected : (originalBatch.verificationRejectedQty || 0);
       const acc = typeof b.acceptedQty === 'number' ? b.acceptedQty : parseInt(b.acceptedQty, 10) || 0;
       map[dwg].acceptedQty += (acc > 0 ? acc : 0);
-      map[dwg].rejectedQty += (b.qtyRejected || 0);
-      const avail = b.availableQty !== undefined ? b.availableQty : b.qtyManufactured;
-      map[dwg].remainingQty += Math.max(0, avail - acc);
+      map[dwg].rejectedQty += rej;
+      map[dwg].remainingQty += Math.max(0, avail - acc - rej);
       map[dwg].selectedBatchesList.push({
         ...b,
         acceptedQty: acc,
         availableQty: avail,
-        qtyRejected: b.qtyRejected !== undefined ? b.qtyRejected : (b.verificationRejectedQty || 0),
-        remainingQty: Math.max(0, avail - acc)
+        qtyRejected: rej,
+        remainingQty: Math.max(0, avail - acc - rej)
       });
     });
 
@@ -667,14 +681,14 @@ const RailpadProcessInspectionDashboard = ({ user, call, currentShift, onBack, o
           const batchData = selectedBatches[id];
           const originalBatch = batches.find(b => b.declarationBatchId.toString() === id.toString()) || {};
           const avail = batchData.availableQty !== undefined ? batchData.availableQty : (originalBatch.availableQty || batchData.qtyManufactured);
-          const rej = batchData.qtyRejected || 0;
+          const rej = batchData.qtyRejected !== undefined ? batchData.qtyRejected : (originalBatch.verificationRejectedQty || 0);
           const maxAllowed = Math.max(0, avail - rej);
           const rawAcc = typeof batchData.acceptedQty === 'number' ? batchData.acceptedQty : parseInt(batchData.acceptedQty, 10);
           const acc = (!isNaN(rawAcc) && rawAcc >= 0) ? Math.min(rawAcc, maxAllowed) : maxAllowed;
           const rem = Math.max(0, avail - acc - rej);
 
           let batchRejectionReason = null;
-          if (batchData.qtyRejected > 0) {
+          if (rej > 0) {
             if (originalBatch.rejections && originalBatch.rejections.length > 0) {
               batchRejectionReason = originalBatch.rejections
                 .map(r => `${r.reason || 'Rejected'}${r.rejectedQty != null ? ` (${r.rejectedQty} Nos)` : ''}`)
@@ -693,7 +707,7 @@ const RailpadProcessInspectionDashboard = ({ user, call, currentShift, onBack, o
             qtyManufactured: originalBatch.qtyManufactured || batchData.qtyManufactured,
             qtyAvailable: avail,
             qtyAccepted: acc,
-            qtyRejected: batchData.qtyRejected || 0,
+            qtyRejected: rej,
             qtyRemaining: rem
           };
         })
@@ -1178,8 +1192,16 @@ const RailpadProcessInspectionDashboard = ({ user, call, currentShift, onBack, o
                             const isSelected = !!selectedBatches[batch.declarationBatchId];
                             const batchSelection = selectedBatches[batch.declarationBatchId] || {};
                             const availableQty = batch.availableQty !== undefined ? batch.availableQty : batch.qtyManufactured;
-                            const acceptedVal = batchSelection.acceptedQty !== undefined ? batchSelection.acceptedQty : availableQty;
-                            const isInvalid = isSelected && (acceptedVal === '' || acceptedVal <= 0 || acceptedVal > availableQty);
+                            const rejQty = batch.verificationRejectedQty !== undefined ? batch.verificationRejectedQty : (batchSelection.qtyRejected || 0);
+                            const maxAllowed = Math.max(0, availableQty - rejQty);
+                            const acceptedVal = batchSelection.acceptedQty !== undefined ? batchSelection.acceptedQty : maxAllowed;
+                            const currentAcceptedNum = typeof acceptedVal === 'number' ? acceptedVal : (acceptedVal === '' ? NaN : parseInt(acceptedVal, 10));
+                            const isInvalid = isSelected && (
+                              acceptedVal === '' ||
+                              isNaN(currentAcceptedNum) ||
+                              (maxAllowed > 0 ? (currentAcceptedNum <= 0 || currentAcceptedNum > maxAllowed) : currentAcceptedNum < 0)
+                            );
+                            const currentBal = Math.max(0, availableQty - rejQty - (!isNaN(currentAcceptedNum) ? currentAcceptedNum : 0));
 
                             return (
                               <div
@@ -1211,9 +1233,9 @@ const RailpadProcessInspectionDashboard = ({ user, call, currentShift, onBack, o
                                     <div style={{ display: 'flex', gap: '6px', fontSize: '11px', color: '#64748b', marginTop: '2px', flexWrap: 'wrap' }}>
                                       <span>Decl: <b>{batch.qtyManufactured}</b></span>
                                       <span>Avail: <b style={{ color: '#0f3a5e' }}>{availableQty}</b></span>
-                                      {batch.verificationRejectedQty > 0 && (
+                                      {rejQty > 0 && (
                                         <span style={{ color: '#dc2626', fontWeight: '700' }}>
-                                          Rej: {batch.verificationRejectedQty}
+                                          Rej: {rejQty}
                                         </span>
                                       )}
                                     </div>
@@ -1223,25 +1245,30 @@ const RailpadProcessInspectionDashboard = ({ user, call, currentShift, onBack, o
                                 {isSelected && (
                                   <div className="qty-input-group" onClick={(e) => e.stopPropagation()}>
                                     <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
-                                      <span className="qty-input-label">Accepted:</span>
+                                      <span className="qty-input-label">ACCEPTED:</span>
                                       <input
                                         type="number"
-                                        min="1"
-                                        max={availableQty}
+                                        min={maxAllowed > 0 ? '1' : '0'}
+                                        max={maxAllowed}
                                         className={`qty-number-input ${isInvalid ? 'input-error' : ''}`}
                                         value={acceptedVal}
                                         onChange={(e) => handleAcceptedQtyChange(batch.declarationBatchId, e.target.value)}
+                                        onBlur={() => {
+                                          if (acceptedVal === '' || isNaN(currentAcceptedNum) || (maxAllowed > 0 && currentAcceptedNum <= 0)) {
+                                            handleAcceptedQtyChange(batch.declarationBatchId, maxAllowed);
+                                          }
+                                        }}
                                         disabled={isSubmitting}
                                       />
                                     </div>
                                     <span className="balance-pill">
-                                      Bal: <b>{Math.max(0, availableQty - (parseInt(acceptedVal, 10) || 0))}</b>
+                                      Bal: <b>{currentBal}</b>
                                     </span>
                                     {isInvalid && (
                                       <div className="error-pill" style={{ width: '100%', marginTop: '3px', fontSize: '10px' }}>
-                                        {acceptedVal === '' || acceptedVal <= 0
+                                        {acceptedVal === '' || (maxAllowed > 0 && currentAcceptedNum <= 0)
                                           ? 'Must be > 0'
-                                          : `Max: ${availableQty}`}
+                                          : `Max: ${maxAllowed}`}
                                       </div>
                                     )}
                                   </div>

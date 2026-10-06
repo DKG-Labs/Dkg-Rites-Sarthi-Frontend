@@ -482,6 +482,7 @@ const MainDashboard = () => {
                                         type="date"
                                         name="date"
                                         value={formData.date}
+                                        max={new Date().toISOString().split('T')[0]}
                                         onChange={handleChange}
                                         required
                                     />

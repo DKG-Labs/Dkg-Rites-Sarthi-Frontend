@@ -116,6 +116,7 @@ const ResumeCallModal = ({ isOpen, onClose, call, onConfirm, isResume = true, is
                         type="date"
                         className="form-control"
                         value={date}
+                        max={new Date().toISOString().split('T')[0]}
                         onChange={(e) => {
                             setDate(e.target.value);
                             setError('');

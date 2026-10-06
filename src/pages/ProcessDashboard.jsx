@@ -8516,6 +8516,7 @@ const ProcessDashboard = ({ call, onBack, onNavigateToSubModule, productionLines
                   type="date"
                   className="modal-input"
                   value={newCallDate}
+                  max={new Date().toISOString().split('T')[0]}
                   onChange={(e) => {
                     setNewCallDate(e.target.value);
                     setNewCallInitiateError('');

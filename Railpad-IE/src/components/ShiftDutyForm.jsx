@@ -219,6 +219,7 @@ const ShiftDutyForm = ({ onSubmit, onCancel, hideCompanyAndUnit = false, initial
               type="date" 
               name="date" 
               value={formData.date} 
+              max={new Date().toISOString().split('T')[0]}
               onChange={handleChange}
               required
               className="form-input-premium"

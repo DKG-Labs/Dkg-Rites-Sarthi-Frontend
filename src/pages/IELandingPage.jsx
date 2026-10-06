@@ -1466,6 +1466,7 @@ const IELandingPage = ({ onStartInspection, onStartMultipleInspections, setSelec
               type="date"
               className="form-control"
               value={shiftDetailsDate}
+              max={new Date().toISOString().split('T')[0]}
               onChange={(e) => {
                 setShiftDetailsDate(e.target.value);
                 setShiftDetailsError('');

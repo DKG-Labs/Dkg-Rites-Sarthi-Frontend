@@ -169,15 +169,116 @@ const RawMaterialDashboard = ({ call, onBack, onNavigateToSubModule, onHeatsChan
     } catch { return {}; }
   });
 
-  const [heatSealingType, setHeatSealingType] = useState(() => {
+  // Common Sealing Type: 'RITES_STEEL_PUNCH', 'RITES_HOLOGRAM', or 'RITES_STEEL_PUNCH, RITES_HOLOGRAM'
+  const [commonSealingType, setCommonSealingType] = useState(() => {
     try {
       const callNo = call?.call_no;
-      if (!callNo) return {};
+      if (!callNo) return '';
+      const persisted = localStorage.getItem(`rmCommonSealingType_${callNo}`);
+      if (persisted) return persisted;
       const saved = localStorage.getItem(`${STORAGE_KEYS.MAIN_INSPECTION}_${callNo}${getShiftSuffix()}`);
-      return saved ? (JSON.parse(saved).heatSealingType || {}) : {};
-    } catch { return {}; }
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (parsed.commonSealingType) return parsed.commonSealingType;
+        if (parsed.heatSealingType) {
+          const firstVal = Object.values(parsed.heatSealingType).find(v => v);
+          if (firstVal) return firstVal;
+        }
+      }
+      return '';
+    } catch { return ''; }
   });
 
+  // Common Steel Stamp Number
+  const [commonSteelStampNumber, setCommonSteelStampNumber] = useState(() => {
+    try {
+      const callNo = call?.call_no;
+      if (!callNo) return '';
+      const persisted = localStorage.getItem(`rmCommonSteelStamp_${callNo}`);
+      if (persisted) return persisted;
+      const saved = localStorage.getItem(`${STORAGE_KEYS.MAIN_INSPECTION}_${callNo}${getShiftSuffix()}`);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (parsed.commonSteelStampNumber) return parsed.commonSteelStampNumber;
+        if (parsed.heatSteelStampNumber) {
+          const firstVal = Object.values(parsed.heatSteelStampNumber).find(v => v);
+          if (firstVal) return firstVal;
+        }
+      }
+      return '';
+    } catch { return ''; }
+  });
+
+  // Common Hologram state for all heats in this inspection call
+  const [commonHolograms, setCommonHolograms] = useState(() => {
+    try {
+      const callNo = call?.call_no;
+      if (!callNo) return [{ type: 'range', from: '', to: '' }];
+      const persisted = localStorage.getItem(`rmCommonHolograms_${callNo}`);
+      if (persisted) {
+        const parsed = JSON.parse(persisted);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+      const saved = localStorage.getItem(`${STORAGE_KEYS.MAIN_INSPECTION}_${callNo}`);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (parsed.commonHolograms && Array.isArray(parsed.commonHolograms) && parsed.commonHolograms.length > 0) {
+          return parsed.commonHolograms;
+        }
+        if (parsed.heatHologramEntries) {
+          const firstVal = Object.values(parsed.heatHologramEntries).find(arr => Array.isArray(arr) && arr.length > 0);
+          if (firstVal) return firstVal;
+        }
+      }
+      return [{ type: 'range', from: '', to: '' }];
+    } catch { return [{ type: 'range', from: '', to: '' }]; }
+  });
+
+  // Persist common sealing & holograms to localStorage whenever they change
+  useEffect(() => {
+    const callNo = call?.call_no;
+    if (callNo) {
+      if (commonSealingType) localStorage.setItem(`rmCommonSealingType_${callNo}`, commonSealingType);
+      if (commonSteelStampNumber) localStorage.setItem(`rmCommonSteelStamp_${callNo}`, commonSteelStampNumber);
+      if (commonHolograms && commonHolograms.length > 0) {
+        localStorage.setItem(`rmCommonHolograms_${callNo}`, JSON.stringify(commonHolograms));
+      }
+    }
+  }, [commonSealingType, commonSteelStampNumber, commonHolograms, call?.call_no]);
+
+  // Common Hologram Handlers
+  const addCommonHologram = useCallback((type) => {
+    setCommonHolograms(prev => [
+      ...prev,
+      type === 'range' ? { type: 'range', from: '', to: '' } : { type: 'single', value: '' }
+    ]);
+  }, []);
+
+  const removeCommonHologram = useCallback((idx) => {
+    setCommonHolograms(prev => prev.filter((_, i) => i !== idx));
+  }, []);
+
+  const updateCommonHologram = useCallback((idx, field, value) => {
+    setCommonHolograms(prev => {
+      const updated = [...prev];
+      updated[idx] = { ...updated[idx], [field]: value };
+      return updated;
+    });
+  }, []);
+
+  // Handler for common sealing type toggle (allows multiple: Steel Punch, Hologram, or both)
+  const handleCommonSealingTypeToggle = useCallback((toggledType) => {
+    setCommonSealingType(prev => {
+      const types = prev ? prev.split(',').map(s => s.trim()).filter(Boolean) : [];
+      let newTypes;
+      if (types.includes(toggledType)) {
+        newTypes = types.filter(t => t !== toggledType);
+      } else {
+        newTypes = [...types, toggledType];
+      }
+      return newTypes.join(', ');
+    });
+  }, []);
   // Helpers to check if submodule data is essentially empty
   const isVisualDataEmpty = useCallback((data) => {
     if (!data || !Array.isArray(data)) return true;
@@ -204,7 +305,6 @@ const RawMaterialDashboard = ({ call, onBack, onNavigateToSubModule, onHeatsChan
     if (!data || !data.packingDataByHeat) return true;
     const heats = Object.values(data.packingDataByHeat);
     if (heats.length === 0) return true;
-    // Check if ALL heats have empty values for all fields
     return heats.every(h =>
       !h.storedHeatWise && !h.suppliedInBundles && !h.heatNumberEnds &&
       !h.packingStripWidth && !h.bundleTiedLocations &&
@@ -214,53 +314,12 @@ const RawMaterialDashboard = ({ call, onBack, onNavigateToSubModule, onHeatsChan
 
   const isCalibrationDataEmpty = useCallback((data) => {
     if (!data) return true;
-    // Check if it's just the default data or empty
     const isDefaultRDSO = !data.rdsoApprovalValidity || data.rdsoApprovalValidity.approvalId === 'RDSO/2023/ERC-001';
     const hasNoLadle = !data.heats || data.heats.every(h => !h.percentC && !h.percentSi && !h.percentMn && !h.percentP && !h.percentS);
     const hasNoGauges = !data.gaugesAvailable;
     return isDefaultRDSO && hasNoLadle && hasNoGauges;
   }, []);
 
-  // Per-heat steel stamp number: { heatNo: 'stamp text', ... }
-  const [heatSteelStampNumber, setHeatSteelStampNumber] = useState(() => {
-    try {
-      const callNo = call?.call_no;
-      if (!callNo) return {};
-      const saved = localStorage.getItem(`${STORAGE_KEYS.MAIN_INSPECTION}_${callNo}`);
-      return saved ? (JSON.parse(saved).heatSteelStampNumber || {}) : {};
-    } catch { return {}; }
-  });
-
-  // Per-heat hologram entries: { heatNo: [{type, from, to, value}, ...], ... }
-  const [heatHologramEntries, setHeatHologramEntries] = useState(() => {
-    try {
-      const callNo = call?.call_no;
-      if (!callNo) return {};
-      const saved = localStorage.getItem(`${STORAGE_KEYS.MAIN_INSPECTION}_${callNo}`);
-      return saved ? (JSON.parse(saved).heatHologramEntries || {}) : {};
-    } catch { return {}; }
-  });
-
-  // Handler for sealing type change - clears the other fields when toggled
-  // Handler for sealing type change - now allows multiple selections
-  const handleSealingTypeChange = useCallback((heatNo, toggledType) => {
-    setHeatSealingType(prev => {
-      const current = prev[heatNo] || '';
-      const types = current ? current.split(',').map(s => s.trim()) : [];
-
-      let newTypes;
-      if (types.includes(toggledType)) {
-        // Remove if already present
-        newTypes = types.filter(t => t !== toggledType);
-      } else {
-        // Add if not present
-        newTypes = [...types, toggledType];
-      }
-
-      return { ...prev, [heatNo]: newTypes.join(', ') };
-    });
-    // Removed clearing logic to allow both values to persist
-  }, []);
   // Collapsible state for Pre-Inspection Data Entry card
   const [isPreInspectionExpanded, setIsPreInspectionExpanded] = useState(true);
 
@@ -484,9 +543,14 @@ const RawMaterialDashboard = ({ call, onBack, onNavigateToSubModule, onHeatsChan
                 if (parsed.numberOfBundles) setNumberOfBundles(parsed.numberOfBundles);
                 if (parsed.sourceOfRawMaterial) setSourceOfRawMaterial(parsed.sourceOfRawMaterial);
                 if (parsed.heatRemarks) setHeatRemarks(parsed.heatRemarks);
-                if (parsed.heatSealingType) setHeatSealingType(parsed.heatSealingType);
-                if (parsed.heatSteelStampNumber) setHeatSteelStampNumber(parsed.heatSteelStampNumber);
-                if (parsed.heatHologramEntries) setHeatHologramEntries(parsed.heatHologramEntries);
+                if (parsed.commonSealingType) setCommonSealingType(parsed.commonSealingType);
+                if (parsed.commonSteelStampNumber) setCommonSteelStampNumber(parsed.commonSteelStampNumber);
+                if (parsed.commonHolograms && Array.isArray(parsed.commonHolograms) && parsed.commonHolograms.length > 0) {
+                  setCommonHolograms(parsed.commonHolograms);
+                } else if (parsed.heatHologramEntries) {
+                  const firstVal = Object.values(parsed.heatHologramEntries).find(arr => Array.isArray(arr) && arr.length > 0);
+                  if (firstVal) setCommonHolograms(firstVal);
+                }
               } catch (e) {
                 console.error('Error restoring main inspection data:', e);
               }
@@ -590,7 +654,16 @@ const RawMaterialDashboard = ({ call, onBack, onNavigateToSubModule, onHeatsChan
 
         const parseHologramString = (str) => {
           if (!str) return [];
-          return str.split(', ').map(entry => {
+          const trimmed = str.trim();
+          if (trimmed.startsWith('[') && trimmed.endsWith(']')) {
+            try {
+              const parsed = JSON.parse(trimmed);
+              if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+            } catch (e) {
+              console.warn('Error parsing hologram JSON:', e);
+            }
+          }
+          return trimmed.split(', ').map(entry => {
             if (entry.startsWith('Range: ')) {
               const parts = entry.replace('Range: ', '').split(' to ');
               return { type: 'range', from: parts[0] || '', to: parts[1] || '' };
@@ -854,23 +927,35 @@ const RawMaterialDashboard = ({ call, onBack, onNavigateToSubModule, onHeatsChan
           const mainData = localStorage.getItem(mainKey);
           const existingData = mainData ? JSON.parse(mainData) : {};
           const remarksMap = { ...existingData.heatRemarks };
-          const sealingTypeMap = { ...existingData.heatSealingType };
-          const steelStampMap = { ...existingData.heatSteelStampNumber };
-          const hologramsMap = { ...existingData.heatHologramEntries };
+          let restoredSealingType = existingData.commonSealingType || '';
+          let restoredSteelStamp = existingData.commonSteelStampNumber || '';
+          let restoredHolograms = existingData.commonHolograms || [];
 
           pausedData.heatFinalResults.forEach(res => {
             const hNo = res.heatNo;
             if (res.remarks && !remarksMap[hNo]) remarksMap[hNo] = res.remarks;
-            if (res.sealingType && !sealingTypeMap[hNo]) sealingTypeMap[hNo] = res.sealingType;
-            if (res.steelStampNumber && !steelStampMap[hNo]) steelStampMap[hNo] = res.steelStampNumber;
-            if (res.hologramDetails && (!hologramsMap[hNo] || hologramsMap[hNo].length === 0)) {
-              hologramsMap[hNo] = parseHologramString(res.hologramDetails);
+            if (res.sealingType && !restoredSealingType) restoredSealingType = res.sealingType;
+            if (res.steelStampNumber && !restoredSteelStamp) restoredSteelStamp = res.steelStampNumber;
+            if (res.hologramDetails && (!restoredHolograms || restoredHolograms.length === 0)) {
+              const parsed = parseHologramString(res.hologramDetails);
+              if (parsed && parsed.length > 0) {
+                restoredHolograms = parsed;
+              }
             }
           });
           setHeatRemarks(remarksMap);
-          setHeatSealingType(sealingTypeMap);
-          setHeatSteelStampNumber(steelStampMap);
-          setHeatHologramEntries(hologramsMap);
+          if (restoredSealingType) {
+            setCommonSealingType(restoredSealingType);
+            localStorage.setItem(`rmCommonSealingType_${callNo}`, restoredSealingType);
+          }
+          if (restoredSteelStamp) {
+            setCommonSteelStampNumber(restoredSteelStamp);
+            localStorage.setItem(`rmCommonSteelStamp_${callNo}`, restoredSteelStamp);
+          }
+          if (restoredHolograms && restoredHolograms.length > 0) {
+            setCommonHolograms(restoredHolograms);
+            localStorage.setItem(`rmCommonHolograms_${callNo}`, JSON.stringify(restoredHolograms));
+          }
           restoredAny = true;
         }
 
@@ -938,9 +1023,24 @@ const RawMaterialDashboard = ({ call, onBack, onNavigateToSubModule, onHeatsChan
       numberOfBundles,
       sourceOfRawMaterial,
       heatRemarks,
-      heatSealingType,
-      heatSteelStampNumber,
-      heatHologramEntries,
+      commonSealingType,
+      commonSteelStampNumber,
+      commonHolograms,
+      heatSealingType: consolidatedHeats.reduce((acc, heat) => {
+        const hNo = heat.heatNo || heat.heat_no;
+        if (hNo) acc[hNo] = commonSealingType;
+        return acc;
+      }, {}),
+      heatSteelStampNumber: consolidatedHeats.reduce((acc, heat) => {
+        const hNo = heat.heatNo || heat.heat_no;
+        if (hNo) acc[hNo] = commonSteelStampNumber;
+        return acc;
+      }, {}),
+      heatHologramEntries: consolidatedHeats.reduce((acc, heat) => {
+        const hNo = heat.heatNo || heat.heat_no;
+        if (hNo) acc[hNo] = commonHolograms;
+        return acc;
+      }, {}),
       heatColorCodes: consolidatedHeats.reduce((acc, heat) => {
         const heatNo = heat.heatNo || heat.heat_no;
         if (heatNo && heat.colorCode) {
@@ -950,7 +1050,7 @@ const RawMaterialDashboard = ({ call, onBack, onNavigateToSubModule, onHeatsChan
       }, {})
     };
     localStorage.setItem(mainKey, JSON.stringify(dataToSave));
-  }, [call?.call_no, isLoading, numberOfBundles, sourceOfRawMaterial, heatRemarks, heatSealingType, heatSteelStampNumber, heatHologramEntries, consolidatedHeats]);
+  }, [call?.call_no, isLoading, numberOfBundles, sourceOfRawMaterial, heatRemarks, commonSealingType, commonSteelStampNumber, commonHolograms, consolidatedHeats]);
 
   // Handler for heat data changes (e.g., colorCode updates from HeatNumberDetails)
   const handleHeatsUpdate = useCallback((updatedHeats) => {
@@ -1471,40 +1571,41 @@ const RawMaterialDashboard = ({ call, onBack, onNavigateToSubModule, onHeatsChan
       }
     }
 
-    // Check if remarks and sealing details are entered for all heats
+    // Check if remarks are entered for all heats
     for (const heat of consolidatedHeats) {
       const heatNo = heat.heatNo || heat.heat_no || 'Unknown';
       if (!heatRemarks[heatNo] || heatRemarks[heatNo].trim() === '') {
         return { canFinish: false, reason: `Heat ${heatNo}: Remarks are required` };
       }
+    }
 
-      // Check Sealing Type details
-      const sealingType = heatSealingType[heatNo];
-      if (!sealingType) {
-        return { canFinish: false, reason: `Heat ${heatNo}: Sealing type (Steel Punch or Hologram) must be selected` };
+    // Check Common Sealing Type details
+    if (!commonSealingType || commonSealingType.trim() === '') {
+      return { canFinish: false, reason: 'Sealing type (Steel Punch or Hologram) must be selected' };
+    }
+
+    if (commonSealingType.includes('RITES_STEEL_PUNCH')) {
+      if (!commonSteelStampNumber || commonSteelStampNumber.trim() === '') {
+        return { canFinish: false, reason: 'IE Steel Stamp No is required when using Steel Punch' };
+      }
+    }
+
+    // Check common holograms if Holograms selected
+    if (commonSealingType.includes('RITES_HOLOGRAM')) {
+      const holoEntries = (commonHolograms || []).filter(h => (h.type === 'range' ? (h.from || h.to) : h.value));
+      if (holoEntries.length === 0) {
+        return { canFinish: false, reason: 'At least one hologram entry must be added when using Holograms' };
       }
 
-      if (sealingType === 'RITES_STEEL_PUNCH') {
-        const stampStr = heatSteelStampNumber[heatNo];
-        if (!stampStr || stampStr.trim() === '') {
-          return { canFinish: false, reason: `Heat ${heatNo}: IE Steel Stamp No is required when using Steel Punch` };
-        }
-      } else if (sealingType === 'RITES_HOLOGRAM') {
-        const holoEntries = heatHologramEntries[heatNo] || [];
-        if (holoEntries.length === 0) {
-          return { canFinish: false, reason: `Heat ${heatNo}: At least one hologram entry must be added when using Holograms` };
-        }
+      // Ensure all added hologram entries are fully filled out
+      const hasEmptyHoloData = holoEntries.some(holo => {
+        if (holo.type === 'range') return !holo.from?.trim() || !holo.to?.trim();
+        if (holo.type === 'single') return !holo.value?.trim();
+        return true;
+      });
 
-        // Ensure all added hologram entries are fully filled out
-        const hasEmptyHoloData = holoEntries.some(holo => {
-          if (holo.type === 'range') return !holo.from?.trim() || !holo.to?.trim();
-          if (holo.type === 'single') return !holo.value?.trim();
-          return true;
-        });
-
-        if (hasEmptyHoloData) {
-          return { canFinish: false, reason: `Heat ${heatNo}: Please fill out all added hologram numbers completely` };
-        }
+      if (hasEmptyHoloData) {
+        return { canFinish: false, reason: 'Please fill out all added hologram numbers completely' };
       }
     }
 
@@ -1517,7 +1618,7 @@ const RawMaterialDashboard = ({ call, onBack, onNavigateToSubModule, onHeatsChan
     }
 
     return { canFinish: true, reason: '' };
-  }, [consolidatedHeats, heatSubmoduleStatuses, heatRemarks, heatSealingType, heatSteelStampNumber, heatHologramEntries, numberOfBundles, call?.call_no, calculateVisualRejectedWeight, capturedImages]);
+  }, [consolidatedHeats, heatSubmoduleStatuses, heatRemarks, commonSealingType, commonSteelStampNumber, commonHolograms, numberOfBundles, call?.call_no, calculateVisualRejectedWeight, capturedImages]);
 
   // Update canFinishInspectionState whenever dependencies change
   useEffect(() => {
@@ -1846,12 +1947,9 @@ const RawMaterialDashboard = ({ call, onBack, onNavigateToSubModule, onHeatsChan
           }
         }
 
-        // Prepare hologram string for backend
-        const hologramEntries = heatHologramEntries[heatNo] || [];
-        const hologramString = hologramEntries.map(h => {
-          if (h.type === 'range') return `Range: ${h.from} to ${h.to}`;
-          return `Single: ${h.value}`;
-        }).join(', ');
+        // Prepare hologram string for backend (JSON array string matching Final Product)
+        const validHolograms = (commonHolograms || []).filter(h => (h.type === 'range' ? (h.from || h.to) : h.value));
+        const hologramString = validHolograms.length > 0 ? JSON.stringify(validHolograms) : null;
 
         return {
           inspectionCallNo,
@@ -1875,9 +1973,9 @@ const RawMaterialDashboard = ({ call, onBack, onNavigateToSubModule, onHeatsChan
           status: overallStatus,
           overallStatus: overallStatus,
 
-          // Sealing Details
-          sealingType: heatSealingType[heatNo] || null,
-          steelStampNumber: heatSteelStampNumber[heatNo] || null,
+          // Sealing Details (Common for all heats)
+          sealingType: commonSealingType || null,
+          steelStampNumber: commonSteelStampNumber || null,
           hologramDetails: hologramString || null,
 
           // Cumulative Summary
@@ -2032,7 +2130,7 @@ const RawMaterialDashboard = ({ call, onBack, onNavigateToSubModule, onHeatsChan
       setIsSaving(false);
       isProcessingFinishRef.current = false;
     }
-  }, [call?.call_no, call?.id, call?.pincode, call?.workflowTransitionId, activeHeats, onBack, numberOfBundles, numberOfERC, sourceOfRawMaterial, poData, productModel, heatSubmoduleStatuses, heatRemarks, heatSealingType, heatSteelStampNumber, heatHologramEntries, calculateVisualRejectedWeight, consolidatedHeats, canFinishInspection, updateRmCallDataCache, updateRmHeatDataCache, updateRmPoDataCache, capturedImages, setCapturedImages]);
+  }, [call?.call_no, call?.id, call?.pincode, call?.workflowTransitionId, activeHeats, onBack, numberOfBundles, numberOfERC, sourceOfRawMaterial, poData, productModel, heatSubmoduleStatuses, heatRemarks, commonSealingType, commonSteelStampNumber, commonHolograms, calculateVisualRejectedWeight, consolidatedHeats, canFinishInspection, updateRmCallDataCache, updateRmHeatDataCache, updateRmPoDataCache, capturedImages, setCapturedImages]);
 
   // Withheld modal handlers
   const handleOpenWithheldModal = () => {
@@ -2447,12 +2545,9 @@ const RawMaterialDashboard = ({ call, onBack, onNavigateToSubModule, onHeatsChan
           overallStatus = 'PENDING';
         }
 
-        // Prepare hologram string for backend
-        const hologramEntries = heatHologramEntries[heatNo] || [];
-        const hologramString = hologramEntries.map(h => {
-          if (h.type === 'range') return `Range: ${h.from} to ${h.to}`;
-          return `Single: ${h.value}`;
-        }).join(', ');
+        // Prepare hologram string for backend (JSON array string matching Final Product)
+        const validHolograms = (commonHolograms || []).filter(h => (h.type === 'range' ? (h.from || h.to) : h.value));
+        const hologramString = validHolograms.length > 0 ? JSON.stringify(validHolograms) : null;
 
         return {
           inspectionCallNo,
@@ -2474,9 +2569,9 @@ const RawMaterialDashboard = ({ call, onBack, onNavigateToSubModule, onHeatsChan
           noOfErcFinished: numberOfERC ? parseInt(numberOfERC) : 0,
           remarks: heatRemarks[heatNo] || null,
 
-          // Sealing Details
-          sealingType: heatSealingType[heatNo] || null,
-          steelStampNumber: heatSteelStampNumber[heatNo] || null,
+          // Sealing Details (Common for all heats)
+          sealingType: commonSealingType || null,
+          steelStampNumber: commonSteelStampNumber || null,
           hologramDetails: hologramString || null,
           colorCode: heat.colorCode || null,
 
@@ -2598,7 +2693,7 @@ const RawMaterialDashboard = ({ call, onBack, onNavigateToSubModule, onHeatsChan
       setIsSaving(false);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [call, onBack, activeHeats, numberOfBundles, numberOfERC, sourceOfRawMaterial, poData, productModel, heatSubmoduleStatuses, heatRemarks, heatSealingType, heatSteelStampNumber, heatHologramEntries, updateRmCallDataCache, updateRmHeatDataCache, updateRmPoDataCache, capturedImages]);
+  }, [call, onBack, activeHeats, numberOfBundles, numberOfERC, sourceOfRawMaterial, poData, productModel, heatSubmoduleStatuses, heatRemarks, commonSealingType, commonSteelStampNumber, commonHolograms, updateRmCallDataCache, updateRmHeatDataCache, updateRmPoDataCache, capturedImages]);
 
   // Save Draft handler - saves draft data locally and to the backend database
   const handleSaveDraft = useCallback(async () => {
@@ -2893,12 +2988,9 @@ const RawMaterialDashboard = ({ call, onBack, onNavigateToSubModule, onHeatsChan
           overallStatus = 'PENDING';
         }
 
-        // Prepare hologram string for backend
-        const hologramEntries = heatHologramEntries[heatNo] || [];
-        const hologramString = hologramEntries.map(h => {
-          if (h.type === 'range') return `Range: ${h.from} to ${h.to}`;
-          return `Single: ${h.value}`;
-        }).join(', ');
+        // Prepare hologram string for backend (JSON array string matching Final Product)
+        const validHolograms = (commonHolograms || []).filter(h => (h.type === 'range' ? (h.from || h.to) : h.value));
+        const hologramString = validHolograms.length > 0 ? JSON.stringify(validHolograms) : null;
 
         return {
           inspectionCallNo,
@@ -2920,9 +3012,9 @@ const RawMaterialDashboard = ({ call, onBack, onNavigateToSubModule, onHeatsChan
           noOfErcFinished: numberOfERC ? parseInt(numberOfERC) : 0,
           remarks: heatRemarks[heatNo] || null,
 
-          // Sealing Details
-          sealingType: heatSealingType[heatNo] || null,
-          steelStampNumber: heatSteelStampNumber[heatNo] || null,
+          // Sealing Details (Common for all heats)
+          sealingType: commonSealingType || null,
+          steelStampNumber: commonSteelStampNumber || null,
           hologramDetails: hologramString || null,
           colorCode: heat.colorCode || null,
 
@@ -3001,7 +3093,7 @@ const RawMaterialDashboard = ({ call, onBack, onNavigateToSubModule, onHeatsChan
     } finally {
       setIsSavingDraft(false);
     }
-  }, [call, activeHeats, consolidatedHeats, numberOfBundles, numberOfERC, productModel, poData, heatSubmoduleStatuses, heatRemarks, heatSealingType, heatSteelStampNumber, heatHologramEntries, calculateVisualRejectedWeight, sourceOfRawMaterial, capturedImages]);
+  }, [call, activeHeats, consolidatedHeats, numberOfBundles, numberOfERC, productModel, poData, heatSubmoduleStatuses, heatRemarks, commonSealingType, commonSteelStampNumber, commonHolograms, calculateVisualRejectedWeight, sourceOfRawMaterial, capturedImages]);
 
   // Load draft data from localStorage on mount (after heat data is loaded)
   useEffect(() => {
@@ -3022,10 +3114,24 @@ const RawMaterialDashboard = ({ call, onBack, onNavigateToSubModule, onHeatsChan
         // Restore form data
         if (draftData.numberOfBundles) setNumberOfBundles(draftData.numberOfBundles);
         if (draftData.sourceOfRawMaterial) setSourceOfRawMaterial(draftData.sourceOfRawMaterial);
-        if (draftData.heatRemarks) setHeatRemarks(draftData.heatRemarks);
-        if (draftData.heatSealingType) setHeatSealingType(draftData.heatSealingType);
-        if (draftData.heatSteelStampNumber) setHeatSteelStampNumber(draftData.heatSteelStampNumber);
-        if (draftData.heatHologramEntries) setHeatHologramEntries(draftData.heatHologramEntries);
+        if (draftData.commonSealingType) setCommonSealingType(draftData.commonSealingType);
+        else if (draftData.heatSealingType) {
+          const firstVal = Object.values(draftData.heatSealingType).find(v => v);
+          if (firstVal) setCommonSealingType(firstVal);
+        }
+
+        if (draftData.commonSteelStampNumber) setCommonSteelStampNumber(draftData.commonSteelStampNumber);
+        else if (draftData.heatSteelStampNumber) {
+          const firstVal = Object.values(draftData.heatSteelStampNumber).find(v => v);
+          if (firstVal) setCommonSteelStampNumber(firstVal);
+        }
+
+        if (draftData.commonHolograms && Array.isArray(draftData.commonHolograms) && draftData.commonHolograms.length > 0) {
+          setCommonHolograms(draftData.commonHolograms);
+        } else if (draftData.heatHologramEntries) {
+          const firstVal = Object.values(draftData.heatHologramEntries).find(arr => Array.isArray(arr) && arr.length > 0);
+          if (firstVal) setCommonHolograms(firstVal);
+        }
         // Restore captured images from IndexedDB, fallback to draftData for legacy drafts
         import('../utils/imageStorage').then(({ getImages }) => {
           getImages(storageKey).then(images => {
@@ -3071,9 +3177,24 @@ const RawMaterialDashboard = ({ call, onBack, onNavigateToSubModule, onHeatsChan
         numberOfBundles,
         sourceOfRawMaterial,
         heatRemarks,
-        heatSealingType,
-        heatSteelStampNumber,
-        heatHologramEntries,
+        commonSealingType,
+        commonSteelStampNumber,
+        commonHolograms,
+        heatSealingType: fetchedHeatData.reduce((acc, heat) => {
+          const hNo = heat.heatNo || heat.heat_no;
+          if (hNo) acc[hNo] = commonSealingType;
+          return acc;
+        }, {}),
+        heatSteelStampNumber: fetchedHeatData.reduce((acc, heat) => {
+          const hNo = heat.heatNo || heat.heat_no;
+          if (hNo) acc[hNo] = commonSteelStampNumber;
+          return acc;
+        }, {}),
+        heatHologramEntries: fetchedHeatData.reduce((acc, heat) => {
+          const hNo = heat.heatNo || heat.heat_no;
+          if (hNo) acc[hNo] = commonHolograms;
+          return acc;
+        }, {}),
         // Keep color codes in sync if available
         heatColorCodes: fetchedHeatData.reduce((acc, heat) => {
           if (heat.heatNo && heat.colorCode) {
@@ -3103,7 +3224,7 @@ const RawMaterialDashboard = ({ call, onBack, onNavigateToSubModule, onHeatsChan
     } catch (error) {
       console.error('Error in auto-save:', error);
     }
-  }, [call?.call_no, numberOfBundles, sourceOfRawMaterial, heatRemarks, heatSealingType, heatSteelStampNumber, heatHologramEntries, fetchedHeatData, isLoading, capturedImages]);
+  }, [call?.call_no, numberOfBundles, sourceOfRawMaterial, heatRemarks, commonSealingType, commonSteelStampNumber, commonHolograms, fetchedHeatData, isLoading, capturedImages]);
 
   // Show loading indicator while fetching data
   if (isLoading) {
@@ -3820,315 +3941,289 @@ const RawMaterialDashboard = ({ call, onBack, onNavigateToSubModule, onHeatsChan
                         style={{ width: '100%', padding: '6px 10px', borderRadius: '6px', fontSize: '13px', height: '32px' }}
                       />
                     </div>
-
-                    {/* Are you sealing with section - Refined UX with Segmented Control */}
-                    <div style={{
-                      gridColumn: '1 / -1',
-                      display: 'flex',
-                      alignItems: 'center',
-                      flexWrap: 'wrap',
-                      gap: '16px',
-                      marginTop: '8px',
-                      padding: '16px',
-                      background: '#fffbeb',
-                      borderRadius: '10px',
-                      border: '1px solid #fde68a',
-                      boxShadow: '0 1px 2px rgba(0,0,0,0.05)'
-                    }}>
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                        <span style={{ fontSize: '13px', fontWeight: '700', color: '#854d0e', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                          Are you sealing with:
-                        </span>
-                      </div>
-
-                      {/* Segmented Control UI */}
-                      <div style={{
-                        display: 'flex',
-                        background: '#fef3c7',
-                        padding: '4px',
-                        borderRadius: '8px',
-                        border: '1px solid #fbbf24'
-                      }}>
-                        <button
-                          onClick={() => handleSealingTypeChange(heat.heatNo, 'RITES_STEEL_PUNCH')}
-                          style={{
-                            padding: '8px 20px',
-                            fontSize: '14px',
-                            fontWeight: '600',
-                            borderRadius: '6px',
-                            cursor: 'pointer',
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '8px',
-                            transition: 'all 0.2s',
-                            border: 'none',
-                            background: (heatSealingType[heat.heatNo] || '').includes('RITES_STEEL_PUNCH') ? '#fff' : 'transparent',
-                            color: (heatSealingType[heat.heatNo] || '').includes('RITES_STEEL_PUNCH') ? '#b45309' : '#d97706',
-                            boxShadow: (heatSealingType[heat.heatNo] || '').includes('RITES_STEEL_PUNCH') ? '0 2px 4px rgba(0,0,0,0.1)' : 'none'
-                          }}
-                        >
-                          <span style={{
-                            width: '12px',
-                            height: '12px',
-                            borderRadius: '2px',
-                            border: '2px solid',
-                            background: (heatSealingType[heat.heatNo] || '').includes('RITES_STEEL_PUNCH') ? '#b45309' : 'transparent',
-                            display: 'inline-block'
-                          }}></span>
-                          RITES Steel Punch
-                        </button>
-                        <button
-                          onClick={() => handleSealingTypeChange(heat.heatNo, 'RITES_HOLOGRAM')}
-                          style={{
-                            padding: '8px 20px',
-                            fontSize: '14px',
-                            fontWeight: '600',
-                            borderRadius: '6px',
-                            cursor: 'pointer',
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '8px',
-                            transition: 'all 0.2s',
-                            border: 'none',
-                            background: (heatSealingType[heat.heatNo] || '').includes('RITES_HOLOGRAM') ? '#fff' : 'transparent',
-                            color: (heatSealingType[heat.heatNo] || '').includes('RITES_HOLOGRAM') ? '#b45309' : '#d97706',
-                            boxShadow: (heatSealingType[heat.heatNo] || '').includes('RITES_HOLOGRAM') ? '0 2px 4px rgba(0,0,0,0.1)' : 'none'
-                          }}
-                        >
-                          <span style={{
-                            width: '12px',
-                            height: '12px',
-                            borderRadius: '2px',
-                            border: '2px solid',
-                            background: (heatSealingType[heat.heatNo] || '').includes('RITES_HOLOGRAM') ? '#b45309' : 'transparent',
-                            display: 'inline-block'
-                          }}></span>
-                          RITES Hologram
-                        </button>
-                      </div>
-
-                      {/* IE Steel Stamp Number Inline - Enhanced Prominence */}
-                      {(heatSealingType[heat.heatNo] || '').includes('RITES_STEEL_PUNCH') && (
-                        <div style={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: '12px',
-                          marginLeft: 'auto',
-                          background: '#fff',
-                          padding: '6px 12px',
-                          borderRadius: '8px',
-                          border: '2px solid #fbbf24'
-                        }}>
-                          <span style={{ fontSize: '13px', fontWeight: '700', color: '#b45309' }}>IE Steel Stamp No:</span>
-                          <input
-                            type="text"
-                            className="rm-form-input"
-                            placeholder="Type here..."
-                            value={heatSteelStampNumber[heat.heatNo] || ''}
-                            onChange={(e) => setHeatSteelStampNumber(prev => ({ ...prev, [heat.heatNo]: e.target.value }))}
-                            style={{
-                              width: '180px',
-                              padding: '6px 12px',
-                              borderRadius: '6px',
-                              fontSize: '15px',
-                              fontWeight: '600',
-                              height: '36px',
-                              border: '1px solid #d1d5db',
-                              outlineColor: '#fbbf24'
-                            }}
-                          />
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Hologram Details Refined Section - High Discoverability */}
-                    {(heatSealingType[heat.heatNo] || '').includes('RITES_HOLOGRAM') && (
-                      <div style={{
-                        gridColumn: '1 / -1',
-                        background: '#f0fdf4',
-                        padding: '20px',
-                        borderRadius: '10px',
-                        border: '1px solid #bbf7d0',
-                        marginTop: '4px',
-                        boxShadow: '0 1px 3px rgba(0,0,0,0.05)'
-                      }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                            <div style={{ width: '8px', height: '24px', background: '#166534', borderRadius: '4px' }}></div>
-                            <span style={{ fontSize: '16px', fontWeight: '700', color: '#166534' }}>Hologram Entries</span>
-                          </div>
-                          <div style={{ display: 'flex', gap: '12px' }}>
-                            <button
-                              className="btn"
-                              onClick={() => {
-                                setHeatHologramEntries(prev => {
-                                  const current = prev[heat.heatNo] || [];
-                                  return { ...prev, [heat.heatNo]: [...current, { type: 'range', from: '', to: '' }] };
-                                });
-                              }}
-                              style={{
-                                padding: '8px 18px',
-                                fontSize: '13px',
-                                background: '#0284c7',
-                                color: 'white',
-                                borderRadius: '6px',
-                                border: 'none',
-                                fontWeight: '600',
-                                cursor: 'pointer',
-                                display: 'flex',
-                                alignItems: 'center',
-                                gap: '6px',
-                                boxShadow: '0 2px 4px rgba(2, 132, 199, 0.2)',
-                                transition: 'all 0.2s'
-                              }}
-                              onMouseEnter={(e) => e.currentTarget.style.background = '#0369a1'}
-                              onMouseLeave={(e) => e.currentTarget.style.background = '#0284c7'}
-                            >
-                              <span style={{ fontSize: '18px' }}>+</span> Add Range
-                            </button>
-                            <button
-                              className="btn"
-                              onClick={() => {
-                                setHeatHologramEntries(prev => {
-                                  const current = prev[heat.heatNo] || [];
-                                  return { ...prev, [heat.heatNo]: [...current, { type: 'single', value: '' }] };
-                                });
-                              }}
-                              style={{
-                                padding: '8px 18px',
-                                fontSize: '13px',
-                                background: '#0284c7',
-                                color: 'white',
-                                borderRadius: '6px',
-                                border: 'none',
-                                fontWeight: '600',
-                                cursor: 'pointer',
-                                display: 'flex',
-                                alignItems: 'center',
-                                gap: '6px',
-                                boxShadow: '0 2px 4px rgba(2, 132, 199, 0.2)',
-                                transition: 'all 0.2s'
-                              }}
-                              onMouseEnter={(e) => e.currentTarget.style.background = '#0369a1'}
-                              onMouseLeave={(e) => e.currentTarget.style.background = '#0284c7'}
-                            >
-                              <span style={{ fontSize: '18px' }}>+</span> Add Single
-                            </button>
-                          </div>
-                        </div>
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                          {(heatHologramEntries[heat.heatNo] || []).length === 0 && (
-                            <div style={{ textAlign: 'center', padding: '20px', border: '2px dashed #bbf7d0', borderRadius: '8px', color: '#166534', fontSize: '14px', fontStyle: 'italic' }}>
-                              No holograms added. Click the buttons above to add entries.
-                            </div>
-                          )}
-                          {(heatHologramEntries[heat.heatNo] || []).map((holo, idx) => (
-                            <div key={idx} style={{
-                              display: 'flex',
-                              gap: '16px',
-                              alignItems: 'center',
-                              flexWrap: 'wrap',
-                              background: '#fff',
-                              padding: '12px 16px',
-                              borderRadius: '8px',
-                              border: '1px solid #bbf7d0',
-                              boxShadow: '0 1px 2px rgba(0,0,0,0.05)'
-                            }}>
-                              <span style={{ fontSize: '14px', color: '#166534', minWidth: '70px', fontWeight: '700' }}>
-                                {holo.type === 'range' ? 'RANGE' : 'SINGLE'}
-                              </span>
-                              {holo.type === 'range' ? (
-                                <div style={{ display: 'flex', gap: '12px', alignItems: 'center', flexWrap: 'wrap' }}>
-                                  <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                                    <span style={{ fontSize: '11px', color: '#64748b', fontWeight: '600' }}>FROM</span>
-                                    <input
-                                      className="rm-form-input"
-                                      placeholder="Start No."
-                                      value={holo.from || ''}
-                                      onChange={(e) => {
-                                        setHeatHologramEntries(prev => {
-                                          const current = [...(prev[heat.heatNo] || [])];
-                                          current[idx] = { ...current[idx], from: e.target.value };
-                                          return { ...prev, [heat.heatNo]: current };
-                                        });
-                                      }}
-                                      style={{ width: '140px', padding: '8px 12px', fontSize: '14px', height: '38px', border: '1px solid #cbd5e1', borderRadius: '6px' }}
-                                    />
-                                  </div>
-                                  <span style={{ fontSize: '14px', color: '#64748b', marginTop: '14px' }}>to</span>
-                                  <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                                    <span style={{ fontSize: '11px', color: '#64748b', fontWeight: '600' }}>TO</span>
-                                    <input
-                                      className="rm-form-input"
-                                      placeholder="End No."
-                                      value={holo.to || ''}
-                                      onChange={(e) => {
-                                        setHeatHologramEntries(prev => {
-                                          const current = [...(prev[heat.heatNo] || [])];
-                                          current[idx] = { ...current[idx], to: e.target.value };
-                                          return { ...prev, [heat.heatNo]: current };
-                                        });
-                                      }}
-                                      style={{ width: '140px', padding: '8px 12px', fontSize: '14px', height: '38px', border: '1px solid #cbd5e1', borderRadius: '6px' }}
-                                    />
-                                  </div>
-                                </div>
-                              ) : (
-                                <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                                  <span style={{ fontSize: '11px', color: '#64748b', fontWeight: '600' }}>HOLOGRAM NUMBER</span>
-                                  <input
-                                    className="rm-form-input"
-                                    placeholder="Enter number..."
-                                    value={holo.value || ''}
-                                    onChange={(e) => {
-                                      setHeatHologramEntries(prev => {
-                                        const current = [...(prev[heat.heatNo] || [])];
-                                        current[idx] = { ...current[idx], value: e.target.value };
-                                        return { ...prev, [heat.heatNo]: current };
-                                      });
-                                    }}
-                                    style={{ width: '320px', padding: '8px 12px', fontSize: '14px', height: '38px', border: '1px solid #cbd5e1', borderRadius: '6px' }}
-                                  />
-                                </div>
-                              )}
-                              <button
-                                onClick={() => {
-                                  setHeatHologramEntries(prev => {
-                                    const current = [...(prev[heat.heatNo] || [])];
-                                    current.splice(idx, 1);
-                                    return { ...prev, [heat.heatNo]: current };
-                                  });
-                                }}
-                                title="Remove Entry"
-                                style={{
-                                  background: '#fee2e2',
-                                  border: '1px solid #fca5a5',
-                                  color: '#dc2626',
-                                  cursor: 'pointer',
-                                  fontSize: '20px',
-                                  width: '36px',
-                                  height: '36px',
-                                  display: 'flex',
-                                  alignItems: 'center',
-                                  justifyContent: 'center',
-                                  borderRadius: '8px',
-                                  marginLeft: 'auto',
-                                  transition: 'all 0.2s'
-                                }}
-                                onMouseEnter={(e) => e.currentTarget.style.background = '#fef2f2'}
-                                onMouseLeave={(e) => e.currentTarget.style.background = '#fee2e2'}
-                              >
-                                ×
-                              </button>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    )}
                   </div>
                 </div>
               );
             })}
+          </div>
+
+          {/* Common Sealing & Hologram Details Section */}
+          <div
+            style={{
+              marginTop: '20px',
+              padding: '20px',
+              background: '#fffdfa',
+              border: '1px solid #fde68a',
+              borderRadius: '10px',
+              boxShadow: '0 1px 3px rgba(0,0,0,0.05)'
+            }}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', flexWrap: 'wrap', gap: '10px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <div style={{ width: '8px', height: '24px', background: '#d97706', borderRadius: '4px' }}></div>
+                <div>
+                  <h3 style={{ margin: 0, fontSize: '15px', fontWeight: 700, color: '#92400e', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    🏷️ Sealing &amp; Hologram Details (Common for All Heats)
+                  </h3>
+                  <span style={{ fontSize: '12px', color: '#78350f' }}>
+                    Select sealing method and enter hologram serial numbers / steel stamp details for this inspection call
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {/* ARE YOU SEALING WITH Toggle & Steel Stamp No */}
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              flexWrap: 'wrap',
+              gap: '16px',
+              padding: '12px 16px',
+              background: '#fef3c7',
+              borderRadius: '8px',
+              marginBottom: (commonSealingType || '').includes('RITES_HOLOGRAM') ? '16px' : '0'
+            }}>
+              <span style={{ fontSize: '13px', fontWeight: '800', color: '#92400e', letterSpacing: '0.5px' }}>
+                ARE YOU SEALING WITH:
+              </span>
+              <div style={{ display: 'flex', gap: '12px', alignItems: 'center', flexWrap: 'wrap' }}>
+                <button
+                  type="button"
+                  onClick={() => handleCommonSealingTypeToggle('RITES_STEEL_PUNCH')}
+                  style={{
+                    padding: '8px 18px',
+                    fontSize: '14px',
+                    fontWeight: '600',
+                    borderRadius: '6px',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    transition: 'all 0.2s',
+                    border: 'none',
+                    background: (commonSealingType || '').includes('RITES_STEEL_PUNCH') ? '#fff' : 'transparent',
+                    color: (commonSealingType || '').includes('RITES_STEEL_PUNCH') ? '#b45309' : '#d97706',
+                    boxShadow: (commonSealingType || '').includes('RITES_STEEL_PUNCH') ? '0 2px 4px rgba(0,0,0,0.1)' : 'none'
+                  }}
+                >
+                  <span style={{
+                    width: '12px',
+                    height: '12px',
+                    borderRadius: '2px',
+                    border: '2px solid',
+                    background: (commonSealingType || '').includes('RITES_STEEL_PUNCH') ? '#b45309' : 'transparent',
+                    display: 'inline-block'
+                  }}></span>
+                  RITES Steel Punch
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleCommonSealingTypeToggle('RITES_HOLOGRAM')}
+                  style={{
+                    padding: '8px 18px',
+                    fontSize: '14px',
+                    fontWeight: '600',
+                    borderRadius: '6px',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    transition: 'all 0.2s',
+                    border: 'none',
+                    background: (commonSealingType || '').includes('RITES_HOLOGRAM') ? '#fff' : 'transparent',
+                    color: (commonSealingType || '').includes('RITES_HOLOGRAM') ? '#b45309' : '#d97706',
+                    boxShadow: (commonSealingType || '').includes('RITES_HOLOGRAM') ? '0 2px 4px rgba(0,0,0,0.1)' : 'none'
+                  }}
+                >
+                  <span style={{
+                    width: '12px',
+                    height: '12px',
+                    borderRadius: '2px',
+                    border: '2px solid',
+                    background: (commonSealingType || '').includes('RITES_HOLOGRAM') ? '#b45309' : 'transparent',
+                    display: 'inline-block'
+                  }}></span>
+                  RITES Hologram
+                </button>
+              </div>
+
+              {/* IE Steel Stamp Number Inline */}
+              {(commonSealingType || '').includes('RITES_STEEL_PUNCH') && (
+                <div style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '10px',
+                  marginLeft: 'auto',
+                  background: '#fff',
+                  padding: '6px 12px',
+                  borderRadius: '8px',
+                  border: '2px solid #fbbf24'
+                }}>
+                  <span style={{ fontSize: '13px', fontWeight: '700', color: '#b45309' }}>IE Steel Stamp No:</span>
+                  <input
+                    type="text"
+                    className="rm-form-input"
+                    placeholder="Type here..."
+                    value={commonSteelStampNumber || ''}
+                    onChange={(e) => setCommonSteelStampNumber(e.target.value)}
+                    style={{
+                      width: '180px',
+                      padding: '6px 12px',
+                      borderRadius: '6px',
+                      fontSize: '14px',
+                      fontWeight: '600',
+                      height: '36px',
+                      border: '1px solid #d1d5db',
+                      outlineColor: '#fbbf24'
+                    }}
+                  />
+                </div>
+              )}
+            </div>
+
+            {/* Hologram details when RITES_HOLOGRAM is selected */}
+            {(commonSealingType || '').includes('RITES_HOLOGRAM') && (
+              <div style={{
+                background: '#f0fdf4',
+                padding: '16px',
+                borderRadius: '8px',
+                border: '1px solid #bbf7d0'
+              }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+                  <span style={{ fontSize: '14px', fontWeight: '700', color: '#166534' }}>
+                    Hologram Entries
+                  </span>
+                  <div style={{ display: 'flex', gap: '8px' }}>
+                    <button
+                      type="button"
+                      className="btn"
+                      onClick={() => addCommonHologram('range')}
+                      style={{
+                        padding: '6px 14px',
+                        fontSize: '12px',
+                        background: '#0284c7',
+                        color: 'white',
+                        borderRadius: '6px',
+                        border: 'none',
+                        fontWeight: '600',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '4px'
+                      }}
+                    >
+                      <span style={{ fontSize: '15px' }}>+</span> Add Range
+                    </button>
+                    <button
+                      type="button"
+                      className="btn"
+                      onClick={() => addCommonHologram('single')}
+                      style={{
+                        padding: '6px 14px',
+                        fontSize: '12px',
+                        background: '#0284c7',
+                        color: 'white',
+                        borderRadius: '6px',
+                        border: 'none',
+                        fontWeight: '600',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '4px'
+                      }}
+                    >
+                      <span style={{ fontSize: '15px' }}>+</span> Add Single
+                    </button>
+                  </div>
+                </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  {commonHolograms.length === 0 && (
+                    <div style={{ textAlign: 'center', padding: '16px', border: '2px dashed #bbf7d0', borderRadius: '8px', color: '#166534', fontSize: '13px', fontStyle: 'italic' }}>
+                      No holograms added. Click the buttons above to add entries.
+                    </div>
+                  )}
+                  {commonHolograms.map((holo, idx) => (
+                    <div
+                      key={idx}
+                      style={{
+                        display: 'flex',
+                        gap: '12px',
+                        alignItems: 'center',
+                        flexWrap: 'wrap',
+                        background: '#fff',
+                        padding: '10px 14px',
+                        borderRadius: '6px',
+                        border: '1px solid #cbd5e1'
+                      }}
+                    >
+                      <span style={{ fontSize: '12px', color: '#166534', minWidth: '70px', fontWeight: '700' }}>
+                        {holo.type === 'range' ? `RANGE #${idx + 1}` : `SINGLE #${idx + 1}`}
+                      </span>
+                      {holo.type === 'range' ? (
+                        <div style={{ display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap', flex: 1 }}>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                            <span style={{ fontSize: '10px', color: '#64748b', fontWeight: '600' }}>FROM</span>
+                            <input
+                              className="rm-form-input"
+                              placeholder="Start No."
+                              value={holo.from || ''}
+                              onChange={(e) => updateCommonHologram(idx, 'from', e.target.value)}
+                              style={{ width: '150px', padding: '6px 10px', fontSize: '13px', height: '34px', border: '1px solid #cbd5e1', borderRadius: '6px' }}
+                            />
+                          </div>
+                          <span style={{ fontSize: '13px', color: '#64748b', marginTop: '12px' }}>to</span>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                            <span style={{ fontSize: '10px', color: '#64748b', fontWeight: '600' }}>TO</span>
+                            <input
+                              className="rm-form-input"
+                              placeholder="End No."
+                              value={holo.to || ''}
+                              onChange={(e) => updateCommonHologram(idx, 'to', e.target.value)}
+                              style={{ width: '150px', padding: '6px 10px', fontSize: '13px', height: '34px', border: '1px solid #cbd5e1', borderRadius: '6px' }}
+                            />
+                          </div>
+                        </div>
+                      ) : (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', flex: 1 }}>
+                          <span style={{ fontSize: '10px', color: '#64748b', fontWeight: '600' }}>HOLOGRAM NUMBER</span>
+                          <input
+                            className="rm-form-input"
+                            placeholder="Enter hologram serial number..."
+                            value={holo.value || ''}
+                            onChange={(e) => updateCommonHologram(idx, 'value', e.target.value)}
+                            style={{ width: '280px', maxWidth: '100%', padding: '6px 10px', fontSize: '13px', height: '34px', border: '1px solid #cbd5e1', borderRadius: '6px' }}
+                          />
+                        </div>
+                      )}
+                      {commonHolograms.length > 1 && (
+                        <button
+                          type="button"
+                          onClick={() => removeCommonHologram(idx)}
+                          title="Remove Entry"
+                          style={{
+                            background: '#fee2e2',
+                            border: '1px solid #fca5a5',
+                            color: '#dc2626',
+                            cursor: 'pointer',
+                            fontSize: '18px',
+                            width: '32px',
+                            height: '32px',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            borderRadius: '6px',
+                            marginLeft: 'auto'
+                          }}
+                        >
+                          ×
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Responsive styles for heat details grid */}

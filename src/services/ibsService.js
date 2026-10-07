@@ -5,7 +5,7 @@ import { getAuthToken } from './authService';
  * Service to interact with IBS Inspection Registration APIs
  */
 export const getIbsCallRegistrationData = async () => {
-    const token = getAuthToken() || 'admin-mock-token-12345';
+    const token = getAuthToken() || '';
     const headers = {
         'Content-Type': 'application/json',
         'Authorization': token.startsWith('Bearer ') ? token : `Bearer ${token}`
@@ -40,7 +40,7 @@ export const getIbsCallRegistrationData = async () => {
  * Service to fetch completed IBS calls from ibs_call_registration
  */
 export const getIbsCompletedCallsData = async () => {
-    const token = getAuthToken() || 'admin-mock-token-12345';
+    const token = getAuthToken() || '';
     const headers = {
         'Content-Type': 'application/json',
         'Authorization': token.startsWith('Bearer ') ? token : `Bearer ${token}`

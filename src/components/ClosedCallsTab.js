@@ -10,6 +10,7 @@ import { fetchClosedCallsForIC, getCurrentUserId } from '../services/workflowApi
 import AnnexureLoader from './annexures/AnnexureLoader';
 import AnnexureUploadModal from './AnnexureUploadModal';
 import CorrectionSlipModal from './CorrectionSlipModal';
+import GenerateCaseLetterModal from './GenerateCaseLetterModal';
 import Modal from './Modal';
 import { fetchCorrectionSlipDocument, fetchCorrectionSlip } from '../services/correctionSlipService';
 import axios from 'axios';
@@ -47,6 +48,7 @@ const ClosedCallsTab = ({ setSelectedCall, setCurrentPage }) => {
   const [selectedActionCall, setSelectedActionCall] = useState(null);
   const [correctionSlipModalCall, setCorrectionSlipModalCall] = useState(null);
   const [isCorrectionSlipViewOnly, setIsCorrectionSlipViewOnly] = useState(false);
+  const [generateCaseLetterModalCall, setGenerateCaseLetterModalCall] = useState(null);
   const [slipStatusMap, setSlipStatusMap] = useState({});
   const [pdfLoading, setPdfLoading] = useState(false);
   const [tcPdfLoading, setTcPdfLoading] = useState(false);
@@ -827,10 +829,50 @@ const ClosedCallsTab = ({ setSelectedCall, setCurrentPage }) => {
                   </div>
                   <span style={{ fontWeight: '700', fontSize: '15px', textAlign: 'center', lineHeight: '1.2' }}>View Uploaded Annexures & Docs</span>
                 </button>
+
+                {/* 8. Generate Case Letter */}
+                <button
+                  onClick={() => {
+                    const row = selectedActionCall;
+                    setSelectedActionCall(null);
+                    setGenerateCaseLetterModalCall(row);
+                  }}
+                  style={{
+                    display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '12px',
+                    padding: '24px 16px', background: 'linear-gradient(135deg, #eef2ff 0%, #e0e7ff 100%)',
+                    border: '1px solid #c7d2fe', borderRadius: '16px',
+                    cursor: 'pointer', transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                    color: '#4338ca', width: '100%',
+                    boxShadow: '0 4px 6px -1px rgba(67, 56, 202, 0.1), 0 2px 4px -1px rgba(67, 56, 202, 0.06)'
+                  }}
+                  onMouseEnter={(e) => { 
+                    e.currentTarget.style.transform = 'translateY(-4px)';
+                    e.currentTarget.style.boxShadow = '0 10px 15px -3px rgba(67, 56, 202, 0.2), 0 4px 6px -2px rgba(67, 56, 202, 0.1)'; 
+                  }}
+                  onMouseLeave={(e) => { 
+                    e.currentTarget.style.transform = 'translateY(0)';
+                    e.currentTarget.style.boxShadow = '0 4px 6px -1px rgba(67, 56, 202, 0.1), 0 2px 4px -1px rgba(67, 56, 202, 0.06)'; 
+                  }}
+                  title="Compile and generate merged Case Letter dossier (Bottom-to-Top)"
+                >
+                  <div style={{ width: '48px', height: '48px', background: '#ffffff', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 2px 4px rgba(0,0,0,0.05)' }}>
+                    <PictureAsPdfRoundedIcon style={{ fontSize: '26px', color: '#4338ca' }} />
+                  </div>
+                  <span style={{ fontWeight: '700', fontSize: '15px', textAlign: 'center', lineHeight: '1.2' }}>Generate Case Letter</span>
+                </button>
               </div>
             </div>
           </div>
         </div>
+      )}
+
+      {/* Generate Case Letter Modal */}
+      {generateCaseLetterModalCall && (
+        <GenerateCaseLetterModal
+          isOpen={Boolean(generateCaseLetterModalCall)}
+          call={generateCaseLetterModalCall}
+          onClose={() => setGenerateCaseLetterModalCall(null)}
+        />
       )}
 
       {/* Correction Slip Modal */}

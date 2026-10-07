@@ -316,7 +316,7 @@ const App = () => {
             <Route
               path={ROUTES.ADMIN_DASHBOARD}
               element={
-                <ProtectedRoute allowedRoles={['ADMIN', 'Admin']}>
+                <ProtectedRoute allowedRoles={['ADMIN', 'Admin', 'admin', 'Super Admin']}>
                   <AdminDashboardWrapper />
                 </ProtectedRoute>
               }

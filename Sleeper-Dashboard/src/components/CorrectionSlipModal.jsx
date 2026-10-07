@@ -325,7 +325,7 @@ const CorrectionSlipModal = ({ row = {}, onClose, viewOnly = false, isViewOnly =
           }
         }
 
-        const rawCertDate = editData?.certificateDate || icBackend?.certificateDate || row?.createdDate || row?.callDate;
+        const rawCertDate = editData?.createdAt || editData?.created_at || editData?.certificateDate || icBackend?.certificateDate || row?.createdDate || row?.callDate;
 
         const normalizedData = {
           certificateNo: editData?.certificateNo || icBackend?.certificateNo || icBackend?.icNo || (callNo ? `IC/${callNo}` : '—'),

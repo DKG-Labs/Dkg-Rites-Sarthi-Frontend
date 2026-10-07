@@ -147,6 +147,7 @@ const FinalApplicationDeflectionPage = ({ onBack, onNavigateSubmodule }) => {
           };
 
           // Map dimensional inspection data (NEW PARENT-CHILD STRUCTURE)
+          // Map dimensional inspection data (NEW PARENT-CHILD STRUCTURE)
           dimData.forEach(record => {
             if (mergedData[record.lotNo]) {
               // Extract samples by sampling number
@@ -156,16 +157,16 @@ const FinalApplicationDeflectionPage = ({ onBack, onNavigateSubmodule }) => {
               // For 1st sampling - map each field separately
               if (samples1st.length > 0) {
                 const sample = samples1st[0];
-                mergedData[record.lotNo].dimGo1 = sample.goGaugeFailed > 0 ? String(sample.goGaugeFailed) : "";
-                mergedData[record.lotNo].dimNoGo1 = sample.noGoGaugeFailed > 0 ? String(sample.noGoGaugeFailed) : "";
-                mergedData[record.lotNo].dimFlat1 = sample.flatnessFailed > 0 ? String(sample.flatnessFailed) : "";
+                mergedData[record.lotNo].dimGo1 = sample.goGaugeFailed != null ? String(sample.goGaugeFailed) : "";
+                mergedData[record.lotNo].dimNoGo1 = sample.noGoGaugeFailed != null ? String(sample.noGoGaugeFailed) : "";
+                mergedData[record.lotNo].dimFlat1 = sample.flatnessFailed != null ? String(sample.flatnessFailed) : "";
               }
               // For 2nd sampling - map each field separately
               if (samples2nd.length > 0) {
                 const sample = samples2nd[0];
-                mergedData[record.lotNo].dimGo2 = sample.goGaugeFailed > 0 ? String(sample.goGaugeFailed) : "";
-                mergedData[record.lotNo].dimNoGo2 = sample.noGoGaugeFailed > 0 ? String(sample.noGoGaugeFailed) : "";
-                mergedData[record.lotNo].dimFlat2 = sample.flatnessFailed > 0 ? String(sample.flatnessFailed) : "";
+                mergedData[record.lotNo].dimGo2 = sample.goGaugeFailed != null ? String(sample.goGaugeFailed) : "";
+                mergedData[record.lotNo].dimNoGo2 = sample.noGoGaugeFailed != null ? String(sample.noGoGaugeFailed) : "";
+                mergedData[record.lotNo].dimFlat2 = sample.flatnessFailed != null ? String(sample.flatnessFailed) : "";
               }
               mergedData[record.lotNo].dimRemarks = record.remarks || "";
             }
@@ -180,12 +181,12 @@ const FinalApplicationDeflectionPage = ({ onBack, onNavigateSubmodule }) => {
 
               // For deflection test, store the failed counts (R1, R2)
               if (samples1st.length > 0) {
-                const failedCount = samples1st[0].noOfSamplesFailed || 0;
-                mergedData[record.lotNo].deflectionR1 = failedCount > 0 ? String(failedCount) : "";
+                const sample = samples1st[0];
+                mergedData[record.lotNo].deflectionR1 = sample.noOfSamplesFailed != null ? String(sample.noOfSamplesFailed) : "";
               }
               if (samples2nd.length > 0) {
-                const failedCount = samples2nd[0].noOfSamplesFailed || 0;
-                mergedData[record.lotNo].deflectionR2 = failedCount > 0 ? String(failedCount) : "";
+                const sample = samples2nd[0];
+                mergedData[record.lotNo].deflectionR2 = sample.noOfSamplesFailed != null ? String(sample.noOfSamplesFailed) : "";
               }
               mergedData[record.lotNo].deflectionRemarks = record.remarks || "";
             }
@@ -254,10 +255,10 @@ const FinalApplicationDeflectionPage = ({ onBack, onNavigateSubmodule }) => {
       }
 
       // --- DEFLECTION ---
-      const r1Defl = state.deflectionR1 === '' ? 0 : parseInt(state.deflectionR1);
-      const hasR1Defl = state.deflectionR1 !== '';
+      const hasR1Defl = state.deflectionR1 !== '' && state.deflectionR1 !== null && state.deflectionR1 !== undefined;
+      const r1Defl = !hasR1Defl ? 0 : parseInt(state.deflectionR1);
       const shouldShowDefl = hasR1Defl && r1Defl > lot.accpNo && r1Defl < lot.rejNo;
-      const hasDataDefl = state.deflectionR2 !== '';
+      const hasDataDefl = state.deflectionR2 !== '' && state.deflectionR2 !== null && state.deflectionR2 !== undefined;
 
       if (shouldShowDefl && !newShowMap[lotNo].defl) {
         newShowMap[lotNo].defl = true;
@@ -315,27 +316,28 @@ const FinalApplicationDeflectionPage = ({ onBack, onNavigateSubmodule }) => {
 
   /* Handle dimension field changes */
   const handleDimChange = (lotNo, field, value) => {
+    const val = value === '' ? '' : (isNaN(parseInt(value)) ? '' : String(Math.max(0, parseInt(value))));
     setLotStates(prev => ({
       ...prev,
-      [lotNo]: { ...prev[lotNo], [field]: value }
+      [lotNo]: { ...prev[lotNo], [field]: val }
     }));
   };
 
   /* Handle deflection R1 change */
   const handleDeflectionR1Change = (lotNo, value) => {
-    const numVal = value === '' ? '' : Math.max(0, parseInt(value) || 0);
+    const val = value === '' ? '' : (isNaN(parseInt(value)) ? '' : String(Math.max(0, parseInt(value))));
     setLotStates(prev => ({
       ...prev,
-      [lotNo]: { ...prev[lotNo], deflectionR1: numVal }
+      [lotNo]: { ...prev[lotNo], deflectionR1: val }
     }));
   };
 
   /* Handle deflection R2 change */
   const handleDeflectionR2Change = (lotNo, value) => {
-    const numVal = value === '' ? '' : Math.max(0, parseInt(value) || 0);
+    const val = value === '' ? '' : (isNaN(parseInt(value)) ? '' : String(Math.max(0, parseInt(value))));
     setLotStates(prev => ({
       ...prev,
-      [lotNo]: { ...prev[lotNo], deflectionR2: numVal }
+      [lotNo]: { ...prev[lotNo], deflectionR2: val }
     }));
   };
 
@@ -367,8 +369,12 @@ const FinalApplicationDeflectionPage = ({ onBack, onNavigateSubmodule }) => {
     const r1 = safe(state.dimGo1) + safe(state.dimNoGo1) + safe(state.dimFlat1);
     const r2 = safe(state.dimGo2) + safe(state.dimNoGo2) + safe(state.dimFlat2);
     const total = r1 + r2;
-    const isFullR1 = state.dimGo1 !== '' && state.dimNoGo1 !== '' && state.dimFlat1 !== '';
-    const isFullR2 = state.dimGo2 !== '' && state.dimNoGo2 !== '' && state.dimFlat2 !== '';
+    const isFullR1 = state.dimGo1 !== '' && state.dimGo1 != null && 
+                     state.dimNoGo1 !== '' && state.dimNoGo1 != null && 
+                     state.dimFlat1 !== '' && state.dimFlat1 != null;
+    const isFullR2 = state.dimGo2 !== '' && state.dimGo2 != null && 
+                     state.dimNoGo2 !== '' && state.dimNoGo2 != null && 
+                     state.dimFlat2 !== '' && state.dimFlat2 != null;
 
     /* Show 2nd sampling based on visibility map */
     const showSecond = showSubsamplingMap[lot.lotNo]?.dim || false;
@@ -406,11 +412,14 @@ const FinalApplicationDeflectionPage = ({ onBack, onNavigateSubmodule }) => {
       return { r1: 0, r2: 0, total: 0, showSecond: false, result: 'PENDING', color: '#f59e0b' };
     }
 
-    const r1 = state.deflectionR1 === '' ? 0 : parseInt(state.deflectionR1);
-    const r2 = state.deflectionR2 === '' ? 0 : parseInt(state.deflectionR2);
+    const hasR1 = state.deflectionR1 !== '' && state.deflectionR1 !== null && state.deflectionR1 !== undefined;
+    const hasR2 = state.deflectionR2 !== '' && state.deflectionR2 !== null && state.deflectionR2 !== undefined;
+
+    const r1 = !hasR1 ? 0 : parseInt(state.deflectionR1);
+    const r2 = !hasR2 ? 0 : parseInt(state.deflectionR2);
     const total = r1 + r2;
-    const isFullR1 = state.deflectionR1 !== '';
-    const isFullR2 = state.deflectionR2 !== '';
+    const isFullR1 = hasR1;
+    const isFullR2 = hasR2;
 
     /* Show 2nd sampling based on visibility map */
     const showSecond = showSubsamplingMap[lot.lotNo]?.defl || false;
@@ -517,7 +526,7 @@ const FinalApplicationDeflectionPage = ({ onBack, onNavigateSubmodule }) => {
                       type="number"
                       min="0"
                       className="ad-input"
-                      value={state?.dimGo1 || ""}
+                      value={state?.dimGo1 ?? ""}
                       onChange={(e) => handleDimChange(lot.lotNo, 'dimGo1', e.target.value)}
                       placeholder="0"
                     />
@@ -528,7 +537,7 @@ const FinalApplicationDeflectionPage = ({ onBack, onNavigateSubmodule }) => {
                       type="number"
                       min="0"
                       className="ad-input"
-                      value={state?.dimNoGo1 || ""}
+                      value={state?.dimNoGo1 ?? ""}
                       onChange={(e) => handleDimChange(lot.lotNo, 'dimNoGo1', e.target.value)}
                       placeholder="0"
                     />
@@ -539,7 +548,7 @@ const FinalApplicationDeflectionPage = ({ onBack, onNavigateSubmodule }) => {
                       type="number"
                       min="0"
                       className="ad-input"
-                      value={state?.dimFlat1 || ""}
+                      value={state?.dimFlat1 ?? ""}
                       onChange={(e) => handleDimChange(lot.lotNo, 'dimFlat1', e.target.value)}
                       placeholder="0"
                     />
@@ -557,7 +566,7 @@ const FinalApplicationDeflectionPage = ({ onBack, onNavigateSubmodule }) => {
                           type="number"
                           min="0"
                           className="ad-input"
-                          value={state?.dimGo2 || ""}
+                          value={state?.dimGo2 ?? ""}
                           onChange={(e) => handleDimChange(lot.lotNo, 'dimGo2', e.target.value)}
                           placeholder="0"
                         />
@@ -568,7 +577,7 @@ const FinalApplicationDeflectionPage = ({ onBack, onNavigateSubmodule }) => {
                           type="number"
                           min="0"
                           className="ad-input"
-                          value={state?.dimNoGo2 || ""}
+                          value={state?.dimNoGo2 ?? ""}
                           onChange={(e) => handleDimChange(lot.lotNo, 'dimNoGo2', e.target.value)}
                           placeholder="0"
                         />
@@ -579,7 +588,7 @@ const FinalApplicationDeflectionPage = ({ onBack, onNavigateSubmodule }) => {
                           type="number"
                           min="0"
                           className="ad-input"
-                          value={state?.dimFlat2 || ""}
+                          value={state?.dimFlat2 ?? ""}
                           onChange={(e) => handleDimChange(lot.lotNo, 'dimFlat2', e.target.value)}
                           placeholder="0"
                         />
@@ -660,7 +669,7 @@ const FinalApplicationDeflectionPage = ({ onBack, onNavigateSubmodule }) => {
                         min="0"
                         max={lot.sampleSize}
                         className="ad-input ad-input-r1"
-                        value={state?.deflectionR1 || ""}
+                        value={state?.deflectionR1 ?? ""}
                         onChange={(e) => handleDeflectionR1Change(lot.lotNo, e.target.value)}
                         placeholder="Enter failed count"
                       />
@@ -686,7 +695,7 @@ const FinalApplicationDeflectionPage = ({ onBack, onNavigateSubmodule }) => {
                           min="0"
                           max={lot.sampleSize2nd}
                           className="ad-input ad-input-r2"
-                          value={state?.deflectionR2 || ""}
+                          value={state?.deflectionR2 ?? ""}
                           onChange={(e) => handleDeflectionR2Change(lot.lotNo, e.target.value)}
                           placeholder="Enter failed count"
                         />

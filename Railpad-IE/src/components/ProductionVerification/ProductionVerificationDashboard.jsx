@@ -442,7 +442,16 @@ const ProductionVerificationDashboard = ({ activeCard, setActiveCard, currentShi
     try {
       const response = await fetch(`${getBaseUrl()}${API_ENDPOINTS.IE_PRODUCTION_VERIFICATION.UNBLOCK}/${declaration.id}`, {
         method: 'POST',
-        headers: getDefaultHeaders(user?.token)
+        headers: {
+          'Content-Type': 'application/json',
+          ...getDefaultHeaders(user?.token)
+        },
+        body: JSON.stringify({
+          unblockedBy: user?.userId || null,
+          unblockedByName: user?.fullName || user?.username || 'Main IE',
+          unblockedByRole: user?.roleName || 'Main IE',
+          remarks: 'Unblocked by IE'
+        })
       });
 
       if (!response.ok) {

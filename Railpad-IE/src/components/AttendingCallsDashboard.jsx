@@ -20,6 +20,7 @@ import PendingCallDetailsModal from './PendingCallDetailsModal';
 import ShiftDutyForm from './ShiftDutyForm';
 import AnnexureLoader from './AnnexureLoader';
 import AnnexureUploadModal from './AnnexureUploadModal';
+import GenerateCaseLetterModal from './GenerateCaseLetterModal';
 import { generateRailpadCallLetterPDF } from '../utils/generateCallLetterPDF';
 import { fetchCorrectionSlipDocument, fetchCorrectionSlip } from '../services/correctionSlipService';
 
@@ -63,6 +64,7 @@ const AttendingCallsDashboard = ({
   const [slipStatusMap, setSlipStatusMap] = useState({});
   const [uploadAnnexureModal, setUploadAnnexureModal] = useState({ isOpen: false, call: null });
   const [selectedCertificateCall, setSelectedCertificateCall] = useState(null);
+  const [generateCaseLetterModalCall, setGenerateCaseLetterModalCall] = useState(null);
 
   // Closed Calls & IBS modal states
   const [sendIbsCallRow, setSendIbsCallRow] = useState(null);
@@ -2248,7 +2250,44 @@ const AttendingCallsDashboard = ({
                   </span>
                 </button>
 
-                {/* 6. Back to Issuance of IC */}
+                {/* 6. Generate Case Letter (Merge Dossier) */}
+                <button
+                  onClick={() => {
+                    const row = selectedActionCall;
+                    setSelectedActionCall(null);
+                    setGenerateCaseLetterModalCall(row);
+                  }}
+                  style={{
+                    display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '8px',
+                    padding: '16px 12px', background: 'linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%)',
+                    border: '1px solid #bfdbfe', borderRadius: '14px',
+                    cursor: 'pointer', transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                    color: '#1d4ed8', width: '100%',
+                    boxShadow: '0 4px 6px -1px rgba(29, 78, 216, 0.1), 0 2px 4px -1px rgba(29, 78, 216, 0.06)'
+                  }}
+                  onMouseEnter={(e) => { 
+                    e.currentTarget.style.transform = 'translateY(-3px)';
+                    e.currentTarget.style.boxShadow = '0 10px 15px -3px rgba(29, 78, 216, 0.2), 0 4px 6px -2px rgba(29, 78, 216, 0.1)'; 
+                  }}
+                  onMouseLeave={(e) => { 
+                    e.currentTarget.style.transform = 'translateY(0)';
+                    e.currentTarget.style.boxShadow = '0 4px 6px -1px rgba(29, 78, 216, 0.1), 0 2px 4px -1px rgba(29, 78, 216, 0.06)'; 
+                  }}
+                  title="Generate Case Letter / Merge Dossier for this call"
+                >
+                  <div style={{ width: '42px', height: '42px', background: '#ffffff', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 2px 4px rgba(0,0,0,0.05)' }}>
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#2563eb" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                      <polyline points="14 2 14 8 20 8"></polyline>
+                      <line x1="16" y1="13" x2="8" y2="13"></line>
+                      <line x1="16" y1="17" x2="8" y2="17"></line>
+                      <polyline points="10 9 9 9 8 9"></polyline>
+                    </svg>
+                  </div>
+                  <span style={{ fontWeight: '700', fontSize: '13.5px', textAlign: 'center', lineHeight: '1.2' }}>Generate Case Letter</span>
+                </button>
+
+                {/* 7. Back to Issuance of IC */}
                 {!selectedActionCall.isClosed && activeTab !== 'closed' && (
                   <button
                     onClick={() => handleBackToIcIssuance(selectedActionCall)}
@@ -2913,6 +2952,21 @@ const AttendingCallsDashboard = ({
           moduleType="RAILPAD"
           uploadedBy={getStoredUser()?.name || "Inspecting Engineer"}
           mode={uploadAnnexureModal.mode || "upload"}
+        />
+      )}
+
+      {/* Generate Case Letter (Merge Dossier) Modal */}
+      {generateCaseLetterModalCall && (
+        <GenerateCaseLetterModal
+          isOpen={Boolean(generateCaseLetterModalCall)}
+          onClose={() => setGenerateCaseLetterModalCall(null)}
+          call={generateCaseLetterModalCall}
+          onCaseLetterSaved={(savedDoc) => {
+            setNotification({
+              message: `Case Letter generated and archived for call ${generateCaseLetterModalCall.requestId || generateCaseLetterModalCall.callNo || ''} successfully!`,
+              type: 'success'
+            });
+          }}
         />
       )}
     </div>

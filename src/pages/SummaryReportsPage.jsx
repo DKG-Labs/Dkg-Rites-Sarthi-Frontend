@@ -451,20 +451,33 @@ const SummaryReportsPage = ({ onBack, heats = [], productModel = 'MK-III', inspe
       let sourceOfRawMaterial = localMain?.sourceOfRawMaterial || backendData?.preInspectionData?.sourceOfRawMaterial || '';
       let sealingType = localMain?.heatSealingType?.[heatNo] || backendData?.heatFinalResults?.find(r => r.heatNo === heatNo)?.sealingType || '';
       let steelStampNumber = localMain?.heatSteelStampNumber?.[heatNo] || backendData?.heatFinalResults?.find(r => r.heatNo === heatNo)?.steelStampNumber || '';
-      let hologramEntries = localMain?.heatHologramEntries?.[heatNo] || [];
+      let hologramEntries = localMain?.commonHolograms || localMain?.heatHologramEntries?.[heatNo] || [];
 
-      if (hologramEntries.length === 0) {
+      if (!Array.isArray(hologramEntries) || hologramEntries.length === 0) {
         const backendResult = backendData?.heatFinalResults?.find(r => r.heatNo === heatNo);
         if (backendResult?.hologramDetails) {
-          hologramEntries = backendResult.hologramDetails.split(', ').map(entry => {
-            if (entry.startsWith('Range: ')) {
-              const parts = entry.replace('Range: ', '').split(' to ');
-              return { type: 'range', from: parts[0] || '', to: parts[1] || '' };
-            } else if (entry.startsWith('Single: ')) {
-              return { type: 'single', value: entry.replace('Single: ', '') };
+          const trimmed = backendResult.hologramDetails.trim();
+          if (trimmed.startsWith('[') && trimmed.endsWith(']')) {
+            try {
+              const parsed = JSON.parse(trimmed);
+              if (Array.isArray(parsed) && parsed.length > 0) {
+                hologramEntries = parsed;
+              }
+            } catch (e) {
+              // fallback
             }
-            return null;
-          }).filter(Boolean);
+          }
+          if (!Array.isArray(hologramEntries) || hologramEntries.length === 0) {
+            hologramEntries = backendResult.hologramDetails.split(', ').map(entry => {
+              if (entry.startsWith('Range: ')) {
+                const parts = entry.replace('Range: ', '').split(' to ');
+                return { type: 'range', from: parts[0] || '', to: parts[1] || '' };
+              } else if (entry.startsWith('Single: ')) {
+                return { type: 'single', value: entry.replace('Single: ', '') };
+              }
+              return null;
+            }).filter(Boolean);
+          }
         }
       }
 

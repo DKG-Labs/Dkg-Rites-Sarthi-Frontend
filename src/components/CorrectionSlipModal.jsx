@@ -7,6 +7,7 @@ import {
   getProcessIcEditData,
   getFinalIcEditData,
   getFinalIcSaveChanges,
+  getSleeperFinalIcEditData,
 } from '../services/certificateService';
 import {
   fetchCorrectionSlip,
@@ -21,6 +22,22 @@ import Notification from './Notification';
 import CorrectionSlipPDF, { formatCorrectionText } from './CorrectionSlipPDF';
 
 /* ─── helpers ─── */
+const formatDateVal = (val) => {
+  if (!val) return '';
+  if (typeof val === 'string' && /^\d{2}\.\d{2}\.\d{4}$/.test(val.trim())) return val.trim();
+  if (typeof val === 'string' && /^\d{2}\/\d{2}\/\d{4}$/.test(val.trim())) return val.trim().replace(/\//g, '.');
+  try {
+    const d = new Date(val);
+    if (isNaN(d.getTime())) return String(val);
+    const day = String(d.getDate()).padStart(2, '0');
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const year = d.getFullYear();
+    return `${day}.${month}.${year}`;
+  } catch {
+    return String(val);
+  }
+};
+
 const getProductType = (row) => {
   const pt = (row.product_type || row.productType || '').toLowerCase();
   if (pt.includes('raw') || pt.includes('rm')) return 'RM';
@@ -678,9 +695,22 @@ const CorrectionSlipModal = ({ row, onClose, viewOnly = false, isViewOnly = fals
           if (productType === 'RM') {
             editData = await getRmIcEditData(fullIcNumber);
           } else if (productType === 'FINAL') {
-            editData = await getFinalIcSaveChanges(fullIcNumber);
+            // Check Sleeper Final IC Edit first if SF- call or fallback
+            try {
+              editData = await getSleeperFinalIcEditData(fullIcNumber);
+              if (!editData && fullIcNumber !== icNumber) {
+                editData = await getSleeperFinalIcEditData(icNumber);
+              }
+            } catch (_) {}
+
+            if (!editData) {
+              editData = await getFinalIcSaveChanges(fullIcNumber);
+            }
             if (!editData) {
               editData = await getFinalIcEditData(fullIcNumber);
+            }
+            if (!editData && fullIcNumber !== icNumber) {
+              editData = await getFinalIcEditData(icNumber);
             }
           } else {
             editData = await getProcessIcEditData(fullIcNumber);
@@ -691,8 +721,12 @@ const CorrectionSlipModal = ({ row, onClose, viewOnly = false, isViewOnly = fals
         // 3. Merge: IC Edit fields override/fill gaps by type
         let editOverrides = {};
         if (editData) {
+          const rawCreated = editData.createdAt || editData.created_at || editData.icDate || editData.ic_date;
+          const formattedCertDate = rawCreated ? formatDateVal(rawCreated) : null;
+
           // Common fields across all 3 IC types
           editOverrides = {
+            certificateDate:     formattedCertDate            || (certData?.certificateDate ? formatDateVal(certData.certificateDate) : null),
             bookNo:              editData.bookNo              || certData?.bookNo,
             setNo:               editData.setNo               || certData?.setNo,
             offeredInstNo:       editData.offeredInstallmentNo || certData?.offeredInstNo,

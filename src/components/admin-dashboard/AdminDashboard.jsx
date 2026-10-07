@@ -55,6 +55,17 @@ export const parseUserFriendlyErrorMessage = (rawErrorMsg) => {
 };
 
 export const AdminDashboard = () => {
+    const currentUser = getStoredUser();
+    const rawRoles = Array.isArray(currentUser?.roleName)
+        ? currentUser.roleName
+        : (typeof currentUser?.roleName === 'string'
+            ? currentUser.roleName.split(',').map(r => r.trim())
+            : (currentUser?.roleName ? [currentUser.roleName] : []));
+    const isAdmin = rawRoles.some(r => {
+        const lower = String(r || '').trim().toLowerCase();
+        return lower === 'admin' || lower === 'super admin';
+    });
+
     const [activeModule, setActiveModule] = useState(() => {
         return localStorage.getItem('adminActiveModule') || 'users';
     });
@@ -423,6 +434,32 @@ export const AdminDashboard = () => {
     };
 
 
+
+    if (!currentUser || !isAdmin) {
+        return (
+            <div style={{ padding: '3rem', textAlign: 'center', minHeight: '60vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+                <div style={{ fontSize: '48px', marginBottom: '16px' }}>🔒</div>
+                <h2 style={{ fontSize: '1.5rem', fontWeight: 700, color: '#1e293b', marginBottom: '8px' }}>Access Denied</h2>
+                <p style={{ color: '#64748b', fontSize: '1rem', maxWidth: '440px', margin: '0 auto 24px', lineHeight: 1.5 }}>
+                    You do not have administrative privileges to access the Admin Module. Only users with the <strong>Admin</strong> role can view this dashboard.
+                </p>
+                <button
+                    onClick={() => window.location.href = '/'}
+                    style={{
+                        padding: '10px 22px',
+                        background: '#2563eb',
+                        color: '#fff',
+                        border: 'none',
+                        borderRadius: '8px',
+                        fontWeight: 600,
+                        cursor: 'pointer'
+                    }}
+                >
+                    Back to Home
+                </button>
+            </div>
+        );
+    }
 
     return (
         <div className="admin-container">

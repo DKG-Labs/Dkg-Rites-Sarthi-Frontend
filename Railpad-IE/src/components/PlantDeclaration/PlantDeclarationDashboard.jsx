@@ -8,7 +8,9 @@ import {
   approvedQAPService
 } from '../../services/plantDeclarationService';
 import { getStoredUser } from '../../services/authService';
+import { getBaseUrl } from '../../services/apiConfig';
 import AnnexureLoader from '../AnnexureLoader';
+import ConfirmationModal from '../common/ConfirmationModal';
 
 const PlantDeclarationDashboard = ({ dutyPlantId }) => {
   const [pendingList, setPendingList] = useState([]);
@@ -31,6 +33,9 @@ const PlantDeclarationDashboard = ({ dutyPlantId }) => {
   const [remarks, setRemarks] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [notification, setNotification] = useState(null);
+
+  // Unblock Modal State
+  const [unblockModalConfig, setUnblockModalConfig] = useState({ isOpen: false, tx: null, remarks: '' });
 
   const user = getStoredUser();
 
@@ -296,6 +301,88 @@ const PlantDeclarationDashboard = ({ dutyPlantId }) => {
       showNotification('Error performing transition action.', 'error');
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  const handleOpenUnblockModal = (tx) => {
+    if (!tx) return;
+    setUnblockModalConfig({
+      isOpen: true,
+      tx: tx,
+      remarks: ''
+    });
+  };
+
+  const handleCloseUnblockModal = () => {
+    setUnblockModalConfig({
+      isOpen: false,
+      tx: null,
+      remarks: ''
+    });
+  };
+
+  const handleConfirmUnblock = async () => {
+    const tx = unblockModalConfig.tx;
+    if (!tx) return;
+
+    handleCloseUnblockModal();
+    setLoading(true);
+    try {
+      const unblockPayload = {
+        unblockedBy: user?.userId || null,
+        unblockedByName: user?.fullName || user?.username || 'Main IE',
+        unblockedByRole: user?.roleName || 'Main IE',
+        remarks: unblockModalConfig.remarks || 'Unblocked by IE'
+      };
+
+      if (tx.moduleId === 1) {
+        await plantSetupService.unblock(tx.requestId, unblockPayload);
+      } else if (tx.moduleId === 2) {
+        await rawMaterialService.unblock(tx.requestId, unblockPayload);
+      } else if (tx.moduleId === 4) {
+        await productRecipeService.unblock(tx.requestId, unblockPayload);
+      } else if (tx.moduleId === 5) {
+        await approvedAshSGService.unblock(tx.requestId, unblockPayload);
+      } else if (tx.moduleId === 6) {
+        await approvedQAPService.unblock(tx.requestId, unblockPayload);
+      } else {
+        // Fallback for other declaration modules if needed
+        const token = localStorage.getItem('token') || localStorage.getItem('authToken');
+        const res = await fetch(`${getBaseUrl()}/rail-plant-setup/unblock/${tx.requestId}`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+          },
+          body: JSON.stringify(unblockPayload)
+        });
+        if (!res.ok) {
+          const errData = await res.json().catch(() => ({}));
+          throw new Error(errData.responseStatus?.message || errData.message || 'Failed to unblock');
+        }
+      }
+
+      showNotification(`${selectedModuleObj?.title || 'Declaration'} #${tx.requestId} unblocked and returned to Pending list!`, 'success');
+      
+      setSelectedTx(null);
+      setDetailData(null);
+
+      // Invalidate cache
+      setCachedPendingModules({});
+      setCachedCompletedModules({});
+
+      // Reload data
+      if (statusTab === 'COMPLETED') {
+        await loadCompletedData(selectedModuleId);
+        loadPendingData(selectedModuleId);
+      } else {
+        await loadPendingData(selectedModuleId);
+      }
+    } catch (err) {
+      console.error('Error during unblock:', err);
+      showNotification('Error: ' + err.message, 'error');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -834,13 +921,36 @@ const PlantDeclarationDashboard = ({ dutyPlantId }) => {
               </div>
               <div style={{ padding: '24px' }}>
                 {selectedTx && (selectedTx.status === 'COMPLETED' || selectedTx.status === 'VERIFIED') ? (
-                  <div style={{ background: '#ecfdf5', border: '1px solid #a7f3d0', borderRadius: '12px', padding: '20px', color: '#065f46' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '14px', fontWeight: '800', marginBottom: '8px' }}>
-                      <span>✅</span> Verification Completed & Setup Approved
+                  <div style={{ background: '#ecfdf5', border: '1px solid #a7f3d0', borderRadius: '12px', padding: '20px', color: '#065f46', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '14px' }}>
+                    <div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '14px', fontWeight: '800', marginBottom: '8px' }}>
+                        <span>✅</span> Verification Completed & Setup Approved
+                      </div>
+                      <div style={{ fontSize: '13px', lineHeight: '1.5' }}>
+                        <strong>Approval Remarks:</strong> {selectedTx.remarks || 'No remarks provided during baseline approval.'}
+                      </div>
                     </div>
-                    <div style={{ fontSize: '13px', lineHeight: '1.5' }}>
-                      <strong>Approval Remarks:</strong> {selectedTx.remarks || 'No remarks provided during baseline approval.'}
-                    </div>
+                    <button
+                      type="button"
+                      onClick={() => handleOpenUnblockModal(selectedTx)}
+                      style={{
+                        padding: '10px 20px',
+                        background: '#fff1f2',
+                        color: '#e11d48',
+                        border: '1px solid #fecdd3',
+                        borderRadius: '10px',
+                        fontWeight: '700',
+                        fontSize: '13px',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '6px',
+                        boxShadow: '0 2px 4px rgba(225,29,72,0.1)',
+                        transition: 'all 0.2s'
+                      }}
+                    >
+                      <span>🔓</span> Unblock Declaration
+                    </button>
                   </div>
                 ) : (
                   <>
@@ -1052,29 +1162,54 @@ const PlantDeclarationDashboard = ({ dutyPlantId }) => {
                         </span>
                       </td>
                       <td style={{ padding: '16px 24px', textAlign: 'center', whiteSpace: 'nowrap' }}>
-                        <button
-                          onClick={() => handleSelectTransaction(tx)}
-                          style={{
-                            padding: '8px 18px',
-                            background: statusTab === 'COMPLETED' ? '#64748b' : (selectedModuleObj?.color || '#21808d'),
-                            color: '#fff',
-                            border: 'none',
-                            borderRadius: '8px',
-                            fontWeight: '700',
-                            fontSize: '12px',
-                            cursor: 'pointer',
-                            boxShadow: '0 2px 4px rgba(0,0,0,0.05)',
-                            transition: 'all 0.2s'
-                          }}
-                        >
-                          {statusTab === 'COMPLETED' ? '👁️ View Details' : 'Review & Verify'}
-                        </button>
+                        <div style={{ display: 'inline-flex', gap: '8px', alignItems: 'center' }}>
+                          <button
+                            onClick={() => handleSelectTransaction(tx)}
+                            style={{
+                              padding: '8px 18px',
+                              background: statusTab === 'COMPLETED' ? '#64748b' : (selectedModuleObj?.color || '#21808d'),
+                              color: '#fff',
+                              border: 'none',
+                              borderRadius: '8px',
+                              fontWeight: '700',
+                              fontSize: '12px',
+                              cursor: 'pointer',
+                              boxShadow: '0 2px 4px rgba(0,0,0,0.05)',
+                              transition: 'all 0.2s'
+                            }}
+                          >
+                            {statusTab === 'COMPLETED' ? '👁️ View Details' : 'Review & Verify'}
+                          </button>
+                          {statusTab === 'COMPLETED' && (
+                            <button
+                              onClick={() => handleOpenUnblockModal(tx)}
+                              style={{
+                                padding: '8px 14px',
+                                background: '#fff1f2',
+                                color: '#e11d48',
+                                border: '1px solid #fecdd3',
+                                borderRadius: '8px',
+                                fontWeight: '700',
+                                fontSize: '12px',
+                                cursor: 'pointer',
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '4px',
+                                boxShadow: '0 1px 2px rgba(0,0,0,0.05)',
+                                transition: 'all 0.2s'
+                              }}
+                              title="Unblock and return to Pending list"
+                            >
+                              <span>🔓</span> Unblock
+                            </button>
+                          )}
+                        </div>
                       </td>
                     </tr>
                   ))
                 ) : (
                   <tr>
-                    <td colSpan="5" style={{ textAlign: 'center', padding: '60px 24px', color: '#94a3b8' }}>
+                    <td colSpan="6" style={{ textAlign: 'center', padding: '60px 24px', color: '#94a3b8' }}>
                       <div style={{ fontSize: '24px', marginBottom: '8px' }}>{statusTab === 'PENDING' ? '🎉' : '📂'}</div>
                       <h3 style={{ margin: '0 0 4px 0', color: '#475569' }}>
                         {statusTab === 'PENDING' ? 'All Clear!' : 'No Records'}
@@ -1135,6 +1270,85 @@ const PlantDeclarationDashboard = ({ dutyPlantId }) => {
           )}
         </div>
       )}
+
+      {/* Confirmation Modal for Unblocking Baseline Declarations */}
+      <ConfirmationModal
+        isOpen={unblockModalConfig.isOpen}
+        type="warning"
+        title={`Unblock ${selectedModuleObj?.title || 'Declaration'}`}
+        confirmText="Yes, Unblock"
+        cancelText="Cancel"
+        onConfirm={handleConfirmUnblock}
+        onCancel={handleCloseUnblockModal}
+      >
+        {unblockModalConfig.tx && (
+          <div style={{ textAlign: 'left', fontSize: '13px' }}>
+            <p style={{ color: '#475569', marginBottom: '14px', textAlign: 'center', fontSize: '14px', lineHeight: '1.4' }}>
+              Are you sure you want to unblock this verified {selectedModuleObj?.title?.toLowerCase() || 'declaration'}?
+            </p>
+
+            <div style={{
+              background: '#f8fafc',
+              border: '1px solid #e2e8f0',
+              borderRadius: '10px',
+              padding: '12px 14px',
+              marginBottom: '14px',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '8px'
+            }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px dashed #e2e8f0', paddingBottom: '6px' }}>
+                <span style={{ color: '#64748b', fontWeight: '500' }}>Vendor Name:</span>
+                <span style={{ fontWeight: '700', color: '#1e293b' }}>{unblockModalConfig.tx.vendorName || 'Vendor Manufacturer'}</span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px dashed #e2e8f0', paddingBottom: '6px' }}>
+                <span style={{ color: '#64748b', fontWeight: '500' }}>Plant ID:</span>
+                <span style={{ fontWeight: '700', color: '#0369a1' }}>{unblockModalConfig.tx.plantId || '—'}</span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span style={{ color: '#64748b', fontWeight: '500' }}>Date / Shift:</span>
+                <span style={{ fontWeight: '600', color: '#334155' }}>
+                  {formatDateTime(unblockModalConfig.tx.declarationDate)} ({unblockModalConfig.tx.shift || 'General'})
+                </span>
+              </div>
+            </div>
+
+            <div style={{ marginBottom: '14px' }}>
+              <label style={{ display: 'block', fontSize: '11px', fontWeight: '700', color: '#475569', marginBottom: '6px', textTransform: 'uppercase' }}>
+                Unblock Remarks / Reason *
+              </label>
+              <textarea
+                rows="2"
+                value={unblockModalConfig.remarks}
+                onChange={(e) => setUnblockModalConfig(prev => ({ ...prev, remarks: e.target.value }))}
+                placeholder={`Enter reason for unblocking ${selectedModuleObj?.title?.toLowerCase() || 'declaration'} (e.g. revision, incorrect baseline data)...`}
+                style={{
+                  width: '100%',
+                  padding: '8px 10px',
+                  borderRadius: '8px',
+                  border: '1px solid #cbd5e1',
+                  fontSize: '12px',
+                  fontFamily: 'inherit',
+                  outline: 'none',
+                  boxSizing: 'border-box'
+                }}
+              />
+            </div>
+
+            <div style={{
+              background: '#fff1f2',
+              border: '1px solid #ffe4e6',
+              borderRadius: '8px',
+              padding: '10px 12px',
+              color: '#9f1239',
+              fontSize: '12px',
+              lineHeight: '1.4'
+            }}>
+              ⚠️ <strong>Note:</strong> This will clear the verified status, log the action to audit history, and return this {selectedModuleObj?.title?.toLowerCase() || 'declaration'} back to the <strong>Pending for Verification</strong> list.
+            </div>
+          </div>
+        )}
+      </ConfirmationModal>
     </div>
   );
 };

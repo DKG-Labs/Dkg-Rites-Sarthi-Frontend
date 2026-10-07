@@ -617,6 +617,26 @@ export const getFinalIcEditData = async (icNumber) => {
 };
 
 /**
+ * Get Sleeper Final IC Edit Data
+ * @param {string} icNumber 
+ */
+export const getSleeperFinalIcEditData = async (icNumber) => {
+  try {
+    const encodedIcNumber = encodeURIComponent(icNumber);
+    const response = await fetch(`${API_BASE_URL.replace('/api/certificate', '/api/sleeper-final-ic-edit')}?icNumber=${encodedIcNumber}`, {
+      method: 'GET',
+      headers: getAuthHeaders()
+    });
+    if (response.status === 204) return null; // No content
+    if (!response.ok) throw new Error('Failed to fetch Sleeper Final IC edit data');
+    return await response.json();
+  } catch (error) {
+    console.error('Error fetching Sleeper Final IC edit data:', error);
+    return null;
+  }
+};
+
+/**
  * Save or update Process IC Edit Data
  * @param {Object} payload 
  */

@@ -54,15 +54,6 @@ const HARDCODED_USERS = {
       token: 'railwayboard-mock-token-' + Date.now()
     }
   },
-  'Admin': {
-    password: 'password',
-    userData: {
-      userId: 'Admin',
-      userName: 'System Admin',
-      roleName: 'ADMIN',
-      token: 'admin-mock-token-' + Date.now()
-    }
-  },
   'Railpad-IE': {
     password: 'password',
     userData: {

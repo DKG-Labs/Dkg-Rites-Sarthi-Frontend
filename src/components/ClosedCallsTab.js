@@ -831,7 +831,7 @@ const ClosedCallsTab = ({ setSelectedCall, setCurrentPage }) => {
                 </button>
 
                 {/* 8. Generate Case Letter */}
-                <button
+                {/* <button
                   onClick={() => {
                     const row = selectedActionCall;
                     setSelectedActionCall(null);
@@ -859,7 +859,7 @@ const ClosedCallsTab = ({ setSelectedCall, setCurrentPage }) => {
                     <PictureAsPdfRoundedIcon style={{ fontSize: '26px', color: '#4338ca' }} />
                   </div>
                   <span style={{ fontWeight: '700', fontSize: '15px', textAlign: 'center', lineHeight: '1.2' }}>Generate Case Letter</span>
-                </button>
+                </button> */}
               </div>
             </div>
           </div>

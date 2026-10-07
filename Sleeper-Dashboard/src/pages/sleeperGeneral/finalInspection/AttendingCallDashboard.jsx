@@ -2234,7 +2234,7 @@ const AttendingCallDashboard = ({ mode }) => {
                                 </button>
 
                                 {/* 6. Generate Case Letter (Merge Dossier) */}
-                                <button
+                                {/* <button
                                     onClick={() => {
                                         const row = selectedActionCall;
                                         setSelectedActionCall(null);
@@ -2268,7 +2268,7 @@ const AttendingCallDashboard = ({ mode }) => {
                                         </svg>
                                     </div>
                                     <span style={{ fontWeight: '700', fontSize: '13.5px', textAlign: 'center', lineHeight: '1.2' }}>Generate Case Letter</span>
-                                </button>
+                                </button> */}
 
                                 {/* 7. Back to Issuance of IC */}
                                 {!selectedActionCall.isClosed && activeTab !== 'closed' && (

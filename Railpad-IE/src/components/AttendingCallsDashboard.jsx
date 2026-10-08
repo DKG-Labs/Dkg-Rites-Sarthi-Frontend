@@ -23,6 +23,7 @@ import AnnexureUploadModal from './AnnexureUploadModal';
 import GenerateCaseLetterModal from './GenerateCaseLetterModal';
 import { generateRailpadCallLetterPDF } from '../utils/generateCallLetterPDF';
 import { fetchCorrectionSlipDocument, fetchCorrectionSlip } from '../services/correctionSlipService';
+import { downloadOrNotifyCaseLetter } from '../services/caseLetterService';
 
 const AttendingCallsDashboard = ({ 
   onStart, 
@@ -2252,10 +2253,18 @@ const AttendingCallsDashboard = ({
 
                 {/* 6. Case Letter (Generate / View) */}
                 <button
-                  onClick={() => {
+                  onClick={async () => {
                     const row = selectedActionCall;
                     setSelectedActionCall(null);
-                    setGenerateCaseLetterModalCall(row);
+                    const isClosedCall = row?.isClosed || activeTab === 'closed';
+                    if (isClosedCall) {
+                      const callNo = row?.call_no || row?.callNo || row?.requestId;
+                      await downloadOrNotifyCaseLetter(callNo, (msg) => {
+                        setNotification({ message: msg, type: 'error' });
+                      });
+                    } else {
+                      setGenerateCaseLetterModalCall(row);
+                    }
                   }}
                   style={{
                     display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '8px',
@@ -2273,7 +2282,7 @@ const AttendingCallsDashboard = ({
                     e.currentTarget.style.transform = 'translateY(0)';
                     e.currentTarget.style.boxShadow = '0 4px 6px -1px rgba(29, 78, 216, 0.1), 0 2px 4px -1px rgba(29, 78, 216, 0.06)'; 
                   }}
-                  title={(selectedActionCall.isClosed || activeTab === 'closed') ? "View Case Letter for this call" : "Generate Case Letter / Merge Dossier for this call"}
+                  title={(selectedActionCall.isClosed || activeTab === 'closed') ? "Directly download stored Case Letter dossier for this call" : "Generate Case Letter / Merge Dossier for this call"}
                 >
                   <div style={{ width: '42px', height: '42px', background: '#ffffff', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 2px 4px rgba(0,0,0,0.05)' }}>
                     <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#2563eb" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
@@ -2971,6 +2980,15 @@ const AttendingCallsDashboard = ({
           }}
         />
       )}
+
+      {/* Notification Message */}
+      <Notification
+        message={notification.message}
+        type={notification.type}
+        autoClose={notification.type !== 'info'}
+        autoCloseDelay={5000}
+        onClose={() => setNotification({ ...notification, message: '' })}
+      />
     </div>
   );
 };

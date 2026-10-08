@@ -10,9 +10,9 @@ import { fetchClosedCallsForIC, getCurrentUserId } from '../services/workflowApi
 import AnnexureLoader from './annexures/AnnexureLoader';
 import AnnexureUploadModal from './AnnexureUploadModal';
 import CorrectionSlipModal from './CorrectionSlipModal';
-import GenerateCaseLetterModal from './GenerateCaseLetterModal';
 import Modal from './Modal';
 import { fetchCorrectionSlipDocument, fetchCorrectionSlip } from '../services/correctionSlipService';
+import { downloadOrNotifyCaseLetter } from '../services/caseLetterService';
 import axios from 'axios';
 import { getAuthHeaders, getStoredUser } from '../services/authService';
 import { API_BASE_URL } from '../services/apiConfig';
@@ -48,7 +48,6 @@ const ClosedCallsTab = ({ setSelectedCall, setCurrentPage }) => {
   const [selectedActionCall, setSelectedActionCall] = useState(null);
   const [correctionSlipModalCall, setCorrectionSlipModalCall] = useState(null);
   const [isCorrectionSlipViewOnly, setIsCorrectionSlipViewOnly] = useState(false);
-  const [generateCaseLetterModalCall, setGenerateCaseLetterModalCall] = useState(null);
   const [slipStatusMap, setSlipStatusMap] = useState({});
   const [pdfLoading, setPdfLoading] = useState(false);
   const [tcPdfLoading, setTcPdfLoading] = useState(false);
@@ -832,10 +831,14 @@ const ClosedCallsTab = ({ setSelectedCall, setCurrentPage }) => {
 
                 {/* 8. View Case Letter */}
                 <button
-                  onClick={() => {
+                  onClick={async () => {
                     const row = selectedActionCall;
                     setSelectedActionCall(null);
-                    setGenerateCaseLetterModalCall(row);
+                    const callNo = row?.call_no || row?.callNo || row?.requestId;
+                    await downloadOrNotifyCaseLetter(callNo, (msg) => {
+                      setNotificationMessage(msg);
+                      setNotificationType('error');
+                    });
                   }}
                   style={{
                     display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '12px',
@@ -853,7 +856,7 @@ const ClosedCallsTab = ({ setSelectedCall, setCurrentPage }) => {
                     e.currentTarget.style.transform = 'translateY(0)';
                     e.currentTarget.style.boxShadow = '0 4px 6px -1px rgba(67, 56, 202, 0.1), 0 2px 4px -1px rgba(67, 56, 202, 0.06)'; 
                   }}
-                  title="View compiled Case Letter dossier for this call"
+                  title="Directly download stored Case Letter dossier for this call"
                 >
                   <div style={{ width: '48px', height: '48px', background: '#ffffff', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 2px 4px rgba(0,0,0,0.05)' }}>
                     <PictureAsPdfRoundedIcon style={{ fontSize: '26px', color: '#4338ca' }} />
@@ -864,15 +867,6 @@ const ClosedCallsTab = ({ setSelectedCall, setCurrentPage }) => {
             </div>
           </div>
         </div>
-      )}
-
-      {/* Generate Case Letter Modal */}
-      {generateCaseLetterModalCall && (
-        <GenerateCaseLetterModal
-          isOpen={Boolean(generateCaseLetterModalCall)}
-          call={generateCaseLetterModalCall}
-          onClose={() => setGenerateCaseLetterModalCall(null)}
-        />
       )}
 
       {/* Correction Slip Modal */}

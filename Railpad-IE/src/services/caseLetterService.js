@@ -101,6 +101,39 @@ export const downloadSavedCaseLetterPdf = (callNo) => {
 };
 
 /**
+ * Download saved Case Letter PDF or trigger onNotFound callback if not found
+ */
+export const downloadOrNotifyCaseLetter = async (callNo, onNotFound) => {
+  if (!callNo) {
+    if (onNotFound) onNotFound('Case letter not found for this call no');
+    return { success: false, message: 'Case letter not found for this call no' };
+  }
+  try {
+    const info = await fetchSavedCaseLetterInfo(callNo);
+    if (info && info.exists && info.data) {
+      const blob = await viewSavedCaseLetterPdf(callNo);
+      const url = window.URL.createObjectURL(new Blob([blob], { type: 'application/pdf' }));
+      const link = document.createElement('a');
+      link.href = url;
+      const fileName = info.data.originalFileName || info.data.blobFileName || `Case_Letter_${callNo}.pdf`;
+      link.setAttribute('download', fileName);
+      document.body.appendChild(link);
+      link.click();
+      link.parentNode.removeChild(link);
+      window.URL.revokeObjectURL(url);
+      return { success: true, data: info.data };
+    } else {
+      if (onNotFound) onNotFound('Case letter not found for this call no');
+      return { success: false, message: 'Case letter not found for this call no' };
+    }
+  } catch (err) {
+    console.warn('Failed to fetch/download case letter:', err);
+    if (onNotFound) onNotFound('Case letter not found for this call no');
+    return { success: false, error: err };
+  }
+};
+
+/**
  * Delete saved Case Letter for a call
  */
 export const deleteSavedCaseLetter = async (callNo) => {
@@ -115,4 +148,5 @@ export const deleteSavedCaseLetter = async (callNo) => {
   }
   return await res.json();
 };
+
 

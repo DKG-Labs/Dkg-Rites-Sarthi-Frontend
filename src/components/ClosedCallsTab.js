@@ -10,9 +10,9 @@ import { fetchClosedCallsForIC, getCurrentUserId } from '../services/workflowApi
 import AnnexureLoader from './annexures/AnnexureLoader';
 import AnnexureUploadModal from './AnnexureUploadModal';
 import CorrectionSlipModal from './CorrectionSlipModal';
-import GenerateCaseLetterModal from './GenerateCaseLetterModal';
 import Modal from './Modal';
 import { fetchCorrectionSlipDocument, fetchCorrectionSlip } from '../services/correctionSlipService';
+import { downloadOrNotifyCaseLetter } from '../services/caseLetterService';
 import axios from 'axios';
 import { getAuthHeaders, getStoredUser } from '../services/authService';
 import { API_BASE_URL } from '../services/apiConfig';
@@ -48,10 +48,10 @@ const ClosedCallsTab = ({ setSelectedCall, setCurrentPage }) => {
   const [selectedActionCall, setSelectedActionCall] = useState(null);
   const [correctionSlipModalCall, setCorrectionSlipModalCall] = useState(null);
   const [isCorrectionSlipViewOnly, setIsCorrectionSlipViewOnly] = useState(false);
-  const [generateCaseLetterModalCall, setGenerateCaseLetterModalCall] = useState(null);
   const [slipStatusMap, setSlipStatusMap] = useState({});
   const [pdfLoading, setPdfLoading] = useState(false);
   const [tcPdfLoading, setTcPdfLoading] = useState(false);
+  const [downloadingCaseLetterCall, setDownloadingCaseLetterCall] = useState(null);
 
   const hasFetchedRef = useRef(false);
 
@@ -830,49 +830,78 @@ const ClosedCallsTab = ({ setSelectedCall, setCurrentPage }) => {
                   <span style={{ fontWeight: '700', fontSize: '15px', textAlign: 'center', lineHeight: '1.2' }}>View Uploaded Annexures & Docs</span>
                 </button>
 
-                {/* 8. Generate Case Letter */}
-                {/* <button
-                  onClick={() => {
+                {/* 8. View Case Letter */}
+                <button
+                  disabled={Boolean(downloadingCaseLetterCall)}
+                  onClick={async () => {
                     const row = selectedActionCall;
-                    setSelectedActionCall(null);
-                    setGenerateCaseLetterModalCall(row);
+                    const callNo = row?.call_no || row?.callNo || row?.requestId;
+                    if (downloadingCaseLetterCall) return;
+                    setDownloadingCaseLetterCall(callNo);
+                    setNotificationType('info');
+                    setNotificationMessage(`Fetching and downloading Case Letter for ${callNo}... Please wait.`);
+                    try {
+                      const res = await downloadOrNotifyCaseLetter(callNo, {
+                        onNotFound: (msg) => {
+                          setNotificationType('error');
+                          setNotificationMessage(msg);
+                        },
+                        onError: () => {
+                          setNotificationType('error');
+                          setNotificationMessage('Failed to download case letter for this call');
+                        }
+                      });
+                      if (res && res.success) {
+                        setSelectedActionCall(null);
+                        setNotificationType('success');
+                        setNotificationMessage('Case letter downloaded successfully!');
+                      }
+                    } finally {
+                      setDownloadingCaseLetterCall(null);
+                    }
                   }}
                   style={{
                     display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '12px',
                     padding: '24px 16px', background: 'linear-gradient(135deg, #eef2ff 0%, #e0e7ff 100%)',
                     border: '1px solid #c7d2fe', borderRadius: '16px',
-                    cursor: 'pointer', transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                    cursor: downloadingCaseLetterCall ? 'not-allowed' : 'pointer',
+                    opacity: downloadingCaseLetterCall ? 0.75 : 1,
+                    transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
                     color: '#4338ca', width: '100%',
                     boxShadow: '0 4px 6px -1px rgba(67, 56, 202, 0.1), 0 2px 4px -1px rgba(67, 56, 202, 0.06)'
                   }}
                   onMouseEnter={(e) => { 
-                    e.currentTarget.style.transform = 'translateY(-4px)';
-                    e.currentTarget.style.boxShadow = '0 10px 15px -3px rgba(67, 56, 202, 0.2), 0 4px 6px -2px rgba(67, 56, 202, 0.1)'; 
+                    if (!downloadingCaseLetterCall) {
+                      e.currentTarget.style.transform = 'translateY(-4px)';
+                      e.currentTarget.style.boxShadow = '0 10px 15px -3px rgba(67, 56, 202, 0.2), 0 4px 6px -2px rgba(67, 56, 202, 0.1)'; 
+                    }
                   }}
                   onMouseLeave={(e) => { 
-                    e.currentTarget.style.transform = 'translateY(0)';
-                    e.currentTarget.style.boxShadow = '0 4px 6px -1px rgba(67, 56, 202, 0.1), 0 2px 4px -1px rgba(67, 56, 202, 0.06)'; 
+                    if (!downloadingCaseLetterCall) {
+                      e.currentTarget.style.transform = 'translateY(0)';
+                      e.currentTarget.style.boxShadow = '0 4px 6px -1px rgba(67, 56, 202, 0.1), 0 2px 4px -1px rgba(67, 56, 202, 0.06)'; 
+                    }
                   }}
-                  title="Compile and generate merged Case Letter dossier (Bottom-to-Top)"
+                  title="Directly download stored Case Letter dossier for this call"
                 >
                   <div style={{ width: '48px', height: '48px', background: '#ffffff', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 2px 4px rgba(0,0,0,0.05)' }}>
-                    <PictureAsPdfRoundedIcon style={{ fontSize: '26px', color: '#4338ca' }} />
+                    {downloadingCaseLetterCall ? (
+                      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#4338ca" strokeWidth="2.5" style={{ animation: 'spin 1s linear infinite' }}>
+                        <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" strokeDasharray="31.4" strokeDashoffset="10" fill="none" opacity="0.25"/>
+                        <path d="M12 2a10 10 0 0 1 10 10" stroke="currentColor" strokeWidth="3" strokeLinecap="round"/>
+                      </svg>
+                    ) : (
+                      <PictureAsPdfRoundedIcon style={{ fontSize: '26px', color: '#4338ca' }} />
+                    )}
                   </div>
-                  <span style={{ fontWeight: '700', fontSize: '15px', textAlign: 'center', lineHeight: '1.2' }}>Generate Case Letter</span>
-                </button> */}
+                  <span style={{ fontWeight: '700', fontSize: '15px', textAlign: 'center', lineHeight: '1.2' }}>
+                    {downloadingCaseLetterCall ? "Downloading..." : "View Case Letter"}
+                  </span>
+                </button>
               </div>
             </div>
           </div>
         </div>
-      )}
-
-      {/* Generate Case Letter Modal */}
-      {generateCaseLetterModalCall && (
-        <GenerateCaseLetterModal
-          isOpen={Boolean(generateCaseLetterModalCall)}
-          call={generateCaseLetterModalCall}
-          onClose={() => setGenerateCaseLetterModalCall(null)}
-        />
       )}
 
       {/* Correction Slip Modal */}

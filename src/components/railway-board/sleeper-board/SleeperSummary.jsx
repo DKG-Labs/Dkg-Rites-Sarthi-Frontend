@@ -94,7 +94,7 @@ const SleeperSummary = ({
             }
 
             try {
-                const res = await reportService.getSleeperDashboardSummaryFiltered(vendor, zone);
+                const res = await reportService.getSleeperDashboardSummaryFiltered(vendor, zone, filterStartDate, filterEndDate);
                 const data = res?.responseData || res?.data || res;
                 if (data) {
                     const rejProc = extractNumber(data.rejectedInProcess);
@@ -140,7 +140,7 @@ const SleeperSummary = ({
             }
         };
         fetchCounts();
-    }, [refreshTick, filterData, filterApplied, vendor, zone]);
+    }, [refreshTick, filterData, filterApplied, vendor, zone, filterStartDate, filterEndDate, plantId, companyName]);
 
     const actualSummary = (summaryData?.responseData && typeof summaryData.responseData === 'object') 
         ? summaryData.responseData 
@@ -151,11 +151,13 @@ const SleeperSummary = ({
     const totalPoQtyNos = extractNumber(actualSummary.sleeperPoQuantityNos ?? 0);
     const totalPoQtySet = extractNumber(actualSummary.sleeperPoQuantitySet ?? 0);
 
-    // Sleeper Production from production_declaration table
-    const prodTotal = totalProduction > 0 ? totalProduction : extractNumber(actualSummary.sleeperTotalProduction ?? 0);
+    // Sleeper Production from Issued ICs
+    const prodTotal = totalProduction > 0 
+        ? totalProduction 
+        : extractNumber(actualSummary.totalProduction ?? actualSummary.sleeperTotalProduction ?? (finalAcceptedNos + finalRejectedNos + finalAcceptedSet + finalRejectedSet));
 
-    // Process Accepted (Nos) (Total Casted - Demoulding Rejected)
-    const processAcceptedNos = prodTotal > 0 ? Math.max(0, prodTotal - rejectedInProcess) : 0;
+    // Process Accepted (Nos) (Total Offered - Demoulding Rejected)
+    const processAcceptedNos = prodTotal > 0 ? Math.max(0, prodTotal - rejectedInProcess) : (finalAcceptedNos + finalRejectedNos);
     const processRejectedNos = rejectedInProcess;
 
     const finalRejectedTotal = finalRejectedNos + finalRejectedSet;

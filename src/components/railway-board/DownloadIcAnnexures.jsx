@@ -43,6 +43,77 @@ const formatCallSubmissionDate = (dt) => {
     return datePart || str;
 };
 
+const getQuantityColumns = (record) => {
+    if (!record) return { qtySet: '-', qtyNos: '-' };
+    
+    // 1. Prefer backend calculated fields if present
+    const bSet = record.callQtySet && record.callQtySet !== '-' ? String(record.callQtySet).trim() : null;
+    const bNos = record.callQtyNos && record.callQtyNos !== '-' ? String(record.callQtyNos).trim() : null;
+    if (bSet || bNos) {
+        return {
+            qtySet: bSet || '-',
+            qtyNos: bNos || '-'
+        };
+    }
+
+    const rawQty = record.callQty;
+    if (rawQty === null || rawQty === undefined || rawQty === '' || rawQty === '-' || rawQty === '0' || rawQty === 0) {
+        return { qtySet: '-', qtyNos: '-' };
+    }
+
+    const s = String(rawQty).trim();
+
+    // 2. Check if unit is MT (e.g. 30.879 MT)
+    if (s.toLowerCase().includes('mt')) {
+        const num = parseFloat(s.replace(/[^0-9.]/g, ''));
+        let nosVal = '-';
+        if (!isNaN(num) && num > 0) {
+            const approxNos = Math.round((num * 1000) / 1.088);
+            nosVal = `${approxNos.toLocaleString('en-IN')} Nos`;
+        }
+        return {
+            qtySet: s,
+            qtyNos: nosVal
+        };
+    }
+
+    // 3. Check if unit is Set (e.g. 5000 Set or 31 Sets)
+    if (s.toLowerCase().includes('set')) {
+        return {
+            qtySet: s,
+            qtyNos: '-'
+        };
+    }
+
+    // 4. Check if unit is Nos (e.g. 28381 Nos) or numeric
+    const cleanNumStr = s.replace(/nos\.?/gi, '').replace(/,/g, '').trim();
+    const num = parseFloat(cleanNumStr);
+    if (!isNaN(num) && num > 0) {
+        const callNo = (record.callNumber || '').toUpperCase();
+        const formattedNos = `${Math.round(num).toLocaleString('en-IN')} Nos`;
+
+        // Only calculate MT conversion if it is explicitly an ERC call (EF-, EP-, ER-)
+        const isErc = callNo.startsWith('EF') || callNo.startsWith('EP') || callNo.startsWith('ER');
+        if (isErc && num >= 100) {
+            const mtVal = Math.round((num * 1.088 / 1000.0) * 1000.0) / 1000.0;
+            return {
+                qtySet: `${mtVal.toFixed(3)} MT`,
+                qtyNos: formattedNos
+            };
+        }
+
+        return {
+            qtySet: '-',
+            qtyNos: formattedNos
+        };
+    }
+
+    return {
+        qtySet: '-',
+        qtyNos: s
+    };
+};
+
 const DownloadIcAnnexures = ({ selectedProduct = 'ERC', fromDate: initialFromDate = '', toDate: initialToDate = '', hideFilters = false, vendorPlantCode = '', zonalRailway = '' }) => {
     // 1. Backend Data State
     const [records, setRecords] = useState([]);
@@ -257,6 +328,7 @@ const DownloadIcAnnexures = ({ selectedProduct = 'ERC', fromDate: initialFromDat
                     matchSearch = (record.vendorName || '').toLowerCase().includes(query);
                 } else {
                     // Global search (searchable across Call No, Vendor, PO, IC Number, Stage, Date, Qty)
+                    const { qtySet, qtyNos } = getQuantityColumns(record);
                     matchSearch = 
                         (record.callNumber || '').toLowerCase().includes(query) ||
                         (record.vendorName || '').toLowerCase().includes(query) ||
@@ -265,6 +337,8 @@ const DownloadIcAnnexures = ({ selectedProduct = 'ERC', fromDate: initialFromDat
                         (record.poNumberOnly || '').toLowerCase().includes(query) ||
                         (record.stage || '').toLowerCase().includes(query) ||
                         (record.callSubmissionDateTime || '').toLowerCase().includes(query) ||
+                        (qtySet || '').toLowerCase().includes(query) ||
+                        (qtyNos || '').toLowerCase().includes(query) ||
                         (record.callQty || '').toString().toLowerCase().includes(query);
                 }
             }
@@ -275,6 +349,22 @@ const DownloadIcAnnexures = ({ selectedProduct = 'ERC', fromDate: initialFromDat
         // Sorting
         if (sortConfig.key) {
             result.sort((a, b) => {
+                if (sortConfig.key === 'callQtySet') {
+                    const aSet = getQuantityColumns(a).qtySet;
+                    const bSet = getQuantityColumns(b).qtySet;
+                    const aNum = parseFloat(aSet.replace(/[^0-9.]/g, '')) || 0;
+                    const bNum = parseFloat(bSet.replace(/[^0-9.]/g, '')) || 0;
+                    return sortConfig.direction === 'asc' ? aNum - bNum : bNum - aNum;
+                }
+
+                if (sortConfig.key === 'callQtyNos') {
+                    const aNos = getQuantityColumns(a).qtyNos;
+                    const bNos = getQuantityColumns(b).qtyNos;
+                    const aNum = parseFloat(aNos.replace(/[^0-9.]/g, '')) || 0;
+                    const bNum = parseFloat(bNos.replace(/[^0-9.]/g, '')) || 0;
+                    return sortConfig.direction === 'asc' ? aNum - bNum : bNum - aNum;
+                }
+
                 let aVal = a[sortConfig.key];
                 let bVal = b[sortConfig.key];
 
@@ -302,6 +392,42 @@ const DownloadIcAnnexures = ({ selectedProduct = 'ERC', fromDate: initialFromDat
     }, [activeFilters, stageFilter, sortConfig, records, searchQuery, searchType]);
 
 
+
+    const totalSetQty = useMemo(() => {
+        let total = 0;
+        let isMt = false;
+        let hasSet = false;
+        filteredRecords.forEach(r => {
+            const { qtySet } = getQuantityColumns(r);
+            if (qtySet && qtySet !== '-') {
+                const clean = parseFloat(qtySet.replace(/[^0-9.]/g, ''));
+                if (!isNaN(clean)) {
+                    total += clean;
+                    if (qtySet.toLowerCase().includes('mt')) isMt = true;
+                    if (qtySet.toLowerCase().includes('set')) hasSet = true;
+                }
+            }
+        });
+        if (total === 0 && !hasSet && !isMt) return '-';
+        return isMt ? `${total.toFixed(3)} MT` : `${Math.round(total).toLocaleString('en-IN')} Sets`;
+    }, [filteredRecords]);
+
+    const totalNosQty = useMemo(() => {
+        let total = 0;
+        let hasNos = false;
+        filteredRecords.forEach(r => {
+            const { qtyNos } = getQuantityColumns(r);
+            if (qtyNos && qtyNos !== '-') {
+                const clean = parseFloat(qtyNos.replace(/[^0-9.]/g, ''));
+                if (!isNaN(clean)) {
+                    total += clean;
+                    hasNos = true;
+                }
+            }
+        });
+        if (total === 0 && !hasNos) return '-';
+        return `${Math.round(total).toLocaleString('en-IN')} Nos`;
+    }, [filteredRecords]);
 
     const paginatedRecords = useMemo(() => {
         return filteredRecords.slice(page * rowsPerPage, (page + 1) * rowsPerPage);
@@ -441,23 +567,28 @@ const DownloadIcAnnexures = ({ selectedProduct = 'ERC', fromDate: initialFromDat
             { label: 'Inspection Certificate Number', key: 'icNumber' },
             { label: 'Stage of Inspection', key: 'stage' },
             { label: 'Call Submission Date', key: 'callSubmissionDate' },
-            { label: 'Call QTY', key: 'callQty' },
+            { label: 'Acceptance Qty (Set / MT)', key: 'acceptanceQtySet' },
+            { label: 'Acceptance Qty (Nos)', key: 'acceptanceQtyNos' },
             { label: 'IC Issued Date', key: 'icIssuedDate' },
             { label: 'Consignee / Railway', key: 'consignee' },
         ];
 
-        const exportData = filteredRecords.map((record, index) => ({
-            sNo: index + 1,
-            vendorName: record.vendorName || '-',
-            formattedPo: formatPoNumber(record) || record.poNumber || '-',
-            callNumber: record.callNumber || '-',
-            icNumber: record.icNumber || 'Pending',
-            stage: record.stage || '-',
-            callSubmissionDate: formatCallSubmissionDate(record.callSubmissionDateTime),
-            callQty: record.callQty || '-',
-            icIssuedDate: record.icIssuedDate ? new Date(record.icIssuedDate).toLocaleDateString('en-GB') : '-',
-            consignee: record.consignee || record.purchasingAuthority || record.railwayShortName || '-',
-        }));
+        const exportData = filteredRecords.map((record, index) => {
+            const { qtySet, qtyNos } = getQuantityColumns(record);
+            return {
+                sNo: index + 1,
+                vendorName: record.vendorName || '-',
+                formattedPo: formatPoNumber(record) || record.poNumber || '-',
+                callNumber: record.callNumber || '-',
+                icNumber: record.icNumber || 'Pending',
+                stage: record.stage || '-',
+                callSubmissionDate: formatCallSubmissionDate(record.callSubmissionDateTime),
+                acceptanceQtySet: qtySet,
+                acceptanceQtyNos: qtyNos,
+                icIssuedDate: record.icIssuedDate ? new Date(record.icIssuedDate).toLocaleDateString('en-GB') : '-',
+                consignee: record.consignee || record.purchasingAuthority || record.railwayShortName || '-',
+            };
+        });
 
         await downloadExcel(
             exportData, 
@@ -502,21 +633,26 @@ const DownloadIcAnnexures = ({ selectedProduct = 'ERC', fromDate: initialFromDat
             'Inspection Certificate No.',
             'Stage',
             'Call Date',
-            'Call QTY',
+            'Accepted Qty (Set/MT)',
+            'Accepted Qty (Nos)',
             'IC Issued Date'
         ];
 
-        const tableRows = filteredRecords.map((record, index) => [
-            index + 1,
-            record.vendorName || '-',
-            formatPoNumber(record) || record.poNumber || '-',
-            record.callNumber || '-',
-            record.icNumber || 'Pending',
-            record.stage || '-',
-            formatCallSubmissionDate(record.callSubmissionDateTime),
-            record.callQty || '-',
-            record.icIssuedDate ? new Date(record.icIssuedDate).toLocaleDateString('en-GB') : '-'
-        ]);
+        const tableRows = filteredRecords.map((record, index) => {
+            const { qtySet, qtyNos } = getQuantityColumns(record);
+            return [
+                index + 1,
+                record.vendorName || '-',
+                formatPoNumber(record) || record.poNumber || '-',
+                record.callNumber || '-',
+                record.icNumber || 'Pending',
+                record.stage || '-',
+                formatCallSubmissionDate(record.callSubmissionDateTime),
+                qtySet,
+                qtyNos,
+                record.icIssuedDate ? new Date(record.icIssuedDate).toLocaleDateString('en-GB') : '-'
+            ];
+        });
 
         autoTable(doc, {
             head: [headers],
@@ -776,43 +912,46 @@ const DownloadIcAnnexures = ({ selectedProduct = 'ERC', fromDate: initialFromDat
                 </div>
             </div>
 
-            {/* IC Listing Table */}
-            <div className="table-responsive prof-card mb">
-                <table className="prof-table main-table">
+            {/* IC Listing Table - Compact Fit (No Horizontal Scroll) */}
+            <div className="ic-table-wrapper mb">
+                <table className="ic-table-fit main-table">
                     <thead>
                         <tr>
-                            <th style={{ width: '40px' }}>S.No.</th>
+                            <th style={{ width: '32px', textAlign: 'center' }}>S.No.</th>
                             <th onClick={() => handleSort('vendorName')} style={{ cursor: 'pointer' }}>
                                 Vendor Name {renderSortIcon('vendorName')}
                             </th>
                             <th onClick={() => handleSort('poNumber')} style={{ cursor: 'pointer' }}>
                                 PO Number {renderSortIcon('poNumber')}
                             </th>
-                            <th onClick={() => handleSort('callNumber')} style={{ cursor: 'pointer' }}>
-                                Call Number {renderSortIcon('callNumber')}
+                            <th onClick={() => handleSort('callNumber')} style={{ cursor: 'pointer', textAlign: 'center', whiteSpace: 'nowrap' }}>
+                                Call No. {renderSortIcon('callNumber')}
                             </th>
-                            <th onClick={() => handleSort('icNumber')} style={{ cursor: 'pointer' }}>
-                                Inspection Certificate Number {renderSortIcon('icNumber')}
+                            <th onClick={() => handleSort('icNumber')} style={{ cursor: 'pointer', whiteSpace: 'nowrap' }}>
+                                IC Number {renderSortIcon('icNumber')}
                             </th>
-                            <th onClick={() => handleSort('stage')} style={{ cursor: 'pointer', textAlign: 'center' }}>
-                                Stage of Inspection {renderSortIcon('stage')}
+                            <th onClick={() => handleSort('stage')} style={{ cursor: 'pointer', textAlign: 'center', width: '65px' }}>
+                                Stage {renderSortIcon('stage')}
                             </th>
-                            <th onClick={() => handleSort('callSubmissionDateTime')} style={{ cursor: 'pointer', whiteSpace: 'nowrap' }}>
-                                Call Submission Date {renderSortIcon('callSubmissionDateTime')}
+                            <th onClick={() => handleSort('callSubmissionDateTime')} style={{ cursor: 'pointer', whiteSpace: 'nowrap', textAlign: 'center' }}>
+                                Call Date {renderSortIcon('callSubmissionDateTime')}
                             </th>
-                            <th onClick={() => handleSort('callQty')} style={{ cursor: 'pointer', whiteSpace: 'nowrap' }}>
-                                Call QTY {renderSortIcon('callQty')}
+                            <th onClick={() => handleSort('callQtySet')} style={{ cursor: 'pointer', whiteSpace: 'nowrap', textAlign: 'center' }}>
+                                Acceptance Qty (Set/MT) {renderSortIcon('callQtySet')}
                             </th>
-                            <th onClick={() => handleSort('icIssuedDate')} style={{ cursor: 'pointer' }}>
-                                IC Issued Date {renderSortIcon('icIssuedDate')}
+                            <th onClick={() => handleSort('callQtyNos')} style={{ cursor: 'pointer', whiteSpace: 'nowrap', textAlign: 'center' }}>
+                                Acceptance Qty (Nos) {renderSortIcon('callQtyNos')}
                             </th>
-                            <th style={{ textAlign: 'center' }}>ACTIONS</th>
+                            <th onClick={() => handleSort('icIssuedDate')} style={{ cursor: 'pointer', whiteSpace: 'nowrap', textAlign: 'center' }}>
+                                IC Date {renderSortIcon('icIssuedDate')}
+                            </th>
+                            <th style={{ textAlign: 'center', width: '130px' }}>Actions</th>
                         </tr>
                     </thead>
                     <tbody>
                         {loading ? (
                             <tr>
-                                <td colSpan="10" className="text-center p-8 text-slate-500">
+                                <td colSpan="11" className="text-center p-8 text-slate-500">
                                     <i className="fa-solid fa-spinner fa-spin" style={{ marginRight: '8px', color: '#3b82f6' }}></i>
                                     Loading Inspection Certificates...
                                 </td>
@@ -821,31 +960,39 @@ const DownloadIcAnnexures = ({ selectedProduct = 'ERC', fromDate: initialFromDat
                             paginatedRecords.map((record, index) => {
                                 const serialNo = page * rowsPerPage + index + 1;
                                 const combinedPo = formatPoNumber(record);
+                                const { qtySet, qtyNos } = getQuantityColumns(record);
                                 return (
                                     <tr key={record.id || index} className={index % 2 === 0 ? 'row-odd' : 'row-even'}>
-                                        <td>{serialNo}</td>
-                                        <td className="font-semibold text-slate-800">{record.vendorName}</td>
-                                        <td className="font-bold text-indigo-700">{combinedPo}</td>
-                                        <td>
-                                            <span className="prof-badge" style={{ background: '#f1f5f9', color: '#475569' }}>
+                                        <td style={{ textAlign: 'center', color: '#64748b' }}>{serialNo}</td>
+                                        <td className="font-semibold text-slate-800" style={{ maxWidth: '170px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={record.vendorName}>
+                                            {record.vendorName}
+                                        </td>
+                                        <td className="font-bold text-indigo-700" style={{ whiteSpace: 'nowrap' }}>{combinedPo}</td>
+                                        <td style={{ textAlign: 'center' }}>
+                                            <span className="prof-badge" style={{ background: '#f1f5f9', color: '#475569', fontSize: '10.5px' }}>
                                                 {record.callNumber}
                                             </span>
                                         </td>
-                                        <td className="font-mono text-emerald-800 font-semibold">{record.icNumber || 'Pending'}</td>
+                                        <td className="font-mono text-emerald-800 font-semibold" style={{ whiteSpace: 'nowrap' }}>{record.icNumber || 'Pending'}</td>
                                         <td style={{ textAlign: 'center' }}>
                                             <span className={`ic-stage-badge ${(record.stage || '').toLowerCase()}`}>
                                                 {record.stage}
                                             </span>
                                         </td>
-                                        <td style={{ fontSize: '13px', whiteSpace: 'nowrap' }}>
+                                        <td style={{ fontSize: '11.5px', whiteSpace: 'nowrap', textAlign: 'center' }}>
                                             {formatCallSubmissionDate(record.callSubmissionDateTime)}
                                         </td>
-                                        <td style={{ fontWeight: '600', color: '#1e293b', whiteSpace: 'nowrap' }}>
-                                            {record.callQty || '-'}
+                                        <td style={{ fontWeight: '600', color: '#0f766e', whiteSpace: 'nowrap', textAlign: 'center' }}>
+                                            {qtySet}
                                         </td>
-                                        <td>{record.icIssuedDate ? new Date(record.icIssuedDate).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' }) : '-'}</td>
-                                        <td>
-                                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '15px' }}>
+                                        <td style={{ fontWeight: '600', color: '#1e293b', whiteSpace: 'nowrap', textAlign: 'center' }}>
+                                            {qtyNos}
+                                        </td>
+                                        <td style={{ fontSize: '11.5px', whiteSpace: 'nowrap', textAlign: 'center' }}>
+                                            {record.icIssuedDate ? new Date(record.icIssuedDate).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' }) : '-'}
+                                        </td>
+                                        <td style={{ textAlign: 'center' }}>
+                                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
                                                 <button 
                                                     className="ic-view-btn"
                                                     onClick={() => handleViewIc(record)}
@@ -867,12 +1014,28 @@ const DownloadIcAnnexures = ({ selectedProduct = 'ERC', fromDate: initialFromDat
                             })
                         ) : (
                             <tr>
-                                <td colSpan="10" className="text-center p-8 text-slate-400">
+                                <td colSpan="11" className="text-center p-8 text-slate-400">
                                     No records found matching the filters.
                                 </td>
                             </tr>
                         )}
                     </tbody>
+                    {filteredRecords.length > 0 && (
+                        <tfoot>
+                            <tr style={{ background: '#f1f5f9', fontWeight: 'bold', borderTop: '2px solid #cbd5e1' }}>
+                                <td colSpan="7" style={{ textAlign: 'right', padding: '10px 14px', color: '#1e293b', fontSize: '12px' }}>
+                                    Total Accepted Quantity:
+                                </td>
+                                <td style={{ textAlign: 'center', color: '#0f766e', fontWeight: '700', fontSize: '12px', whiteSpace: 'nowrap' }}>
+                                    {totalSetQty}
+                                </td>
+                                <td style={{ textAlign: 'center', color: '#1e293b', fontWeight: '700', fontSize: '12px', whiteSpace: 'nowrap' }}>
+                                    {totalNosQty}
+                                </td>
+                                <td colSpan="2"></td>
+                            </tr>
+                        </tfoot>
+                    )}
                 </table>
             </div>
 

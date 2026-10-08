@@ -114,11 +114,6 @@ const getQuantityColumns = (record) => {
     };
 };
 
-const formatDisplayCallQty = (qty) => {
-    if (!qty || qty === '-' || qty === '0') return '-';
-    return String(qty).trim();
-};
-
 const DownloadIcAnnexures = ({ selectedProduct = 'ERC', fromDate: initialFromDate = '', toDate: initialToDate = '', hideFilters = false, vendorPlantCode = '', zonalRailway = '' }) => {
     // 1. Backend Data State
     const [records, setRecords] = useState([]);

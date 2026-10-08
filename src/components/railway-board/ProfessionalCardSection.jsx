@@ -602,8 +602,8 @@ const ProfessionalCardSection = ({
                 itemCatDescr,
                 selectedVendorPlant || null,
                 selectedZonalRailway || null,
-                filterStartDate || null,
-                filterEndDate || null
+                isPrimaryFilterApplied ? (filterStartDate || null) : null,
+                isPrimaryFilterApplied ? (filterEndDate || null) : null
             );
             const data = response.responseData || response || [];
             setPoModalData(data);

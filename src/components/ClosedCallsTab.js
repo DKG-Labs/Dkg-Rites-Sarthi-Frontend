@@ -830,8 +830,8 @@ const ClosedCallsTab = ({ setSelectedCall, setCurrentPage }) => {
                   <span style={{ fontWeight: '700', fontSize: '15px', textAlign: 'center', lineHeight: '1.2' }}>View Uploaded Annexures & Docs</span>
                 </button>
 
-                {/* 8. Generate Case Letter */}
-                {/* <button
+                {/* 8. View Case Letter */}
+                <button
                   onClick={() => {
                     const row = selectedActionCall;
                     setSelectedActionCall(null);
@@ -853,13 +853,13 @@ const ClosedCallsTab = ({ setSelectedCall, setCurrentPage }) => {
                     e.currentTarget.style.transform = 'translateY(0)';
                     e.currentTarget.style.boxShadow = '0 4px 6px -1px rgba(67, 56, 202, 0.1), 0 2px 4px -1px rgba(67, 56, 202, 0.06)'; 
                   }}
-                  title="Compile and generate merged Case Letter dossier (Bottom-to-Top)"
+                  title="View compiled Case Letter dossier for this call"
                 >
                   <div style={{ width: '48px', height: '48px', background: '#ffffff', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 2px 4px rgba(0,0,0,0.05)' }}>
                     <PictureAsPdfRoundedIcon style={{ fontSize: '26px', color: '#4338ca' }} />
                   </div>
-                  <span style={{ fontWeight: '700', fontSize: '15px', textAlign: 'center', lineHeight: '1.2' }}>Generate Case Letter</span>
-                </button> */}
+                  <span style={{ fontWeight: '700', fontSize: '15px', textAlign: 'center', lineHeight: '1.2' }}>View Case Letter</span>
+                </button>
               </div>
             </div>
           </div>

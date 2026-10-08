@@ -2233,8 +2233,8 @@ const AttendingCallDashboard = ({ mode }) => {
                                     </span>
                                 </button>
 
-                                {/* 6. Generate Case Letter (Merge Dossier) */}
-                                {/* <button
+                                {/* 6. Case Letter (Generate / View) */}
+                                <button
                                     onClick={() => {
                                         const row = selectedActionCall;
                                         setSelectedActionCall(null);
@@ -2256,7 +2256,7 @@ const AttendingCallDashboard = ({ mode }) => {
                                         e.currentTarget.style.transform = 'translateY(0)';
                                         e.currentTarget.style.boxShadow = '0 4px 6px -1px rgba(67, 56, 202, 0.1), 0 2px 4px -1px rgba(67, 56, 202, 0.06)'; 
                                     }}
-                                    title="Generate Case Letter / Merge Dossier for this call"
+                                    title={(selectedActionCall.isClosed || activeTab === 'closed') ? "View Case Letter for this call" : "Generate Case Letter / Merge Dossier for this call"}
                                 >
                                     <div style={{ width: '42px', height: '42px', background: '#ffffff', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 2px 4px rgba(0,0,0,0.05)' }}>
                                         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#4f46e5" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
@@ -2267,8 +2267,10 @@ const AttendingCallDashboard = ({ mode }) => {
                                             <polyline points="10 9 9 9 8 9"></polyline>
                                         </svg>
                                     </div>
-                                    <span style={{ fontWeight: '700', fontSize: '13.5px', textAlign: 'center', lineHeight: '1.2' }}>Generate Case Letter</span>
-                                </button> */}
+                                    <span style={{ fontWeight: '700', fontSize: '13.5px', textAlign: 'center', lineHeight: '1.2' }}>
+                                        {(selectedActionCall.isClosed || activeTab === 'closed') ? "View Case Letter" : "Generate Case Letter"}
+                                    </span>
+                                </button>
 
                                 {/* 7. Back to Issuance of IC */}
                                 {!selectedActionCall.isClosed && activeTab !== 'closed' && (

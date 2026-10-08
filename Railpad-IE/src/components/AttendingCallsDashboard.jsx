@@ -66,6 +66,7 @@ const AttendingCallsDashboard = ({
   const [uploadAnnexureModal, setUploadAnnexureModal] = useState({ isOpen: false, call: null });
   const [selectedCertificateCall, setSelectedCertificateCall] = useState(null);
   const [generateCaseLetterModalCall, setGenerateCaseLetterModalCall] = useState(null);
+  const [downloadingCaseLetterCall, setDownloadingCaseLetterCall] = useState(null);
 
   // Closed Calls & IBS modal states
   const [sendIbsCallRow, setSendIbsCallRow] = useState(null);
@@ -2253,16 +2254,33 @@ const AttendingCallsDashboard = ({
 
                 {/* 6. Case Letter (Generate / View) */}
                 <button
+                  disabled={Boolean(downloadingCaseLetterCall)}
                   onClick={async () => {
                     const row = selectedActionCall;
-                    setSelectedActionCall(null);
                     const isClosedCall = row?.isClosed || activeTab === 'closed';
                     if (isClosedCall) {
                       const callNo = row?.call_no || row?.callNo || row?.requestId;
-                      await downloadOrNotifyCaseLetter(callNo, (msg) => {
-                        setNotification({ message: msg, type: 'error' });
-                      });
+                      if (downloadingCaseLetterCall) return;
+                      setDownloadingCaseLetterCall(callNo);
+                      setNotification({ message: `Fetching and downloading Case Letter for ${callNo}... Please wait.`, type: 'info' });
+                      try {
+                        const res = await downloadOrNotifyCaseLetter(callNo, {
+                          onNotFound: (msg) => {
+                            setNotification({ message: msg, type: 'error' });
+                          },
+                          onError: () => {
+                            setNotification({ message: 'Failed to download case letter for this call', type: 'error' });
+                          }
+                        });
+                        if (res && res.success) {
+                          setSelectedActionCall(null);
+                          setNotification({ message: 'Case letter downloaded successfully!', type: 'success' });
+                        }
+                      } finally {
+                        setDownloadingCaseLetterCall(null);
+                      }
                     } else {
+                      setSelectedActionCall(null);
                       setGenerateCaseLetterModalCall(row);
                     }
                   }}
@@ -2270,31 +2288,46 @@ const AttendingCallsDashboard = ({
                     display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '8px',
                     padding: '16px 12px', background: 'linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%)',
                     border: '1px solid #bfdbfe', borderRadius: '14px',
-                    cursor: 'pointer', transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                    cursor: downloadingCaseLetterCall ? 'not-allowed' : 'pointer',
+                    opacity: downloadingCaseLetterCall ? 0.75 : 1,
+                    transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
                     color: '#1d4ed8', width: '100%',
                     boxShadow: '0 4px 6px -1px rgba(29, 78, 216, 0.1), 0 2px 4px -1px rgba(29, 78, 216, 0.06)'
                   }}
                   onMouseEnter={(e) => { 
-                    e.currentTarget.style.transform = 'translateY(-3px)';
-                    e.currentTarget.style.boxShadow = '0 10px 15px -3px rgba(29, 78, 216, 0.2), 0 4px 6px -2px rgba(29, 78, 216, 0.1)'; 
+                    if (!downloadingCaseLetterCall) {
+                      e.currentTarget.style.transform = 'translateY(-3px)';
+                      e.currentTarget.style.boxShadow = '0 10px 15px -3px rgba(29, 78, 216, 0.2), 0 4px 6px -2px rgba(29, 78, 216, 0.1)'; 
+                    }
                   }}
                   onMouseLeave={(e) => { 
-                    e.currentTarget.style.transform = 'translateY(0)';
-                    e.currentTarget.style.boxShadow = '0 4px 6px -1px rgba(29, 78, 216, 0.1), 0 2px 4px -1px rgba(29, 78, 216, 0.06)'; 
+                    if (!downloadingCaseLetterCall) {
+                      e.currentTarget.style.transform = 'translateY(0)';
+                      e.currentTarget.style.boxShadow = '0 4px 6px -1px rgba(29, 78, 216, 0.1), 0 2px 4px -1px rgba(29, 78, 216, 0.06)'; 
+                    }
                   }}
                   title={(selectedActionCall.isClosed || activeTab === 'closed') ? "Directly download stored Case Letter dossier for this call" : "Generate Case Letter / Merge Dossier for this call"}
                 >
                   <div style={{ width: '42px', height: '42px', background: '#ffffff', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 2px 4px rgba(0,0,0,0.05)' }}>
-                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#2563eb" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
-                      <polyline points="14 2 14 8 20 8"></polyline>
-                      <line x1="16" y1="13" x2="8" y2="13"></line>
-                      <line x1="16" y1="17" x2="8" y2="17"></line>
-                      <polyline points="10 9 9 9 8 9"></polyline>
-                    </svg>
+                    {downloadingCaseLetterCall ? (
+                      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#2563eb" strokeWidth="2.5" style={{ animation: 'spin 1s linear infinite' }}>
+                        <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" strokeDasharray="31.4" strokeDashoffset="10" fill="none" opacity="0.25"/>
+                        <path d="M12 2a10 10 0 0 1 10 10" stroke="currentColor" strokeWidth="3" strokeLinecap="round"/>
+                      </svg>
+                    ) : (
+                      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#2563eb" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                        <polyline points="14 2 14 8 20 8"></polyline>
+                        <line x1="16" y1="13" x2="8" y2="13"></line>
+                        <line x1="16" y1="17" x2="8" y2="17"></line>
+                        <polyline points="10 9 9 9 8 9"></polyline>
+                      </svg>
+                    )}
                   </div>
                   <span style={{ fontWeight: '700', fontSize: '13.5px', textAlign: 'center', lineHeight: '1.2' }}>
-                    {(selectedActionCall.isClosed || activeTab === 'closed') ? "View Case Letter" : "Generate Case Letter"}
+                    {downloadingCaseLetterCall 
+                      ? "Downloading..." 
+                      : ((selectedActionCall.isClosed || activeTab === 'closed') ? "View Case Letter" : "Generate Case Letter")}
                   </span>
                 </button>
 

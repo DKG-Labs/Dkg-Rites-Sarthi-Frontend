@@ -88,11 +88,19 @@ export const downloadSavedCaseLetterPdf = (callNo) => {
 /**
  * Download saved Case Letter PDF or trigger onNotFound callback if not found
  */
-export const downloadOrNotifyCaseLetter = async (callNo, onNotFound) => {
+export const downloadOrNotifyCaseLetter = async (callNo, options = {}) => {
+  const onNotFound = typeof options === 'function' ? options : options?.onNotFound;
+  const onStart = typeof options === 'object' ? options?.onStart : null;
+  const onSuccess = typeof options === 'object' ? options?.onSuccess : null;
+  const onError = typeof options === 'object' ? options?.onError : null;
+
   if (!callNo) {
     if (onNotFound) onNotFound('Case letter not found for this call no');
     return { success: false, message: 'Case letter not found for this call no' };
   }
+
+  if (onStart) onStart();
+
   try {
     const info = await fetchSavedCaseLetterInfo(callNo);
     if (info && info.exists && info.data) {
@@ -106,6 +114,7 @@ export const downloadOrNotifyCaseLetter = async (callNo, onNotFound) => {
       link.click();
       link.parentNode.removeChild(link);
       window.URL.revokeObjectURL(url);
+      if (onSuccess) onSuccess(info.data);
       return { success: true, data: info.data };
     } else {
       if (onNotFound) onNotFound('Case letter not found for this call no');
@@ -113,7 +122,8 @@ export const downloadOrNotifyCaseLetter = async (callNo, onNotFound) => {
     }
   } catch (err) {
     console.warn('Failed to fetch/download case letter:', err);
-    if (onNotFound) onNotFound('Case letter not found for this call no');
+    if (onError) onError(err);
+    else if (onNotFound) onNotFound('Case letter not found for this call no');
     return { success: false, error: err };
   }
 };

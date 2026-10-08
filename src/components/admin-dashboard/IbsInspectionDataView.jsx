@@ -333,7 +333,6 @@ export const IbsInspectionDataView = ({ onNotify }) => {
 
     useEffect(() => {
         fetchPendingCalls();
-        fetchCompletedCalls();
     }, []);
 
     const applyDatePreset = (preset) => {

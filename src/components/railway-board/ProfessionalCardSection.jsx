@@ -457,7 +457,12 @@ const ProfessionalCardSection = ({
                 };
 
                 const sleeperSummaryPromise = isSleeper
-                    ? reportService.getSleeperDashboardSummaryFiltered(selectedVendorPlant, selectedZonalRailway).catch(e => { console.error(e); return null; })
+                    ? reportService.getSleeperDashboardSummaryFiltered(
+                        selectedVendorPlant,
+                        selectedZonalRailway,
+                        isPrimaryFilterApplied ? filterStartDate : '',
+                        isPrimaryFilterApplied ? filterEndDate : ''
+                    ).catch(e => { console.error(e); return null; })
                     : Promise.resolve(null);
 
                 const [
@@ -592,12 +597,13 @@ const ProfessionalCardSection = ({
             } else {
                 itemCatDescr = 'Elastic Rail Clips';
             }
+            const isPrimaryFilterApplied = filterMode === 'vendorwise' ? !!selectedVendorPlant : !!selectedZonalRailway;
             const response = await reportService.getPoIssuedDetails(
                 itemCatDescr,
                 selectedVendorPlant || null,
                 selectedZonalRailway || null,
-                null,
-                null
+                filterStartDate || null,
+                filterEndDate || null
             );
             const data = response.responseData || response || [];
             setPoModalData(data);
@@ -1248,7 +1254,7 @@ const ProfessionalCardSection = ({
                                                             <div className="kpi-sub" style={{ fontSize: '11px', opacity: 0.9 }}>Nos.</div>
                                                         </div>
                                                         <div style={{ paddingLeft: '4px' }}>
-                                                            <div className="kpi-val" style={{ fontSize: '26px' }}>-</div>
+                                                            <div className="kpi-val" style={{ fontSize: '26px' }}>{(s.finalInspectionQuantityMt || 0)}</div>
                                                             <div className="kpi-sub" style={{ fontSize: '11px', opacity: 0.9 }}>MT</div>
                                                         </div>
                                                     </div>
@@ -2537,7 +2543,7 @@ const ProfessionalCardSection = ({
                 }}>
                     <div className="modal-content fade-in" onClick={e => e.stopPropagation()} style={{
                         background: '#f8fafc', borderRadius: '16px', overflow: 'hidden',
-                        width: '95vw', maxWidth: '1400px', height: '90vh', boxShadow: '0 20px 25px -5px rgba(0,0,0,0.1)',
+                        width: '96vw', maxWidth: '1550px', height: '90vh', boxShadow: '0 20px 25px -5px rgba(0,0,0,0.1)',
                         display: 'flex', flexDirection: 'column'
                     }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px 24px', borderBottom: '1px solid #e2e8f0', background: 'white' }}>

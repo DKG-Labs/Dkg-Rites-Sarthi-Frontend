@@ -1107,18 +1107,22 @@ const reportService = {
     },
 
     /**
-     * Get consolidated Sleeper dashboard summary, optionally filtered by vendor and/or zonal railway.
-     * Hits: /api/sleeper-dashboard/summary?vendor={vendor}&zone={zone}
-     * Returns: { rejectedInProcess, rejectedInFinal, rejectionPercentage, pendingCalls, underInspectionCalls }
+     * Get consolidated Sleeper dashboard summary, optionally filtered by vendor, zonal railway, and date range.
+     * Hits: /api/sleeper-dashboard/summary?vendor={vendor}&zone={zone}&startDate={startDate}&endDate={endDate}
+     * Returns: { rejectedInProcess, rejectedInFinal, rejectionPercentage, pendingCalls, underInspectionCalls, ... }
      * Gracefully falls back to existing individual endpoints if /summary is unavailable.
      * @param {string} vendor - optional vendor/company name or vendor code
      * @param {string} zone - optional zonal railway code
+     * @param {string} startDate - optional start date (YYYY-MM-DD)
+     * @param {string} endDate - optional end date (YYYY-MM-DD)
      */
-    getSleeperDashboardSummaryFiltered: async (vendor, zone) => {
+    getSleeperDashboardSummaryFiltered: async (vendor, zone, startDate, endDate) => {
         try {
             const url = new URL(`${API_ENDPOINTS.SLEEPER_DASHBOARD}/summary`);
             if (vendor) url.searchParams.append('vendor', vendor);
             if (zone) url.searchParams.append('zone', zone);
+            if (startDate) url.searchParams.append('startDate', startDate);
+            if (endDate) url.searchParams.append('endDate', endDate);
             const response = await fetch(url.toString(), { headers: getAuthHeaders() });
             const res = await handleResponse(response);
             if (res && res.responseData) return res;

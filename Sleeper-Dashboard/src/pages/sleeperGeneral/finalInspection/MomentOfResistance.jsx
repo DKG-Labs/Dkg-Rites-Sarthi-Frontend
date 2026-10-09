@@ -338,7 +338,16 @@ const MomentOfResistance = () => {
             testData
                 .filter(t => isSamePlant(t.plantId, params.plantId))
                 .forEach(t => {
-                    const declaredMatch = mrData.find(d => d.id === t.monmentOfResistanceId);
+                    const declaredMatch = mrData.find(d => 
+                        isSamePlant(d.plantId, params.plantId) && (
+                            (t.monmentOfResistanceId && Number(d.id) === Number(t.monmentOfResistanceId)) ||
+                            (
+                                String(d.batchNumber || '').trim().toLowerCase() === String(t.batchNumber || '').trim().toLowerCase() &&
+                                String(d.sleeperNo || '').trim().toLowerCase() === String(t.sleeperNo || '').trim().toLowerCase() &&
+                                t.sleeperNo
+                            )
+                        )
+                    );
                     const declId = getDeclId(t, declaredMatch);
                     const res = String(t.testResult || '').toLowerCase();
                     if (res === 'pass' || res === 'fail') {
@@ -363,7 +372,16 @@ const MomentOfResistance = () => {
                 .filter(d => {
                     const res = String(d.testResult || '').toLowerCase();
                     if (res === 'retest') return false;
-                    const hasTest = testData.some(t => t.monmentOfResistanceId === d.id);
+                    const hasTest = testData.some(t => 
+                        isSamePlant(t.plantId, params.plantId) && (
+                            (t.monmentOfResistanceId && Number(d.id) === Number(t.monmentOfResistanceId)) ||
+                            (
+                                String(t.batchNumber || '').trim().toLowerCase() === String(d.batchNumber || '').trim().toLowerCase() &&
+                                String(t.sleeperNo || '').trim().toLowerCase() === String(d.sleeperNo || '').trim().toLowerCase() &&
+                                (String(t.testResult || '').toLowerCase() === 'pass' || String(t.testResult || '').toLowerCase() === 'fail')
+                            )
+                        )
+                    );
                     if (hasTest) return false;
                     return (!d.testResult || d.testResult === 'Pending');
                 })
@@ -424,17 +442,23 @@ const MomentOfResistance = () => {
             const pendingDeclaredItems = mrData
                 .filter(item => isSamePlant(item.plantId, params.plantId))
                 .filter(item => {
-                    const decl = findDeclaration(item);
-                    const pId = decl ? String(decl.id) : (item.productionDeclarationId ? String(item.productionDeclarationId) : null);
-                    if (pId && completedDeclIds.has(pId)) return false;
-
-                    const hasCompletedTest = testData.some(t => t.monmentOfResistanceId === item.id);
+                    // Check if there is an existing completed test for THIS SPECIFIC sample
+                    const hasCompletedTest = testData.some(t => 
+                        isSamePlant(t.plantId, params.plantId) && (
+                            (t.monmentOfResistanceId && Number(t.monmentOfResistanceId) === Number(item.id)) ||
+                            (
+                                String(t.batchNumber || '').trim().toLowerCase() === String(item.batchNumber || '').trim().toLowerCase() &&
+                                String(t.sleeperNo || '').trim().toLowerCase() === String(item.sleeperNo || '').trim().toLowerCase() &&
+                                (String(t.testResult || '').toLowerCase() === 'pass' || String(t.testResult || '').toLowerCase() === 'fail')
+                            )
+                        )
+                    );
                     if (hasCompletedTest) return false;
 
-                    const itemKey = makeItemKey(item.batchNumber, extractDrawingNo(item, decl), extractCastDate(item, decl));
-                    if (!pId && completedItemKeys.has(itemKey)) return false;
+                    const res = String(item.testResult || '').toLowerCase();
+                    if (res === 'pass' || res === 'fail' || res === 'retest') return false;
 
-                    return (!item.testResult || item.testResult === 'Pending' || item.status !== 'COMPLETED');
+                    return true;
                 });
 
             // Group pending declared items by MRGroup if they were declared together

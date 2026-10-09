@@ -2076,7 +2076,9 @@ const AttendingCallDashboard = ({ mode }) => {
                                             </span>
                                         )}
                                     </button>
-                                                       {/* Correction Slip Actions: 0 -> Issue, 1 -> Issue New + View, >1 -> Issue New + View All Modal */}
+                                )}
+
+                                {/* Correction Slip Actions: 0 -> Issue, 1 -> Issue New + View, >1 -> Issue New + View All Modal */}
                                 {(selectedActionCall.isClosed || activeTab === 'closed') && (() => {
                                     const callNo = selectedActionCall.requestId || selectedActionCall.call_no || selectedActionCall.callNo || selectedActionCall.id;
                                     const docs = slipDocsMap[callNo] || [];

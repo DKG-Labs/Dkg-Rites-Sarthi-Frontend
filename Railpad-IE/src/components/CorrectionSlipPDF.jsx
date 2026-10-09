@@ -46,6 +46,24 @@ const styles = `
     align-items: center;
     justify-content: center;
   }
+  .cs-hologram-circle {
+    width: 68px;
+    height: 68px;
+    border-radius: 50%;
+    border: 1px solid #000;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    font-size: 7pt;
+    font-weight: bold;
+    letter-spacing: 0.3px;
+    line-height: 1.15;
+    text-transform: uppercase;
+    box-sizing: border-box;
+    padding: 2px;
+  }
   .cs-logo-area { text-align: right; }
   .cs-logo-area img { height: 56px; object-fit: contain; }
 
@@ -252,7 +270,7 @@ const styles = `
 `;
 
 const toWords = (n) => {
-  const w = ['','ONE','TWO','THREE','FOUR','FIVE','SIX','SEVEN','EIGHT','NINE','TEN'];
+  const w = ['', 'ONE', 'TWO', 'THREE', 'FOUR', 'FIVE', 'SIX', 'SEVEN', 'EIGHT', 'NINE', 'TEN'];
   return (n >= 1 && n <= 10) ? w[n] : String(n);
 };
 
@@ -268,7 +286,7 @@ export const formatCorrectionText = (text) => {
 
 const today = () => {
   const d = new Date();
-  return `${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}/${d.getFullYear()}`;
+  return `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`;
 };
 
 const downloadBase64Pdf = (base64Data, filename) => {
@@ -296,8 +314,8 @@ const downloadBase64Pdf = (base64Data, filename) => {
 
 const CorrectionSlipPDF = ({ icData = {}, corrections = [], callNo = '', icFields = [], createdBy = 'unknown', onBack, onClose }) => {
   const printRef = useRef();
-  const [isESigning, setIsESigning]   = useState(false);
-  const [notif, setNotif]             = useState({ msg: '', type: '' });
+  const [isESigning, setIsESigning] = useState(false);
+  const [notif, setNotif] = useState({ msg: '', type: '' });
 
   // Listen for Capricorn PKI bridge result
   useEffect(() => {
@@ -379,7 +397,7 @@ const CorrectionSlipPDF = ({ icData = {}, corrections = [], callNo = '', icField
 
       const now = new Date();
       const pad = (n) => n.toString().padStart(2, '0');
-      const timestamp = `${now.getFullYear()}-${pad(now.getMonth()+1)}-${pad(now.getDate())}T${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}+05:30`;
+      const timestamp = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}T${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}+05:30`;
       const txn = Math.random().toString(16).slice(2, 10).toUpperCase();
 
       const xmlRequest = `
@@ -473,34 +491,38 @@ const CorrectionSlipPDF = ({ icData = {}, corrections = [], callNo = '', icField
     try {
       const d = new Date(raw);
       if (isNaN(d.getTime())) return raw;
-      return `${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}/${d.getFullYear()}`;
+      return `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`;
     } catch { return raw; }
   };
-  const certDate    = formatIcDate(icData?.icEditDate) || icData?.certificateDate || '—';
-  const isProcess   = String(callNo || '').toUpperCase().startsWith('RPP') ||
+  const certDate = formatIcDate(icData?.icEditDate) || icData?.certificateDate || '—';
+  const isProcess = String(callNo || '').toUpperCase().startsWith('RPP') ||
+    String(callNo || '').toUpperCase().startsWith('S/RPP') ||
+    String(icData?.certificateNo || '').toUpperCase().startsWith('S/RPP') ||
+    String(icData?.certificateNo || '').toUpperCase().startsWith('RPP') ||
+    String(icData?.certificateNo || '').toUpperCase().includes('/PR') ||
     String(icData?.product_type || icData?.productType || icData?.railPadType || icData?.callType || '').toLowerCase().includes('process');
-  const installment = icData?.passedInstNo     || icData?.offeredInstNo || (isProcess ? '' : '1ST & FINAL');
-  const bookNo      = icData?.bookNo || '—';
-  const setNo       = icData?.setNo  || '—';
+  const installment = icData?.passedInstNo || icData?.offeredInstNo || (isProcess ? '' : '1ST & FINAL');
+  const bookNo = icData?.bookNo || '—';
+  const setNo = icData?.setNo || '—';
   const description = icData?.description || icData?.descriptionOfStores || icData?.itemDescription || '';
-  const contractor  = icData?.contractor  || icData?.contractorName || icData?.vendorName || '—';
-  const loaNo       = icData?.contractRef || icData?.contractReferences || icData?.poNo || icData?.maNumberAndDate || '—';
-  const purchaser   = icData?.purchasingAuthority || '—';
-  const consignee   = icData?.consigneeRailway || icData?.consigneeManufacturer || icData?.consignee || '—';
+  const contractor = icData?.contractor || icData?.contractorName || icData?.vendorName || '—';
+  const loaNo = icData?.contractRef || icData?.contractReferences || icData?.poNo || icData?.maNumberAndDate || '—';
+  const purchaser = icData?.purchasingAuthority || '—';
+  const consignee = icData?.consigneeRailway || icData?.consigneeManufacturer || icData?.consignee || '—';
   const billOfficer = icData?.billPayingOfficer || '—';
-  const inspEngineer= icData?.inspectingEngineer || '';
+  const inspEngineer = icData?.inspectingEngineer || '';
 
   return (
-    <div style={{ position:'fixed', top:0, left:0, right:0, bottom:0, zIndex:9999, overflowY:'auto', background:'#fff' }}>
+    <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 9999, overflowY: 'auto', background: '#fff' }}>
       <style>{styles}</style>
 
       {/* ── Preview area ── */}
       <div className="cs-preview">
 
         {/* Buttons above PDF - full width */}
-        <div className="cs-toolbar" style={{ display:'flex', justifyContent:'space-between', alignItems: 'center', width:'100%', maxWidth:'210mm', marginBottom:'14px' }}>
-          <button onClick={onBack} disabled={isESigning} style={{ padding:'8px 18px', background:'#fff', color:'#374151', border:'1px solid #d1d5db', borderRadius:'6px', fontSize:'14px', fontWeight:500, cursor: isESigning ? 'not-allowed' : 'pointer', opacity: isESigning ? 0.6 : 1 }}>← Back to Edit</button>
-          
+        <div className="cs-toolbar" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%', maxWidth: '210mm', marginBottom: '14px' }}>
+          <button onClick={onBack} disabled={isESigning} style={{ padding: '8px 18px', background: '#fff', color: '#374151', border: '1px solid #d1d5db', borderRadius: '6px', fontSize: '14px', fontWeight: 500, cursor: isESigning ? 'not-allowed' : 'pointer', opacity: isESigning ? 0.6 : 1 }}>← Back to Edit</button>
+
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
             <button
               onClick={handleDirectDownload}
@@ -542,18 +564,18 @@ const CorrectionSlipPDF = ({ icData = {}, corrections = [], callNo = '', icField
         {/* Notification banner */}
         {notif.msg && (
           <div style={{
-              position:'fixed', top:'80px', right:'20px', zIndex:10000,
-              maxWidth:'320px', padding:'10px 14px',
-              borderRadius:'8px', fontSize:'12.5px', fontWeight:500,
-              boxShadow:'0 4px 12px rgba(0,0,0,0.15)',
-              background: notif.type === 'success' ? '#f0fdf4' : notif.type === 'error' ? '#fff1f2' : '#eff6ff',
-              color: notif.type === 'success' ? '#15803d' : notif.type === 'error' ? '#be123c' : '#1d4ed8',
-              borderLeft: `3px solid ${notif.type === 'success' ? '#22c55e' : notif.type === 'error' ? '#f43f5e' : '#3b82f6'}`,
-              display:'flex', alignItems:'center', gap:'10px',
-              animation:'slideIn 0.2s ease'
-            }}>
-            <span style={{ flex:1, lineHeight:'1.4' }}>{notif.msg}</span>
-            <button onClick={() => setNotif({ msg:'', type:'' })} style={{ background:'none', border:'none', cursor:'pointer', fontSize:'14px', color:'inherit', padding:0, lineHeight:1, opacity:0.7 }}>✕</button>
+            position: 'fixed', top: '80px', right: '20px', zIndex: 10000,
+            maxWidth: '320px', padding: '10px 14px',
+            borderRadius: '8px', fontSize: '12.5px', fontWeight: 500,
+            boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+            background: notif.type === 'success' ? '#f0fdf4' : notif.type === 'error' ? '#fff1f2' : '#eff6ff',
+            color: notif.type === 'success' ? '#15803d' : notif.type === 'error' ? '#be123c' : '#1d4ed8',
+            borderLeft: `3px solid ${notif.type === 'success' ? '#22c55e' : notif.type === 'error' ? '#f43f5e' : '#3b82f6'}`,
+            display: 'flex', alignItems: 'center', gap: '10px',
+            animation: 'slideIn 0.2s ease'
+          }}>
+            <span style={{ flex: 1, lineHeight: '1.4' }}>{notif.msg}</span>
+            <button onClick={() => setNotif({ msg: '', type: '' })} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '14px', color: 'inherit', padding: 0, lineHeight: 1, opacity: 0.7 }}>✕</button>
           </div>
         )}
 
@@ -563,6 +585,9 @@ const CorrectionSlipPDF = ({ icData = {}, corrections = [], callNo = '', icField
             {/* ── Header row ── */}
             <div className="cs-header">
               <div className="cs-issue-box">F / 7.5 / 1 / 9 &nbsp; ISSUE NO. 01</div>
+              <div className="cs-hologram-circle">
+                HIGH SECURITY<br />HOLOGRAM
+              </div>
               <div className="cs-logo-area">
                 <img src="/sarthi-logo1.png" alt="RITES Logo" />
               </div>
@@ -635,9 +660,9 @@ const CorrectionSlipPDF = ({ icData = {}, corrections = [], callNo = '', icField
             <table className="cs-table">
               <thead>
                 <tr>
-                  <th style={{ width:'18%', fontWeight: 'bold' }}>COLUMN</th>
-                  <th style={{ width:'41%', fontWeight: 'bold' }}>READ AS</th>
-                  <th style={{ width:'41%', fontWeight: 'bold' }}>INSTEAD OF</th>
+                  <th style={{ width: '18%', fontWeight: 'bold' }}>COLUMN</th>
+                  <th style={{ width: '41%', fontWeight: 'bold' }}>READ AS</th>
+                  <th style={{ width: '41%', fontWeight: 'bold' }}>INSTEAD OF</th>
                 </tr>
               </thead>
               <tbody>
@@ -664,7 +689,9 @@ const CorrectionSlipPDF = ({ icData = {}, corrections = [], callNo = '', icField
               <div>
                 <div className="cs-stamp-row">
                   <span className="cs-stamp-label">Facsimile of RITES Stamp</span>
-                  <div className="cs-stamp-box"></div>
+                  <div className="cs-stamp-box" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', fontSize: '11pt' }}>
+                    {isProcess ? 'N/A' : ''}
+                  </div>
                 </div>
                 <div className="cs-copies">
                   Copies:

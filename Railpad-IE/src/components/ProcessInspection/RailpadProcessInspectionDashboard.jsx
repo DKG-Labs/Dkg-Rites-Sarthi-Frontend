@@ -37,6 +37,7 @@ const RailpadProcessInspectionDashboard = ({ user, call, currentShift, onBack, o
   const [reasonForRejection, setReasonForRejection] = useState('');
   const [lotRangeFrom, setLotRangeFrom] = useState('');
   const [lotRangeTo, setLotRangeTo] = useState('');
+  const [acceptedSets, setAcceptedSets] = useState('');
   const [summary, setSummary] = useState(null);
   const [drawingNo, setDrawingNo] = useState('');
   const [expandedDates, setExpandedDates] = useState([]);
@@ -61,14 +62,15 @@ const RailpadProcessInspectionDashboard = ({ user, call, currentShift, onBack, o
           reasonForRejection,
           lotRangeFrom,
           lotRangeTo,
-          expandedDates
+          expandedDates,
+          acceptedSets
         };
         localStorage.setItem(getDraftKey(), JSON.stringify(draftState));
       } catch (e) {
         console.error('Error persisting active draft state', e);
       }
     }
-  }, [selectedBatches, remarks, reasonForRejection, lotRangeFrom, lotRangeTo, expandedDates, isDataLoaded]);
+  }, [selectedBatches, remarks, reasonForRejection, lotRangeFrom, lotRangeTo, expandedDates, acceptedSets, isDataLoaded]);
 
   useEffect(() => {
     fetchData();
@@ -123,6 +125,9 @@ const RailpadProcessInspectionDashboard = ({ user, call, currentShift, onBack, o
         setReasonForRejection(draft.reasonForRejection || '');
         setLotRangeFrom(draft.lotRangeFrom || '');
         setLotRangeTo(draft.lotRangeTo || '');
+        if (draft.acceptedSets !== undefined && draft.acceptedSets !== null) {
+          setAcceptedSets(draft.acceptedSets.toString());
+        }
 
         if (draft.batches && draft.batches.length > 0) {
           const draftBatches = draft.batches.map(b => ({
@@ -179,6 +184,7 @@ const RailpadProcessInspectionDashboard = ({ user, call, currentShift, onBack, o
             if (savedLocalDraft.reasonForRejection !== undefined) setReasonForRejection(savedLocalDraft.reasonForRejection || '');
             if (savedLocalDraft.lotRangeFrom !== undefined) setLotRangeFrom(savedLocalDraft.lotRangeFrom || '');
             if (savedLocalDraft.lotRangeTo !== undefined) setLotRangeTo(savedLocalDraft.lotRangeTo || '');
+            if (savedLocalDraft.acceptedSets !== undefined) setAcceptedSets(savedLocalDraft.acceptedSets || '');
             if (savedLocalDraft.expandedDates && savedLocalDraft.expandedDates.length > 0) {
               setExpandedDates(savedLocalDraft.expandedDates);
             }
@@ -362,6 +368,36 @@ const RailpadProcessInspectionDashboard = ({ user, call, currentShift, onBack, o
     return { totalManufactured, totalRejected, totalAccepted, totalOffered, hasInvalidQty };
   }, [selectedBatches, batches]);
 
+  // ── NCRGRSP Catalog & Section C Master Table Calculation ──
+  const currentRailPadType = summary?.ercType || call?.railPadType || '';
+  const isNcrgrsp = /NCR\s*GRSP/i.test(currentRailPadType);
+  const displayDrawingNo = drawingNo || call?.drawingNo || summary?.drawingNo || '';
+
+  const candidateDrawings = useMemo(() => batches.map(b => b.drawingNo).filter(Boolean), [batches]);
+  const ncrgrspCatalogKey = useMemo(() => {
+    return resolveNcrgrspCatalogKey(displayDrawingNo || currentRailPadType, candidateDrawings);
+  }, [displayDrawingNo, currentRailPadType, candidateDrawings]);
+
+  const ncrCatalogItems = useMemo(() => {
+    if (!isNcrgrsp || !ncrgrspCatalogKey) return [];
+    return NCRGRSP_CATALOG[ncrgrspCatalogKey] || [];
+  }, [isNcrgrsp, ncrgrspCatalogKey]);
+
+  // Set of allowed sub-drawing numbers configured in the Drawing Requirement Summary
+  const allowedNcrDrawingsSet = useMemo(() => {
+    if (!isNcrgrsp || !ncrCatalogItems || ncrCatalogItems.length === 0) return null;
+    return new Set(ncrCatalogItems.map(item => normalizeDwg(item.drawingNo)));
+  }, [isNcrgrsp, ncrCatalogItems]);
+
+  // Filter batches to ONLY include sub-drawings present in the Drawing Requirement Summary
+  const visibleBatches = useMemo(() => {
+    if (!allowedNcrDrawingsSet) return batches;
+    return batches.filter(b => {
+      const norm = normalizeDwg(b.drawingNo);
+      return allowedNcrDrawingsSet.has(norm);
+    });
+  }, [batches, allowedNcrDrawingsSet]);
+
   const formatDate = (dateStr) => {
     if (!dateStr || dateStr === 'N/A') return 'N/A';
     const d = new Date(dateStr);
@@ -370,25 +406,25 @@ const RailpadProcessInspectionDashboard = ({ user, call, currentShift, onBack, o
     return `${pad(d.getDate())}/${pad(d.getMonth() + 1)}/${d.getFullYear().toString().slice(2)}`;
   };
 
-  // Group batches date-wise
+  // Group visible batches date-wise
   const groupedBatches = useMemo(() => {
-    return batches.reduce((acc, batch) => {
+    return visibleBatches.reduce((acc, batch) => {
       const date = formatDate(batch.productionDate);
       if (!acc[date]) acc[date] = [];
       acc[date].push(batch);
       return acc;
     }, {});
-  }, [batches]);
+  }, [visibleBatches]);
 
-  const areAllBatchesSelected = batches.length > 0 && batches.every(b => !!selectedBatches[b.declarationBatchId]);
-  const isSomeBatchesSelected = batches.some(b => !!selectedBatches[b.declarationBatchId]) && !areAllBatchesSelected;
+  const areAllBatchesSelected = visibleBatches.length > 0 && visibleBatches.every(b => !!selectedBatches[b.declarationBatchId]);
+  const isSomeBatchesSelected = visibleBatches.some(b => !!selectedBatches[b.declarationBatchId]) && !areAllBatchesSelected;
 
   const handleSelectAllToggle = () => {
     if (areAllBatchesSelected) {
       setSelectedBatches({});
     } else {
       const next = {};
-      batches.forEach(b => {
+      visibleBatches.forEach(b => {
         const avail = b.availableQty !== undefined ? b.availableQty : b.qtyManufactured;
         const rej = b.verificationRejectedQty || 0;
         const defaultAccepted = Math.max(0, avail - rej);
@@ -423,32 +459,40 @@ const RailpadProcessInspectionDashboard = ({ user, call, currentShift, onBack, o
     );
   };
 
-  // ── NCRGRSP Catalog & Section C Master Table Calculation ──
-  const currentRailPadType = summary?.ercType || call?.railPadType || '';
-  const isNcrgrsp = /NCR\s*GRSP/i.test(currentRailPadType);
-  const displayDrawingNo = drawingNo || call?.drawingNo || summary?.drawingNo || '';
-
-  const candidateDrawings = useMemo(() => batches.map(b => b.drawingNo).filter(Boolean), [batches]);
-  const ncrgrspCatalogKey = useMemo(() => {
-    return resolveNcrgrspCatalogKey(displayDrawingNo || currentRailPadType, candidateDrawings);
-  }, [displayDrawingNo, currentRailPadType, candidateDrawings]);
-
-  const ncrCatalogItems = useMemo(() => {
-    if (!isNcrgrsp || !ncrgrspCatalogKey) return [];
-    return NCRGRSP_CATALOG[ncrgrspCatalogKey] || [];
-  }, [isNcrgrsp, ncrgrspCatalogKey]);
-
   const offeredSets = useMemo(() => {
     return parseInt(summary?.totalOfferedQty || call?.qtyDesiredForFinal || call?.callQty || call?.totalQty || 0, 10) || 0;
   }, [summary, call]);
+
+  const hasAcceptedSets = acceptedSets !== '' && !isNaN(parseInt(acceptedSets, 10));
+  const numAcceptedSets = hasAcceptedSets ? parseInt(acceptedSets, 10) : null;
+  const rejectedSets = isNcrgrsp && hasAcceptedSets ? Math.max(0, offeredSets - numAcceptedSets) : 0;
+
+  const handleAcceptedSetsChange = (e) => {
+    const val = e.target.value;
+    if (val === '') {
+      setAcceptedSets('');
+      return;
+    }
+    const parsed = parseInt(val, 10);
+    if (isNaN(parsed) || parsed < 0) {
+      setAcceptedSets('0');
+      return;
+    }
+    if (parsed > offeredSets) {
+      showNotification(`Accepted Sets cannot exceed Offered Sets (${offeredSets})`, 'warning');
+      setAcceptedSets(offeredSets.toString());
+      return;
+    }
+    setAcceptedSets(parsed.toString());
+  };
 
   // Section C Drawing Requirement Summary Data
   const drawingSummaryData = useMemo(() => {
     if (!isNcrgrsp || ncrCatalogItems.length === 0) return [];
 
-    // Map total inventory per drawing across all batches
+    // Map total inventory per drawing across visible batches
     const inventoryMap = {};
-    batches.forEach(b => {
+    visibleBatches.forEach(b => {
       const dwg = b.drawingNo || '';
       const avail = b.availableQty !== undefined ? b.availableQty : b.qtyManufactured;
       const norm = normalizeDwg(dwg);
@@ -476,7 +520,7 @@ const RailpadProcessInspectionDashboard = ({ user, call, currentShift, onBack, o
       const matchingBatches = Object.values(selectedBatches).filter(
         b => normalizeDwg(b.drawingNo) === normTarget
       ).map(b => {
-        const originalBatch = batches.find(orig => orig.declarationBatchId.toString() === (b.declarationBatchId || '').toString()) || {};
+        const originalBatch = visibleBatches.find(orig => orig.declarationBatchId.toString() === (b.declarationBatchId || '').toString()) || {};
         const avail = b.availableQty !== undefined ? b.availableQty : (originalBatch.availableQty || b.qtyManufactured);
         const rej = b.qtyRejected !== undefined ? b.qtyRejected : (originalBatch.verificationRejectedQty || 0);
         const maxAllowed = Math.max(0, avail - rej);
@@ -504,7 +548,7 @@ const RailpadProcessInspectionDashboard = ({ user, call, currentShift, onBack, o
         selectedBatchesList: matchingBatches
       };
     });
-  }, [isNcrgrsp, ncrCatalogItems, offeredSets, batches, selectedBatches]);
+  }, [isNcrgrsp, ncrCatalogItems, offeredSets, visibleBatches, selectedBatches]);
 
   const totalRequiredQty = useMemo(() => {
     return drawingSummaryData.reduce((acc, row) => acc + row.requiredQty, 0);
@@ -518,7 +562,7 @@ const RailpadProcessInspectionDashboard = ({ user, call, currentShift, onBack, o
   const standardDrawingSummaryData = useMemo(() => {
     if (isNcrgrsp) return [];
     const map = {};
-    batches.forEach(b => {
+    visibleBatches.forEach(b => {
       const dwg = b.drawingNo || displayDrawingNo || 'Standard';
       if (!map[dwg]) {
         map[dwg] = { drawingNo: dwg, selectedCount: 0, totalAvailable: 0, acceptedQty: 0, rejectedQty: 0, remainingQty: 0, selectedBatchesList: [] };
@@ -533,7 +577,7 @@ const RailpadProcessInspectionDashboard = ({ user, call, currentShift, onBack, o
         map[dwg] = { drawingNo: dwg, selectedCount: 0, totalAvailable: 0, acceptedQty: 0, rejectedQty: 0, remainingQty: 0, selectedBatchesList: [] };
       }
       map[dwg].selectedCount += 1;
-      const originalBatch = batches.find(orig => orig.declarationBatchId.toString() === (b.declarationBatchId || '').toString()) || {};
+      const originalBatch = visibleBatches.find(orig => orig.declarationBatchId.toString() === (b.declarationBatchId || '').toString()) || {};
       const avail = b.availableQty !== undefined ? b.availableQty : (originalBatch.availableQty || b.qtyManufactured);
       const rej = b.qtyRejected !== undefined ? b.qtyRejected : (originalBatch.verificationRejectedQty || 0);
       const acc = typeof b.acceptedQty === 'number' ? b.acceptedQty : parseInt(b.acceptedQty, 10) || 0;
@@ -550,7 +594,7 @@ const RailpadProcessInspectionDashboard = ({ user, call, currentShift, onBack, o
     });
 
     return Object.values(map);
-  }, [isNcrgrsp, batches, selectedBatches, displayDrawingNo]);
+  }, [isNcrgrsp, visibleBatches, selectedBatches, displayDrawingNo]);
 
   // Save / Finish Execution
   const handleSaveOrFinish = async (actionType) => {
@@ -574,6 +618,17 @@ const RailpadProcessInspectionDashboard = ({ user, call, currentShift, onBack, o
       if (!remarks || remarks.trim() === '') {
         showNotification('Remarks are mandatory to proceed.', 'error');
         return;
+      }
+
+      if (isNcrgrsp) {
+        if (acceptedSets === '' || isNaN(parseInt(acceptedSets, 10))) {
+          showNotification('Please enter a valid Accepted Sets quantity.', 'error');
+          return;
+        }
+        if (parseInt(acceptedSets, 10) < 0 || parseInt(acceptedSets, 10) > offeredSets) {
+          showNotification(`Accepted Sets must be between 0 and ${offeredSets}.`, 'error');
+          return;
+        }
       }
 
       if (!capturedImages || capturedImages.length < 5) {
@@ -666,6 +721,9 @@ const RailpadProcessInspectionDashboard = ({ user, call, currentShift, onBack, o
         totalManufacturedQty: totals.totalOffered,
         totalRejectedQty: totals.totalRejected,
         totalAcceptedQty: totals.totalAccepted,
+        offeredSets: isNcrgrsp ? offeredSets : null,
+        acceptedSets: isNcrgrsp ? (parseInt(acceptedSets, 10) || 0) : null,
+        rejectedSets: isNcrgrsp ? rejectedSets : null,
         reasonForRejection: compiledReason,
         lotRangeFrom: lotRangeFrom,
         lotRangeTo: lotRangeTo,
@@ -1111,7 +1169,7 @@ const RailpadProcessInspectionDashboard = ({ user, call, currentShift, onBack, o
           <div className="batches-card">
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
               <h3 style={{ margin: 0 }}>ACCEPTED INVENTORY (DATE-WISE)</h3>
-              {batches.length > 0 && (
+              {visibleBatches.length > 0 && (
                 <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                   <label style={{
                     display: 'inline-flex',
@@ -1294,17 +1352,101 @@ const RailpadProcessInspectionDashboard = ({ user, call, currentShift, onBack, o
             <div className="summary-stats">
               <div className="stat-box primary">
                 <label>Qty Offered</label>
-                <div className="stat-val">{totals.totalOffered}</div>
+                <div className="stat-val">
+                  {totals.totalOffered.toLocaleString()} <span style={{ fontSize: '14px', fontWeight: '700', opacity: 0.85 }}>Nos.</span>
+                </div>
               </div>
               <div className="stat-box danger">
                 <label>Qty Rejected</label>
-                <div className="stat-val">{totals.totalRejected}</div>
+                <div className="stat-val">
+                  {totals.totalRejected.toLocaleString()} <span style={{ fontSize: '14px', fontWeight: '700', opacity: 0.85 }}>Nos.</span>
+                </div>
               </div>
               <div className="stat-box success">
                 <label>Qty Accepted</label>
-                <div className="stat-val">{totals.totalAccepted}</div>
+                <div className="stat-val">
+                  {totals.totalAccepted.toLocaleString()} <span style={{ fontSize: '14px', fontWeight: '700', opacity: 0.85 }}>Nos.</span>
+                </div>
               </div>
             </div>
+
+            {/* If isNcrgrsp, show NCRGRSP Sets findings (Offered Sets, Rejected Sets, Accepted Sets) above Lot Range */}
+            {isNcrgrsp && (
+              <div style={{
+                marginBottom: '16px',
+                marginTop: '6px',
+                padding: '12px 14px',
+                background: 'linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%)',
+                border: '1px solid #cbd5e1',
+                borderRadius: '10px'
+              }}>
+                <div style={{
+                  fontSize: '12px',
+                  fontWeight: '700',
+                  color: '#0f3a5e',
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.05em',
+                  marginBottom: '10px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between'
+                }}>
+                  <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#0284c7" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <rect x="2" y="7" width="20" height="14" rx="2" ry="2"></rect>
+                      <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"></path>
+                    </svg>
+                    Sets Findings
+                  </span>
+                  <span style={{ fontSize: '11px', color: '#0284c7', fontWeight: '700', background: '#e0f2fe', padding: '2px 6px', borderRadius: '4px' }}>
+                    NCRGRSP
+                  </span>
+                </div>
+                <div className="summary-stats" style={{ marginBottom: 0, gap: '8px' }}>
+                  <div className="stat-box primary" style={{ padding: '8px 10px' }}>
+                    <label style={{ fontSize: '11px' }}>Offered Sets</label>
+                    <div className="stat-val" style={{ fontSize: '18px', display: 'flex', alignItems: 'baseline', gap: '3px' }}>
+                      {offeredSets.toLocaleString()} <span style={{ fontSize: '12px', fontWeight: '700', opacity: 0.85 }}>Sets</span>
+                    </div>
+                  </div>
+                  <div className="stat-box danger" style={{ padding: '8px 10px' }}>
+                    <label style={{ fontSize: '11px' }}>Rejected Sets</label>
+                    <div className="stat-val" style={{ fontSize: '18px', display: 'flex', alignItems: 'baseline', gap: '3px' }}>
+                      {rejectedSets.toLocaleString()} <span style={{ fontSize: '12px', fontWeight: '700', opacity: 0.85 }}>Sets</span>
+                    </div>
+                  </div>
+                  <div className="stat-box success" style={{ padding: '8px 10px' }}>
+                    <label style={{ fontSize: '11px' }}>Accepted Sets <span style={{ color: 'red' }}>*</span></label>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '3px', width: '100%', marginTop: '2px' }}>
+                      <input
+                        type="number"
+                        className="sets-input"
+                        min="0"
+                        max={offeredSets}
+                        value={acceptedSets}
+                        onChange={handleAcceptedSetsChange}
+                        disabled={isSubmitting}
+                        placeholder="0"
+                        style={{
+                          width: '100%',
+                          minWidth: '50px',
+                          padding: '3px 4px',
+                          fontSize: '16px',
+                          fontWeight: '800',
+                          color: '#15803d',
+                          background: '#ffffff',
+                          border: '1.5px solid #86efac',
+                          borderRadius: '5px',
+                          outline: 'none',
+                          textAlign: 'center'
+                        }}
+                      />
+                      <span style={{ fontSize: '12px', fontWeight: '700', color: '#15803d', opacity: 0.85 }}>Sets</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
 
             {/* Lot Range Inputs */}
             <div className="form-group" style={{ marginTop: '16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>

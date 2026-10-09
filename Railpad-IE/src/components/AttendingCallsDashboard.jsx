@@ -16,13 +16,20 @@ import { getBaseUrl } from '../services/apiConfig';
 import Notification from './Notification';
 import { getStoredUser } from '../services/authService';
 import CorrectionSlipModal from './CorrectionSlipModal';
+import CorrectionSlipListModal from './CorrectionSlipListModal';
 import PendingCallDetailsModal from './PendingCallDetailsModal';
 import ShiftDutyForm from './ShiftDutyForm';
 import AnnexureLoader from './AnnexureLoader';
 import AnnexureUploadModal from './AnnexureUploadModal';
 import GenerateCaseLetterModal from './GenerateCaseLetterModal';
 import { generateRailpadCallLetterPDF } from '../utils/generateCallLetterPDF';
-import { fetchCorrectionSlipDocument, fetchCorrectionSlip } from '../services/correctionSlipService';
+import {
+  fetchCorrectionSlipDocument,
+  fetchCorrectionSlip,
+  fetchCorrectionSlipDocuments,
+  getViewCorrectionSlipPdfUrl,
+  getViewCorrectionSlipPdfByIdUrl
+} from '../services/correctionSlipService';
 import { downloadOrNotifyCaseLetter } from '../services/caseLetterService';
 
 const AttendingCallsDashboard = ({ 
@@ -61,7 +68,9 @@ const AttendingCallsDashboard = ({
   const [callToResume, setCallToResume] = useState(null);
   const [showCorrectionSlipModal, setShowCorrectionSlipModal] = useState(false);
   const [correctionSlipRow, setCorrectionSlipRow] = useState(null);
+  const [slipListModalCall, setSlipListModalCall] = useState(null);
   const [isCorrectionSlipViewOnly, setIsCorrectionSlipViewOnly] = useState(false);
+  const [slipDocsMap, setSlipDocsMap] = useState({});
   const [slipStatusMap, setSlipStatusMap] = useState({});
   const [uploadAnnexureModal, setUploadAnnexureModal] = useState({ isOpen: false, call: null });
   const [selectedCertificateCall, setSelectedCertificateCall] = useState(null);
@@ -99,6 +108,19 @@ const AttendingCallsDashboard = ({
       setActiveTab(controlledTab);
     }
   }, [controlledTab]);
+
+  // Check correction slip documents on-demand when a call's action popup is opened
+  useEffect(() => {
+    if (!selectedActionCall) return;
+    const callNo = selectedActionCall.call_no || selectedActionCall.callNo || selectedActionCall.requestId || '';
+    if (!callNo || slipDocsMap[callNo] !== undefined) return;
+
+    fetchCorrectionSlipDocuments(callNo).then(docs => {
+      const list = Array.isArray(docs) ? docs : [];
+      setSlipDocsMap(prev => ({ ...prev, [callNo]: list }));
+      setSlipStatusMap(prev => ({ ...prev, [callNo]: list.length > 0 }));
+    }).catch(() => {});
+  }, [selectedActionCall]);
 
   // Reset pagination when tab or search changes
   useEffect(() => {
@@ -150,23 +172,7 @@ const AttendingCallsDashboard = ({
 
   const mappedPlantsKey = (propMappedPlants || []).join(',');
 
-  // Pre-fetch correction slip existence for loaded closed calls
-  useEffect(() => {
-    if (calls && calls.length > 0 && activeTab === 'closed') {
-      calls.forEach(call => {
-        const callNo = call.call_no || call.callNo || call.requestId;
-        if (callNo && slipStatusMap[callNo] === undefined) {
-          Promise.all([
-            fetchCorrectionSlipDocument(callNo).catch(() => ({ exists: false })),
-            fetchCorrectionSlip(callNo).catch(() => [])
-          ]).then(([doc, saved]) => {
-            const exists = Boolean((doc && doc.exists) || (Array.isArray(saved) && saved.length > 0));
-            setSlipStatusMap(prev => ({ ...prev, [callNo]: exists }));
-          }).catch(() => {});
-        }
-      });
-    }
-  }, [calls, activeTab, slipStatusMap]);
+
 
   // Check correction slip existence when a closed call action modal is opened
   useEffect(() => {
@@ -1878,16 +1884,31 @@ const AttendingCallsDashboard = ({
             setShowCorrectionSlipModal(false);
             setSelectedCall(null);
             if (callNo) {
-              Promise.all([
-                fetchCorrectionSlipDocument(callNo).catch(() => ({ exists: false })),
-                fetchCorrectionSlip(callNo).catch(() => [])
-              ]).then(([doc, saved]) => {
-                const exists = Boolean((doc && doc.exists) || (Array.isArray(saved) && saved.length > 0));
-                setSlipStatusMap(prev => ({ ...prev, [callNo]: exists }));
+              fetchCorrectionSlipDocuments(callNo).then(docs => {
+                const list = Array.isArray(docs) ? docs : [];
+                setSlipDocsMap(prev => ({ ...prev, [callNo]: list }));
+                setSlipStatusMap(prev => ({ ...prev, [callNo]: list.length > 0 }));
               }).catch(() => {});
             }
           }}
           viewOnly={isCorrectionSlipViewOnly}
+        />
+      )}
+
+      {/* Correction Slip Selection Modal (When > 1 slip exists) */}
+      {slipListModalCall && (
+        <CorrectionSlipListModal
+          isOpen={Boolean(slipListModalCall)}
+          onClose={() => setSlipListModalCall(null)}
+          callNo={slipListModalCall?.call_no || slipListModalCall?.callNo || slipListModalCall?.requestId}
+          icNumber={slipListModalCall?.ic_number || slipListModalCall?.icNo || ''}
+          documents={slipDocsMap[slipListModalCall?.call_no || slipListModalCall?.callNo || slipListModalCall?.requestId] || []}
+          onIssueNew={() => {
+            const call = slipListModalCall;
+            setSlipListModalCall(null);
+            setCorrectionSlipRow(call);
+            setIsCorrectionSlipViewOnly(false);
+          }}
         />
       )}
 
@@ -2108,56 +2129,140 @@ const AttendingCallsDashboard = ({
                 {/* Correction Slip (Closed Calls only) */}
                 {(selectedActionCall.isClosed || activeTab === 'closed') && (() => {
                   const callNo = selectedActionCall.call_no || selectedActionCall.callNo || selectedActionCall.requestId;
-                  const hasCorrectionSlip = Boolean(slipStatusMap[callNo]);
+                  const docs = slipDocsMap[callNo] || [];
+                  const hasCorrectionSlip = docs.length > 0;
+
+                  if (!hasCorrectionSlip) {
+                    return (
+                      <button
+                        onClick={() => {
+                          const row = selectedActionCall;
+                          setSelectedActionCall(null);
+                          setCorrectionSlipRow(row);
+                          setIsCorrectionSlipViewOnly(false);
+                        }}
+                        style={{
+                          display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '8px',
+                          padding: '16px 12px',
+                          background: 'linear-gradient(135deg, #fef3c7 0%, #fde68a 100%)',
+                          border: '1px solid #fcd34d',
+                          borderRadius: '14px',
+                          cursor: 'pointer', transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                          color: '#b45309',
+                          width: '100%',
+                          boxShadow: '0 4px 6px -1px rgba(180, 83, 9, 0.1), 0 2px 4px -1px rgba(180, 83, 9, 0.06)'
+                        }}
+                        onMouseEnter={(e) => { 
+                          e.currentTarget.style.transform = 'translateY(-3px)';
+                          e.currentTarget.style.boxShadow = '0 10px 15px -3px rgba(180, 83, 9, 0.2), 0 4px 6px -2px rgba(180, 83, 9, 0.1)'; 
+                        }}
+                        onMouseLeave={(e) => { 
+                          e.currentTarget.style.transform = 'translateY(0)';
+                          e.currentTarget.style.boxShadow = '0 4px 6px -1px rgba(180, 83, 9, 0.1), 0 2px 4px -1px rgba(180, 83, 9, 0.06)'; 
+                        }}
+                        title="Issue or View Correction Slip"
+                      >
+                        <div style={{ width: '42px', height: '42px', background: '#ffffff', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 2px 4px rgba(0,0,0,0.05)' }}>
+                          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#b45309" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+                          </svg>
+                        </div>
+                        <span style={{ fontWeight: '700', fontSize: '14px', textAlign: 'center', lineHeight: '1.2' }}>
+                          Issue or View Correction Slip
+                        </span>
+                      </button>
+                    );
+                  }
 
                   return (
-                    <button
-                      onClick={() => {
-                        const row = selectedActionCall;
-                        const exists = Boolean(slipStatusMap[callNo]);
-                        setSelectedActionCall(null);
-                        setCorrectionSlipRow(row);
-                        setIsCorrectionSlipViewOnly(exists);
-                      }}
-                      style={{
-                        display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '8px',
-                        padding: '16px 12px',
-                        background: hasCorrectionSlip
-                          ? 'linear-gradient(135deg, #fff7ed 0%, #ffedd5 100%)'
-                          : 'linear-gradient(135deg, #fef3c7 0%, #fde68a 100%)',
-                        border: hasCorrectionSlip ? '1px solid #fed7aa' : '1px solid #fcd34d',
-                        borderRadius: '14px',
-                        cursor: 'pointer', transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-                        color: hasCorrectionSlip ? '#ea580c' : '#b45309',
-                        width: '100%',
-                        boxShadow: hasCorrectionSlip
-                          ? '0 4px 6px -1px rgba(234, 88, 12, 0.1), 0 2px 4px -1px rgba(234, 88, 12, 0.06)'
-                          : '0 4px 6px -1px rgba(180, 83, 9, 0.1), 0 2px 4px -1px rgba(180, 83, 9, 0.06)'
-                      }}
-                      onMouseEnter={(e) => { 
-                        e.currentTarget.style.transform = 'translateY(-3px)';
-                        e.currentTarget.style.boxShadow = hasCorrectionSlip
-                          ? '0 10px 15px -3px rgba(234, 88, 12, 0.2), 0 4px 6px -2px rgba(234, 88, 12, 0.1)'
-                          : '0 10px 15px -3px rgba(180, 83, 9, 0.2), 0 4px 6px -2px rgba(180, 83, 9, 0.1)'; 
-                      }}
-                      onMouseLeave={(e) => { 
-                        e.currentTarget.style.transform = 'translateY(0)';
-                        e.currentTarget.style.boxShadow = hasCorrectionSlip
-                          ? '0 4px 6px -1px rgba(234, 88, 12, 0.1), 0 2px 4px -1px rgba(234, 88, 12, 0.06)'
-                          : '0 4px 6px -1px rgba(180, 83, 9, 0.1), 0 2px 4px -1px rgba(180, 83, 9, 0.06)'; 
-                      }}
-                      title={hasCorrectionSlip ? "View Correction Slip" : "Issue Correction Slip"}
-                    >
-                      <div style={{ width: '42px', height: '42px', background: '#ffffff', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 2px 4px rgba(0,0,0,0.05)' }}>
-                        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={hasCorrectionSlip ? "#ea580c" : "#b45309"} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                          <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
-                          <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
-                        </svg>
-                      </div>
-                      <span style={{ fontWeight: '700', fontSize: '14px', textAlign: 'center', lineHeight: '1.2' }}>
-                        {hasCorrectionSlip ? "View Correction Slip" : "Issue Correction Slip"}
-                      </span>
-                    </button>
+                    <React.Fragment>
+                      {/* Issue New Correction Slip */}
+                      <button
+                        onClick={() => {
+                          const row = selectedActionCall;
+                          setSelectedActionCall(null);
+                          setCorrectionSlipRow(row);
+                          setIsCorrectionSlipViewOnly(false);
+                        }}
+                        style={{
+                          display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '8px',
+                          padding: '16px 12px',
+                          background: 'linear-gradient(135deg, #fff7ed 0%, #ffedd5 100%)',
+                          border: '1px solid #fed7aa',
+                          borderRadius: '14px',
+                          cursor: 'pointer', transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                          color: '#ea580c',
+                          width: '100%',
+                          boxShadow: '0 4px 6px -1px rgba(234, 88, 12, 0.1), 0 2px 4px -1px rgba(234, 88, 12, 0.06)'
+                        }}
+                        onMouseEnter={(e) => { 
+                          e.currentTarget.style.transform = 'translateY(-3px)';
+                          e.currentTarget.style.boxShadow = '0 10px 15px -3px rgba(234, 88, 12, 0.2), 0 4px 6px -2px rgba(234, 88, 12, 0.1)'; 
+                        }}
+                        onMouseLeave={(e) => { 
+                          e.currentTarget.style.transform = 'translateY(0)';
+                          e.currentTarget.style.boxShadow = '0 4px 6px -1px rgba(234, 88, 12, 0.1), 0 2px 4px -1px rgba(234, 88, 12, 0.06)'
+                        }}
+                        title="Issue New Correction Slip"
+                      >
+                        <div style={{ width: '42px', height: '42px', background: '#ffffff', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 2px 4px rgba(0,0,0,0.05)' }}>
+                          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#ea580c" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+                          </svg>
+                        </div>
+                        <span style={{ fontWeight: '700', fontSize: '14px', textAlign: 'center', lineHeight: '1.2' }}>
+                          Issue New Correction Slip
+                        </span>
+                      </button>
+
+                      {/* View Slip(s) */}
+                      <button
+                        onClick={() => {
+                          const row = selectedActionCall;
+                          if (docs.length === 1) {
+                            const singleUrl = docs[0].id
+                              ? getViewCorrectionSlipPdfByIdUrl(docs[0].id)
+                              : getViewCorrectionSlipPdfUrl(callNo);
+                            window.open(singleUrl, '_blank');
+                          } else {
+                            setSelectedActionCall(null);
+                            setSlipListModalCall(row);
+                          }
+                        }}
+                        style={{
+                          display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '8px',
+                          padding: '16px 12px',
+                          background: 'linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%)',
+                          border: '1px solid #86efac',
+                          borderRadius: '14px',
+                          cursor: 'pointer', transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                          color: '#166534',
+                          width: '100%',
+                          boxShadow: '0 4px 6px -1px rgba(22, 101, 52, 0.1), 0 2px 4px -1px rgba(22, 101, 52, 0.06)'
+                        }}
+                        onMouseEnter={(e) => { 
+                          e.currentTarget.style.transform = 'translateY(-3px)';
+                          e.currentTarget.style.boxShadow = '0 10px 15px -3px rgba(22, 101, 52, 0.2), 0 4px 6px -2px rgba(22, 101, 52, 0.1)'; 
+                        }}
+                        onMouseLeave={(e) => { 
+                          e.currentTarget.style.transform = 'translateY(0)';
+                          e.currentTarget.style.boxShadow = '0 4px 6px -1px rgba(22, 101, 52, 0.1), 0 2px 4px -1px rgba(22, 101, 52, 0.06)'
+                        }}
+                        title={docs.length > 1 ? `View Correction Slips (${docs.length})` : "View Correction Slip"}
+                      >
+                        <div style={{ width: '42px', height: '42px', background: '#ffffff', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 2px 4px rgba(0,0,0,0.05)' }}>
+                          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#166534" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                            <circle cx="12" cy="12" r="3" />
+                          </svg>
+                        </div>
+                        <span style={{ fontWeight: '700', fontSize: '14px', textAlign: 'center', lineHeight: '1.2' }}>
+                          {docs.length > 1 ? `View Correction Slips (${docs.length})` : "View Correction Slip"}
+                        </span>
+                      </button>
+                    </React.Fragment>
                   );
                 })()}
 

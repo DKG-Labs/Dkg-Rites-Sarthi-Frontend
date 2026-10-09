@@ -134,12 +134,12 @@ export const compressAndStoreCorrectionSlip = async (payload) => {
 };
 
 /**
- * Fetch metadata for stored Correction Slip PDF.
+ * Fetch metadata for latest stored Correction Slip PDF.
  * @param {string} callNo
  * @returns {Promise<Object>}
  */
 export const fetchCorrectionSlipDocument = async (callNo) => {
-  if (!callNo) return { exists: false };
+  if (!callNo) return { exists: false, totalCount: 0 };
 
   try {
     const response = await fetch(`${endpoint}/document?callNo=${encodeURIComponent(callNo)}`, {
@@ -147,11 +147,34 @@ export const fetchCorrectionSlipDocument = async (callNo) => {
       headers: getAuthHeaders(),
     });
 
-    if (!response.ok) return { exists: false };
+    if (!response.ok) return { exists: false, totalCount: 0 };
     return await response.json();
   } catch (e) {
     console.warn('Could not fetch correction slip document:', e.message);
-    return { exists: false };
+    return { exists: false, totalCount: 0 };
+  }
+};
+
+/**
+ * Fetch all stored Correction Slip PDFs metadata for a call number.
+ * @param {string} callNo
+ * @returns {Promise<Array>}
+ */
+export const fetchCorrectionSlipDocuments = async (callNo) => {
+  if (!callNo) return [];
+
+  try {
+    const response = await fetch(`${endpoint}/documents?callNo=${encodeURIComponent(callNo)}`, {
+      method: 'GET',
+      headers: getAuthHeaders(),
+    });
+
+    if (!response.ok) return [];
+    const data = await response.json();
+    return Array.isArray(data) ? data : [];
+  } catch (e) {
+    console.warn('Could not fetch correction slip documents list:', e.message);
+    return [];
   }
 };
 
@@ -161,6 +184,14 @@ export const getViewCorrectionSlipPdfUrl = (callNo) => {
 
 export const getDownloadCorrectionSlipPdfUrl = (callNo) => {
   return `${endpoint}/download-pdf/${encodeURIComponent(callNo)}`;
+};
+
+export const getViewCorrectionSlipPdfByIdUrl = (id) => {
+  return `${endpoint}/view-pdf-by-id/${id}`;
+};
+
+export const getDownloadCorrectionSlipPdfByIdUrl = (id) => {
+  return `${endpoint}/download-pdf-by-id/${id}`;
 };
 
 /**

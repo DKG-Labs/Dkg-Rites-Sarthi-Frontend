@@ -411,7 +411,7 @@ const RailpadFinalIc = ({ data = {}, isEditing = false, isBusy = false, isViewOn
                   customRender={(val) => {
                     if (!val) return null;
                     return val.split('\n').map((line, idx) => {
-                      const match = line.match(/^(.*?)\s+dated\s+(\d{1,2}[/-]\d{1,2}[/-]\d{2,4})\s*$/);
+                      const match = line.match(/^(.*?)\s+dated\s+(\d{1,2}[/.-]\d{1,2}[/.-]\d{2,4})\s*$/i);
                       if (match) {
                         return (
                           <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', marginTop: '1px' }}>

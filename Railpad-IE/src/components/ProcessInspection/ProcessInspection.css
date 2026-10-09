@@ -282,6 +282,16 @@
   color: #15803d;
 }
 
+.sets-input {
+  -moz-appearance: textfield;
+}
+
+.sets-input::-webkit-outer-spin-button,
+.sets-input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
 .inspection-inputs-container h4 {
   font-size: 14px;
   font-weight: 600;

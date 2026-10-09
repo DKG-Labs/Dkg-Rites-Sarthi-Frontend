@@ -351,6 +351,9 @@ export default function RailpadFinalProductCertificate({ call = {}, onBack, isVi
               mappedData.qtyNowOffered = mfg;
               mappedData.qtyNowPassed = finalAcc;
               mappedData.qtyNowRejected = rej;
+              mappedData.offeredSets = processData.offeredSets;
+              mappedData.acceptedSets = processData.acceptedSets;
+              mappedData.rejectedSets = processData.rejectedSets;
               
               if (processData.lotRangeFrom && processData.lotRangeTo) {
                 if (String(processData.lotRangeFrom).trim().toLowerCase() === String(processData.lotRangeTo).trim().toLowerCase()) {
@@ -429,7 +432,18 @@ export default function RailpadFinalProductCertificate({ call = {}, onBack, isVi
             mappedData.placeOfInspection = savedEdit.placeOfInspection || mappedData.placeOfInspection;
             mappedData.offeredInstNo = savedEdit.offeredInstNo || savedEdit.installmentNo || mappedData.offeredInstNo;
             mappedData.passedInstNo = savedEdit.passedInstNo || mappedData.passedInstNo;
-            mappedData.contractRef = savedEdit.contractRef || mappedData.contractRef;
+            if (savedEdit.contractRef) {
+              let sRef = savedEdit.contractRef;
+              if (fetchedData?.contractReferences) {
+                const sRefLines = sRef.split('\n');
+                const firstLine = sRefLines[0] || "";
+                if (firstLine.toUpperCase().startsWith("PO NO.") || !firstLine.includes('/') || (fetchedData.contractReferences.includes('/') && !firstLine.startsWith(fetchedData.contractReferences.split('/')[0]))) {
+                  sRefLines[0] = fetchedData.contractReferences;
+                  sRef = sRefLines.join('\n');
+                }
+              }
+              mappedData.contractRef = sRef;
+            }
             mappedData.billPayingOfficer = savedEdit.billPayingOfficer || mappedData.billPayingOfficer;
             mappedData.consignee = savedEdit.consignee || mappedData.consignee;
             mappedData.purchasingAuthority = savedEdit.purchasingAuthority || mappedData.purchasingAuthority;
@@ -504,14 +518,27 @@ export default function RailpadFinalProductCertificate({ call = {}, onBack, isVi
         if (isNcrgrspCall) {
           mappedData.isNCRGRSP = true;
           mappedData.unit = "Set";
-          if (savedNcrOffered !== null && savedNcrOffered !== '') {
-            mappedData.qtyNowOffered = savedNcrOffered;
-          }
-          if (savedNcrAccepted !== null && savedNcrAccepted !== '') {
-            mappedData.qtyNowPassed = savedNcrAccepted;
-          }
-          if (savedNcrRejected !== null && savedNcrRejected !== '') {
-            mappedData.qtyNowRejected = savedNcrRejected;
+          if (!isProcessCall) {
+            if (savedNcrOffered !== null && savedNcrOffered !== '') {
+              mappedData.qtyNowOffered = savedNcrOffered;
+            }
+            if (savedNcrAccepted !== null && savedNcrAccepted !== '') {
+              mappedData.qtyNowPassed = savedNcrAccepted;
+            }
+            if (savedNcrRejected !== null && savedNcrRejected !== '') {
+              mappedData.qtyNowRejected = savedNcrRejected;
+            }
+          } else {
+            if (mappedData.offeredSets === undefined || mappedData.offeredSets === null) {
+              if (savedNcrOffered !== null && savedNcrOffered !== '') mappedData.offeredSets = savedNcrOffered;
+              else if (callSets) mappedData.offeredSets = String(callSets);
+            }
+            if (mappedData.acceptedSets === undefined || mappedData.acceptedSets === null) {
+              if (savedNcrAccepted !== null && savedNcrAccepted !== '') mappedData.acceptedSets = savedNcrAccepted;
+            }
+            if (mappedData.rejectedSets === undefined || mappedData.rejectedSets === null) {
+              if (savedNcrRejected !== null && savedNcrRejected !== '') mappedData.rejectedSets = savedNcrRejected;
+            }
           }
         }
 

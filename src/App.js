@@ -6,6 +6,7 @@ import AppLayout from './components/AppLayout';
 import LoginPage from './pages/LoginPage';
 import { getStoredUser, logoutUser } from './services/authService';
 import VersionUpdateBanner from './components/common/VersionUpdateBanner';
+import SessionExpiryModal from './components/common/SessionExpiryModal';
 
 // Page Wrappers
 import LandingPageWrapper from './pages/wrappers/LandingPageWrapper';
@@ -195,6 +196,7 @@ const App = () => {
   return (
     <BrowserRouter>
       <VersionUpdateBanner />
+      <SessionExpiryModal />
       <InspectionProvider>
         <Routes>
           {/* Login Route - Public */}

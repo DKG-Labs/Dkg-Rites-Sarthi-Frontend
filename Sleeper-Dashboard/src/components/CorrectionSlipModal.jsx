@@ -392,23 +392,26 @@ const CorrectionSlipModal = ({ row = {}, onClose, viewOnly = false, isViewOnly =
       }
 
       const saved = await fetchCorrectionSlip(callNo);
-      if (saved && saved.length > 0) {
-        setHasExistingSlip(true);
-        setCorrections(saved.map(s => ({
-          id: Date.now() + Math.random(),
-          columnName: s.columnName || s.column_name || '',
-          readAs: formatCorrectionText(s.readAs || s.read_as || ''),
-          insteadOf: formatCorrectionText(s.insteadOf || s.instead_of || ''),
-        })));
-      } else if (docFound) {
+      if (docFound || (saved && saved.length > 0)) {
         setHasExistingSlip(true);
       } else {
         setHasExistingSlip(false);
-        if (isViewMode) {
-          setCorrections([]);
+      }
+
+      if (isViewMode) {
+        if (saved && saved.length > 0) {
+          setCorrections(saved.map(s => ({
+            id: Date.now() + Math.random(),
+            columnName: s.columnName || s.column_name || '',
+            readAs: formatCorrectionText(s.readAs || s.read_as || ''),
+            insteadOf: formatCorrectionText(s.insteadOf || s.instead_of || ''),
+          })));
         } else {
-          setCorrections([emptyRow()]);
+          setCorrections([]);
         }
+      } else {
+        // Create mode: start with a fresh blank row for the new correction slip
+        setCorrections([emptyRow()]);
       }
     };
     if (callNo) restore();
@@ -506,7 +509,7 @@ const CorrectionSlipModal = ({ row = {}, onClose, viewOnly = false, isViewOnly =
     );
   }
 
-  const isExistingOrView = hasExistingSlip || isViewMode;
+  const isExistingOrView = isViewMode;
 
   return (
     <div style={S.overlay} onClick={(e) => e.target === e.currentTarget && onClose()}>
@@ -515,13 +518,18 @@ const CorrectionSlipModal = ({ row = {}, onClose, viewOnly = false, isViewOnly =
         <div style={S.header}>
           <div>
             <div style={{ fontSize: '17px', fontWeight: '700', color: '#111827' }}>
-              {hasExistingSlip ? 'Correction Slip Details' : (isViewMode ? 'View Correction Slip' : 'Issue Correction Slip')}
+              {isViewMode ? 'View Correction Slip' : (hasExistingSlip ? 'Issue New Correction Slip' : 'Issue Correction Slip')}
             </div>
             <div style={{ fontSize: '12px', color: '#6b7280', marginTop: '2px' }}>
               Call No: <span style={{ color: '#2563eb', fontWeight: 600 }}>{callNo}</span>
-              {hasExistingSlip && (
-                <span style={{ marginLeft: '10px', background: '#fef3c7', color: '#92400e', padding: '2px 8px', borderRadius: '4px', fontSize: '11px', fontWeight: 600 }}>
-                  Issued (1 Slip Limit)
+              {hasExistingSlip && isViewMode && (
+                <span style={{ marginLeft: '10px', background: '#ecfdf5', color: '#166534', padding: '2px 8px', borderRadius: '4px', fontSize: '11px', fontWeight: 600 }}>
+                  Issued Slip
+                </span>
+              )}
+              {!isViewMode && (
+                <span style={{ marginLeft: '10px', background: '#fff7ed', color: '#ea580c', padding: '2px 8px', borderRadius: '4px', fontSize: '11px', fontWeight: 600 }}>
+                  {hasExistingSlip ? 'New Revision' : 'New Slip'}
                 </span>
               )}
               {isViewMode && !hasExistingSlip && (
@@ -589,47 +597,36 @@ const CorrectionSlipModal = ({ row = {}, onClose, viewOnly = false, isViewOnly =
 
         {/* Body */}
         <div style={S.body}>
-          {/* Top Banner if already issued and in Completed Calls */}
+          {/* Top Banner when issuing a new slip for a call that already had one */}
           {hasExistingSlip && !isViewMode && (
             <div style={{
-              background: '#fffbeb', border: '1px solid #fde68a', borderRadius: '10px',
+              background: '#eff6ff', border: '1.5px solid #bfdbfe', borderRadius: '10px',
               padding: '14px 18px', marginBottom: '20px', display: 'flex',
-              alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '12px'
+              alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '14px'
             }}>
-              <div>
-                <div style={{ fontWeight: 700, color: '#92400e', fontSize: '14px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  <span>⚠️</span> Correction Slip Already Issued
+              <div style={{ flex: 1, minWidth: '260px' }}>
+                <div style={{ fontWeight: 700, color: '#1e40af', fontSize: '14px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <span>ℹ️</span> Previous Correction Slip(s) on Record
                 </div>
-                <div style={{ fontSize: '12.5px', color: '#78350f', marginTop: '2px' }}>
-                  Only one correction slip can be added per call. You can view the stored PDF or delete this slip to create a new one.
+                <div style={{ fontSize: '12.5px', color: '#1e3a8a', marginTop: '4px', lineHeight: '1.4' }}>
+                  This call already has previous correction slip(s) issued. You can review past changes using the button on the right. Add your new correction rows below to generate and issue the next revision.
                 </div>
               </div>
-              <div style={{ display: 'flex', gap: '8px' }}>
-                {storedDoc && (
-                  <button
-                    type="button"
-                    onClick={() => window.open(getViewCorrectionSlipPdfUrl(callNo), '_blank')}
-                    style={{
-                      padding: '7px 14px', background: '#0284c7', color: '#ffffff',
-                      border: 'none', borderRadius: '6px', fontWeight: '600', fontSize: '12.5px',
-                      cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '6px'
-                    }}
-                  >
-                    📄 View PDF
-                  </button>
-                )}
+              {storedDoc && (
                 <button
                   type="button"
-                  onClick={() => setShowDeleteConfirm(true)}
+                  onClick={() => window.open(getViewCorrectionSlipPdfUrl(callNo), '_blank')}
                   style={{
-                    padding: '7px 14px', background: '#fee2e2', color: '#dc2626',
-                    border: '1px solid #fca5a5', borderRadius: '6px', fontWeight: '600', fontSize: '12.5px',
-                    cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '6px'
+                    padding: '8px 14px', background: '#ffffff', color: '#1d4ed8',
+                    border: '1.5px solid #93c5fd', borderRadius: '8px', fontWeight: '600', fontSize: '12.5px',
+                    cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '6px',
+                    boxShadow: '0 1px 2px rgba(0,0,0,0.05)', whiteSpace: 'nowrap'
                   }}
+                  title="View previous correction slip PDF"
                 >
-                  🗑️ Delete Slip
+                  📄 View Previous PDF
                 </button>
-              </div>
+              )}
             </div>
           )}
 
@@ -779,7 +776,7 @@ const CorrectionSlipModal = ({ row = {}, onClose, viewOnly = false, isViewOnly =
               onClick={handleIssueCorrectionSlip}
               disabled={issuing || loading || !!icError}
             >
-              {issuing ? 'Generating...' : 'Issue Correction Slip'}
+              {issuing ? 'Generating...' : (hasExistingSlip ? 'Issue Another Correction Slip' : 'Issue Correction Slip')}
             </button>
           )}
         </div>

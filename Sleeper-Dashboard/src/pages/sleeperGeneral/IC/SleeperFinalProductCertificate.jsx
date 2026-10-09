@@ -238,7 +238,17 @@ export default function SleeperFinalProductCertificate() {
         passedInstNo: ic?.passedInstallmentNumber ? String(ic.passedInstallmentNumber) : (c?.passedInstNo || "1"),
         contractor: ic?.contractor || c?.vendorName || c?.vendorCode || c?.contractor || "",
         placeOfInspection: ic?.placeOfInspection || c?.placeOfInspection || c?.vendorName || "",
-        contractRef: ic?.contractRefAndDate || c?.contractRef || (c?.poNo ? `PO NO. - ${c.poNo}` : ""),
+        contractRef: (() => {
+            if (ic?.contractRefAndDate) return ic.contractRefAndDate;
+            if (c?.contractRef) return c.contractRef;
+            const poNumber = c?.poNo || ic?.poNo || "";
+            if (!poNumber) return "";
+            const rly = c?.zonalRailway || c?.rlyShortName || ic?.rlyShortName || "";
+            const poSr = itemSr || "001";
+            const poDate = c?.poDate || ic?.poDate || "";
+            const basePo = (rly ? `${rly}/` : "") + (poNumber.includes('/') ? poNumber : `${poNumber}/${poSr}`);
+            return basePo + (poDate ? ` dated ${poDate}` : "");
+        })(),
         maNumberAndDate: ic?.maNumberAndDate || c?.maNumberAndDate || c?.maNo || "",
         billPayingOfficer: ic?.billPayingOffice || ic?.billPayingOfficer || c?.billPayingOfficer || c?.billPayOffDesc || "",
         consignee: ic?.consignee || c?.consignee || "",

@@ -170,7 +170,8 @@ const SleeperSummary = ({
     const finalRejectionPercentage = prodTotal > 0
         ? ((finalRejectedTotal / prodTotal) * 100).toFixed(2)
         : '0.00';
-    const overallRejectionPercentage = (Number.isFinite(rejectionPercentage) ? rejectionPercentage : 0).toFixed(2);
+    // Overall Rejection matches Final Rejection (process rejection is already captured in final inspection)
+    const overallRejectionPercentage = finalRejectionPercentage || (Number.isFinite(rejectionPercentage) ? rejectionPercentage.toFixed(2) : '0.00');
 
     // Stage-wise Call Status (Sleeper Workflow 2: Final Call)
     const totalUnder = underInspectionCalls;
@@ -453,6 +454,7 @@ const SleeperSummary = ({
                     <div style={{ marginTop: '8px' }}>
                         <div style={{ fontSize: '24px', fontWeight: '800', color: '#6d28d9' }}>{overallRejectionPercentage}%</div>
                         <div style={{ fontSize: '10px', color: '#64748b', marginTop: '2px' }}>Total Rejection Rate</div>
+                        <div style={{ fontSize: '10px', color: '#7c3aed', marginTop: '4px', fontWeight: '600' }}>*Includes Process Rejection</div>
                     </div>
                 </div>
             </div>

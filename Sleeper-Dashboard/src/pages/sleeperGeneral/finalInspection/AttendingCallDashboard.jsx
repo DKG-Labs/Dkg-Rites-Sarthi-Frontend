@@ -6,6 +6,7 @@ import Notification from '../../../components/Notification';
 import CorrectionSlipModal from '../../../components/CorrectionSlipModal';
 import CorrectionSlipListModal from '../../../components/CorrectionSlipListModal';
 import AnnexureUploadModal from '../../../components/AnnexureUploadModal';
+import AnnexuresModal from '../../../components/AnnexuresModal';
 import GenerateCaseLetterModal from '../../../components/GenerateCaseLetterModal';
 import './AttendingCallDashboard.css';
 import { apiService, API_BASE_URL } from '../../../services/api';
@@ -179,6 +180,7 @@ const AttendingCallDashboard = ({ mode }) => {
     const [expandedActions, setExpandedActions] = useState({});
     const [notification, setNotification] = useState({ message: '', type: 'info' });
     const [uploadAnnexureModal, setUploadAnnexureModal] = useState({ isOpen: false, call: null });
+    const [annexuresModal, setAnnexuresModal] = useState({ isOpen: false, call: null });
     const [generateCaseLetterModalCall, setGenerateCaseLetterModalCall] = useState(null);
     const [downloadingCaseLetterCall, setDownloadingCaseLetterCall] = useState(null);
     const [hasUploadedDocs, setHasUploadedDocs] = useState(false);
@@ -2017,7 +2019,43 @@ const AttendingCallDashboard = ({ mode }) => {
                                     <span style={{ fontWeight: '700', fontSize: '14px' }}>View IC</span>
                                 </button>
 
-                                {/* 2. Send call to IBS (Completed Calls only) */}
+                                {/* 2. Annexures */}
+                                <button
+                                    onClick={() => {
+                                        const call = selectedActionCall;
+                                        setAnnexuresModal({ isOpen: true, call });
+                                    }}
+                                    style={{
+                                        display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '8px',
+                                        padding: '16px 12px', background: 'linear-gradient(135deg, #f3e8ff 0%, #e9d5ff 100%)',
+                                        border: '1px solid #d8b4fe', borderRadius: '14px',
+                                        cursor: 'pointer', transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                                        color: '#7e22ce', width: '100%',
+                                        boxShadow: '0 4px 6px -1px rgba(126, 34, 206, 0.1), 0 2px 4px -1px rgba(126, 34, 206, 0.06)'
+                                    }}
+                                    onMouseEnter={(e) => { 
+                                        e.currentTarget.style.transform = 'translateY(-3px)';
+                                        e.currentTarget.style.boxShadow = '0 10px 15px -3px rgba(126, 34, 206, 0.2), 0 4px 6px -2px rgba(126, 34, 206, 0.1)'; 
+                                    }}
+                                    onMouseLeave={(e) => { 
+                                        e.currentTarget.style.transform = 'translateY(0)';
+                                        e.currentTarget.style.boxShadow = '0 4px 6px -1px rgba(126, 34, 206, 0.1), 0 2px 4px -1px rgba(126, 34, 206, 0.06)'; 
+                                    }}
+                                    title="View Annexures"
+                                >
+                                    <div style={{ width: '42px', height: '42px', background: '#ffffff', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 2px 4px rgba(0,0,0,0.05)' }}>
+                                        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#7e22ce" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                                            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                                            <polyline points="14 2 14 8 20 8"></polyline>
+                                            <line x1="16" y1="13" x2="8" y2="13"></line>
+                                            <line x1="16" y1="17" x2="8" y2="17"></line>
+                                            <polyline points="10 9 9 9 8 9"></polyline>
+                                        </svg>
+                                    </div>
+                                    <span style={{ fontWeight: '700', fontSize: '14px' }}>Annexures</span>
+                                </button>
+
+                                {/* 3. Send call to IBS (Completed Calls only) */}
                                 {!selectedActionCall.isClosed && activeTab !== 'closed' && (
                                     <button
                                         onClick={() => {
@@ -3009,6 +3047,16 @@ const AttendingCallDashboard = ({ mode }) => {
                     moduleType="SLEEPER"
                     uploadedBy={getStoredUser()?.name || "Inspecting Engineer"}
                     mode={uploadAnnexureModal.mode || "upload"}
+                />
+            )}
+
+            {/* Annexures Modal (Annexure 1 to IC) */}
+            {annexuresModal.isOpen && annexuresModal.call && (
+                <AnnexuresModal
+                    isOpen={annexuresModal.isOpen}
+                    onClose={() => setAnnexuresModal({ isOpen: false, call: null })}
+                    call={annexuresModal.call}
+                    showNotification={showNotification}
                 />
             )}
 

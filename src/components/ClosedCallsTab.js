@@ -865,38 +865,7 @@ const ClosedCallsTab = ({ setSelectedCall, setCurrentPage }) => {
                   <span style={{ fontWeight: '700', fontSize: '15px' }}>{tcPdfLoading ? 'Downloading...' : 'TC Document'}</span>
                 </button>
 
-                {/* 7. View Uploaded Annexures and Other Docs */}
-                <button
-                  onClick={() => {
-                    const call = selectedActionCall;
-                    setSelectedActionCall(null);
-                    setUploadAnnexureModal({ isOpen: true, call });
-                  }}
-                  style={{
-                    display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '12px',
-                    padding: '24px 16px', background: 'linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%)',
-                    border: '1px solid #86efac', borderRadius: '16px',
-                    cursor: 'pointer', transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-                    color: '#166534', width: '100%',
-                    boxShadow: '0 4px 6px -1px rgba(22, 101, 52, 0.1), 0 2px 4px -1px rgba(22, 101, 52, 0.06)'
-                  }}
-                  onMouseEnter={(e) => { 
-                    e.currentTarget.style.transform = 'translateY(-4px)';
-                    e.currentTarget.style.boxShadow = '0 10px 15px -3px rgba(22, 101, 52, 0.2), 0 4px 6px -2px rgba(22, 101, 52, 0.1)'; 
-                  }}
-                  onMouseLeave={(e) => { 
-                    e.currentTarget.style.transform = 'translateY(0)';
-                    e.currentTarget.style.boxShadow = '0 4px 6px -1px rgba(22, 101, 52, 0.1), 0 2px 4px -1px rgba(22, 101, 52, 0.06)'; 
-                  }}
-                  title="View uploaded annexures and other documents"
-                >
-                  <div style={{ width: '48px', height: '48px', background: '#ffffff', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 2px 4px rgba(0,0,0,0.05)' }}>
-                    <AttachmentRoundedIcon style={{ fontSize: '26px', color: '#16a34a' }} />
-                  </div>
-                  <span style={{ fontWeight: '700', fontSize: '15px', textAlign: 'center', lineHeight: '1.2' }}>View Uploaded Annexures & Docs</span>
-                </button>
-
-                {/* 8. View Case Letter */}
+                {/* 7. View Case Letter */}
                 <button
                   disabled={Boolean(downloadingCaseLetterCall)}
                   onClick={async () => {
@@ -908,13 +877,17 @@ const ClosedCallsTab = ({ setSelectedCall, setCurrentPage }) => {
                     setNotificationMessage(`Fetching and downloading Case Letter for ${callNo}... Please wait.`);
                     try {
                       const res = await downloadOrNotifyCaseLetter(callNo, {
-                        onNotFound: (msg) => {
-                          setNotificationType('error');
-                          setNotificationMessage(msg);
+                        onNotFound: () => {
+                          setSelectedActionCall(null);
+                          setNotificationType('info');
+                          setNotificationMessage('Case Letter not found for this call. Showing uploaded annexures & docs.');
+                          setUploadAnnexureModal({ isOpen: true, call: row });
                         },
                         onError: () => {
-                          setNotificationType('error');
-                          setNotificationMessage('Failed to download case letter for this call');
+                          setSelectedActionCall(null);
+                          setNotificationType('info');
+                          setNotificationMessage('Case Letter not found for this call. Showing uploaded annexures & docs.');
+                          setUploadAnnexureModal({ isOpen: true, call: row });
                         }
                       });
                       if (res && res.success) {
@@ -948,7 +921,7 @@ const ClosedCallsTab = ({ setSelectedCall, setCurrentPage }) => {
                       e.currentTarget.style.boxShadow = '0 4px 6px -1px rgba(67, 56, 202, 0.1), 0 2px 4px -1px rgba(67, 56, 202, 0.06)'; 
                     }
                   }}
-                  title="Directly download stored Case Letter dossier for this call"
+                  title="Directly download stored Inspection Call Documents for this call"
                 >
                   <div style={{ width: '48px', height: '48px', background: '#ffffff', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 2px 4px rgba(0,0,0,0.05)' }}>
                     {downloadingCaseLetterCall ? (
@@ -961,7 +934,7 @@ const ClosedCallsTab = ({ setSelectedCall, setCurrentPage }) => {
                     )}
                   </div>
                   <span style={{ fontWeight: '700', fontSize: '15px', textAlign: 'center', lineHeight: '1.2' }}>
-                    {downloadingCaseLetterCall ? "Downloading..." : "View Case Letter"}
+                    {downloadingCaseLetterCall ? "Downloading..." : "View Uploaded Inspection Call Documents"}
                   </span>
                 </button>
               </div>

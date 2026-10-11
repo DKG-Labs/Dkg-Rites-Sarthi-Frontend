@@ -2048,6 +2048,7 @@ const App = () => {
         onConfirm={confirmConfig.onConfirm}
         onCancel={() => setConfirmConfig(prev => ({ ...prev, isOpen: false }))}
       />
+      <SessionExpiryModal />
     </MainLayout>
   );
 };

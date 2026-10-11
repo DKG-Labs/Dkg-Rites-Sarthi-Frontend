@@ -3,7 +3,7 @@ import { Select, message } from 'antd';
 import Visibility from '@mui/icons-material/Visibility';
 import VisibilityOff from '@mui/icons-material/VisibilityOff';
 import { REGIONS, DESIGNATIONS, DISCIPLINES } from './utils/mockData';
-import { API_BASE_URL } from '../../services/apiConfig';
+import { API_BASE_URL, getAuthHeaders } from '../../services/apiConfig';
 
 export const UserForm = ({ user, roles = [], rolesLoading = false, existingUsers = [], onSubmit, onCancel, formError, isSubmitting = false }) => {
     const [roleAddPrompt, setRoleAddPrompt] = useState(null);
@@ -31,7 +31,7 @@ export const UserForm = ({ user, roles = [], rolesLoading = false, existingUsers
         if (!roles || roles.length === 0) {
             setIsRolesLoading(true);
             fetch(`${API_BASE_URL}/api/auth/api/roles`, {
-                headers: { 'Authorization': `Bearer ${localStorage.getItem('authToken')}` }
+                headers: getAuthHeaders()
             })
             .then(res => res.json())
             .then(data => {
@@ -215,7 +215,7 @@ export const UserForm = ({ user, roles = [], rolesLoading = false, existingUsers
                 const uid = user.userId || user.id;
                 setIsVendorLoading(true);
                 fetch(`${API_BASE_URL || ''}/api/auth/api/erc-vendor/${uid}`, {
-                    headers: { 'Authorization': `Bearer ${localStorage.getItem('authToken')}` }
+                    headers: getAuthHeaders()
                 })
                 .then(r => r.json())
                 .then(res => {
@@ -248,7 +248,7 @@ export const UserForm = ({ user, roles = [], rolesLoading = false, existingUsers
                 const uid = user.userId || user.id;
                 setIsVendorLoading(true);
                 fetch(`${API_BASE_URL || ''}/api/auth/api/sleeper-vendor/${uid}`, {
-                    headers: { 'Authorization': `Bearer ${localStorage.getItem('authToken')}` }
+                    headers: getAuthHeaders()
                 })
                 .then(r => r.json())
                 .then(res => {
@@ -293,7 +293,7 @@ export const UserForm = ({ user, roles = [], rolesLoading = false, existingUsers
                 const uid = user.userId || user.id;
                 setIsVendorLoading(true);
                 fetch(`${API_BASE_URL || ''}/api/auth/api/railpad-vendor/${uid}`, {
-                    headers: { 'Authorization': `Bearer ${localStorage.getItem('authToken')}` }
+                    headers: getAuthHeaders()
                 })
                 .then(r => r.json())
                 .then(res => {

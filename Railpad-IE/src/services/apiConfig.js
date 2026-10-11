@@ -59,13 +59,46 @@ export const API_ENDPOINTS = {
 export const REQUEST_TIMEOUT = 60000;
 
 // Default headers for API requests
-export const getDefaultHeaders = (token = null) => {
+export const getDefaultHeaders = (tokenOrHeaders = null, extraHeaders = {}) => {
+  let token = null;
+  let customHeaders = {};
+
+  if (typeof tokenOrHeaders === 'string') {
+    token = tokenOrHeaders;
+    customHeaders = extraHeaders || {};
+  } else if (tokenOrHeaders && typeof tokenOrHeaders === 'object') {
+    customHeaders = tokenOrHeaders;
+  }
+
   const headers = {
     'Content-Type': 'application/json',
-    'Accept': 'application/json'
+    'Accept': 'application/json',
+    ...customHeaders
   };
 
-  const effectiveToken = token || localStorage.getItem('railpad_token') || localStorage.getItem('authToken') || localStorage.getItem('token');
+  const candidates = [
+    token,
+    localStorage.getItem('railpad_token'),
+    localStorage.getItem('authToken'),
+    localStorage.getItem('token'),
+    localStorage.getItem('sleeper_token'),
+    sessionStorage.getItem('railpad_token'),
+    sessionStorage.getItem('authToken'),
+    sessionStorage.getItem('token')
+  ];
+
+  let effectiveToken = '';
+  for (const candidate of candidates) {
+    if (candidate) {
+      const trimmed = String(candidate).trim();
+      const lower = trimmed.toLowerCase();
+      if (lower !== '' && lower !== 'null' && lower !== 'undefined' && lower !== 'bearer' && lower !== 'bearer null' && lower !== 'bearer undefined') {
+        effectiveToken = trimmed.replace(/^Bearer\s+/i, '').trim();
+        break;
+      }
+    }
+  }
+
   if (effectiveToken) {
     headers['Authorization'] = `Bearer ${effectiveToken}`;
   }

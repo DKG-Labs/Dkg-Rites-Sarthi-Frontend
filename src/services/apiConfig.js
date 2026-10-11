@@ -87,11 +87,34 @@ export const API_ENDPOINTS = {
 /**
  * Get authorization headers with token
  */
-export const getAuthHeaders = () => {
-    const token = localStorage.getItem('authToken');
+export const getAuthHeaders = (customHeaders = {}) => {
+    const candidates = [
+        localStorage.getItem('authToken'),
+        localStorage.getItem('token'),
+        localStorage.getItem('railpad_token'),
+        localStorage.getItem('sleeper_token'),
+        sessionStorage.getItem('authToken'),
+        sessionStorage.getItem('token'),
+        sessionStorage.getItem('railpad_token')
+    ];
+
+    let cleanToken = '';
+    for (const c of candidates) {
+        if (c) {
+            const trimmed = String(c).trim();
+            const lower = trimmed.toLowerCase();
+            if (lower !== '' && lower !== 'null' && lower !== 'undefined' && lower !== 'bearer' && lower !== 'bearer null' && lower !== 'bearer undefined') {
+                cleanToken = trimmed.replace(/^Bearer\s+/i, '').trim();
+                break;
+            }
+        }
+    }
+
     return {
         'Content-Type': 'application/json',
-        ...(token && { 'Authorization': `Bearer ${token}` })
+        'Accept': 'application/json',
+        ...(customHeaders || {}),
+        ...(cleanToken ? { 'Authorization': `Bearer ${cleanToken}` } : {})
     };
 };
 

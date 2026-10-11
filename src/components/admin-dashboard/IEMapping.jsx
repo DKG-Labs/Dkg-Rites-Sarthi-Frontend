@@ -2,7 +2,7 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { REGIONS } from './utils/mockData';
 import { paginate } from './utils/helpers';
 import { DEFAULT_PAGE_SIZE } from './utils/constants';
-import { API_BASE_URL } from '../../services/apiConfig';
+import { API_BASE_URL, getAuthHeaders } from '../../services/apiConfig';
 import AnnexureLoader from '../annexures/AnnexureLoader';
 
 const formatInspectingEngineer = (mapping) => {
@@ -32,13 +32,9 @@ export const IEMapping = ({ onEdit, onDelete, onCreateNew, refreshTrigger }) => 
   useEffect(() => {
     const fetchMappings = async () => {
       try {
-        const token = localStorage.getItem('authToken');
         const response = await fetch(`${API_BASE_URL}/api/mapping/all`, {
           method: 'GET',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`
-          }
+          headers: getAuthHeaders()
         });
         const data = await response.json();
         if (data.responseStatus?.statusCode !== 0) throw new Error(data.responseStatus?.message || 'Failed to fetch mappings');

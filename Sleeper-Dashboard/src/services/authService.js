@@ -47,7 +47,16 @@ export const loginUser = async (userId, password) => {
  * @param {Object} authData - Authentication data from login response
  */
 export const storeAuthData = (authData) => {
-  localStorage.setItem('authToken', authData.token);
+  if (!authData) return;
+  const token = authData.token || '';
+  if (token) {
+    localStorage.setItem('authToken', token);
+    localStorage.setItem('token', token);
+    localStorage.setItem('sleeper_token', token);
+    sessionStorage.setItem('authToken', token);
+    sessionStorage.setItem('token', token);
+    sessionStorage.setItem('sleeper_token', token);
+  }
   localStorage.setItem('userId', authData.userId);
   localStorage.setItem('userName', authData.userName);
   localStorage.setItem('roleName', authData.roleName);

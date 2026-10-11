@@ -21,7 +21,7 @@ import {
     getViewCorrectionSlipPdfUrl,
     getViewCorrectionSlipPdfByIdUrl
 } from '../../../services/correctionSlipService';
-import { downloadOrNotifyCaseLetter } from '../../../services/caseLetterService';
+import { downloadOrNotifyCaseLetter, fetchSavedCaseLetterInfo } from '../../../services/caseLetterService';
 
 const resolveSleeperCaseNo = (rawCaseNo, rio) => {
     if (!rawCaseNo || !String(rawCaseNo).trim()) return '-';
@@ -209,16 +209,15 @@ const AttendingCallDashboard = ({ mode }) => {
             const callNo = targetCall.requestId || targetCall.call_no || targetCall.callNo || targetCall.id;
             if (callNo) {
                 setCheckingDocs(true);
-                getAnnexureDocuments(callNo, 'SLEEPER')
+                fetchSavedCaseLetterInfo(callNo)
                     .then(res => {
                         if (isMounted) {
-                            const docs = (res && res.success && Array.isArray(res.data)) ? res.data : [];
-                            setHasUploadedDocs(docs.length > 0);
+                            setHasUploadedDocs(Boolean(res && res.exists));
                         }
                     })
                     .catch(err => {
                         if (isMounted) {
-                            console.warn("Could not check annexures for call:", err);
+                            console.warn("Could not check case letter for call:", err);
                             setHasUploadedDocs(false);
                         }
                     })
@@ -2092,7 +2091,7 @@ const AttendingCallDashboard = ({ mode }) => {
                                                 e.currentTarget.style.boxShadow = '0 4px 6px -1px rgba(21, 128, 61, 0.1), 0 2px 4px -1px rgba(21, 128, 61, 0.06)'; 
                                             }
                                         }}
-                                        title={checkingDocs ? "Checking uploaded documents..." : (!hasUploadedDocs ? "Upload document is mandatory before sending call to IBS" : "Send call to IBS")}
+                                        title={checkingDocs ? "Checking Case Letter..." : (!hasUploadedDocs ? "Case Letter is mandatory before sending call to IBS" : "Send call to IBS")}
                                     >
                                         <div style={{ 
                                             width: '42px', height: '42px', 
@@ -2105,12 +2104,12 @@ const AttendingCallDashboard = ({ mode }) => {
                                         <span style={{ fontWeight: '700', fontSize: '14px' }}>Send call to IBS</span>
                                         {(!hasUploadedDocs && !checkingDocs) && (
                                             <span style={{ fontSize: '9.5px', color: '#dc2626', fontWeight: '800', marginTop: '-2px', background: '#fee2e2', padding: '2px 6px', borderRadius: '4px' }}>
-                                                Upload Doc Required
+                                                Case Letter Required
                                             </span>
                                         )}
                                         {checkingDocs && (
                                             <span style={{ fontSize: '9.5px', color: '#64748b', fontWeight: '600', marginTop: '-2px' }}>
-                                                Checking Docs...
+                                                Checking Case Letter...
                                             </span>
                                         )}
                                     </button>
@@ -2313,41 +2312,7 @@ const AttendingCallDashboard = ({ mode }) => {
                                     <span style={{ fontWeight: '700', fontSize: '14px' }}>PO & MA</span>
                                 </button>
 
-                                {/* 5. Upload / View Annexures and Other Docs */}
-                                <button
-                                    onClick={() => {
-                                        const call = selectedActionCall;
-                                        const isClosed = call.isClosed || activeTab === 'closed';
-                                        setSelectedActionCall(null);
-                                        setUploadAnnexureModal({ isOpen: true, call, mode: isClosed ? 'view' : 'upload' });
-                                    }}
-                                    style={{
-                                        display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '8px',
-                                        padding: '16px 12px', background: 'linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%)',
-                                        border: '1px solid #86efac', borderRadius: '14px',
-                                        cursor: 'pointer', transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-                                        color: '#166534', width: '100%',
-                                        boxShadow: '0 4px 6px -1px rgba(22, 101, 52, 0.1), 0 2px 4px -1px rgba(22, 101, 52, 0.06)'
-                                    }}
-                                    onMouseEnter={(e) => { 
-                                        e.currentTarget.style.transform = 'translateY(-3px)';
-                                        e.currentTarget.style.boxShadow = '0 10px 15px -3px rgba(22, 101, 52, 0.2), 0 4px 6px -2px rgba(22, 101, 52, 0.1)'; 
-                                    }}
-                                    onMouseLeave={(e) => { 
-                                        e.currentTarget.style.transform = 'translateY(0)';
-                                        e.currentTarget.style.boxShadow = '0 4px 6px -1px rgba(22, 101, 52, 0.1), 0 2px 4px -1px rgba(22, 101, 52, 0.06)'; 
-                                    }}
-                                    title={(selectedActionCall.isClosed || activeTab === 'closed') ? "View uploaded annexures and other documents" : "Upload or manage annexures and other documents"}
-                                >
-                                    <div style={{ width: '42px', height: '42px', background: '#ffffff', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 2px 4px rgba(0,0,0,0.05)' }}>
-                                        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#16a34a" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-                                    </div>
-                                    <span style={{ fontWeight: '700', fontSize: '13.5px', textAlign: 'center', lineHeight: '1.2' }}>
-                                        {(selectedActionCall.isClosed || activeTab === 'closed') ? "View Uploaded Annexures & Docs" : "Upload / Manage Annexures & Docs"}
-                                    </span>
-                                </button>
-
-                                {/* 6. Case Letter (Generate / View) */}
+                                {/* 5. Case Letter (Generate / View) */}
                                 <button
                                     disabled={Boolean(downloadingCaseLetterCall)}
                                     onClick={async () => {
@@ -2360,11 +2325,15 @@ const AttendingCallDashboard = ({ mode }) => {
                                             setNotification({ message: `Fetching and downloading Case Letter for ${callNo}... Please wait.`, type: 'info' });
                                             try {
                                                 const res = await downloadOrNotifyCaseLetter(callNo, {
-                                                    onNotFound: (msg) => {
-                                                        setNotification({ message: msg, type: 'error' });
+                                                    onNotFound: () => {
+                                                        setSelectedActionCall(null);
+                                                        setNotification({ message: 'Case letter not found for this call. Showing uploaded annexures & docs.', type: 'info' });
+                                                        setUploadAnnexureModal({ isOpen: true, call: row, mode: 'view' });
                                                     },
                                                     onError: () => {
-                                                        setNotification({ message: 'Failed to download case letter for this call', type: 'error' });
+                                                        setSelectedActionCall(null);
+                                                        setNotification({ message: 'Case letter not found for this call. Showing uploaded annexures & docs.', type: 'info' });
+                                                        setUploadAnnexureModal({ isOpen: true, call: row, mode: 'view' });
                                                     }
                                                 });
                                                 if (res && res.success) {
@@ -2401,7 +2370,7 @@ const AttendingCallDashboard = ({ mode }) => {
                                             e.currentTarget.style.boxShadow = '0 4px 6px -1px rgba(67, 56, 202, 0.1), 0 2px 4px -1px rgba(67, 56, 202, 0.06)'; 
                                         }
                                     }}
-                                    title={(selectedActionCall.isClosed || activeTab === 'closed') ? "Directly download stored Case Letter dossier for this call" : "Generate Case Letter / Merge Dossier for this call"}
+                                    title={(selectedActionCall.isClosed || activeTab === 'closed') ? "Directly download stored Inspection Call Documents for this call" : "Upload / Generate Inspection Call Documents for this call"}
                                 >
                                     <div style={{ width: '42px', height: '42px', background: '#ffffff', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 2px 4px rgba(0,0,0,0.05)' }}>
                                         {downloadingCaseLetterCall ? (
@@ -2422,7 +2391,7 @@ const AttendingCallDashboard = ({ mode }) => {
                                     <span style={{ fontWeight: '700', fontSize: '13.5px', textAlign: 'center', lineHeight: '1.2' }}>
                                         {downloadingCaseLetterCall 
                                             ? "Downloading..." 
-                                            : ((selectedActionCall.isClosed || activeTab === 'closed') ? "View Case Letter" : "Generate Case Letter")}
+                                            : ((selectedActionCall.isClosed || activeTab === 'closed') ? "View Uploaded Inspection Call Documents" : "Upload/ Generate Inspection Call Documents")}
                                     </span>
                                 </button>
 
@@ -2619,15 +2588,15 @@ const AttendingCallDashboard = ({ mode }) => {
                             }}>
                                 <div>
                                     <div style={{ fontSize: '10.5px', fontWeight: '700', color: hasUploadedDocs ? '#166534' : '#92400e', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '2px' }}>
-                                        Attached Document Status
+                                        Case Letter Status
                                     </div>
                                     <div style={{ fontSize: '13px', fontWeight: '700', color: hasUploadedDocs ? '#15803d' : '#b45309', display: 'flex', alignItems: 'center', gap: '6px' }}>
                                         {checkingDocs ? (
-                                            <span style={{ color: '#64748b', fontWeight: '600' }}>Checking uploaded documents...</span>
+                                            <span style={{ color: '#64748b', fontWeight: '600' }}>Checking Case Letter...</span>
                                         ) : hasUploadedDocs ? (
-                                            <>✓ Document Uploaded & Verified</>
+                                            <>✓ Case Letter Generated & Verified</>
                                         ) : (
-                                            <>⚠️ Document Not Uploaded</>
+                                            <>⚠️ Case Letter Not Generated</>
                                         )}
                                     </div>
                                 </div>
@@ -2636,13 +2605,14 @@ const AttendingCallDashboard = ({ mode }) => {
                                         type="button"
                                         onClick={() => {
                                             const call = sendIbsCallRow;
-                                            setUploadAnnexureModal({ isOpen: true, call, mode: 'upload' });
+                                            setSendIbsCallRow(null);
+                                            setGenerateCaseLetterModalCall(call);
                                         }}
                                         style={{
                                             padding: '6px 12px',
                                             borderRadius: '6px',
-                                            border: '1px solid #16a34a',
-                                            background: '#16a34a',
+                                            border: '1px solid #4f46e5',
+                                            background: '#4f46e5',
                                             color: '#ffffff',
                                             fontWeight: '700',
                                             fontSize: '12px',
@@ -2650,7 +2620,7 @@ const AttendingCallDashboard = ({ mode }) => {
                                             whiteSpace: 'nowrap'
                                         }}
                                     >
-                                        Upload Document
+                                        Generate Case Letter
                                     </button>
                                 )}
                             </div>
@@ -3064,9 +3034,14 @@ const AttendingCallDashboard = ({ mode }) => {
             {generateCaseLetterModalCall && (
                 <GenerateCaseLetterModal
                     isOpen={Boolean(generateCaseLetterModalCall)}
-                    onClose={() => setGenerateCaseLetterModalCall(null)}
+                    onClose={() => {
+                        const currentCall = generateCaseLetterModalCall;
+                        setGenerateCaseLetterModalCall(null);
+                        if (currentCall) setSelectedActionCall(currentCall);
+                    }}
                     call={generateCaseLetterModalCall}
                     onCaseLetterSaved={() => {
+                        setHasUploadedDocs(true);
                         setNotification({
                             message: `Case Letter generated and archived for call ${generateCaseLetterModalCall.requestId || generateCaseLetterModalCall.callNo || ''} successfully!`,
                             type: 'success'

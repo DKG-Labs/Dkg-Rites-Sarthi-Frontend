@@ -3,7 +3,28 @@
  * Handles fetching workflow-related data
  */
 
-import { API_BASE_URL } from './api';
+import { API_BASE_URL, api } from './api';
+
+const getWorkflowToken = () => {
+  const candidates = [
+    localStorage.getItem('sleeper_token'),
+    localStorage.getItem('authToken'),
+    localStorage.getItem('token'),
+    sessionStorage.getItem('sleeper_token'),
+    sessionStorage.getItem('authToken'),
+    sessionStorage.getItem('token')
+  ];
+  for (const c of candidates) {
+    if (c) {
+      const trimmed = String(c).trim();
+      const lower = trimmed.toLowerCase();
+      if (lower !== '' && lower !== 'null' && lower !== 'undefined' && lower !== 'bearer' && lower !== 'bearer null' && lower !== 'bearer undefined') {
+        return trimmed.replace(/^Bearer\s+/i, '').trim();
+      }
+    }
+  }
+  return '';
+};
 
 /**
  * Standardizes API response handling for both HTTP and business-level errors.
@@ -53,7 +74,7 @@ const handleRawResponse = async (response, fallbackMsg = "System encountered an 
  */
 export const getAllCompletedCalls = async (userId = '') => {
   try {
-    const token = localStorage.getItem('authToken');
+    const token = getWorkflowToken();
     const url = `${API_BASE_URL}/sleeper-workflow/allCompletedCalls${userId ? `?assignedTo=${userId}` : ''}`;
     const response = await fetch(url, {
       method: 'GET',
@@ -84,7 +105,7 @@ export const getAllCompletedCalls = async (userId = '') => {
  */
 export const getMaterialDetail = async (type, requestId) => {
   try {
-    const token = localStorage.getItem('authToken');
+    const token = getWorkflowToken();
     const response = await fetch(`${API_BASE_URL}/${type}/${requestId}`, {
       method: 'GET',
       headers: {
@@ -112,21 +133,8 @@ export const getMaterialDetail = async (type, requestId) => {
  */
 export const getCompanyMappingByUser = async (userId) => {
   try {
-    const token = localStorage.getItem('authToken');
-    const response = await fetch(`${API_BASE_URL}/sleeper-mapping/company-units/${userId}`, {
-      method: 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`
-      },
-    });
-
-    if (!response.ok) {
-      throw new Error('Failed to fetch company mapping details');
-    }
-
-    const data = await response.json();
-    return data.responseData || data;
+    const res = await api.get(`/sleeper-mapping/company-units/${userId}`);
+    return res.responseData || res;
   } catch (error) {
     console.error('Error fetching company mapping details:', error);
     return null;
@@ -141,24 +149,9 @@ export const getCompanyMappingByUser = async (userId) => {
  */
 export const getShedsByVendorCode = async (vendorId, plantId) => {
   try {
-    const token = localStorage.getItem('authToken');
-    // Using the unusual literal path parameters as required by the backend
-    const url = `${API_BASE_URL}/plant-profile/vendor/{vendorId}/{plantId}/sheds?vendorId=${vendorId}&plantId=${encodeURIComponent(plantId)}`;
-    
-    const response = await fetch(url, {
-      method: 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`
-      },
-    });
-
-    if (!response.ok) {
-      throw new Error('Failed to fetch sheds for vendor');
-    }
-
-    const data = await response.json();
-    return data.responseData || data;
+    const url = `/plant-profile/vendor/{vendorId}/{plantId}/sheds?vendorId=${vendorId}&plantId=${encodeURIComponent(plantId)}`;
+    const res = await api.get(url);
+    return res.responseData || res;
   } catch (error) {
     console.error('Error fetching sheds strictly for vendor:', error);
     return [];
@@ -184,7 +177,7 @@ export const getProductionDeclarations = async (forceRefresh = false) => {
 
   prodDeclsPromise = (async () => {
     try {
-      const token = localStorage.getItem('authToken');
+      const token = getWorkflowToken();
       const response = await fetch(`${API_BASE_URL}/production-declaration/getAll`, {
         method: 'GET',
         headers: {
@@ -219,7 +212,7 @@ export const getProductionDeclarations = async (forceRefresh = false) => {
  */
 export const getProductionDeclarationsByUser = async (userId) => {
   try {
-    const token = localStorage.getItem('authToken');
+    const token = getWorkflowToken();
     const response = await fetch(`${API_BASE_URL}/production-declaration/getByUser/${userId}`, {
       method: 'GET',
       headers: {
@@ -247,7 +240,7 @@ export const getProductionDeclarationsByUser = async (userId) => {
  */
 export const getProductionDeclarationById = async (id) => {
   try {
-    const token = localStorage.getItem('authToken');
+    const token = getWorkflowToken();
     const response = await fetch(`${API_BASE_URL}/production-declaration/${id}`, {
       method: 'GET',
       headers: {
@@ -276,7 +269,7 @@ export const getProductionDeclarationById = async (id) => {
  */
 export const saveWaterCubeSample = async (data, id = null) => {
   try {
-    const token = localStorage.getItem('authToken');
+    const token = getWorkflowToken();
     const url = id
       ? `${API_BASE_URL}/water-cube-sample/update/${id}`
       : `${API_BASE_URL}/water-cube-sample/create`;
@@ -311,7 +304,7 @@ export const saveWaterCubeSample = async (data, id = null) => {
  */
 export const getWaterCubeSamplesByUser = async (userId) => {
   try {
-    const token = localStorage.getItem('authToken');
+    const token = getWorkflowToken();
     const response = await fetch(`${API_BASE_URL}/water-cube-sample/getByUser/${userId}`, {
       method: 'GET',
       headers: {
@@ -343,7 +336,7 @@ export const getWaterCubeSamples = async () => {
 
   waterCubeSamplesPromise = (async () => {
     try {
-      const token = localStorage.getItem('authToken');
+      const token = getWorkflowToken();
       const response = await fetch(`${API_BASE_URL}/water-cube-sample/getAll`, {
         method: 'GET',
         headers: {
@@ -376,7 +369,7 @@ export const getWaterCubeSamples = async () => {
  */
 export const deleteWaterCubeSample = async (id) => {
   try {
-    const token = localStorage.getItem('authToken');
+    const token = getWorkflowToken();
     const response = await fetch(`${API_BASE_URL}/water-cube-sample/delete/${id}`, {
       method: 'DELETE',
       headers: {
@@ -399,7 +392,7 @@ export const deleteWaterCubeSample = async (id) => {
  */
 export const saveCement7DayStrength = async (data, id = null) => {
   try {
-    const token = localStorage.getItem('authToken');
+    const token = getWorkflowToken();
     const url = id ? `${API_BASE_URL}/cement-7-day-strength/${id}` : `${API_BASE_URL}/cement-7-day-strength`;
     const response = await fetch(url, {
       method: id ? 'PUT' : 'POST',
@@ -419,7 +412,7 @@ export const saveCement7DayStrength = async (data, id = null) => {
  */
 export const saveCementNormalConsistency = async (data, id = null) => {
   try {
-    const token = localStorage.getItem('authToken');
+    const token = getWorkflowToken();
     const url = id ? `${API_BASE_URL}/cement-normal-consistency/${id}` : `${API_BASE_URL}/cement-normal-consistency`;
     const response = await fetch(url, {
       method: id ? 'PUT' : 'POST',
@@ -440,7 +433,7 @@ export const saveCementNormalConsistency = async (data, id = null) => {
  */
 export const saveCementSpecificSurface = async (data, id = null) => {
   try {
-    const token = localStorage.getItem('authToken');
+    const token = getWorkflowToken();
     const url = id ? `${API_BASE_URL}/cement-specific-surface/${id}` : `${API_BASE_URL}/cement-specific-surface`;
     const response = await fetch(url, {
       method: id ? 'PUT' : 'POST',
@@ -461,7 +454,7 @@ export const saveCementSpecificSurface = async (data, id = null) => {
  */
 export const saveCementSettingTime = async (data, id = null) => {
   try {
-    const token = localStorage.getItem('authToken');
+    const token = getWorkflowToken();
     const url = id 
         ? `${API_BASE_URL}/cement-setting-time/${id}` 
         : `${API_BASE_URL}/cement-setting-time`;
@@ -487,7 +480,7 @@ export const saveCementSettingTime = async (data, id = null) => {
  */
 export const saveCementFineness = async (data, id = null) => {
   try {
-    const token = localStorage.getItem('authToken');
+    const token = getWorkflowToken();
     const url = id 
         ? `${API_BASE_URL}/cement-fineness/${id}` 
         : `${API_BASE_URL}/cement-fineness`;
@@ -508,7 +501,7 @@ export const saveCementFineness = async (data, id = null) => {
 
 export const getCementBulkStatus = async (requestIds) => {
     try {
-        const token = localStorage.getItem('authToken');
+        const token = getWorkflowToken();
         const response = await fetch(`${API_BASE_URL}/cement-status/bulk`, {
             method: 'POST',
             headers: {
@@ -528,7 +521,7 @@ export const getCementBulkStatus = async (requestIds) => {
 
 const getCementDataByRequestId = async (endpoint, requestId) => {
     try {
-        const token = localStorage.getItem('authToken');
+        const token = getWorkflowToken();
         const response = await fetch(`${API_BASE_URL}/${endpoint}/request/${requestId}`, {
             method: 'GET',
             headers: { 'Authorization': `Bearer ${token}` }
@@ -548,7 +541,7 @@ const getCementDataByRequestId = async (endpoint, requestId) => {
 
 const getDataById = async (endpoint, id) => {
     try {
-        const token = localStorage.getItem('authToken');
+        const token = getWorkflowToken();
         const response = await fetch(`${API_BASE_URL}/${endpoint}/${id}`, {
             method: 'GET',
             headers: { 'Authorization': `Bearer ${token}` }
@@ -581,7 +574,7 @@ export const getCementFinenessByReqId = (reqId) => getCementDataByRequestId('cem
  */
 export const saveAggregate10mmQuality = async (data, id = null) => {
   try {
-    const token = localStorage.getItem('authToken');
+    const token = getWorkflowToken();
     const url = id ? `${API_BASE_URL}/aggregate-10mm-quality/${id}` : `${API_BASE_URL}/aggregate-10mm-quality`;
     const response = await fetch(url, {
       method: id ? 'PUT' : 'POST',
@@ -602,7 +595,7 @@ export const saveAggregate10mmQuality = async (data, id = null) => {
  */
 export const saveAggregate20mmQuality = async (data, id = null) => {
   try {
-    const token = localStorage.getItem('authToken');
+    const token = getWorkflowToken();
     const url = id ? `${API_BASE_URL}/aggregate-20mm-quality/${id}` : `${API_BASE_URL}/aggregate-20mm-quality`;
     const response = await fetch(url, {
       method: id ? 'PUT' : 'POST',
@@ -623,7 +616,7 @@ export const saveAggregate20mmQuality = async (data, id = null) => {
  */
 export const saveAggregateFlakiness = async (data, id = null) => {
   try {
-    const token = localStorage.getItem('authToken');
+    const token = getWorkflowToken();
     const url = id ? `${API_BASE_URL}/aggregate-flakiness/${id}` : `${API_BASE_URL}/aggregate-flakiness`;
     const response = await fetch(url, {
       method: id ? 'PUT' : 'POST',
@@ -647,7 +640,7 @@ export const saveAggregateFlakiness = async (data, id = null) => {
  */
 export const saveAggregateGranulometric = async (data, id = null) => {
   try {
-    const token = localStorage.getItem('authToken');
+    const token = getWorkflowToken();
     const url = id ? `${API_BASE_URL}/aggregate-granulometric/${id}` : `${API_BASE_URL}/aggregate-granulometric`;
     const response = await fetch(url, {
       method: id ? 'PUT' : 'POST',
@@ -668,7 +661,7 @@ export const saveAggregateGranulometric = async (data, id = null) => {
  */
 export const saveAggregateSoundness = async (data, id = null) => {
   try {
-    const token = localStorage.getItem('authToken');
+    const token = getWorkflowToken();
     const url = id ? `${API_BASE_URL}/aggregate-soundness/${id}` : `${API_BASE_URL}/aggregate-soundness`;
     const response = await fetch(url, {
       method: id ? 'PUT' : 'POST',
@@ -685,7 +678,7 @@ export const saveAggregateSoundness = async (data, id = null) => {
 // Aggregate Status & Fetch Methods
 export const getAggregateBulkStatus = async (requestIds) => {
   try {
-    const token = localStorage.getItem('authToken');
+    const token = getWorkflowToken();
     const response = await fetch(`${API_BASE_URL}/aggregate-status/bulk`, {
       method: 'POST',
       headers: {
@@ -713,7 +706,7 @@ export const getAggregateSoundnessById = (id) => getDataById('aggregate-soundnes
 
 const getAggregateDataByRequestId = async (endpoint, requestId) => {
   try {
-    const token = localStorage.getItem('authToken');
+    const token = getWorkflowToken();
     const response = await fetch(`${API_BASE_URL}/${endpoint}/request/${requestId}`, {
       headers: { 'Authorization': `Bearer ${token}` }
     });
@@ -742,7 +735,7 @@ export const getAggregateSoundnessByReqId = (requestId) => getAggregateDataByReq
  */
 export const saveAdmixtureTest = async (data) => {
   try {
-    const token = localStorage.getItem('authToken');
+    const token = getWorkflowToken();
     const response = await fetch(`${API_BASE_URL}/admixture-test`, {
       method: 'POST',
       headers: {
@@ -765,7 +758,7 @@ export const saveAdmixtureTest = async (data) => {
  */
 export const saveHtsWireDailyTest = async (data, id = null) => {
   try {
-    const token = localStorage.getItem('authToken');
+    const token = getWorkflowToken();
     const method = id ? 'PUT' : 'POST';
     const url = id
         ? `${API_BASE_URL}/hts-wire-daily-test/${id}`
@@ -788,7 +781,7 @@ export const saveHtsWireDailyTest = async (data, id = null) => {
 
 export const getHtsWireDailyTestByReqId = async (requestId) => {
   try {
-    const token = localStorage.getItem('authToken');
+    const token = getWorkflowToken();
     const response = await fetch(`${API_BASE_URL}/hts-wire-daily-test/request/${requestId}`, {
       method: 'GET',
       headers: { 'Authorization': `Bearer ${token}` }
@@ -812,7 +805,7 @@ export const getHtsWireDailyTestByReqId = async (requestId) => {
  */
 export const saveSgciInsertAudit = async (data, id = null) => {
   try {
-    const token = localStorage.getItem('authToken');
+    const token = getWorkflowToken();
     const method = id ? 'PUT' : 'POST';
     const url = id
         ? `${API_BASE_URL}/sgci-insert-audit/${id}`
@@ -835,7 +828,7 @@ export const saveSgciInsertAudit = async (data, id = null) => {
 
 export const getSgciInsertAuditByRequestId = async (requestId) => {
   try {
-    const token = localStorage.getItem('authToken');
+    const token = getWorkflowToken();
     const response = await fetch(`${API_BASE_URL}/sgci-insert-audit/request/${requestId}`, {
       method: 'GET',
       headers: { 'Authorization': `Bearer ${token}` }
@@ -854,7 +847,7 @@ export const getSgciInsertAuditByRequestId = async (requestId) => {
 
 export const getSgciInsertAuditById = async (id) => {
   try {
-    const token = localStorage.getItem('authToken');
+    const token = getWorkflowToken();
     const response = await fetch(`${API_BASE_URL}/sgci-insert-audit/${id}`, {
       method: 'GET',
       headers: { 'Authorization': `Bearer ${token}` }
@@ -873,7 +866,7 @@ export const getSgciInsertAuditById = async (id) => {
 
 export const deleteSgciInsertAudit = async (id) => {
   try {
-    const token = localStorage.getItem('authToken');
+    const token = getWorkflowToken();
     const response = await fetch(`${API_BASE_URL}/sgci-insert-audit/${id}`, {
       method: 'DELETE',
       headers: { 'Authorization': `Bearer ${token}` }
@@ -892,7 +885,7 @@ export const deleteSgciInsertAudit = async (id) => {
  */
 export const saveWaterCubeTestResult = async (data) => {
   try {
-    const token = localStorage.getItem('authToken');
+    const token = getWorkflowToken();
     const response = await fetch(`${API_BASE_URL}/water-cube-sample/save-test-result`, {
       method: 'POST',
       headers: {
@@ -915,7 +908,7 @@ export const saveWaterCubeTestResult = async (data) => {
  */
 export const getWaterCubeTestResultsByUser = async (userId) => {
   try {
-    const token = localStorage.getItem('authToken');
+    const token = getWorkflowToken();
     const response = await fetch(`${API_BASE_URL}/water-cube-sample/test-results/user/${userId}`, {
       method: 'GET',
       headers: {
@@ -947,7 +940,7 @@ export const getAllWaterCubeTests = async () => {
 
   allWaterCubeTestsPromise = (async () => {
     try {
-      const token = localStorage.getItem('authToken');
+      const token = getWorkflowToken();
       const response = await fetch(`${API_BASE_URL}/water-cube-sample/getAllTests`, {
         method: 'GET',
         headers: {
@@ -980,7 +973,7 @@ export const getAllWaterCubeTests = async () => {
  */
 export const deleteWaterCubeTest = async (id) => {
   try {
-    const token = localStorage.getItem('authToken');
+    const token = getWorkflowToken();
     const response = await fetch(`${API_BASE_URL}/water-cube-sample/testDelete/${id}`, {
       method: 'DELETE',
       headers: {
@@ -1005,7 +998,7 @@ export const deleteWaterCubeTest = async (id) => {
  */
 export const updateWaterCubeTest = async (data, id) => {
   try {
-    const token = localStorage.getItem('authToken');
+    const token = getWorkflowToken();
     const response = await fetch(`${API_BASE_URL}/water-cube-sample/updateTest/${id}`, {
       method: 'PUT',
       headers: {
@@ -1032,7 +1025,7 @@ export const updateWaterCubeTest = async (data, id) => {
  */
 export const getBatchNosForCompaction = async (params) => {
   try {
-    const token = localStorage.getItem('authToken');
+    const token = getWorkflowToken();
     const query = new URLSearchParams(params).toString();
     const response = await fetch(`${API_BASE_URL}/batch-weighment/batchNosForCompaction?${query}`, {
       method: 'GET',
@@ -1059,7 +1052,7 @@ export const getBatchNosForCompaction = async (params) => {
  */
 const getPeriodicData = async (endpoint) => {
     try {
-        const token = localStorage.getItem('authToken');
+        const token = getWorkflowToken();
         const response = await fetch(`${API_BASE_URL}/${endpoint}/periodic`, {
             method: 'GET',
             headers: {
@@ -1095,7 +1088,7 @@ export const getPeriodicAggregateSoundness = () => getPeriodicData('aggregate-so
  */
 export const deletePeriodicRecord = async (endpoint, id) => {
     try {
-        const token = localStorage.getItem('authToken');
+        const token = getWorkflowToken();
         const response = await fetch(`${API_BASE_URL}/${endpoint}/${id}`, {
             method: 'DELETE',
             headers: { 'Authorization': `Bearer ${token}` }

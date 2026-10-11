@@ -249,6 +249,11 @@ export const storeAuthData = (authData) => {
   localStorage.setItem('lastLoggedInUserId', currentUserId);
   if (currentLoginId) localStorage.setItem('lastLoggedInLoginId', currentLoginId);
   localStorage.setItem('authToken', authData.token);
+  localStorage.setItem('token', authData.token);
+  localStorage.setItem('sleeper_token', authData.token);
+  localStorage.setItem('railpad_token', authData.token);
+  sessionStorage.setItem('authToken', authData.token);
+  sessionStorage.setItem('token', authData.token);
   localStorage.setItem('userId', authData.userId);
   if (authData.loginId) localStorage.setItem('loginId', authData.loginId);
   localStorage.setItem('userName', authData.userName);
@@ -263,7 +268,37 @@ export const storeAuthData = (authData) => {
  * @returns {string|null} JWT token or null if not logged in
  */
 export const getAuthToken = () => {
-  return localStorage.getItem('authToken');
+  const candidates = [
+    localStorage.getItem('authToken'),
+    localStorage.getItem('token'),
+    localStorage.getItem('railpad_token'),
+    localStorage.getItem('sleeper_token'),
+    sessionStorage.getItem('authToken'),
+    sessionStorage.getItem('token'),
+    sessionStorage.getItem('railpad_token')
+  ];
+
+  for (const c of candidates) {
+    if (c) {
+      const trimmed = String(c).trim();
+      const lower = trimmed.toLowerCase();
+      if (lower !== '' && lower !== 'null' && lower !== 'undefined' && lower !== 'bearer' && lower !== 'bearer null' && lower !== 'bearer undefined') {
+        return trimmed.replace(/^Bearer\s+/i, '').trim();
+      }
+    }
+  }
+
+  return null;
+};
+
+export const getAuthHeaders = (customHeaders = {}) => {
+  const token = getAuthToken();
+  return {
+    'Content-Type': 'application/json',
+    'Accept': 'application/json',
+    ...(customHeaders || {}),
+    ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+  };
 };
 
 /**
@@ -320,14 +355,5 @@ export const logoutUser = () => {
   localStorage.removeItem('shortName');
   localStorage.removeItem('rio');
   localStorage.removeItem('employeeCode');
-};
-
-/**
- * Get authorization header for API requests
- * @returns {Object} Headers object with Authorization
- */
-export const getAuthHeaders = () => {
-  const token = getAuthToken();
-  return token ? { Authorization: `Bearer ${token}` } : {};
 };
 

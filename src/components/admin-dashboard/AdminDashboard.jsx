@@ -10,7 +10,7 @@ import { IEFieldsForm } from './IEFieldsForm';
 import { CertificateStorageManager } from './CertificateStorageManager';
 import { IbsInspectionDataView } from './IbsInspectionDataView';
 import { Modal } from './Modal';
-import { API_BASE_URL } from '../../services/apiConfig';
+import { API_BASE_URL, getAuthHeaders } from '../../services/apiConfig';
 import { getStoredUser } from '../../services/authService';
 import { Snackbar, Alert } from '@mui/material';
 import './admin.css';
@@ -812,7 +812,7 @@ export const AdminDashboard = () => {
  */
 const getRolesApi = async () => {
     try {
-        const token = localStorage.getItem('authToken');
+        const token = (getAuthHeaders()['Authorization'] || '').replace(/^Bearer\s+/i, '');
         const response = await fetch(`${API_BASE_URL}/api/auth/api/roles`, {
             method: 'GET',
             headers: {
@@ -842,7 +842,7 @@ const getRolesApi = async () => {
  */
 const getUsersByRoleApi = async (roleName) => {
     try {
-        const token = localStorage.getItem('authToken');
+        const token = (getAuthHeaders()['Authorization'] || '').replace(/^Bearer\s+/i, '');
         const response = await fetch(`${API_BASE_URL}/api/auth/api/users/by-role?roleName=${roleName}`, {
             method: 'GET',
             headers: {
@@ -863,7 +863,7 @@ const getUsersByRoleApi = async (roleName) => {
  */
 const getCompaniesApi = async () => {
     try {
-        const token = localStorage.getItem('authToken');
+        const token = (getAuthHeaders()['Authorization'] || '').replace(/^Bearer\s+/i, '');
         const response = await fetch(`${API_BASE_URL}/api/auth/api/pincode-poi/companies`, {
             method: 'GET',
             headers: {
@@ -884,7 +884,7 @@ const getCompaniesApi = async () => {
  */
 const getUnitsByCompanyApi = async (companyName) => {
     try {
-        const token = localStorage.getItem('authToken');
+        const token = (getAuthHeaders()['Authorization'] || '').replace(/^Bearer\s+/i, '');
         const response = await fetch(`${API_BASE_URL}/api/auth/api/pincode-poi/units?companyName=${encodeURIComponent(companyName)}`, {
             method: 'GET',
             headers: {
@@ -905,7 +905,7 @@ const getUnitsByCompanyApi = async (companyName) => {
  */
 const getMappingDetailsApi = async (companyName, unitName) => {
     try {
-        const token = localStorage.getItem('authToken');
+        const token = (getAuthHeaders()['Authorization'] || '').replace(/^Bearer\s+/i, '');
         const response = await fetch(`${API_BASE_URL}/api/auth/api/pincode-poi/details?companyName=${encodeURIComponent(companyName)}&unitName=${encodeURIComponent(unitName)}`, {
             method: 'GET',
             headers: {
@@ -926,7 +926,7 @@ const getMappingDetailsApi = async (companyName, unitName) => {
  */
 const saveIeMappingApi = async (userId, mappingData) => {
     try {
-        const token = localStorage.getItem('authToken');
+        const token = (getAuthHeaders()['Authorization'] || '').replace(/^Bearer\s+/i, '');
         const response = await fetch(`${API_BASE_URL}/api/auth/api/IeMapping?userId=${userId}`, {
             method: 'POST',
             headers: {
@@ -948,7 +948,7 @@ const saveIeMappingApi = async (userId, mappingData) => {
  */
 const saveProcessIeMappingApi = async (userId, processData, createdBy) => {
     try {
-        const token = localStorage.getItem('authToken');
+        const token = (getAuthHeaders()['Authorization'] || '').replace(/^Bearer\s+/i, '');
         const response = await fetch(`${API_BASE_URL}/api/mapping/processIe?userId=${userId}&createdBy=${createdBy}`, {
             method: 'POST',
             headers: {
@@ -970,7 +970,7 @@ const saveProcessIeMappingApi = async (userId, processData, createdBy) => {
  */
 export const getUsersApi = async () => {
     try {
-        const token = localStorage.getItem('authToken');
+        const token = (getAuthHeaders()['Authorization'] || '').replace(/^Bearer\s+/i, '');
         const response = await fetch(`${API_BASE_URL}/api/auth/api/users`, {
             method: 'GET',
             headers: {
@@ -991,7 +991,7 @@ export const getUsersApi = async () => {
  */
 export const updateUserApi = async (userData) => {
     try {
-        const token = localStorage.getItem('authToken');
+        const token = (getAuthHeaders()['Authorization'] || '').replace(/^Bearer\s+/i, '');
         const response = await fetch(`${API_BASE_URL}/api/auth/api/users`, {
             method: 'PUT',
             headers: {
@@ -1013,7 +1013,7 @@ export const updateUserApi = async (userData) => {
  */
 export const createUserApi = async (userData) => {
     try {
-        const token = localStorage.getItem('authToken');
+        const token = (getAuthHeaders()['Authorization'] || '').replace(/^Bearer\s+/i, '');
         const response = await fetch(`${API_BASE_URL}/api/auth/api/users`, {
             method: 'POST',
             headers: {
@@ -1035,7 +1035,7 @@ export const createUserApi = async (userData) => {
  */
 export const deleteUserApi = async (userId) => {
     try {
-        const token = localStorage.getItem('authToken');
+        const token = (getAuthHeaders()['Authorization'] || '').replace(/^Bearer\s+/i, '');
         const response = await fetch(`${API_BASE_URL}/api/auth/api/users/${userId}`, {
             method: 'DELETE',
             headers: {
@@ -1056,7 +1056,7 @@ export const deleteUserApi = async (userId) => {
  */
 export const changeUserRegionApi = async (userId, region) => {
     try {
-        const token = localStorage.getItem('authToken');
+        const token = (getAuthHeaders()['Authorization'] || '').replace(/^Bearer\s+/i, '');
         const response = await fetch(`${API_BASE_URL}/api/auth/api/users/${userId}/region`, {
             method: 'PUT',
             headers: {
@@ -1078,7 +1078,7 @@ export const changeUserRegionApi = async (userId, region) => {
  */
 export const createErcVendorApi = async (vendorData) => {
     try {
-        const token = localStorage.getItem('authToken');
+        const token = (getAuthHeaders()['Authorization'] || '').replace(/^Bearer\s+/i, '');
         const response = await fetch(`${API_BASE_URL}/api/auth/api/erc-vendor`, {
             method: 'POST',
             headers: {
@@ -1100,7 +1100,7 @@ export const createErcVendorApi = async (vendorData) => {
  */
 export const getErcVendorDetailsApi = async (userId) => {
     try {
-        const token = localStorage.getItem('authToken');
+        const token = (getAuthHeaders()['Authorization'] || '').replace(/^Bearer\s+/i, '');
         const response = await fetch(`${API_BASE_URL}/api/auth/api/erc-vendor/${userId}`, {
             method: 'GET',
             headers: {
@@ -1121,7 +1121,7 @@ export const getErcVendorDetailsApi = async (userId) => {
  */
 export const createSleeperVendorApi = async (vendorData) => {
     try {
-        const token = localStorage.getItem('authToken');
+        const token = (getAuthHeaders()['Authorization'] || '').replace(/^Bearer\s+/i, '');
         const response = await fetch(`${API_BASE_URL}/api/auth/api/sleeper-vendor`, {
             method: 'POST',
             headers: {
@@ -1143,7 +1143,7 @@ export const createSleeperVendorApi = async (vendorData) => {
  */
 export const getSleeperVendorDetailsApi = async (userId) => {
     try {
-        const token = localStorage.getItem('authToken');
+        const token = (getAuthHeaders()['Authorization'] || '').replace(/^Bearer\s+/i, '');
         const response = await fetch(`${API_BASE_URL}/api/auth/api/sleeper-vendor/${userId}`, {
             method: 'GET',
             headers: {
@@ -1164,7 +1164,7 @@ export const getSleeperVendorDetailsApi = async (userId) => {
  */
 export const createRailpadVendorApi = async (vendorData) => {
     try {
-        const token = localStorage.getItem('authToken');
+        const token = (getAuthHeaders()['Authorization'] || '').replace(/^Bearer\s+/i, '');
         const response = await fetch(`${API_BASE_URL}/api/auth/api/railpad-vendor`, {
             method: 'POST',
             headers: {
@@ -1186,7 +1186,7 @@ export const createRailpadVendorApi = async (vendorData) => {
  */
 export const getRailpadVendorDetailsApi = async (userId) => {
     try {
-        const token = localStorage.getItem('authToken');
+        const token = (getAuthHeaders()['Authorization'] || '').replace(/^Bearer\s+/i, '');
         const response = await fetch(`${API_BASE_URL}/api/auth/api/railpad-vendor/${userId}`, {
             method: 'GET',
             headers: {
@@ -1207,7 +1207,7 @@ export const getRailpadVendorDetailsApi = async (userId) => {
  */
 const getSleeperEmployeesByRoleApi = async (roleId) => {
     try {
-        const token = localStorage.getItem('authToken');
+        const token = (getAuthHeaders()['Authorization'] || '').replace(/^Bearer\s+/i, '');
         const response = await fetch(`${API_BASE_URL}/api/sleeper-mapping/employees-by-role?roleId=${roleId}`, {
             method: 'GET',
             headers: {
@@ -1228,7 +1228,7 @@ const getSleeperEmployeesByRoleApi = async (roleId) => {
  */
 const getSleeperCompaniesApi = async () => {
     try {
-        const token = localStorage.getItem('authToken');
+        const token = (getAuthHeaders()['Authorization'] || '').replace(/^Bearer\s+/i, '');
         const response = await fetch(`${API_BASE_URL}/api/sleeper-mapping/sleeper-companies`, {
             method: 'GET',
             headers: {
@@ -1249,7 +1249,7 @@ const getSleeperCompaniesApi = async () => {
  */
 const getSleeperPlantsApi = async (vendorCode) => {
     try {
-        const token = localStorage.getItem('authToken');
+        const token = (getAuthHeaders()['Authorization'] || '').replace(/^Bearer\s+/i, '');
         const response = await fetch(`${API_BASE_URL}/api/sleeper-mapping/sleeper-plants/${vendorCode}`, {
             method: 'GET',
             headers: {
@@ -1270,7 +1270,7 @@ const getSleeperPlantsApi = async (vendorCode) => {
  */
 const saveSleeperMappingApi = async (payload) => {
     try {
-        const token = localStorage.getItem('authToken');
+        const token = (getAuthHeaders()['Authorization'] || '').replace(/^Bearer\s+/i, '');
         const response = await fetch(`${API_BASE_URL}/api/sleeper-mapping/sleeperMapping`, {
             method: 'POST',
             headers: {
@@ -1291,7 +1291,7 @@ const saveSleeperMappingApi = async (payload) => {
  */
 const getSleeperMappedEmployeesApi = async (companyName, plantId, ieType) => {
     try {
-        const token = localStorage.getItem('authToken');
+        const token = (getAuthHeaders()['Authorization'] || '').replace(/^Bearer\s+/i, '');
         const response = await fetch(`${API_BASE_URL}/api/sleeper-mapping/mapped-emp-list?companyName=${encodeURIComponent(companyName)}&plantId=${encodeURIComponent(plantId)}&ieType=${encodeURIComponent(ieType)}`, {
             method: 'GET',
             headers: {
@@ -1312,7 +1312,7 @@ const getSleeperMappedEmployeesApi = async (companyName, plantId, ieType) => {
  */
 const saveCompanyWiseSleeperMappingApi = async (payload) => {
     try {
-        const token = localStorage.getItem('authToken');
+        const token = (getAuthHeaders()['Authorization'] || '').replace(/^Bearer\s+/i, '');
         const response = await fetch(`${API_BASE_URL}/api/sleeper-mapping/company-wise-sleeper-mapping`, {
             method: 'POST',
             headers: {
@@ -1334,7 +1334,7 @@ const saveCompanyWiseSleeperMappingApi = async (payload) => {
  */
 const getRailpadCompaniesApi = async () => {
     try {
-        const token = localStorage.getItem('authToken');
+        const token = (getAuthHeaders()['Authorization'] || '').replace(/^Bearer\s+/i, '');
         const response = await fetch(`${API_BASE_URL}/api/railpad-vendor-plant/companies`, {
             method: 'GET',
             headers: {
@@ -1355,7 +1355,7 @@ const getRailpadCompaniesApi = async () => {
  */
 const getRailpadPlantsApi = async (vendorCode) => {
     try {
-        const token = localStorage.getItem('authToken');
+        const token = (getAuthHeaders()['Authorization'] || '').replace(/^Bearer\s+/i, '');
         const response = await fetch(`${API_BASE_URL}/api/railpad-vendor-plant/vendor/${encodeURIComponent(vendorCode)}/plants`, {
             method: 'GET',
             headers: {
@@ -1377,7 +1377,7 @@ const getRailpadPlantsApi = async (vendorCode) => {
  */
 const saveRailpadMappingApi = async (payload) => {
     try {
-        const token = localStorage.getItem('authToken');
+        const token = (getAuthHeaders()['Authorization'] || '').replace(/^Bearer\s+/i, '');
         const response = await fetch(`${API_BASE_URL}/api/railpadMapping`, {
             method: 'POST',
             headers: {
@@ -1400,7 +1400,7 @@ const saveRailpadMappingApi = async (payload) => {
  */
 export const deleteMappingApi = async (id) => {
     try {
-        const token = localStorage.getItem('authToken');
+        const token = (getAuthHeaders()['Authorization'] || '').replace(/^Bearer\s+/i, '');
         const response = await fetch(`${API_BASE_URL}/api/mapping/${id}`, {
             method: 'DELETE',
             headers: {

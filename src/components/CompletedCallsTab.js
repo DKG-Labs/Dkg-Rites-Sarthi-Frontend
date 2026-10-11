@@ -24,6 +24,7 @@ import SendRoundedIcon from '@mui/icons-material/SendRounded';
 import AssignmentRoundedIcon from '@mui/icons-material/AssignmentRounded';
 import PictureAsPdfRoundedIcon from '@mui/icons-material/PictureAsPdfRounded';
 import AssignmentReturnRoundedIcon from '@mui/icons-material/AssignmentReturnRounded';
+import { fetchSavedCaseLetterInfo } from '../services/caseLetterService';
 
 const CompletedCallsTab = ({ setSelectedCall, setCurrentPage, onCallSentToIbs }) => {
   const [showFilters, setShowFilters] = useState(false);
@@ -46,6 +47,8 @@ const CompletedCallsTab = ({ setSelectedCall, setCurrentPage, onCallSentToIbs })
   const [completedCalls, setCompletedCalls] = useState([]);
   const [isLoadingCalls, setIsLoadingCalls] = useState(true);
   const [selectedActionCall, setSelectedActionCall] = useState(null);
+  const [hasCaseLetter, setHasCaseLetter] = useState(false);
+  const [checkingCaseLetter, setCheckingCaseLetter] = useState(false);
   const [generateCaseLetterModalCall, setGenerateCaseLetterModalCall] = useState(null);
   const [sendIbsCallRow, setSendIbsCallRow] = useState(null);
   const [isSendingIbs, setIsSendingIbs] = useState(false);
@@ -55,6 +58,38 @@ const CompletedCallsTab = ({ setSelectedCall, setCurrentPage, onCallSentToIbs })
   const [tcPdfLoading, setTcPdfLoading] = useState(false);
 
   const hasFetchedRef = useRef(false);
+
+  // Check case letter existence when a completed call action popup is opened
+  useEffect(() => {
+    let isMounted = true;
+    if (selectedActionCall) {
+      const callNo = selectedActionCall.call_no || selectedActionCall.callNumber || selectedActionCall.requestId || '';
+      if (callNo) {
+        setCheckingCaseLetter(true);
+        fetchSavedCaseLetterInfo(callNo)
+          .then(res => {
+            if (isMounted) {
+              setHasCaseLetter(Boolean(res && res.exists));
+            }
+          })
+          .catch(() => {
+            if (isMounted) setHasCaseLetter(false);
+          })
+          .finally(() => {
+            if (isMounted) setCheckingCaseLetter(false);
+          });
+      } else {
+        setHasCaseLetter(false);
+        setCheckingCaseLetter(false);
+      }
+    } else {
+      setHasCaseLetter(false);
+      setCheckingCaseLetter(false);
+    }
+    return () => {
+      isMounted = false;
+    };
+  }, [selectedActionCall]);
 
   useEffect(() => {
     const loadCalls = async () => {
@@ -626,31 +661,58 @@ const CompletedCallsTab = ({ setSelectedCall, setCurrentPage, onCallSentToIbs })
                 {/* 3. Send call to IBS */}
                 <button
                   onClick={() => {
+                    if (!hasCaseLetter || checkingCaseLetter) return;
                     const row = selectedActionCall;
                     setSelectedActionCall(null);
                     setSendIbsCallRow(row);
                   }}
+                  disabled={!hasCaseLetter || checkingCaseLetter}
                   style={{
-                    display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '12px',
-                    padding: '24px 16px', background: 'linear-gradient(135deg, #dcfce7 0%, #bbf7d0 100%)',
-                    border: '1px solid #86efac', borderRadius: '16px',
-                    cursor: 'pointer', transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-                    color: '#15803d', width: '100%',
-                    boxShadow: '0 4px 6px -1px rgba(21, 128, 61, 0.1), 0 2px 4px -1px rgba(21, 128, 61, 0.06)'
+                    display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '8px',
+                    padding: '20px 16px',
+                    background: (!hasCaseLetter || checkingCaseLetter) ? '#f8fafc' : 'linear-gradient(135deg, #dcfce7 0%, #bbf7d0 100%)',
+                    border: (!hasCaseLetter || checkingCaseLetter) ? '1.5px dashed #cbd5e1' : '1px solid #86efac',
+                    borderRadius: '16px',
+                    cursor: (!hasCaseLetter || checkingCaseLetter) ? 'not-allowed' : 'pointer',
+                    transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                    color: (!hasCaseLetter || checkingCaseLetter) ? '#94a3b8' : '#15803d',
+                    width: '100%',
+                    opacity: (!hasCaseLetter || checkingCaseLetter) ? 0.7 : 1,
+                    boxShadow: (!hasCaseLetter || checkingCaseLetter) ? 'none' : '0 4px 6px -1px rgba(21, 128, 61, 0.1), 0 2px 4px -1px rgba(21, 128, 61, 0.06)'
                   }}
                   onMouseEnter={(e) => { 
-                    e.currentTarget.style.transform = 'translateY(-4px)';
-                    e.currentTarget.style.boxShadow = '0 10px 15px -3px rgba(21, 128, 61, 0.2), 0 4px 6px -2px rgba(21, 128, 61, 0.1)'; 
+                    if (hasCaseLetter && !checkingCaseLetter) {
+                      e.currentTarget.style.transform = 'translateY(-4px)';
+                      e.currentTarget.style.boxShadow = '0 10px 15px -3px rgba(21, 128, 61, 0.2), 0 4px 6px -2px rgba(21, 128, 61, 0.1)'; 
+                    }
                   }}
                   onMouseLeave={(e) => { 
-                    e.currentTarget.style.transform = 'translateY(0)';
-                    e.currentTarget.style.boxShadow = '0 4px 6px -1px rgba(21, 128, 61, 0.1), 0 2px 4px -1px rgba(21, 128, 61, 0.06)'; 
+                    if (hasCaseLetter && !checkingCaseLetter) {
+                      e.currentTarget.style.transform = 'translateY(0)';
+                      e.currentTarget.style.boxShadow = '0 4px 6px -1px rgba(21, 128, 61, 0.1), 0 2px 4px -1px rgba(21, 128, 61, 0.06)'; 
+                    }
                   }}
+                  title={checkingCaseLetter ? "Checking Case Letter..." : (!hasCaseLetter ? "Case Letter is mandatory before sending call to IBS" : "Send call to IBS")}
                 >
-                  <div style={{ width: '48px', height: '48px', background: '#ffffff', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 2px 4px rgba(0,0,0,0.05)' }}>
-                    <SendRoundedIcon style={{ fontSize: '26px', color: '#15803d' }} />
+                  <div style={{
+                    width: '48px', height: '48px',
+                    background: (!hasCaseLetter || checkingCaseLetter) ? '#f1f5f9' : '#ffffff',
+                    borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    boxShadow: '0 2px 4px rgba(0,0,0,0.05)'
+                  }}>
+                    <SendRoundedIcon style={{ fontSize: '26px', color: (!hasCaseLetter || checkingCaseLetter) ? '#94a3b8' : '#15803d' }} />
                   </div>
                   <span style={{ fontWeight: '700', fontSize: '15px' }}>Send call to IBS</span>
+                  {(!hasCaseLetter && !checkingCaseLetter) && (
+                    <span style={{ fontSize: '10px', color: '#dc2626', fontWeight: '800', marginTop: '-2px', background: '#fee2e2', padding: '2px 8px', borderRadius: '4px' }}>
+                      Case Letter Required
+                    </span>
+                  )}
+                  {checkingCaseLetter && (
+                    <span style={{ fontSize: '10px', color: '#64748b', fontWeight: '600', marginTop: '-2px' }}>
+                      Checking Case Letter...
+                    </span>
+                  )}
                 </button>
 
                 {/* 5. Call Letter */}
@@ -742,36 +804,6 @@ const CompletedCallsTab = ({ setSelectedCall, setCurrentPage, onCallSentToIbs })
                   <span style={{ fontWeight: '700', fontSize: '15px' }}>{tcPdfLoading ? 'Downloading...' : 'Document (TC)'}</span>
                 </button>
 
-                {/* 8. Upload / Manage Annexures and Other Docs */}
-                <button
-                  onClick={() => {
-                    const call = selectedActionCall;
-                    setSelectedActionCall(null);
-                    setUploadAnnexureModal({ isOpen: true, call });
-                  }}
-                  style={{
-                    display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '12px',
-                    padding: '24px 16px', background: 'linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%)',
-                    border: '1px solid #86efac', borderRadius: '16px',
-                    cursor: 'pointer', transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-                    color: '#166534', width: '100%',
-                    boxShadow: '0 4px 6px -1px rgba(22, 101, 52, 0.1), 0 2px 4px -1px rgba(22, 101, 52, 0.06)'
-                  }}
-                  onMouseEnter={(e) => { 
-                    e.currentTarget.style.transform = 'translateY(-4px)';
-                    e.currentTarget.style.boxShadow = '0 10px 15px -3px rgba(22, 101, 52, 0.2), 0 4px 6px -2px rgba(22, 101, 52, 0.1)'; 
-                  }}
-                  onMouseLeave={(e) => { 
-                    e.currentTarget.style.transform = 'translateY(0)';
-                    e.currentTarget.style.boxShadow = '0 4px 6px -1px rgba(22, 101, 52, 0.1), 0 2px 4px -1px rgba(22, 101, 52, 0.06)'; 
-                  }}
-                  title="Upload or manage annexures and other documents"
-                >
-                  <div style={{ width: '48px', height: '48px', background: '#ffffff', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 2px 4px rgba(0,0,0,0.05)' }}>
-                    <AttachmentRoundedIcon style={{ fontSize: '26px', color: '#16a34a' }} />
-                  </div>
-                  <span style={{ fontWeight: '700', fontSize: '15px', textAlign: 'center', lineHeight: '1.2' }}>Upload / Manage Annexures & Docs</span>
-                </button>
 
                 {/* 9. Back to issuance of IC */}
                 <button
@@ -826,12 +858,12 @@ const CompletedCallsTab = ({ setSelectedCall, setCurrentPage, onCallSentToIbs })
                     e.currentTarget.style.transform = 'translateY(0)';
                     e.currentTarget.style.boxShadow = '0 4px 6px -1px rgba(67, 56, 202, 0.1), 0 2px 4px -1px rgba(67, 56, 202, 0.06)'; 
                   }}
-                  title="Compile and generate merged Case Letter dossier (Bottom-to-Top)"
+                  title="Compile, upload and generate merged Inspection Call Documents (Merge Dossier)"
                 >
                   <div style={{ width: '48px', height: '48px', background: '#ffffff', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 2px 4px rgba(0,0,0,0.05)' }}>
                     <PictureAsPdfRoundedIcon style={{ fontSize: '26px', color: '#4338ca' }} />
                   </div>
-                  <span style={{ fontWeight: '700', fontSize: '15px', textAlign: 'center', lineHeight: '1.2' }}>Generate Case Letter</span>
+                  <span style={{ fontWeight: '700', fontSize: '15px', textAlign: 'center', lineHeight: '1.2' }}>Upload/ Generate Inspection Call Documents</span>
                 </button>
               </div>
             </div>
@@ -844,7 +876,16 @@ const CompletedCallsTab = ({ setSelectedCall, setCurrentPage, onCallSentToIbs })
         <GenerateCaseLetterModal
           isOpen={Boolean(generateCaseLetterModalCall)}
           call={generateCaseLetterModalCall}
-          onClose={() => setGenerateCaseLetterModalCall(null)}
+          onCaseLetterSaved={() => {
+            setHasCaseLetter(true);
+            setNotificationType('success');
+            setNotificationMessage('Case Letter generated and archived successfully!');
+          }}
+          onClose={() => {
+            const currentCall = generateCaseLetterModalCall;
+            setGenerateCaseLetterModalCall(null);
+            if (currentCall) setSelectedActionCall(currentCall);
+          }}
         />
       )}
 

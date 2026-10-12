@@ -60,7 +60,16 @@ export const resetPassword = async (identifier, newPassword) => {
 };
 
 export const storeAuthData = (authData) => {
-  localStorage.setItem('authToken', authData.token);
+  if (!authData) return;
+  const token = authData.token || '';
+  if (token) {
+    localStorage.setItem('authToken', token);
+    localStorage.setItem('token', token);
+    localStorage.setItem('railpad_token', token);
+    sessionStorage.setItem('authToken', token);
+    sessionStorage.setItem('token', token);
+    sessionStorage.setItem('railpad_token', token);
+  }
   localStorage.setItem('userId', authData.userId);
   localStorage.setItem('userName', authData.userName);
   const roles = Array.isArray(authData.roleName)
@@ -73,11 +82,19 @@ export const storeAuthData = (authData) => {
 };
 
 export const getAuthToken = () => {
-  return localStorage.getItem('authToken');
+  return (
+    localStorage.getItem('railpad_token') ||
+    localStorage.getItem('authToken') ||
+    localStorage.getItem('token') ||
+    sessionStorage.getItem('railpad_token') ||
+    sessionStorage.getItem('authToken') ||
+    sessionStorage.getItem('token') ||
+    null
+  );
 };
 
 export const getStoredUser = () => {
-  const token = localStorage.getItem('authToken');
+  const token = getAuthToken();
   if (!token) return null;
 
   return {
@@ -90,12 +107,18 @@ export const getStoredUser = () => {
 };
 
 export const isAuthenticated = () => {
-  return !!localStorage.getItem('authToken');
+  return !!getAuthToken();
 };
 
 export const logoutUser = () => {
   localStorage.removeItem('authToken');
+  localStorage.removeItem('token');
+  localStorage.removeItem('railpad_token');
+  sessionStorage.removeItem('authToken');
+  sessionStorage.removeItem('token');
+  sessionStorage.removeItem('railpad_token');
   localStorage.removeItem('userId');
   localStorage.removeItem('userName');
   localStorage.removeItem('roleName');
+  localStorage.removeItem('employeeCode');
 };

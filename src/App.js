@@ -6,6 +6,7 @@ import AppLayout from './components/AppLayout';
 import LoginPage from './pages/LoginPage';
 import { getStoredUser, logoutUser } from './services/authService';
 import VersionUpdateBanner from './components/common/VersionUpdateBanner';
+import SessionExpiryModal from './components/common/SessionExpiryModal';
 
 // Page Wrappers
 import LandingPageWrapper from './pages/wrappers/LandingPageWrapper';
@@ -79,10 +80,11 @@ import ProfileDashboard from './pages/UserProfile/ProfileDashboard';
 const RoleBasedRedirect = () => {
   const user = getStoredUser();
   const roleName = user?.roleName;
+  const token = user?.token || localStorage.getItem('authToken') || localStorage.getItem('token') || '';
 
   // Handle external redirection for sub-apps
   if (isSleeperRole(roleName)) {
-    window.location.href = '/sleeper/';
+    window.location.href = `/sleeper/?token=${encodeURIComponent(token)}`;
     return null;
   }
 
@@ -97,7 +99,7 @@ const RoleBasedRedirect = () => {
     if (window.location.pathname.startsWith('/railpad')) {
       return null;
     }
-    window.location.href = '/railpad/';
+    window.location.href = `/railpad/?token=${encodeURIComponent(token)}`;
     return null;
   }
 
@@ -118,29 +120,14 @@ const RoleBasedRedirect = () => {
  * Role-based Landing Page Guard
  * Redirects non-IE users to their respective dashboards
  */
-// const LandingPageGuard = () => {
-//   const currentUser = getStoredUser();
-
-//   // Redirect Finance, CM, and Call Desk users to their dashboards
-//   if (currentUser?.roleName === 'Finance') {
-//     return <Navigate to={ROUTES.FINANCE} replace />;
-//   } else if (currentUser?.roleName === 'CM') {
-//     return <Navigate to={ROUTES.CM_DASHBOARD} replace />;
-//   } else if (currentUser?.roleName === 'CALL_DESK') {
-//     return <Navigate to={ROUTES.CALL_DESK} replace />;
-//   }
-
-//   // IE users can access Landing Page
-//   return <LandingPageWrapper />;
-// };
-
 const LandingPageGuard = () => {
   const user = getStoredUser();
   const roleName = user?.roleName;
+  const token = user?.token || localStorage.getItem('authToken') || localStorage.getItem('token') || '';
 
   // Handle external redirection for sub-apps
   if (isSleeperRole(roleName)) {
-    window.location.href = '/sleeper/';
+    window.location.href = `/sleeper/?token=${encodeURIComponent(token)}`;
     return null;
   }
 
@@ -154,7 +141,7 @@ const LandingPageGuard = () => {
     if (window.location.pathname.startsWith('/railpad')) {
       return null;
     }
-    window.location.href = '/railpad/';
+    window.location.href = `/railpad/?token=${encodeURIComponent(token)}`;
     return null;
   }
 
@@ -195,6 +182,7 @@ const App = () => {
   return (
     <BrowserRouter>
       <VersionUpdateBanner />
+      <SessionExpiryModal />
       <InspectionProvider>
         <Routes>
           {/* Login Route - Public */}

@@ -114,7 +114,7 @@ export const compressAndStoreCorrectionSlip = async (payload) => {
 };
 
 export const fetchCorrectionSlipDocument = async (callNo) => {
-  if (!callNo) return { exists: false };
+  if (!callNo) return { exists: false, totalCount: 0 };
 
   try {
     const response = await fetch(`${getEndpoint()}/document?callNo=${encodeURIComponent(callNo)}`, {
@@ -122,11 +122,29 @@ export const fetchCorrectionSlipDocument = async (callNo) => {
       headers: getAuthHeaders(),
     });
 
-    if (!response.ok) return { exists: false };
+    if (!response.ok) return { exists: false, totalCount: 0 };
     return await response.json();
   } catch (e) {
     console.warn('Could not fetch correction slip document:', e.message);
-    return { exists: false };
+    return { exists: false, totalCount: 0 };
+  }
+};
+
+export const fetchCorrectionSlipDocuments = async (callNo) => {
+  if (!callNo) return [];
+
+  try {
+    const response = await fetch(`${getEndpoint()}/documents?callNo=${encodeURIComponent(callNo)}`, {
+      method: 'GET',
+      headers: getAuthHeaders(),
+    });
+
+    if (!response.ok) return [];
+    const data = await response.json();
+    return Array.isArray(data) ? data : [];
+  } catch (e) {
+    console.warn('Could not fetch correction slip documents list:', e.message);
+    return [];
   }
 };
 
@@ -136,6 +154,14 @@ export const getViewCorrectionSlipPdfUrl = (callNo) => {
 
 export const getDownloadCorrectionSlipPdfUrl = (callNo) => {
   return `${getEndpoint()}/download-pdf/${encodeURIComponent(callNo)}`;
+};
+
+export const getViewCorrectionSlipPdfByIdUrl = (id) => {
+  return `${getEndpoint()}/view-pdf-by-id/${id}`;
+};
+
+export const getDownloadCorrectionSlipPdfByIdUrl = (id) => {
+  return `${getEndpoint()}/download-pdf-by-id/${id}`;
 };
 
 export const deleteCorrectionSlip = async (callNo) => {

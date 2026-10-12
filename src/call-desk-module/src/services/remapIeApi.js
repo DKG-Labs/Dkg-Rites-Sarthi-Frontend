@@ -3,15 +3,9 @@
  * All API calls for the Reassign IE modal are centralized here.
  */
 
-import { API_BASE_URL } from '../../../services/apiConfig';
+import { API_BASE_URL, getAuthHeaders } from '../../../services/apiConfig';
 
-const getHeaders = () => {
-    const token = localStorage.getItem('authToken');
-    return {
-        'Content-Type': 'application/json',
-        ...(token && { 'Authorization': `Bearer ${token}` }),
-    };
-};
+const getHeaders = () => getAuthHeaders();
 
 const handleResponse = async (response) => {
     const json = await response.json();

@@ -192,6 +192,10 @@ const RailpadProcessIc = ({
     qtyNowOffered = "",
     qtyNowPassed = "",
     qtyNowRejected = "",
+    offeredSets = "",
+    acceptedSets = "",
+    rejectedSets = "",
+    isNCRGRSP = false,
     quantityNowPassedText = "",
     reasonsForRejection = "Not Applicable",
     dateOfCall = "",
@@ -485,36 +489,73 @@ const RailpadProcessIc = ({
           {/* Sub-table Headers */}
           <tr>
             <td colSpan="3" style={{ padding: 0, borderBottom: 'none' }}>
-              <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'center' }}>
-                <thead>
-                  <tr>
-                    <th style={{ ...thStyle, width: '30%', borderLeft: 'none', borderTop: 'none' }}>CHP CL. No. Of QAP</th>
-                    <th style={{ ...thStyle, width: '20%', borderTop: 'none' }}>Lot No.</th>
-                    <th style={{ ...thStyle, width: '15%', borderTop: 'none' }}>Total Processed Qty<br/>(Nos.)</th>
-                    <th style={{ ...thStyle, width: '15%', borderTop: 'none' }}>Accepted Qty<br/>(Nos.)</th>
-                    <th style={{ ...thStyle, width: '20%', borderRight: 'none', borderTop: 'none' }}>Rejected Qty<br/>(Nos.)</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr>
-                    <td style={{ ...tdStyle, borderLeft: 'none', borderBottom: 'none' }}>
-                      <EditableField value={chpClNo} fieldName="chpClNo" type="textarea" {...fieldProps} />
-                    </td>
-                    <td style={{ ...tdStyle, borderBottom: 'none', textAlign: 'center' }}>
-                      {formatLotNo(lotNo)}
-                    </td>
-                    <td style={{ ...tdStyle, borderBottom: 'none', textAlign: 'center' }}>
-                      {qtyNowOffered}
-                    </td>
-                    <td style={{ ...tdStyle, borderBottom: 'none', textAlign: 'center' }}>
-                      {qtyNowPassed}
-                    </td>
-                    <td style={{ ...tdStyle, borderRight: 'none', borderBottom: 'none', textAlign: 'center' }}>
-                      {qtyNowRejected}
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
+              {(() => {
+                const isNcr = Boolean(
+                  isNCRGRSP ||
+                  data?.isNCRGRSP ||
+                  data?.isNcrgrsp ||
+                  (description && (description.toUpperCase().includes("NCR") || description.toUpperCase().includes("NYLON CORD") || description.toUpperCase().includes("9790"))) ||
+                  (drgNo && (drgNo.toUpperCase().includes("4218") || drgNo.toUpperCase().includes("8327") || drgNo.toUpperCase().includes("8427") || drgNo.toUpperCase().includes("8746"))) ||
+                  (offeredSets !== undefined && offeredSets !== null && String(offeredSets).trim() !== "")
+                );
+
+                const displayOffered = isNcr
+                  ? (offeredSets !== undefined && offeredSets !== null && String(offeredSets).trim() !== ""
+                      ? `${offeredSets} (${Number(qtyNowOffered || 0).toLocaleString()} Nos.)`
+                      : (qtyNowOffered ? `${Number(qtyNowOffered || 0).toLocaleString()} Nos.` : "0"))
+                  : (qtyNowOffered || "0");
+
+                const displayPassed = isNcr
+                  ? (acceptedSets !== undefined && acceptedSets !== null && String(acceptedSets).trim() !== ""
+                      ? `${acceptedSets} (${Number(qtyNowPassed || 0).toLocaleString()} Nos.)`
+                      : (qtyNowPassed ? `${Number(qtyNowPassed || 0).toLocaleString()} Nos.` : "0"))
+                  : (qtyNowPassed || "0");
+
+                const displayRejected = isNcr
+                  ? (rejectedSets !== undefined && rejectedSets !== null && String(rejectedSets).trim() !== ""
+                      ? `${rejectedSets} (${Number(qtyNowRejected || 0).toLocaleString()} Nos.)`
+                      : (qtyNowRejected ? `${Number(qtyNowRejected || 0).toLocaleString()} Nos.` : "0 (0 Nos.)"))
+                  : (qtyNowRejected || "0");
+
+                return (
+                  <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'center' }}>
+                    <thead>
+                      <tr>
+                        <th style={{ ...thStyle, width: '30%', borderLeft: 'none', borderTop: 'none' }}>CHP CL. No. Of QAP</th>
+                        <th style={{ ...thStyle, width: '20%', borderTop: 'none' }}>Lot No.</th>
+                        <th style={{ ...thStyle, width: '15%', borderTop: 'none' }}>
+                          {isNcr ? <>Processed Qty<br/>(Set)</> : <>Total Processed Qty<br/>(Nos.)</>}
+                        </th>
+                        <th style={{ ...thStyle, width: '15%', borderTop: 'none' }}>
+                          {isNcr ? <>Accepted Qty<br/>(Set)</> : <>Accepted Qty<br/>(Nos.)</>}
+                        </th>
+                        <th style={{ ...thStyle, width: '20%', borderRight: 'none', borderTop: 'none' }}>
+                          {isNcr ? <>Rejected Qty<br/>(Set)</> : <>Rejected Qty<br/>(Nos.)</>}
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr>
+                        <td style={{ ...tdStyle, borderLeft: 'none', borderBottom: 'none' }}>
+                          <EditableField value={chpClNo} fieldName="chpClNo" type="textarea" {...fieldProps} />
+                        </td>
+                        <td style={{ ...tdStyle, borderBottom: 'none', textAlign: 'center' }}>
+                          {formatLotNo(lotNo)}
+                        </td>
+                        <td style={{ ...tdStyle, borderBottom: 'none', textAlign: 'center', fontWeight: isNcr ? '600' : 'normal' }}>
+                          {displayOffered}
+                        </td>
+                        <td style={{ ...tdStyle, borderBottom: 'none', textAlign: 'center', fontWeight: isNcr ? '600' : 'normal' }}>
+                          {displayPassed}
+                        </td>
+                        <td style={{ ...tdStyle, borderRight: 'none', borderBottom: 'none', textAlign: 'center', fontWeight: isNcr ? '600' : 'normal' }}>
+                          {displayRejected}
+                        </td>
+                      </tr>
+                    </tbody>
+                  </table>
+                );
+              })()}
             </td>
           </tr>
 

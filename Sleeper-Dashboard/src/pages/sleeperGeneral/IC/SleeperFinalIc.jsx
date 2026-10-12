@@ -441,9 +441,18 @@ const SleeperFinalIc = ({
                     style={{ fontSize: '10px', marginTop: '2px', fontWeight: 'bold', minHeight: '36px' }}
                     customRender={(val) => {
                       if (!val) return null;
-                      return val.split('\n').map((line, idx) => (
-                        <div key={idx} style={{ marginTop: '1px' }}>{line}</div>
-                      ));
+                      return val.split('\n').map((line, idx) => {
+                        const match = line.match(/^(.*?)\s+dated\s+(\d{1,2}[/.-]\d{1,2}[/.-]\d{2,4})\s*$/i);
+                        if (match) {
+                          return (
+                            <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', marginTop: '1px' }}>
+                              <span>{match[1].trim()}</span>
+                              <span style={{ paddingRight: '10px' }}>{match[2]}</span>
+                            </div>
+                          );
+                        }
+                        return <div key={idx} style={{ marginTop: '1px' }}>{line}</div>;
+                      });
                     }}
                     {...fieldProps}
                   />

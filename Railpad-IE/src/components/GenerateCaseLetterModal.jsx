@@ -3,6 +3,7 @@ import { getBaseUrl } from '../services/apiConfig';
 import { getStoredUser } from '../services/authService';
 import { viewSignedCertificate } from '../services/certificateService';
 import { generateRailpadCallLetterPDF } from '../utils/generateCallLetterPDF';
+import { generateInspectionPhotosPDF } from '../utils/generateInspectionPhotosPDF';
 import { 
   fetchCaseLetterMetadata, 
   fetchSavedCaseLetterInfo,
@@ -13,27 +14,25 @@ import {
   deleteSavedCaseLetter
 } from '../services/caseLetterService';
 
-const MAX_FILE_SIZE_MB = 3;
-const MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024;
 
-// Master document definitions for Railpad module
-const RAILPAD_DOC_DEFINITIONS = [
+// Master document definitions for Railpad module matching 16-item specification
+export const RAILPAD_DOC_DEFINITIONS = [
   { srNo: 1, key: 'CALL_LETTER', name: 'Call Letter', currentSource: 'System Generated', finalSource: 'System Generated', rpp: true, rpf: true, isAutoFetch: true, isSystem: true },
   { srNo: 2, key: 'PO', name: 'PO', currentSource: 'IREPS', finalSource: 'IREPS', rpp: true, rpf: true, isAutoFetch: true, isSystem: true },
   { srNo: 3, key: 'MA', name: 'MA', currentSource: 'Upload PDF', finalSource: 'IREPS', rpp: true, rpf: true, isAutoFetch: false, isSystem: false },
-  { srNo: 4, key: 'QAP', name: 'QAP', currentSource: 'Upload PDF', finalSource: 'Plant wise Stationary Document to be uploaded by Vendor', rpp: true, rpf: true, isAutoFetch: false, isSystem: false },
-  { srNo: 5, key: 'FIRMS_APPROVAL', name: "Firms Approval Letter", currentSource: 'Upload PDF', finalSource: 'Calibration Module', rpp: true, rpf: true, isAutoFetch: false, isSystem: false },
-  { srNo: 6, key: 'GAUGE_APPROVAL', name: 'Gauge Approval Letter', currentSource: 'Upload PDF', finalSource: 'Calibration Module', rpp: true, rpf: true, isAutoFetch: false, isSystem: false },
-  { srNo: 7, key: 'CALIBRATION_CERT', name: 'Instrument & Equipment Calibration Certificate', currentSource: 'Upload PDF', finalSource: 'Calibration Module', rpp: true, rpf: true, isAutoFetch: false, isSystem: false },
-  { srNo: 8, key: 'RUBBER_LICENCE_PURCHASER', name: 'Rubber Licence Purchaser', currentSource: 'Upload PDF', finalSource: 'Calibration Module', rpp: true, rpf: true, isAutoFetch: false, isSystem: false },
-  { srNo: 9, key: 'RUBBER_LICENCE_MANUFACTURER', name: 'Rubber Licence Manufacturer', currentSource: 'Upload PDF', finalSource: 'Calibration Module', rpp: true, rpf: true, isAutoFetch: false, isSystem: false },
-  { srNo: 10, key: 'MTC_TEST_CERT', name: 'MTC Test Certificate', currentSource: 'Upload PDF', finalSource: 'Uploaded by Vendor', rpp: true, rpf: false, isAutoFetch: false, isSystem: false },
-  { srNo: 11, key: 'INTERNAL_TEST_CERT', name: 'Internal Test Certificate', currentSource: 'Upload PDF', finalSource: 'Uploaded by Vendor', rpp: false, rpf: true, isAutoFetch: false, isSystem: false },
-  { srNo: 14, key: 'OFFER_LETTER', name: 'Offer Letter', currentSource: 'Upload PDF', finalSource: 'Uploaded by Vendor', rpp: true, rpf: true, isAutoFetch: false, isSystem: false },
-  { srNo: 15, key: 'ANNEXURES', name: 'Relevant Annexures as per stage of Inspection', currentSource: 'Upload PDF', finalSource: 'Uploaded by IE', rpp: true, rpf: true, isAutoFetch: false, isSystem: false },
-  { srNo: 16, key: 'ITP', name: 'Inspection Test Plan (ITP)', currentSource: 'Upload PDF', finalSource: 'Uploaded by IE', rpp: true, rpf: true, isItp: true, isAutoFetch: false, isSystem: false },
-  { srNo: 17, key: 'IC', name: 'Inspection Certificate IC', currentSource: 'System Generated', finalSource: 'System Generated', rpp: true, rpf: true, isAutoFetch: true, isSystem: true },
-  { srNo: 18, key: 'IC_PROCESS', name: 'IC - Process', currentSource: 'System Generated', finalSource: 'System Generated', rpp: false, rpf: true, isAutoFetch: true, isSystem: true },
+  { srNo: 4, key: 'QAP', name: 'QAP', currentSource: 'System Generated', finalSource: 'Plant wise Stationary Document to be uploaded by Vendor', rpp: true, rpf: true, isAutoFetch: false, isSystem: true, isDisabled: true, remarks: 'To be Developed' },
+  { srNo: 5, key: 'FIRMS_APPROVAL', name: "Firms Approval Letter", currentSource: 'System Generated', finalSource: 'Calibration Module', rpp: true, rpf: true, isAutoFetch: false, isSystem: true, isDisabled: true, remarks: 'To be Developed' },
+  { srNo: 6, key: 'GAUGE_APPROVAL', name: 'Gauge Approval Letter', currentSource: 'System Generated', finalSource: 'Calibration Module', rpp: true, rpf: true, isAutoFetch: false, isSystem: true, isDisabled: true, remarks: 'To be Developed' },
+  { srNo: 7, key: 'CALIBRATION_CERT', name: 'Instrument & Equipment Calibration Certificate', currentSource: 'System Generated', finalSource: 'Calibration Module', rpp: true, rpf: true, isAutoFetch: false, isSystem: true, isDisabled: true, remarks: 'To be Developed' },
+  { srNo: 8, key: 'RUBBER_LICENCE_PURCHASER', name: 'Rubber Licence Purchaser', currentSource: 'System Generated', finalSource: 'Calibration Module', rpp: true, rpf: true, isAutoFetch: false, isSystem: true, isDisabled: true, remarks: 'To be Developed' },
+  { srNo: 9, key: 'RUBBER_LICENCE_MANUFACTURER', name: 'Rubber Licence Manufacturer', currentSource: 'System Generated', finalSource: 'Calibration Module', rpp: true, rpf: true, isAutoFetch: false, isSystem: true, isDisabled: true, remarks: 'To be Developed' },
+  { srNo: 10, key: 'MTC_TEST_CERT', name: 'MTC Test Certificate', currentSource: 'System Generated', finalSource: 'Uploaded by Vendor', rpp: true, rpf: false, isAutoFetch: false, isSystem: true, isDisabled: true, remarks: 'To be Developed' },
+  { srNo: 11, key: 'OFFER_LETTER', name: 'Offer Letter', currentSource: 'System Generated', finalSource: 'Uploaded by Vendor', rpp: true, rpf: true, isAutoFetch: false, isSystem: true, isDisabled: true, remarks: 'To be Developed' },
+  { srNo: 12, key: 'PHOTO_PDF', name: 'Photo pdf', currentSource: 'System Generated', finalSource: 'System Generated', rpp: true, rpf: true, isAutoFetch: true, isSystem: true, remarks: '6 pic on page' },
+  { srNo: 13, key: 'IC_PROCESS', name: 'IC - Process', currentSource: 'System Generated', finalSource: 'System Generated', rpp: false, rpf: true, isAutoFetch: true, isSystem: true, remarks: 'Linked Process IC' },
+  { srNo: 14, key: 'RELEVANT_ANNEXURES', name: 'Relevant Annexures as per stage of Inspection', currentSource: 'System Generated', finalSource: 'Uploaded by IE', rpp: true, rpf: true, isAutoFetch: false, isSystem: true, isDisabled: true, remarks: 'To be Developed' },
+  { srNo: 15, key: 'ITP', name: 'Inspection Test Plan (ITP) / Annexure (IE needs to upload in addition to System Generated Annexures)', currentSource: 'Upload PDF', finalSource: 'Uploaded by IE', rpp: true, rpf: true, isItp: true, isMandatory: true, isAutoFetch: false, isSystem: false, remarks: 'Mandatory' },
+  { srNo: 16, key: 'IC', name: 'Inspection Certificate IC', currentSource: 'Auto-Fetched', finalSource: 'System Generated', rpp: true, rpf: true, isAutoFetch: true, isSystem: true }
 ];
 
 const GenerateCaseLetterModal = ({
@@ -47,6 +46,7 @@ const GenerateCaseLetterModal = ({
   const [uploadedFiles, setUploadedFiles] = useState({});
   const [systemDocBlobs, setSystemDocBlobs] = useState({});
   const [loadingItems, setLoadingItems] = useState({});
+  const [fetchFailed, setFetchFailed] = useState({});
   const [loadingDocs, setLoadingDocs] = useState(false);
   const [merging, setMerging] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -68,6 +68,21 @@ const GenerateCaseLetterModal = ({
   const poNumber = call?.rlyPoSrNo || call?.po_no || call?.poNo || call?.poNumber || call?.rawPoNo || '-';
   const vendorName = call?.vendorName || call?.vendor_name || call?.vendorCode || '-';
   const moduleType = 'RAILPAD';
+
+  // Get maximum upload file size in MB: 20 MB for ITP/Annexure, 3 MB for rest
+  const getMaxUploadSizeMb = (key) => {
+    const isItpOrAnnexure = 
+      key === 'ITP' || 
+      key === 'ANNEXURES' || 
+      key === 'RELEVANT_ANNEXURES' || 
+      key === 'ANNEXURE_TO_IC' ||
+      docList.find(d => d.key === key)?.isItp;
+
+    if (isItpOrAnnexure) {
+      return 20; // 20 MB for Railpad (ITP / Annexure)
+    }
+    return 3; // 3 MB for all other documents
+  };
 
   // Detect stage (RPP or RPF)
   const detectStage = useCallback((callObj) => {
@@ -115,7 +130,15 @@ const GenerateCaseLetterModal = ({
     setDocList(filteredDocs);
     setUploadedFiles({});
     setSystemDocBlobs({});
-    setLoadingItems({});
+    // Pre-populate loading items for all auto-fetched documents so upload button is not shown initially
+    const initialLoading = {};
+    filteredDocs.forEach(d => {
+      if (d.isAutoFetch && !d.isDisabled) {
+        initialLoading[d.key] = true;
+      }
+    });
+    setLoadingItems(initialLoading);
+    setFetchFailed({});
     setPreviewBlobUrl(null);
     setViewingDocUrl(null);
     setErrorMessage('');
@@ -135,6 +158,8 @@ const GenerateCaseLetterModal = ({
   const loadAllDocuments = async (cNo, currentStage, activeDocList) => {
     setLoadingDocs(true);
     const filteredDocs = activeDocList || getDocumentDefinitions(currentStage);
+    const baseUrl = getBaseUrl();
+    const token = getAuthToken();
 
     // 0. Metadata & Existing Case Letter
     try {
@@ -181,9 +206,12 @@ const GenerateCaseLetterModal = ({
         if (doc) {
           const letterBlob = doc.output('blob');
           setSystemDocBlobs(prev => ({ ...prev, CALL_LETTER: letterBlob }));
+        } else {
+          setFetchFailed(prev => ({ ...prev, CALL_LETTER: true }));
         }
       } catch (clErr) {
         console.warn('Call letter generation error:', clErr);
+        setFetchFailed(prev => ({ ...prev, CALL_LETTER: true }));
       } finally {
         setLoadingItems(prev => ({ ...prev, CALL_LETTER: false }));
       }
@@ -214,8 +242,6 @@ const GenerateCaseLetterModal = ({
           }
         });
 
-        const token = getAuthToken();
-        const baseUrl = getBaseUrl();
         let foundPdfBlob = null;
 
         for (const candidate of allCandidates) {
@@ -249,55 +275,78 @@ const GenerateCaseLetterModal = ({
 
         if (foundPdfBlob) {
           setSystemDocBlobs(prev => ({ ...prev, PO: foundPdfBlob }));
+        } else {
+          setFetchFailed(prev => ({ ...prev, PO: true }));
         }
       } catch (poErr) {
         console.warn('PO fetch error:', poErr);
+        setFetchFailed(prev => ({ ...prev, PO: true }));
       } finally {
         setLoadingItems(prev => ({ ...prev, PO: false }));
       }
     })();
 
-    // 3. Fetch IC (Inspection Certificate - SR 17)
-    (async () => {
-      setLoadingItems(prev => ({ ...prev, IC: true }));
-      try {
-        const icCandidates = [
-          icNumber,
-          call?.ic_number,
-          call?.icNo,
-          call?.certificateNo,
-          cNo
-        ].filter(Boolean);
-
-        let signedBlob = null;
-        for (const candidate of icCandidates) {
+    // 3. Fetch Inspection Photo PDF (SR 12 - 6 pic on page)
+    if (filteredDocs.some(d => d.key === 'PHOTO_PDF' && d.isAutoFetch)) {
+      (async () => {
+        setLoadingItems(prev => ({ ...prev, PHOTO_PDF: true }));
+        try {
+          let images = [];
           try {
-            const { signedData } = await viewSignedCertificate(candidate);
-            if (signedData) {
-              const byteCharacters = atob(signedData);
-              const byteNumbers = new Array(byteCharacters.length);
-              for (let i = 0; i < byteCharacters.length; i++) {
-                byteNumbers[i] = byteCharacters.charCodeAt(i);
-              }
-              signedBlob = new Blob([new Uint8Array(byteNumbers)], { type: 'application/pdf' });
-              break;
+            const apiRes = await fetch(`${baseUrl}/images/call/${encodeURIComponent(cNo)}?typeOfCall=RAILPAD`, {
+              headers: token ? { Authorization: `Bearer ${token}` } : {}
+            });
+            if (apiRes.ok) {
+              const rawData = await apiRes.json();
+              images = Array.isArray(rawData) ? rawData : (rawData?.responseData || rawData?.images || []);
             }
-          } catch (e) {
-            // try next
+          } catch (imgFetchErr) {
+            console.warn('Could not fetch inspection images:', imgFetchErr);
           }
-        }
 
-        if (signedBlob) {
-          setSystemDocBlobs(prev => ({ ...prev, IC: signedBlob }));
-        }
-      } catch (icErr) {
-        console.warn('IC fetch error:', icErr);
-      } finally {
-        setLoadingItems(prev => ({ ...prev, IC: false }));
-      }
-    })();
+          if (images && images.length > 0) {
+            // Format images to have full URLs if relative
+            const formattedImages = images.map(img => {
+              let url = img.preview || img.base64Data || img.url || img;
+              if (typeof url === 'string' && url.startsWith('/api/')) {
+                url = `${baseUrl.replace(/\/api$/, '')}${url}`;
+              } else if (typeof url === 'string' && url.startsWith('/') && !url.startsWith('http')) {
+                url = `${baseUrl}${url}`;
+              }
+              return {
+                ...img,
+                url,
+                caption: img.caption || img.label || 'Inspection Photo',
+                timestamp: img.timestamp || img.createdAt || ''
+              };
+            });
 
-    // 4. Fetch Process IC (SR 18) - Auto-fetch for Railpad RPF
+            const photoBlob = await generateInspectionPhotosPDF(formattedImages, {
+              ...call,
+              callNumber: cNo,
+              callNo: cNo,
+              requestId: cNo,
+              poNumber,
+              vendorName
+            });
+            if (photoBlob) {
+              setSystemDocBlobs(prev => ({ ...prev, PHOTO_PDF: photoBlob }));
+            } else {
+              setFetchFailed(prev => ({ ...prev, PHOTO_PDF: true }));
+            }
+          } else {
+            setFetchFailed(prev => ({ ...prev, PHOTO_PDF: true }));
+          }
+        } catch (photoErr) {
+          console.warn('Photo PDF generation error:', photoErr);
+          setFetchFailed(prev => ({ ...prev, PHOTO_PDF: true }));
+        } finally {
+          setLoadingItems(prev => ({ ...prev, PHOTO_PDF: false }));
+        }
+      })();
+    }
+
+    // 4. Fetch Process IC (SR 13) - Auto-fetch for Railpad RPF (Final stage)
     if (filteredDocs.some(d => d.key === 'IC_PROCESS' && d.isAutoFetch)) {
       (async () => {
         setLoadingItems(prev => ({ ...prev, IC_PROCESS: true }));
@@ -332,14 +381,60 @@ const GenerateCaseLetterModal = ({
 
           if (signedBlob) {
             setSystemDocBlobs(prev => ({ ...prev, IC_PROCESS: signedBlob }));
+          } else {
+            setFetchFailed(prev => ({ ...prev, IC_PROCESS: true }));
           }
         } catch (procErr) {
           console.warn('Process IC fetch error:', procErr);
+          setFetchFailed(prev => ({ ...prev, IC_PROCESS: true }));
         } finally {
           setLoadingItems(prev => ({ ...prev, IC_PROCESS: false }));
         }
       })();
     }
+
+    // 5. Fetch IC (Inspection Certificate - SR 16)
+    (async () => {
+      setLoadingItems(prev => ({ ...prev, IC: true }));
+      try {
+        const icCandidates = [
+          icNumber,
+          call?.ic_number,
+          call?.icNo,
+          call?.certificateNo,
+          cNo
+        ].filter(Boolean);
+
+        let signedBlob = null;
+        for (const candidate of icCandidates) {
+          try {
+            const { signedData } = await viewSignedCertificate(candidate);
+            if (signedData) {
+              const byteCharacters = atob(signedData);
+              const byteNumbers = new Array(byteCharacters.length);
+              for (let i = 0; i < byteCharacters.length; i++) {
+                byteNumbers[i] = byteCharacters.charCodeAt(i);
+              }
+              signedBlob = new Blob([new Uint8Array(byteNumbers)], { type: 'application/pdf' });
+              break;
+            }
+          } catch (e) {
+            // try next
+          }
+        }
+
+        if (signedBlob) {
+          setSystemDocBlobs(prev => ({ ...prev, IC: signedBlob }));
+        } else {
+          setFetchFailed(prev => ({ ...prev, IC: true }));
+        }
+      } catch (icErr) {
+        console.warn('IC fetch error:', icErr);
+        setFetchFailed(prev => ({ ...prev, IC: true }));
+      } finally {
+        setLoadingItems(prev => ({ ...prev, IC: false }));
+      }
+    })();
 
     setLoadingDocs(false);
   };
@@ -353,8 +448,12 @@ const GenerateCaseLetterModal = ({
       return;
     }
 
-    if (file.size > MAX_FILE_SIZE_BYTES) {
-      setErrorMessage(`File exceeds maximum allowed size of ${MAX_FILE_SIZE_MB} MB. (Selected: ${(file.size / (1024 * 1024)).toFixed(2)} MB)`);
+    const maxMb = getMaxUploadSizeMb(docKey);
+    const maxBytes = maxMb * 1024 * 1024;
+    if (file.size > maxBytes) {
+      const selectedMb = (file.size / (1024 * 1024)).toFixed(2);
+      const docName = docList.find(d => d.key === docKey)?.name || docKey;
+      setErrorMessage(`"${file.name}" exceeds maximum allowed file size of ${maxMb} MB for ${docName} (Selected file: ${selectedMb} MB).`);
       return;
     }
 
@@ -410,7 +509,7 @@ const GenerateCaseLetterModal = ({
     return false;
   };
 
-  // Get sequence of documents based on orderDirection
+  // Get sequence of documents based on orderDirection (bottom-to-top matches UI display 1..N)
   const getOrderedDocuments = useCallback(() => {
     const copy = [...docList];
     if (orderDirection === 'bottom-to-top') {
@@ -458,7 +557,7 @@ const GenerateCaseLetterModal = ({
       }
       const url = URL.createObjectURL(mergedPdfBlob);
       setPreviewBlobUrl(url);
-      setSuccessMessage(`Successfully merged ${attachedCount} documents in ${orderDirection === 'bottom-to-top' ? 'Bottom-to-Top' : 'Top-to-Bottom'} sequence! Review the preview below.`);
+      setSuccessMessage(`Successfully merged ${attachedCount} documents! Review the preview below.`);
     } catch (err) {
       console.error('Merge error:', err);
       setErrorMessage(err.message || 'Failed to merge documents into Case Letter PDF.');
@@ -610,7 +709,7 @@ const GenerateCaseLetterModal = ({
                   <line x1="16" y1="17" x2="8" y2="17"></line>
                   <polyline points="10 9 9 9 8 9"></polyline>
                 </svg>
-                Generate Case Letter (Merge Dossier)
+                Upload/ Generate Inspection Call Documents
               </h2>
             </div>
             <p style={{ margin: '6px 0 0', fontSize: '13px', color: '#94a3b8' }}>
@@ -713,32 +812,8 @@ const GenerateCaseLetterModal = ({
                   <span>📋</span> Required Document Matrix ({docList.length} Items)
                 </h3>
                 <span style={{ fontSize: '12px', color: '#64748b' }}>
-                  Upload limit: 3 MB per document (PDF only). Documents will be compiled in the specified merge order.
+                  Accepted format: PDF only. Max size: 20 MB for ITP/Annexure, 3 MB for other documents.
                 </span>
-              </div>
-
-              {/* Merge Sequence Selector */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: '#f1f5f9', padding: '4px 10px', borderRadius: '10px', border: '1px solid #e2e8f0' }}>
-                <span style={{ color: '#334155', fontWeight: '700', fontSize: '12px' }}>
-                  Merge Sequence:
-                </span>
-                <select
-                  value={orderDirection}
-                  onChange={e => setOrderDirection(e.target.value)}
-                  style={{
-                    padding: '4px 8px',
-                    borderRadius: '6px',
-                    border: '1px solid #cbd5e1',
-                    background: '#ffffff',
-                    fontSize: '12px',
-                    fontWeight: '700',
-                    color: '#0f172a',
-                    cursor: 'pointer'
-                  }}
-                >
-                  <option value="bottom-to-top">⬇️ Bottom to Top (Recommended)</option>
-                  <option value="top-to-bottom">⬆️ Top to Bottom</option>
-                </select>
               </div>
             </div>
 
@@ -749,7 +824,8 @@ const GenerateCaseLetterModal = ({
               overflow: 'hidden',
               boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
               maxHeight: '480px',
-              overflowY: 'auto'
+              overflowY: 'auto',
+              opacity: savedCaseLetter ? 0.85 : 1
             }}>
               <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '12.5px' }}>
                 <thead style={{ position: 'sticky', top: 0, zIndex: 2 }}>
@@ -762,17 +838,28 @@ const GenerateCaseLetterModal = ({
                   </tr>
                 </thead>
                 <tbody>
-                  {docList.map((doc, index) => {
+                  {[...docList].reverse().map((doc, index) => {
                     const available = isDocAvailable(doc);
                     const uploaded = uploadedFiles[doc.key];
                     const isLoadingThis = loadingItems[doc.key];
+                    const isFetched = Boolean(systemDocBlobs[doc.key]);
+                    const isFailed = Boolean(fetchFailed[doc.key]);
+                    const maxMb = getMaxUploadSizeMb(doc.key);
+
+                    // Show upload only if:
+                    // 1. Not disabled
+                    // 2. Not fetched by system
+                    // 3. Not currently loading
+                    // 4. User already uploaded OR it's a manual upload doc (!doc.isAutoFetch) OR auto-fetch failed
+                    const canUpload = !doc.isDisabled && !isFetched && !isLoadingThis && (uploaded || !doc.isAutoFetch || isFailed);
 
                     return (
                       <tr
                         key={doc.key}
                         style={{
                           borderBottom: index !== docList.length - 1 ? '1px solid #f1f5f9' : 'none',
-                          background: available ? '#f0fdf4' : (index % 2 === 0 ? '#ffffff' : '#fafafa'),
+                          background: available ? '#f0fdf4' : (doc.isDisabled ? '#fafafa' : (index % 2 === 0 ? '#ffffff' : '#f8fafc')),
+                          opacity: doc.isDisabled ? 0.75 : 1,
                           transition: 'background 0.2s'
                         }}
                       >
@@ -785,17 +872,23 @@ const GenerateCaseLetterModal = ({
                             borderRadius: '50%',
                             background: '#e2e8f0',
                             color: '#1e293b',
-                            fontSize: '11px'
+                            fontSize: '11px',
+                            fontWeight: '700'
                           }}>
-                            {doc.srNo}
+                            {index + 1}
                           </span>
                         </td>
                         <td style={{ padding: '10px 12px' }}>
-                          <div style={{ fontWeight: '600', color: '#1e293b', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                            {doc.name}
-                            {doc.isItp && (
-                              <span style={{ fontSize: '10px', background: '#dbeafe', color: '#1d4ed8', padding: '1px 6px', borderRadius: '4px', fontWeight: '700' }}>
-                                ≤3MB
+                          <div style={{ fontWeight: '600', color: '#1e293b', display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '6px' }}>
+                            <span>{doc.name}</span>
+                            {doc.isMandatory && (
+                              <span style={{ fontSize: '10px', background: '#fef2f2', color: '#dc2626', border: '1px solid #fca5a5', padding: '1px 6px', borderRadius: '4px', fontWeight: '700' }}>
+                                Mandatory
+                              </span>
+                            )}
+                            {doc.isDisabled && (
+                              <span style={{ fontSize: '10px', background: '#f1f5f9', color: '#64748b', border: '1px solid #cbd5e1', padding: '1px 6px', borderRadius: '4px', fontWeight: '600' }}>
+                                To be Developed
                               </span>
                             )}
                           </div>
@@ -805,15 +898,22 @@ const GenerateCaseLetterModal = ({
                                 📁 {uploaded.name} ({(uploaded.size / (1024 * 1024)).toFixed(2)} MB)
                               </span>
                             ) : (
-                              <span>Final Source: {doc.finalSource}</span>
+                              <span>
+                                Final Source: {doc.finalSource} {doc.remarks && !doc.isDisabled ? `(${doc.remarks})` : ''}
+                                {!doc.isDisabled && (
+                                  <span style={{ marginLeft: '6px', color: '#94a3b8' }}>
+                                    • Max {maxMb} MB
+                                  </span>
+                                )}
+                              </span>
                             )}
                           </div>
                         </td>
                         <td style={{ padding: '10px 12px', color: '#475569', fontSize: '12px' }}>
                           <span style={{
                             display: 'inline-block',
-                            background: doc.isSystem ? '#e0f2fe' : '#f1f5f9',
-                            color: doc.isSystem ? '#0369a1' : '#475569',
+                            background: doc.isDisabled ? '#f1f5f9' : (doc.isSystem ? '#e0f2fe' : '#f1f5f9'),
+                            color: doc.isDisabled ? '#94a3b8' : (doc.isSystem ? '#0369a1' : '#475569'),
                             padding: '2px 8px',
                             borderRadius: '6px',
                             fontWeight: '600',
@@ -840,6 +940,15 @@ const GenerateCaseLetterModal = ({
                               fontSize: '11px', fontWeight: '700'
                             }}>
                               ✓ Available
+                            </span>
+                          ) : doc.isDisabled ? (
+                            <span style={{
+                              display: 'inline-flex', alignItems: 'center', gap: '4px',
+                              background: '#f8fafc', color: '#94a3b8',
+                              padding: '3px 8px', borderRadius: '6px',
+                              fontSize: '11px', fontWeight: '500'
+                            }}>
+                              Inactive
                             </span>
                           ) : (
                             <span style={{
@@ -875,23 +984,33 @@ const GenerateCaseLetterModal = ({
                               </button>
                             )}
 
-                            {/* Auto-Fetched documents hide the Upload/Replace buttons */}
-                            {doc.isAutoFetch ? (
-                              !available && (
-                                <span style={{
-                                  fontSize: '11px',
-                                  color: '#64748b',
-                                  fontStyle: 'italic',
-                                  padding: '4px 8px',
-                                  background: '#f8fafc',
-                                  borderRadius: '4px',
-                                  border: '1px dashed #cbd5e1'
-                                }}>
-                                  {isLoadingThis ? 'Fetching...' : 'Auto-Fetched'}
-                                </span>
-                              )
-                            ) : (
-                              /* Manual Upload documents show Upload / Replace / Remove */
+                            {/* Disabled rows show To be Developed message */}
+                            {doc.isDisabled ? (
+                              <span style={{
+                                fontSize: '11px',
+                                color: '#94a3b8',
+                                fontStyle: 'italic',
+                                padding: '4px 8px',
+                                background: '#f8fafc',
+                                borderRadius: '4px',
+                                border: '1px dashed #cbd5e1'
+                              }}>
+                                To be Developed
+                              </span>
+                            ) : isLoadingThis ? (
+                              <span style={{
+                                fontSize: '11px',
+                                color: '#64748b',
+                                fontStyle: 'italic',
+                                padding: '4px 8px'
+                              }}>
+                                Fetching...
+                              </span>
+                            ) : isFetched ? (
+                              /* Documents fetched from system should not provide a replace button */
+                              null
+                            ) : canUpload ? (
+                              /* Active rows provide Upload / Replace / Remove functionality */
                               <>
                                 <div>
                                   <input
@@ -917,7 +1036,7 @@ const GenerateCaseLetterModal = ({
                                       cursor: merging || saving || savedCaseLetter ? 'not-allowed' : 'pointer',
                                       opacity: merging || saving || savedCaseLetter ? 0.4 : 1
                                     }}
-                                    title={savedCaseLetter ? 'Case Letter already saved. Delete current Case Letter to upload replacements.' : (uploaded ? 'Replace PDF' : 'Upload PDF')}
+                                    title={savedCaseLetter ? 'Case Letter already saved. Delete current Case Letter to upload replacements.' : (uploaded ? `Replace PDF (Max ${maxMb} MB)` : `Upload PDF (Max ${maxMb} MB)`)}
                                   >
                                     {uploaded ? 'Replace' : 'Upload'}
                                   </button>
@@ -944,7 +1063,7 @@ const GenerateCaseLetterModal = ({
                                   </button>
                                 )}
                               </>
-                            )}
+                            ) : null}
                           </div>
                         </td>
                       </tr>
@@ -990,7 +1109,7 @@ const GenerateCaseLetterModal = ({
                   }}
                   title={savedCaseLetter ? 'Case Letter already saved. Delete current Case Letter below to re-merge.' : 'Merge all available documents'}
                 >
-                  {merging ? 'Merging Documents...' : (savedCaseLetter ? '🔒 Dossier Already Merged' : 'Merge & Preview (Bottom-to-Top)')}
+                  {merging ? 'Merging Documents...' : (savedCaseLetter ? '🔒 Dossier Already Merged' : 'Merge & Preview')}
                 </button>
 
                 {previewBlobUrl && !savedCaseLetter && (

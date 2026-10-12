@@ -3,7 +3,7 @@
  * Fetches enriched call letter data from the backend for PDF generation.
  */
 
-import { API_BASE_URL } from '../../../services/apiConfig';
+import { API_BASE_URL, getAuthHeaders } from '../../../services/apiConfig';
 
 /**
  * Fetch all details needed for the Call Letter PDF.
@@ -29,12 +29,7 @@ export const fetchCallLetterDetails = async (requestId) => {
     }
 
     const url = `${API_BASE_URL}/api/call-letter/details?requestId=${encodeURIComponent(requestId)}`;
-
-    const token = localStorage.getItem('authToken');
-    const headers = {
-        'Content-Type': 'application/json',
-        ...(token && { 'Authorization': `Bearer ${token}` }),
-    };
+    const headers = getAuthHeaders();
 
     const response = await fetch(url, { method: 'GET', headers });
 

@@ -5,6 +5,7 @@ import { getStoredUser } from '../services/authService';
 import { viewSignedCertificate } from '../services/certificateService';
 import { generateCallLetterPDF } from '../call-desk-module/src/utils/generateCallLetterPDF';
 import { fetchCallLetterDetails } from '../call-desk-module/src/services/callLetterApi';
+import { generateInspectionPhotosPDF } from '../utils/generateInspectionPhotosPDF';
 import { annexureService } from '../services/annexureService';
 import { captureElementToPdfBlob } from '../utils/annexurePdfUtils';
 import { ANNEXURE_LIST } from '../data/annexureList';
@@ -28,75 +29,75 @@ import CloseRoundedIcon from '@mui/icons-material/CloseRounded';
 import OpenInNewRoundedIcon from '@mui/icons-material/OpenInNewRounded';
 import CircularProgress from '@mui/material/CircularProgress';
 
-const MAX_FILE_SIZE_MB = 3;
-const MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024;
 
-// Master document definitions matching the exact specification matrix for ERC
-const MASTER_DOC_DEFINITIONS = [
-  { srNo: 1, key: 'CALL_LETTER', name: 'Call Letter', currentSource: 'System Generated', finalSource: 'System Generated', rm: true, process: true, final: true, isAutoFetch: true, isSystem: true },
-  { srNo: 2, key: 'PO', name: 'PO', currentSource: 'IREPS', finalSource: 'IREPS', rm: true, process: true, final: true, isAutoFetch: true, isSystem: true },
-  { srNo: 3, key: 'MA', name: 'MA', currentSource: 'Upload PDF', finalSource: 'IREPS', rm: true, process: true, final: true, isAutoFetch: false, isSystem: false },
-  { srNo: 5, key: 'QAP', name: 'QAP', currentSource: 'Upload PDF', finalSource: 'Plant wise Stationary Document to be uploaded by Vendor', rm: true, process: true, final: true, isAutoFetch: false, isSystem: false },
-  { srNo: 8, key: 'FIRMS_APPROVAL', name: "Firms Approval Letter", currentSource: 'Upload PDF', finalSource: 'Calibration Module', rm: true, process: true, final: true, isAutoFetch: false, isSystem: false },
-  { srNo: 7, key: 'GAUGE_APPROVAL', name: 'Gauge Approval Letter', currentSource: 'Upload PDF', finalSource: 'Calibration Module', rm: true, process: true, final: true, isAutoFetch: false, isSystem: false },
-  { srNo: 9, key: 'CALIBRATION_CERT', name: 'Instrument & Equipment Calibration Certificate', currentSource: 'Upload PDF', finalSource: 'Calibration Module', rm: true, process: true, final: true, isAutoFetch: false, isSystem: false },
-  { srNo: 10, key: 'RAW_MATERIAL_TC', name: 'Raw Material TC', currentSource: 'Inventory Entries (Auto-Fetched)', finalSource: 'Uploaded by Vendor', rm: true, process: true, final: true, isAutoFetch: true, isSystem: true },
-  { srNo: 11, key: 'INTERNAL_TEST_CERT', name: 'Internal Test Certificate', currentSource: 'Upload PDF', finalSource: 'Uploaded by Vendor', rm: true, process: false, final: true, isAutoFetch: false, isSystem: false },
-  { srNo: 12, key: 'INTERNAL_DIMENSION_REPORT', name: 'Internal Dimension Report', currentSource: 'Upload PDF', finalSource: 'Uploaded by Vendor', rm: true, process: false, final: true, isAutoFetch: false, isSystem: false },
-  { srNo: 13, key: 'OFFER_LETTER', name: 'Offer Letter', currentSource: 'Upload PDF', finalSource: 'Uploaded by Vendor', rm: true, process: true, final: true, isAutoFetch: false, isSystem: false },
-  { srNo: 14, key: 'ANNEXURES', name: 'Annexures (in sequence) as per particular stage of Inspection', currentSource: 'System Generated', finalSource: 'System Generated', rm: true, process: true, final: true, isAutoFetch: true, isSystem: true },
-  { srNo: 15, key: 'ITP', name: 'Inspection Test Plan (ITP)', currentSource: 'Uploaded by IE', finalSource: 'System Generated', rm: true, process: true, final: true, isItp: true, isAutoFetch: false, isSystem: false },
-  { srNo: 16, key: 'IC', name: 'Inspection Certificate IC', currentSource: 'System Generated', finalSource: 'System Generated', rm: true, process: true, final: true, isAutoFetch: true, isSystem: true },
-  { srNo: 17, key: 'IC_RM', name: 'IC -RM', currentSource: 'Upload PDF', finalSource: 'System Generated', rm: false, process: true, final: true, isAutoFetch: false, isSystem: false },
-  { srNo: 18, key: 'IC_PROCESS', name: 'IC -Process', currentSource: 'Upload PDF', finalSource: 'System Generated', rm: false, process: false, final: true, isAutoFetch: false, isSystem: false },
+// Master document definitions matching the exact 17-item specification for ERC
+export const MASTER_DOC_DEFINITIONS = [
+  { srNo: 1, key: 'CALL_LETTER', name: 'Call Letter', currentSource: 'System Generated', finalSource: 'System Generated', er: true, ep: true, ef: true, isAutoFetch: true, isSystem: true },
+  { srNo: 2, key: 'PO', name: 'PO', currentSource: 'IREPS', finalSource: 'IREPS', er: true, ep: true, ef: true, isAutoFetch: true, isSystem: true },
+  { srNo: 3, key: 'MA', name: 'MA', currentSource: 'Upload PDF', finalSource: 'IREPS', er: true, ep: true, ef: true, isAutoFetch: false, isSystem: false },
+  { srNo: 4, key: 'QAP', name: 'QAP', currentSource: 'System Generated', finalSource: 'Plant wise Stationary Document to be uploaded by Vendor', er: true, ep: true, ef: true, isAutoFetch: false, isSystem: true, isDisabled: true, remarks: 'To be Developed' },
+  { srNo: 5, key: 'FIRMS_APPROVAL', name: "Firms Approval Letter", currentSource: 'System Generated', finalSource: 'Calibration Module', er: true, ep: true, ef: true, isAutoFetch: false, isSystem: true, isDisabled: true, remarks: 'To be Developed' },
+  { srNo: 6, key: 'GAUGE_APPROVAL', name: 'Gauge Approval Letter', currentSource: 'System Generated', finalSource: 'Calibration Module', er: true, ep: true, ef: true, isAutoFetch: false, isSystem: true, isDisabled: true, remarks: 'To be Developed' },
+  { srNo: 7, key: 'CALIBRATION_CERT', name: 'Instrument & Equipment Calibration Certificate', currentSource: 'System Generated', finalSource: 'Calibration Module', er: true, ep: true, ef: true, isAutoFetch: false, isSystem: true, isDisabled: true, remarks: 'To be Developed' },
+  { srNo: 8, key: 'RAW_MATERIAL_TC', name: 'Raw Material TC', currentSource: 'Inventory Entries (Auto-Fetched)', finalSource: 'Uploaded by Vendor', er: true, ep: false, ef: false, isAutoFetch: true, isSystem: true, remarks: 'in case of RM IC' },
+  { srNo: 9, key: 'INTERNAL_TEST_CERT', name: 'Internal Test Certificate', currentSource: 'System Generated', finalSource: 'Uploaded by Vendor', er: true, ep: false, ef: true, isAutoFetch: false, isSystem: true, isDisabled: true, remarks: 'To be Developed' },
+  { srNo: 10, key: 'INTERNAL_DIMENSION_REPORT', name: 'Internal Dimension Report', currentSource: 'System Generated', finalSource: 'Uploaded by Vendor', er: true, ep: false, ef: true, isAutoFetch: false, isSystem: true, isDisabled: true, remarks: 'To be Developed' },
+  { srNo: 11, key: 'OFFER_LETTER', name: 'Offer Letter', currentSource: 'System Generated', finalSource: 'Uploaded by Vendor', er: true, ep: true, ef: true, isAutoFetch: false, isSystem: true, isDisabled: true, remarks: 'To be Developed' },
+  { srNo: 12, key: 'PHOTO_PDF', name: 'Photo pdf', currentSource: 'System Generated', finalSource: 'System Generated', er: true, ep: true, ef: true, isAutoFetch: true, isSystem: true, remarks: '6 pic on page' },
+  { srNo: 13, key: 'IC_RM', name: 'IC - RM', currentSource: 'System Generated', finalSource: 'System Generated', er: false, ep: true, ef: true, isAutoFetch: true, isSystem: true, remarks: 'Linked RM IC' },
+  { srNo: 14, key: 'IC_PROCESS', name: 'IC - Process', currentSource: 'System Generated', finalSource: 'System Generated', er: false, ep: false, ef: true, isAutoFetch: true, isSystem: true, remarks: 'Linked Process IC' },
+  { srNo: 15, key: 'ANNEXURES', name: 'Relevant Annexures as per stage of Inspection', currentSource: 'System Generated', finalSource: 'System Generated', er: true, ep: true, ef: true, isAutoFetch: true, isSystem: true },
+  { srNo: 16, key: 'ITP', name: 'Inspection Test Plan (ITP) / Annexure (IE needs to upload in addition to System Generated Annexures)', currentSource: 'Upload PDF', finalSource: 'Uploaded by IE', er: true, ep: true, ef: true, isItp: true, isMandatory: true, isAutoFetch: false, isSystem: false, remarks: 'Mandatory' },
+  { srNo: 17, key: 'IC', name: 'Inspection Certificate IC', currentSource: 'Auto-Fetched', finalSource: 'System Generated', er: true, ep: true, ef: true, isAutoFetch: true, isSystem: true },
 ];
 
 // Master document definitions for Railpad module
-const RAILPAD_DOC_DEFINITIONS = [
+export const RAILPAD_DOC_DEFINITIONS = [
   { srNo: 1, key: 'CALL_LETTER', name: 'Call Letter', currentSource: 'System Generated', finalSource: 'System Generated', rpp: true, rpf: true, isAutoFetch: true, isSystem: true },
   { srNo: 2, key: 'PO', name: 'PO', currentSource: 'IREPS', finalSource: 'IREPS', rpp: true, rpf: true, isAutoFetch: true, isSystem: true },
   { srNo: 3, key: 'MA', name: 'MA', currentSource: 'Upload PDF', finalSource: 'IREPS', rpp: true, rpf: true, isAutoFetch: false, isSystem: false },
-  { srNo: 4, key: 'QAP', name: 'QAP', currentSource: 'Upload PDF', finalSource: 'Plant wise Stationary Document to be uploaded by Vendor', rpp: true, rpf: true, isAutoFetch: false, isSystem: false },
-  { srNo: 5, key: 'FIRMS_APPROVAL', name: "Firms Approval Letter", currentSource: 'Upload PDF', finalSource: 'Calibration Module', rpp: true, rpf: true, isAutoFetch: false, isSystem: false },
-  { srNo: 6, key: 'GAUGE_APPROVAL', name: 'Gauge Approval Letter', currentSource: 'Upload PDF', finalSource: 'Calibration Module', rpp: true, rpf: true, isAutoFetch: false, isSystem: false },
-  { srNo: 7, key: 'CALIBRATION_CERT', name: 'Instrument & Equipment Calibration Certificate', currentSource: 'Upload PDF', finalSource: 'Calibration Module', rpp: true, rpf: true, isAutoFetch: false, isSystem: false },
-  { srNo: 8, key: 'RUBBER_LICENCE_PURCHASER', name: 'Rubber Licence Purchaser', currentSource: 'Upload PDF', finalSource: 'Calibration Module', rpp: true, rpf: true, isAutoFetch: false, isSystem: false },
-  { srNo: 9, key: 'RUBBER_LICENCE_MANUFACTURER', name: 'Rubber Licence Manufacturer', currentSource: 'Upload PDF', finalSource: 'Calibration Module', rpp: true, rpf: true, isAutoFetch: false, isSystem: false },
-  { srNo: 10, key: 'MTC_TEST_CERT', name: 'MTC Test Certificate', currentSource: 'Upload PDF', finalSource: 'Uploaded by Vendor', rpp: true, rpf: false, isAutoFetch: false, isSystem: false },
-  { srNo: 11, key: 'INTERNAL_TEST_CERT', name: 'Internal Test Certificate', currentSource: 'Upload PDF', finalSource: 'Uploaded by Vendor', rpp: false, rpf: true, isAutoFetch: false, isSystem: false },
-  { srNo: 14, key: 'OFFER_LETTER', name: 'Offer Letter', currentSource: 'Upload PDF', finalSource: 'Uploaded by Vendor', rpp: true, rpf: true, isAutoFetch: false, isSystem: false },
-  { srNo: 15, key: 'ANNEXURES', name: 'Relevant Annexures as per stage of Inspection', currentSource: 'Upload PDF', finalSource: 'Uploaded by IE', rpp: true, rpf: true, isAutoFetch: false, isSystem: false },
-  { srNo: 16, key: 'ITP', name: 'Inspection Test Plan (ITP)', currentSource: 'Upload PDF', finalSource: 'Uploaded by IE', rpp: true, rpf: true, isItp: true, isAutoFetch: false, isSystem: false },
-  { srNo: 17, key: 'IC', name: 'Inspection Certificate IC', currentSource: 'System Generated', finalSource: 'System Generated', rpp: true, rpf: true, isAutoFetch: true, isSystem: true },
-  { srNo: 18, key: 'IC_PROCESS', name: 'IC - Process', currentSource: 'System Generated', finalSource: 'System Generated', rpp: false, rpf: true, isAutoFetch: true, isSystem: true },
+  { srNo: 4, key: 'QAP', name: 'QAP', currentSource: 'System Generated', finalSource: 'Plant wise Stationary Document to be uploaded by Vendor', rpp: true, rpf: true, isAutoFetch: false, isSystem: true, isDisabled: true, remarks: 'To be Developed' },
+  { srNo: 5, key: 'FIRMS_APPROVAL', name: "Firms Approval Letter", currentSource: 'System Generated', finalSource: 'Calibration Module', rpp: true, rpf: true, isAutoFetch: false, isSystem: true, isDisabled: true, remarks: 'To be Developed' },
+  { srNo: 6, key: 'GAUGE_APPROVAL', name: 'Gauge Approval Letter', currentSource: 'System Generated', finalSource: 'Calibration Module', rpp: true, rpf: true, isAutoFetch: false, isSystem: true, isDisabled: true, remarks: 'To be Developed' },
+  { srNo: 7, key: 'CALIBRATION_CERT', name: 'Instrument & Equipment Calibration Certificate', currentSource: 'System Generated', finalSource: 'Calibration Module', rpp: true, rpf: true, isAutoFetch: false, isSystem: true, isDisabled: true, remarks: 'To be Developed' },
+  { srNo: 8, key: 'RUBBER_LICENCE_PURCHASER', name: 'Rubber Licence Purchaser', currentSource: 'System Generated', finalSource: 'Calibration Module', rpp: true, rpf: true, isAutoFetch: false, isSystem: true, isDisabled: true, remarks: 'To be Developed' },
+  { srNo: 9, key: 'RUBBER_LICENCE_MANUFACTURER', name: 'Rubber Licence Manufacturer', currentSource: 'System Generated', finalSource: 'Calibration Module', rpp: true, rpf: true, isAutoFetch: false, isSystem: true, isDisabled: true, remarks: 'To be Developed' },
+  { srNo: 10, key: 'MTC_TEST_CERT', name: 'MTC Test Certificate', currentSource: 'System Generated', finalSource: 'Uploaded by Vendor', rpp: true, rpf: false, isAutoFetch: false, isSystem: true, isDisabled: true, remarks: 'To be Developed' },
+  { srNo: 11, key: 'OFFER_LETTER', name: 'Offer Letter', currentSource: 'System Generated', finalSource: 'Uploaded by Vendor', rpp: true, rpf: true, isAutoFetch: false, isSystem: true, isDisabled: true, remarks: 'To be Developed' },
+  { srNo: 12, key: 'PHOTO_PDF', name: 'Photo pdf', currentSource: 'System Generated', finalSource: 'System Generated', rpp: true, rpf: true, isAutoFetch: true, isSystem: true, remarks: '6 pic on page' },
+  { srNo: 13, key: 'IC_PROCESS', name: 'IC - Process', currentSource: 'System Generated', finalSource: 'System Generated', rpp: false, rpf: true, isAutoFetch: true, isSystem: true, remarks: 'Linked Process IC' },
+  { srNo: 14, key: 'RELEVANT_ANNEXURES', name: 'Relevant Annexures as per stage of Inspection', currentSource: 'System Generated', finalSource: 'Uploaded by IE', rpp: true, rpf: true, isAutoFetch: false, isSystem: true, isDisabled: true, remarks: 'To be Developed' },
+  { srNo: 15, key: 'ITP', name: 'Inspection Test Plan (ITP) / Annexure (IE needs to upload in addition to System Generated Annexures)', currentSource: 'Upload PDF', finalSource: 'Uploaded by IE', rpp: true, rpf: true, isItp: true, isMandatory: true, isAutoFetch: false, isSystem: false, remarks: 'Mandatory' },
+  { srNo: 16, key: 'IC', name: 'Inspection Certificate IC', currentSource: 'Auto-Fetched', finalSource: 'System Generated', rpp: true, rpf: true, isAutoFetch: true, isSystem: true },
 ];
 
-// Master document definitions for Sleeper module matching matrix
-const SLEEPER_DOC_DEFINITIONS = [
+// Master document definitions for Sleeper module matching matrix (25 items)
+export const SLEEPER_DOC_DEFINITIONS = [
   { srNo: 1, key: 'CALL_LETTER', name: 'Call Letter', currentSource: 'System Generated', finalSource: 'System Generated', isAutoFetch: true, isSystem: true },
   { srNo: 2, key: 'PO', name: 'PO', currentSource: 'IREPS', finalSource: 'IREPS', isAutoFetch: true, isSystem: true },
   { srNo: 3, key: 'MA', name: 'MA', currentSource: 'Upload PDF', finalSource: 'IREPS', isAutoFetch: false, isSystem: false },
-  { srNo: 4, key: 'QAP', name: 'QAP', currentSource: 'Upload PDF', finalSource: 'Plant wise Stationary Document to be uploaded by Vendor', isAutoFetch: false, isSystem: false },
-  { srNo: 5, key: 'CSP_APPROVAL', name: 'CSP Approval Letter', currentSource: 'Upload PDF', finalSource: 'Calibration Module', isAutoFetch: false, isSystem: false },
-  { srNo: 6, key: 'MIX_DESIGN_APPROVAL', name: 'Mix Design Approval Letter', currentSource: 'Upload PDF', finalSource: 'Calibration Module', isAutoFetch: false, isSystem: false },
-  { srNo: 7, key: 'GAUGE_APPROVAL', name: 'Gauge Approval Letter', currentSource: 'Upload PDF', finalSource: 'Calibration Module', isAutoFetch: false, isSystem: false },
-  { srNo: 8, key: 'RM_SUPPLIER_APPROVAL', name: 'RM Supplier/Source Approval letter', currentSource: 'Upload PDF', finalSource: 'Calibration Module', isAutoFetch: false, isSystem: false },
-  { srNo: 9, key: 'INSTRUMENT_CALIBRATION_CERT', name: 'Instrument Calibration Certificate', currentSource: 'Upload PDF', finalSource: 'Calibration Module', isAutoFetch: false, isSystem: false },
-  { srNo: 10, key: 'EQUIPMENT_CALIBRATION_CERT', name: 'Equipment Calibration Certificate', currentSource: 'Upload PDF', finalSource: 'Calibration Module', isAutoFetch: false, isSystem: false },
-  { srNo: 11, key: 'CALIBRATION_BATCHING_PLANT', name: 'Calibration of Batching of Plant, Water meter, SBT, CCTM, Tensioning Jack & CMTM', currentSource: 'Upload PDF', finalSource: 'Uploaded by Vendor with each Call', isAutoFetch: false, isSystem: false },
-  { srNo: 12, key: 'EXTERNAL_TEST_REPORT', name: 'External Test Report (Cement, Aggregates)', currentSource: 'Upload PDF', finalSource: 'Calibration Module', isAutoFetch: false, isSystem: false },
-  { srNo: 13, key: 'RM_TEST_CERT_INVOICE', name: 'RM Test Certificate & Invoice', currentSource: 'Upload PDF', finalSource: 'Uploaded by Vendor with each Call', isAutoFetch: false, isSystem: false },
-  { srNo: 14, key: 'RM_PERIODIC_TEST_REPORT', name: 'RM Periodic Test Report', currentSource: 'Upload PDF', finalSource: 'Uploaded by Vendor with each Call', isAutoFetch: false, isSystem: false },
-  { srNo: 15, key: 'RM_INVENTORY_ACCOUNTAL_REPORT', name: 'RM Inventory Accountal Report', currentSource: 'Upload PDF', finalSource: 'Uploaded by Vendor with each Call', isAutoFetch: false, isSystem: false },
+  { srNo: 4, key: 'QAP', name: 'QAP', currentSource: 'System Generated', finalSource: 'Plant wise Stationary Document to be uploaded by Vendor', isAutoFetch: false, isSystem: true, isDisabled: true, remarks: 'To be Developed' },
+  { srNo: 5, key: 'CSP_APPROVAL', name: 'CSP Approval Letter', currentSource: 'System Generated', finalSource: 'Calibration Module', isAutoFetch: false, isSystem: true, isDisabled: true, remarks: 'To be Developed' },
+  { srNo: 6, key: 'MIX_DESIGN_APPROVAL', name: 'Mix Design Approval Letter', currentSource: 'System Generated', finalSource: 'Calibration Module', isAutoFetch: false, isSystem: true, isDisabled: true, remarks: 'To be Developed' },
+  { srNo: 7, key: 'GAUGE_APPROVAL', name: 'Gauge Approval Letter', currentSource: 'System Generated', finalSource: 'Calibration Module', isAutoFetch: false, isSystem: true, isDisabled: true, remarks: 'To be Developed' },
+  { srNo: 8, key: 'RM_SUPPLIER_APPROVAL', name: 'RM Supplier/Source Approval letter', currentSource: 'System Generated', finalSource: 'Calibration Module', isAutoFetch: false, isSystem: true, isDisabled: true, remarks: 'To be Developed' },
+  { srNo: 9, key: 'INSTRUMENT_CALIBRATION_CERT', name: 'Instrument Calibration Certificate', currentSource: 'System Generated', finalSource: 'Calibration Module', isAutoFetch: false, isSystem: true, isDisabled: true, remarks: 'To be Developed' },
+  { srNo: 10, key: 'EQUIPMENT_CALIBRATION_CERT', name: 'Equipment Calibration Certificate', currentSource: 'System Generated', finalSource: 'Calibration Module', isAutoFetch: false, isSystem: true, isDisabled: true, remarks: 'To be Developed' },
+  { srNo: 11, key: 'CALIBRATION_BATCHING_PLANT', name: 'Calibration of Batching of Plant, Water meter, SBT, CCTM, Tensioning Jack & CMTM', currentSource: 'System Generated', finalSource: 'Uploaded by Vendor with each Call', isAutoFetch: false, isSystem: true, isDisabled: true, remarks: 'To be Developed' },
+  { srNo: 12, key: 'EXTERNAL_TEST_REPORT', name: 'External Test Report (Cement, Aggregates)', currentSource: 'System Generated', finalSource: 'Calibration Module', isAutoFetch: false, isSystem: true, isDisabled: true, remarks: 'To be Developed' },
+  { srNo: 13, key: 'RM_TEST_CERT_INVOICE', name: 'RM Test Certificate & Invoice', currentSource: 'System Generated', finalSource: 'Uploaded by Vendor with each Call', isAutoFetch: false, isSystem: true, isDisabled: true, remarks: 'To be Developed' },
+  { srNo: 14, key: 'RM_PERIODIC_TEST_REPORT', name: 'RM Periodic Test Report', currentSource: 'System Generated', finalSource: 'Uploaded by Vendor with each Call', isAutoFetch: false, isSystem: true, isDisabled: true, remarks: 'To be Developed' },
+  { srNo: 15, key: 'RM_INVENTORY_ACCOUNTAL_REPORT', name: 'RM Inventory Accountal Report', currentSource: 'System Generated', finalSource: 'Uploaded by Vendor with each Call', isAutoFetch: false, isSystem: true, isDisabled: true, remarks: 'To be Developed' },
   { srNo: 16, key: 'RDSO_REGISTERS', name: 'RDSO Registers', currentSource: 'Upload PDF', finalSource: 'Uploaded by Vendor with each Call', isAutoFetch: false, isSystem: false },
-  { srNo: 17, key: 'PROCESS_SHIFTWISE_REPORT', name: 'Process Shiftwise (A, B, C, G) Report', currentSource: 'Upload PDF', finalSource: 'Uploaded by Vendor with each Call', isAutoFetch: false, isSystem: false },
-  { srNo: 18, key: 'OFFER_LETTER', name: 'Offer Letter', currentSource: 'Upload PDF', finalSource: 'Uploaded by Vendor', isAutoFetch: false, isSystem: false },
-  { srNo: 19, key: 'RELEVANT_ANNEXURES', name: 'Relevant Annexures as per stage of Inspection (Critical & General Dimension Report, Visual Check Report, FTC, SBT(MR, MF) Test)', currentSource: 'Upload PDF', finalSource: 'Uploaded by IE', isAutoFetch: false, isSystem: false },
-  { srNo: 20, key: 'RM_IC_HTS_WIRE', name: 'RM IC HTS Wire', currentSource: 'Upload PDF', finalSource: 'System Generated', isAutoFetch: false, isSystem: false },
-  { srNo: 21, key: 'RM_IC_SGCI_INSERT', name: 'RM IC SGCI Insert', currentSource: 'Upload PDF', finalSource: 'System Generated', isAutoFetch: false, isSystem: false },
-  { srNo: 22, key: 'ITP', name: 'Inspection Test Plan (ITP)', currentSource: 'Upload PDF', finalSource: 'Uploaded by IE', isItp: true, isAutoFetch: false, isSystem: false },
-  { srNo: 23, key: 'IC', name: 'Inspection Certificate IC', currentSource: 'System Generated', finalSource: 'System Generated', isAutoFetch: true, isSystem: true },
-  { srNo: 24, key: 'ANNEXURE_TO_IC', name: 'Annexure to IC (Batch Wise Qty Breakup)', currentSource: 'Upload PDF', finalSource: 'Uploaded by IE', isAutoFetch: false, isSystem: false },
+  { srNo: 17, key: 'PROCESS_SHIFTWISE_REPORT', name: 'Process Shiftwise (A, B, C, G) Report', currentSource: 'System Generated', finalSource: 'Uploaded by Vendor with each Call', isAutoFetch: false, isSystem: true, isDisabled: true, remarks: 'To be Developed' },
+  { srNo: 18, key: 'OFFER_LETTER', name: 'Offer Letter', currentSource: 'System Generated', finalSource: 'Uploaded by Vendor', isAutoFetch: false, isSystem: true },
+  { srNo: 19, key: 'PHOTO_PDF', name: 'Photo pdf', currentSource: 'System Generated', finalSource: 'System Generated', isAutoFetch: true, isSystem: true, remarks: '6 pic on page' },
+  { srNo: 20, key: 'RM_IC_HTS_WIRE', name: 'RM IC HTS Wire', currentSource: 'Upload PDF', finalSource: 'System Generated', isAutoFetch: false, isSystem: false, isDisabled: true, remarks: 'To be Developed' },
+  { srNo: 21, key: 'RM_IC_SGCI_INSERT', name: 'RM IC SGCI Insert', currentSource: 'Upload PDF', finalSource: 'System Generated', isAutoFetch: false, isSystem: false, isDisabled: true, remarks: 'To be Developed' },
+  { srNo: 22, key: 'RELEVANT_ANNEXURES', name: 'Relevant Annexures as per stage of inspection (Critical & General Dimension Report, Visual Check Report, FTC, SBT(MR, MF) Test)', currentSource: 'Autofetched', finalSource: 'Auto Generated', isAutoFetch: true, isSystem: true },
+  { srNo: 23, key: 'ITP', name: 'Inspection Test Plan (ITP) / Annexure (IE needs to upload in addition to System Generated Annexures)', currentSource: 'Upload PDF', finalSource: 'Uploaded by IE', isItp: true, isMandatory: true, isAutoFetch: false, isSystem: false, remarks: 'Mandatory' },
+  { srNo: 24, key: 'ANNEXURE_TO_IC', name: 'Annexure to IC', currentSource: 'Upload PDF', finalSource: 'System Generated', isAutoFetch: false, isSystem: false },
+  { srNo: 25, key: 'IC', name: 'Inspection Certificate IC', currentSource: 'Auto-Fetched', finalSource: 'System Generated', isAutoFetch: true, isSystem: true }
 ];
 
 const GenerateCaseLetterModal = ({
@@ -110,6 +111,7 @@ const GenerateCaseLetterModal = ({
   const [uploadedFiles, setUploadedFiles] = useState({}); // docKey -> { file, name, size, blobUrl }
   const [systemDocBlobs, setSystemDocBlobs] = useState({}); // docKey -> Blob
   const [loadingItems, setLoadingItems] = useState({}); // docKey -> boolean
+  const [fetchFailed, setFetchFailed] = useState({}); // docKey -> boolean
   const [loadingDocs, setLoadingDocs] = useState(false);
   const [merging, setMerging] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -122,7 +124,7 @@ const GenerateCaseLetterModal = ({
   const [savedCaseLetter, setSavedCaseLetter] = useState(null);
   const [errorMessage, setErrorMessage] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
-  const [orderDirection, setOrderDirection] = useState('bottom-to-top'); // Default: bottom-to-top
+  const [orderDirection, setOrderDirection] = useState('bottom-to-top');
 
   // Annexure compilation states
   const [annexureDataMap, setAnnexureDataMap] = useState({});
@@ -136,6 +138,24 @@ const GenerateCaseLetterModal = ({
   const vendorName = call?.vendor_name || call?.vendorName || call?.manufacturer || '-';
   const rawProductType = (call?.product_type || call?.moduleType || call?.productType || 'ERC').toUpperCase();
   const moduleType = (rawProductType.includes('SLEEPER') || stage === 'SF' || String(callNo).toUpperCase().startsWith('SF') || String(callNo).toUpperCase().startsWith('SL')) ? 'SLEEPER' : ((rawProductType.includes('RAILPAD') || stage === 'RPP' || stage === 'RPF' || String(callNo).toUpperCase().startsWith('RP')) ? 'RAILPAD' : 'ERC');
+
+  // Get maximum upload file size in MB: 20 MB for ERC & Railpad (ITP/Annexure), 50 MB for Sleeper, 3 MB for rest
+  const getMaxUploadSizeMb = (key) => {
+    const isItpOrAnnexure = 
+      key === 'ITP' || 
+      key === 'ANNEXURES' || 
+      key === 'RELEVANT_ANNEXURES' || 
+      key === 'ANNEXURE_TO_IC' ||
+      docList.find(d => d.key === key)?.isItp;
+
+    if (isItpOrAnnexure) {
+      if (moduleType === 'SLEEPER') {
+        return 50; // 50 MB for Sleeper
+      }
+      return 20; // 20 MB for ERC & Railpad
+    }
+    return 3; // 3 MB for all other documents
+  };
 
   // Detect stage (ER, EP, EF for ERC, SF for Sleeper, RPP/RPF for Railpad)
   const detectStage = useCallback((callObj) => {
@@ -193,20 +213,16 @@ const GenerateCaseLetterModal = ({
       });
     }
 
+    // ERC Stages
     return MASTER_DOC_DEFINITIONS.filter(doc => {
       if (currentStage === 'ER') {
-        // IC-RM and IC-Process must be hidden for ER calls
-        if (doc.key === 'IC_RM' || doc.key === 'IC_PROCESS') return false;
-        return doc.rm;
+        return doc.er;
       }
       if (currentStage === 'EP') {
-        // IC-Process must be hidden for EP calls (IC-RM is shown)
-        if (doc.key === 'IC_PROCESS') return false;
-        return doc.process;
+        return doc.ep;
       }
       if (currentStage === 'EF') {
-        // EF calls show all final docs (including IC-RM and IC-Process)
-        return doc.final;
+        return doc.ef;
       }
       return true;
     });
@@ -224,7 +240,15 @@ const GenerateCaseLetterModal = ({
     setDocList(filteredDocs);
     setUploadedFiles({});
     setSystemDocBlobs({});
-    setLoadingItems({});
+    // Pre-populate loading items for all auto-fetched documents so upload button is not shown initially
+    const initialLoading = {};
+    filteredDocs.forEach(d => {
+      if (d.isAutoFetch && !d.isDisabled) {
+        initialLoading[d.key] = true;
+      }
+    });
+    setLoadingItems(initialLoading);
+    setFetchFailed({});
     setPreviewBlobUrl(null);
     setViewingDocUrl(null);
     setErrorMessage('');
@@ -281,7 +305,7 @@ const GenerateCaseLetterModal = ({
   // Main loader for all documents
   const loadAllDocuments = async (cNo, currentStage, activeDocList) => {
     setLoadingDocs(true);
-    const filteredDocs = activeDocList || getDocumentDefinitions(currentStage);
+    const filteredDocs = activeDocList || getDocumentDefinitions(currentStage, moduleType);
 
     // 0. Metadata & Existing Case Letter
     try {
@@ -328,9 +352,12 @@ const GenerateCaseLetterModal = ({
         if (doc) {
           const letterBlob = doc.output('blob');
           setSystemDocBlobs(prev => ({ ...prev, CALL_LETTER: letterBlob }));
+        } else {
+          setFetchFailed(prev => ({ ...prev, CALL_LETTER: true }));
         }
       } catch (clErr) {
         console.warn('Call letter generation error:', clErr);
+        setFetchFailed(prev => ({ ...prev, CALL_LETTER: true }));
       } finally {
         setLoadingItems(prev => ({ ...prev, CALL_LETTER: false }));
       }
@@ -347,7 +374,6 @@ const GenerateCaseLetterModal = ({
           call?.rawPoNo
         ].filter(Boolean);
 
-        // Also extract clean numeric part if formatted like "SER / 60250003104659 / 003"
         const allCandidates = [];
         candidates.forEach(c => {
           allCandidates.push(c);
@@ -392,55 +418,18 @@ const GenerateCaseLetterModal = ({
 
         if (foundPdfBlob) {
           setSystemDocBlobs(prev => ({ ...prev, PO: foundPdfBlob }));
+        } else {
+          setFetchFailed(prev => ({ ...prev, PO: true }));
         }
       } catch (poErr) {
         console.warn('PO fetch error:', poErr);
+        setFetchFailed(prev => ({ ...prev, PO: true }));
       } finally {
         setLoadingItems(prev => ({ ...prev, PO: false }));
       }
     })();
 
-    // 3. Fetch IC (Inspection Certificate - SR 16)
-    (async () => {
-      setLoadingItems(prev => ({ ...prev, IC: true }));
-      try {
-        const icCandidates = [
-          icNumber,
-          call?.ic_number,
-          call?.icNo,
-          call?.certificateNo,
-          cNo
-        ].filter(Boolean);
-
-        let signedBlob = null;
-        for (const candidate of icCandidates) {
-          try {
-            const { signedData } = await viewSignedCertificate(candidate);
-            if (signedData) {
-              const byteCharacters = atob(signedData);
-              const byteNumbers = new Array(byteCharacters.length);
-              for (let i = 0; i < byteCharacters.length; i++) {
-                byteNumbers[i] = byteCharacters.charCodeAt(i);
-              }
-              signedBlob = new Blob([new Uint8Array(byteNumbers)], { type: 'application/pdf' });
-              break;
-            }
-          } catch (e) {
-            // try next
-          }
-        }
-
-        if (signedBlob) {
-          setSystemDocBlobs(prev => ({ ...prev, IC: signedBlob }));
-        }
-      } catch (icErr) {
-        console.warn('IC fetch error:', icErr);
-      } finally {
-        setLoadingItems(prev => ({ ...prev, IC: false }));
-      }
-    })();
-
-    // 4. Fetch Raw Material TC (SR 10) - ERC only
+    // 3. Fetch Raw Material TC (SR 8 in ERC) - ER only
     if (filteredDocs.some(d => d.key === 'RAW_MATERIAL_TC' && d.isAutoFetch)) {
       (async () => {
         setLoadingItems(prev => ({ ...prev, RAW_MATERIAL_TC: true }));
@@ -448,8 +437,8 @@ const GenerateCaseLetterModal = ({
           const token = getAuthToken();
           const cleanCall = cNo.includes('-') ? cNo.substring(cNo.indexOf('-') + 1).trim() : cNo;
           const candidates = [
-            cNo,                                              // e.g. "ER-05240001"
-            cleanCall,                                        // e.g. "05240001"
+            cNo,
+            cleanCall,
             call?.call_no,
             call?.callNumber,
             icNumber,
@@ -458,6 +447,7 @@ const GenerateCaseLetterModal = ({
           ].filter(Boolean);
 
           const uniqueCandidates = Array.from(new Set(candidates));
+          let foundTc = false;
           for (const cand of uniqueCandidates) {
             try {
               const tcRes = await axios.get(`${API_BASE_URL}/api/vendor/inspection-calls/tc-docs`, {
@@ -467,79 +457,132 @@ const GenerateCaseLetterModal = ({
               });
               if (tcRes.status === 200 && tcRes.data && tcRes.data.size > 0) {
                 setSystemDocBlobs(prev => ({ ...prev, RAW_MATERIAL_TC: tcRes.data }));
+                foundTc = true;
                 break;
               }
             } catch (e) {
               // try next candidate
             }
           }
+          if (!foundTc) {
+            setFetchFailed(prev => ({ ...prev, RAW_MATERIAL_TC: true }));
+          }
         } catch (tcErr) {
           console.warn('TC fetch error:', tcErr);
+          setFetchFailed(prev => ({ ...prev, RAW_MATERIAL_TC: true }));
         } finally {
           setLoadingItems(prev => ({ ...prev, RAW_MATERIAL_TC: false }));
         }
       })();
     }
 
-    // 5. Fetch & Compile Annexures (SR 14) - ERC Auto-Fetch only
-    if (filteredDocs.some(d => d.key === 'ANNEXURES' && d.isAutoFetch)) {
+    // 4. Fetch Inspection Photo PDF (SR 12 in ERC - 6 pic on page)
+    if (filteredDocs.some(d => d.key === 'PHOTO_PDF' && d.isAutoFetch)) {
       (async () => {
-        setLoadingItems(prev => ({ ...prev, ANNEXURES: true }));
+        setLoadingItems(prev => ({ ...prev, PHOTO_PDF: true }));
         try {
-          // Step A: Determine applicable annexures for this stage
-          let applicableAnnexures = [];
-          if (currentStage === 'ER') {
-            applicableAnnexures = ANNEXURE_LIST.filter(a => a.id === 'chemical-analysis' || a.id === 'dimensional-check');
-          } else if (currentStage === 'EP') {
-            applicableAnnexures = ANNEXURE_LIST.filter(a => a.id === 'process-inspection');
-          } else {
-            // EF Final
-            applicableAnnexures = ANNEXURE_LIST.filter(a =>
-              a.id === 'final-chemical-analysis' ||
-              a.id === 'hardness-test' ||
-              a.id === 'toe-load-test' ||
-              a.id === 'weight-test' ||
-              a.id === 'dimension-test' ||
-              a.id === 'inclusion-rating' ||
-              a.id === 'application-deflection'
-            );
+          const token = getAuthToken();
+          let images = [];
+          try {
+            const res = await axios.get(`${API_BASE_URL}/api/images/call/${encodeURIComponent(cNo)}`, {
+              params: { typeOfCall: 'ERC' },
+              headers: token ? { Authorization: `Bearer ${token}` } : {}
+            });
+            const dataObj = res?.data || res;
+            images = Array.isArray(dataObj) ? dataObj : (dataObj?.responseData || dataObj?.images || []);
+          } catch (fetchErr) {
+            console.warn('Could not fetch inspection images:', fetchErr);
           }
 
-          // Step B: Fetch data for each annexure
-          const dataMap = {};
-          for (const ann of applicableAnnexures) {
-            const resData = await fetchSingleAnnexureData(ann.id, cNo);
-            dataMap[ann.id] = resData;
-          }
-          setAnnexureDataMap(dataMap);
-
-          // Step C: Render and capture annexures into a single PDF blob
-          // Short timeout to allow React to mount hiddenAnnexuresRef
-          setTimeout(async () => {
-            try {
-              if (hiddenAnnexuresRef.current) {
-                const annexurePdfBlob = await captureElementToPdfBlob(hiddenAnnexuresRef.current, {
-                  orientation: 'landscape'
-                });
-                if (annexurePdfBlob && annexurePdfBlob.size > 0) {
-                  setSystemDocBlobs(prev => ({ ...prev, ANNEXURES: annexurePdfBlob }));
-                }
+          if (images && images.length > 0) {
+            const formattedImages = images.map(img => {
+              let url = img.preview || img.base64Data || img.url || img;
+              if (typeof url === 'string' && url.startsWith('/api/')) {
+                url = `${API_BASE_URL.replace(/\/api$/, '')}${url}`;
+              } else if (typeof url === 'string' && url.startsWith('/') && !url.startsWith('http')) {
+                url = `${API_BASE_URL}${url}`;
               }
-            } catch (renderErr) {
-              console.warn('Error capturing annexure PDF:', renderErr);
-            } finally {
-              setLoadingItems(prev => ({ ...prev, ANNEXURES: false }));
-            }
-          }, 1000);
+              return {
+                ...img,
+                url,
+                caption: img.caption || img.label || 'Inspection Photo',
+                timestamp: img.timestamp || img.createdAt || ''
+              };
+            });
 
-        } catch (annErr) {
-          console.warn('Annexures compilation error:', annErr);
-          setLoadingItems(prev => ({ ...prev, ANNEXURES: false }));
+            const photoBlob = await generateInspectionPhotosPDF(formattedImages, {
+              ...call,
+              callNumber: cNo,
+              callNo: cNo,
+              requestId: cNo,
+              poNumber,
+              vendorName
+            });
+            if (photoBlob) {
+              setSystemDocBlobs(prev => ({ ...prev, PHOTO_PDF: photoBlob }));
+            } else {
+              setFetchFailed(prev => ({ ...prev, PHOTO_PDF: true }));
+            }
+          } else {
+            setFetchFailed(prev => ({ ...prev, PHOTO_PDF: true }));
+          }
+        } catch (photoErr) {
+          console.warn('Photo PDF generation error:', photoErr);
+          setFetchFailed(prev => ({ ...prev, PHOTO_PDF: true }));
+        } finally {
+          setLoadingItems(prev => ({ ...prev, PHOTO_PDF: false }));
         }
       })();
     }
 
-    // 6. Fetch Process IC (SR 18) - Auto-fetch for Railpad RPF or linked process IC
+    // 5. Fetch IC - RM (SR 13 in ERC) - EP & EF stages
+    if (filteredDocs.some(d => d.key === 'IC_RM' && d.isAutoFetch)) {
+      (async () => {
+        setLoadingItems(prev => ({ ...prev, IC_RM: true }));
+        try {
+          const rmCandidates = [
+            call?.rm_ic_number,
+            call?.rmIcNo,
+            call?.rawMaterialIcNo,
+            call?.raw_material_ic_no,
+            call?.rmCallNo,
+            call?.rm_call_no,
+            call?.linkedRmCallNo
+          ].filter(Boolean);
+
+          let signedBlob = null;
+          for (const cand of rmCandidates) {
+            try {
+              const { signedData } = await viewSignedCertificate(cand);
+              if (signedData) {
+                const byteCharacters = atob(signedData);
+                const byteNumbers = new Array(byteCharacters.length);
+                for (let i = 0; i < byteCharacters.length; i++) {
+                  byteNumbers[i] = byteCharacters.charCodeAt(i);
+                }
+                signedBlob = new Blob([new Uint8Array(byteNumbers)], { type: 'application/pdf' });
+                break;
+              }
+            } catch (e) {
+              // try next candidate
+            }
+          }
+
+          if (signedBlob) {
+            setSystemDocBlobs(prev => ({ ...prev, IC_RM: signedBlob }));
+          } else {
+            setFetchFailed(prev => ({ ...prev, IC_RM: true }));
+          }
+        } catch (rmErr) {
+          console.warn('RM IC fetch error:', rmErr);
+          setFetchFailed(prev => ({ ...prev, IC_RM: true }));
+        } finally {
+          setLoadingItems(prev => ({ ...prev, IC_RM: false }));
+        }
+      })();
+    }
+
+    // 6. Fetch IC - Process (SR 14 in ERC) - EF stage
     if (filteredDocs.some(d => d.key === 'IC_PROCESS' && d.isAutoFetch)) {
       (async () => {
         setLoadingItems(prev => ({ ...prev, IC_PROCESS: true }));
@@ -574,14 +617,123 @@ const GenerateCaseLetterModal = ({
 
           if (signedBlob) {
             setSystemDocBlobs(prev => ({ ...prev, IC_PROCESS: signedBlob }));
+          } else {
+            setFetchFailed(prev => ({ ...prev, IC_PROCESS: true }));
           }
         } catch (procErr) {
           console.warn('Process IC fetch error:', procErr);
+          setFetchFailed(prev => ({ ...prev, IC_PROCESS: true }));
         } finally {
           setLoadingItems(prev => ({ ...prev, IC_PROCESS: false }));
         }
       })();
     }
+
+    // 7. Fetch & Compile Relevant Annexures (SR 15 in ERC) - ERC Auto-Fetch
+    if (filteredDocs.some(d => d.key === 'ANNEXURES' && d.isAutoFetch)) {
+      (async () => {
+        setLoadingItems(prev => ({ ...prev, ANNEXURES: true }));
+        try {
+          // Step A: Determine applicable annexures for this stage
+          let applicableAnnexures = [];
+          if (currentStage === 'ER') {
+            applicableAnnexures = ANNEXURE_LIST.filter(a => a.id === 'chemical-analysis' || a.id === 'dimensional-check');
+          } else if (currentStage === 'EP') {
+            applicableAnnexures = ANNEXURE_LIST.filter(a => a.id === 'process-inspection');
+          } else {
+            // EF Final
+            applicableAnnexures = ANNEXURE_LIST.filter(a =>
+              a.id === 'final-chemical-analysis' ||
+              a.id === 'hardness-test' ||
+              a.id === 'toe-load-test' ||
+              a.id === 'weight-test' ||
+              a.id === 'dimension-test' ||
+              a.id === 'inclusion-rating' ||
+              a.id === 'application-deflection'
+            );
+          }
+
+          // Step B: Fetch data for each annexure
+          const dataMap = {};
+          for (const ann of applicableAnnexures) {
+            const resData = await fetchSingleAnnexureData(ann.id, cNo);
+            dataMap[ann.id] = resData;
+          }
+          setAnnexureDataMap(dataMap);
+
+          // Step C: Render and capture annexures into a single PDF blob
+          setTimeout(async () => {
+            try {
+              if (hiddenAnnexuresRef.current) {
+                const annexurePdfBlob = await captureElementToPdfBlob(hiddenAnnexuresRef.current, {
+                  orientation: 'landscape'
+                });
+                if (annexurePdfBlob && annexurePdfBlob.size > 0) {
+                  setSystemDocBlobs(prev => ({ ...prev, ANNEXURES: annexurePdfBlob }));
+                } else {
+                  setFetchFailed(prev => ({ ...prev, ANNEXURES: true }));
+                }
+              } else {
+                setFetchFailed(prev => ({ ...prev, ANNEXURES: true }));
+              }
+            } catch (renderErr) {
+              console.warn('Error capturing annexure PDF:', renderErr);
+              setFetchFailed(prev => ({ ...prev, ANNEXURES: true }));
+            } finally {
+              setLoadingItems(prev => ({ ...prev, ANNEXURES: false }));
+            }
+          }, 1000);
+
+        } catch (annErr) {
+          console.warn('Annexures compilation error:', annErr);
+          setFetchFailed(prev => ({ ...prev, ANNEXURES: true }));
+          setLoadingItems(prev => ({ ...prev, ANNEXURES: false }));
+        }
+      })();
+    }
+
+    // 8. Fetch IC (Inspection Certificate - SR 17 in ERC)
+    (async () => {
+      setLoadingItems(prev => ({ ...prev, IC: true }));
+      try {
+        const icCandidates = [
+          icNumber,
+          call?.ic_number,
+          call?.icNo,
+          call?.certificateNo,
+          cNo
+        ].filter(Boolean);
+
+        let signedBlob = null;
+        for (const candidate of icCandidates) {
+          try {
+            const { signedData } = await viewSignedCertificate(candidate);
+            if (signedData) {
+              const byteCharacters = atob(signedData);
+              const byteNumbers = new Array(byteCharacters.length);
+              for (let i = 0; i < byteCharacters.length; i++) {
+                byteNumbers[i] = byteCharacters.charCodeAt(i);
+              }
+              signedBlob = new Blob([new Uint8Array(byteNumbers)], { type: 'application/pdf' });
+              break;
+            }
+          } catch (e) {
+            // try next
+          }
+        }
+
+        if (signedBlob) {
+          setSystemDocBlobs(prev => ({ ...prev, IC: signedBlob }));
+        } else {
+          setFetchFailed(prev => ({ ...prev, IC: true }));
+        }
+      } catch (icErr) {
+        console.warn('IC fetch error:', icErr);
+        setFetchFailed(prev => ({ ...prev, IC: true }));
+      } finally {
+        setLoadingItems(prev => ({ ...prev, IC: false }));
+      }
+    })();
 
     setLoadingDocs(false);
   };
@@ -595,8 +747,12 @@ const GenerateCaseLetterModal = ({
       return;
     }
 
-    if (file.size > MAX_FILE_SIZE_BYTES) {
-      setErrorMessage(`File exceeds maximum allowed size of ${MAX_FILE_SIZE_MB} MB. (Selected: ${(file.size / (1024 * 1024)).toFixed(2)} MB)`);
+    const maxMb = getMaxUploadSizeMb(docKey);
+    const maxBytes = maxMb * 1024 * 1024;
+    if (file.size > maxBytes) {
+      const selectedMb = (file.size / (1024 * 1024)).toFixed(2);
+      const docName = docList.find(d => d.key === docKey)?.name || docKey;
+      setErrorMessage(`"${file.name}" exceeds maximum allowed file size of ${maxMb} MB for ${docName} (Selected file: ${selectedMb} MB).`);
       return;
     }
 
@@ -652,7 +808,7 @@ const GenerateCaseLetterModal = ({
     return false;
   };
 
-  // Get sequence of documents based on orderDirection
+  // Get sequence of documents based on orderDirection (bottom-to-top matches UI display 1..N)
   const getOrderedDocuments = useCallback(() => {
     const copy = [...docList];
     if (orderDirection === 'bottom-to-top') {
@@ -700,7 +856,7 @@ const GenerateCaseLetterModal = ({
       }
       const url = URL.createObjectURL(mergedPdfBlob);
       setPreviewBlobUrl(url);
-      setSuccessMessage(`Successfully merged ${attachedCount} documents in ${orderDirection === 'bottom-to-top' ? 'Bottom-to-Top' : 'Top-to-Bottom'} sequence! Review the preview below.`);
+      setSuccessMessage(`Successfully merged ${attachedCount} documents! Review the preview below.`);
     } catch (err) {
       console.error('Merge error:', err);
       setErrorMessage(err.message || 'Failed to merge documents into Case Letter PDF.');
@@ -858,7 +1014,7 @@ const GenerateCaseLetterModal = ({
               </span>
               <h2 style={{ fontSize: '19px', fontWeight: '700', margin: 0, color: '#f8fafc', display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <PictureAsPdfRoundedIcon style={{ color: '#60a5fa', fontSize: '24px' }} />
-                Generate Case Letter (Merge Dossier)
+                Upload/ Generate Inspection Call Documents
               </h2>
             </div>
             <p style={{ margin: '6px 0 0', fontSize: '13px', color: '#94a3b8' }}>
@@ -961,32 +1117,8 @@ const GenerateCaseLetterModal = ({
                   <span>📋</span> Required Document Matrix ({docList.length} Items)
                 </h3>
                 <span style={{ fontSize: '12px', color: '#64748b' }}>
-                  Upload limit: 3 MB per document (PDF only). Documents will be compiled in the specified merge order.
+                  Accepted format: PDF only. Max size: {moduleType === 'SLEEPER' ? '50 MB' : '20 MB'} for ITP/Annexure, 3 MB for other documents.
                 </span>
-              </div>
-
-              {/* Merge Sequence Selector with Bottom to Top highlight */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: '#f1f5f9', padding: '4px 10px', borderRadius: '10px', border: '1px solid #e2e8f0' }}>
-                <span style={{ color: '#334155', fontWeight: '700', fontSize: '12px' }}>
-                  Merge Sequence:
-                </span>
-                <select
-                  value={orderDirection}
-                  onChange={e => setOrderDirection(e.target.value)}
-                  style={{
-                    padding: '4px 8px',
-                    borderRadius: '6px',
-                    border: '1px solid #cbd5e1',
-                    background: '#ffffff',
-                    fontSize: '12px',
-                    fontWeight: '700',
-                    color: '#0f172a',
-                    cursor: 'pointer'
-                  }}
-                >
-                  <option value="bottom-to-top">⬇️ Bottom to Top (Recommended)</option>
-                  <option value="top-to-bottom">⬆️ Top to Bottom</option>
-                </select>
               </div>
             </div>
 
@@ -997,7 +1129,8 @@ const GenerateCaseLetterModal = ({
               overflow: 'hidden',
               boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
               maxHeight: '480px',
-              overflowY: 'auto'
+              overflowY: 'auto',
+              opacity: savedCaseLetter ? 0.85 : 1
             }}>
               <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '12.5px' }}>
                 <thead style={{ position: 'sticky', top: 0, zIndex: 2 }}>
@@ -1010,17 +1143,28 @@ const GenerateCaseLetterModal = ({
                   </tr>
                 </thead>
                 <tbody>
-                  {docList.map((doc, index) => {
+                  {[...docList].reverse().map((doc, index) => {
                     const available = isDocAvailable(doc);
                     const uploaded = uploadedFiles[doc.key];
                     const isLoadingThis = loadingItems[doc.key];
+                    const isFetched = Boolean(systemDocBlobs[doc.key]);
+                    const isFailed = Boolean(fetchFailed[doc.key]);
+                    const maxMb = getMaxUploadSizeMb(doc.key);
+
+                    // Show upload only if:
+                    // 1. Not disabled
+                    // 2. Not fetched by system
+                    // 3. Not currently loading
+                    // 4. User already uploaded OR it's a manual upload doc (!doc.isAutoFetch) OR auto-fetch failed
+                    const canUpload = !doc.isDisabled && !isFetched && !isLoadingThis && (uploaded || !doc.isAutoFetch || isFailed);
 
                     return (
                       <tr
                         key={doc.key}
                         style={{
                           borderBottom: index !== docList.length - 1 ? '1px solid #f1f5f9' : 'none',
-                          background: available ? '#f0fdf4' : (index % 2 === 0 ? '#ffffff' : '#fafafa'),
+                          background: available ? '#f0fdf4' : (doc.isDisabled ? '#fafafa' : (index % 2 === 0 ? '#ffffff' : '#f8fafc')),
+                          opacity: doc.isDisabled ? 0.75 : 1,
                           transition: 'background 0.2s'
                         }}
                       >
@@ -1033,17 +1177,23 @@ const GenerateCaseLetterModal = ({
                             borderRadius: '50%',
                             background: '#e2e8f0',
                             color: '#1e293b',
-                            fontSize: '11px'
+                            fontSize: '11px',
+                            fontWeight: '700'
                           }}>
-                            {doc.srNo}
+                            {index + 1}
                           </span>
                         </td>
                         <td style={{ padding: '10px 12px' }}>
-                          <div style={{ fontWeight: '600', color: '#1e293b', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                            {doc.name}
-                            {doc.isItp && (
-                              <span style={{ fontSize: '10px', background: '#dbeafe', color: '#1d4ed8', padding: '1px 6px', borderRadius: '4px', fontWeight: '700' }}>
-                                ≤3MB
+                          <div style={{ fontWeight: '600', color: '#1e293b', display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '6px' }}>
+                            <span>{doc.name}</span>
+                            {doc.isMandatory && (
+                              <span style={{ fontSize: '10px', background: '#fef2f2', color: '#dc2626', border: '1px solid #fca5a5', padding: '1px 6px', borderRadius: '4px', fontWeight: '700' }}>
+                                Mandatory
+                              </span>
+                            )}
+                            {doc.isDisabled && (
+                              <span style={{ fontSize: '10px', background: '#f1f5f9', color: '#64748b', border: '1px solid #cbd5e1', padding: '1px 6px', borderRadius: '4px', fontWeight: '600' }}>
+                                To be Developed
                               </span>
                             )}
                           </div>
@@ -1053,15 +1203,22 @@ const GenerateCaseLetterModal = ({
                                 📁 {uploaded.name} ({(uploaded.size / (1024 * 1024)).toFixed(2)} MB)
                               </span>
                             ) : (
-                              <span>Final Source: {doc.finalSource}</span>
+                              <span>
+                                Final Source: {doc.finalSource} {doc.remarks && !doc.isDisabled ? `(${doc.remarks})` : ''}
+                                {!doc.isDisabled && (
+                                  <span style={{ marginLeft: '6px', color: '#94a3b8' }}>
+                                    • Max {maxMb} MB
+                                  </span>
+                                )}
+                              </span>
                             )}
                           </div>
                         </td>
                         <td style={{ padding: '10px 12px', color: '#475569', fontSize: '12px' }}>
                           <span style={{
                             display: 'inline-block',
-                            background: doc.isSystem ? '#e0f2fe' : '#f1f5f9',
-                            color: doc.isSystem ? '#0369a1' : '#475569',
+                            background: doc.isDisabled ? '#f1f5f9' : (doc.isSystem ? '#e0f2fe' : '#f1f5f9'),
+                            color: doc.isDisabled ? '#94a3b8' : (doc.isSystem ? '#0369a1' : '#475569'),
                             padding: '2px 8px',
                             borderRadius: '6px',
                             fontWeight: '600',
@@ -1123,23 +1280,33 @@ const GenerateCaseLetterModal = ({
                               </button>
                             )}
 
-                            {/* Auto-Fetched documents hide the Upload/Replace buttons */}
-                            {doc.isAutoFetch ? (
-                              !available && (
-                                <span style={{
-                                  fontSize: '11px',
-                                  color: '#64748b',
-                                  fontStyle: 'italic',
-                                  padding: '4px 8px',
-                                  background: '#f8fafc',
-                                  borderRadius: '4px',
-                                  border: '1px dashed #cbd5e1'
-                                }}>
-                                  {isLoadingThis ? 'Fetching...' : 'Auto-Fetched'}
-                                </span>
-                              )
-                            ) : (
-                              /* Manual Upload documents show Upload / Replace / Remove */
+                            {/* Disabled rows show To be Developed message */}
+                            {doc.isDisabled ? (
+                              <span style={{
+                                fontSize: '11px',
+                                color: '#94a3b8',
+                                fontStyle: 'italic',
+                                padding: '4px 8px',
+                                background: '#f8fafc',
+                                borderRadius: '4px',
+                                border: '1px dashed #cbd5e1'
+                              }}>
+                                To be Developed
+                              </span>
+                            ) : isLoadingThis ? (
+                              <span style={{
+                                fontSize: '11px',
+                                color: '#64748b',
+                                fontStyle: 'italic',
+                                padding: '4px 8px'
+                              }}>
+                                Fetching...
+                              </span>
+                            ) : isFetched ? (
+                              /* Documents fetched from system should not provide a replace button */
+                              null
+                            ) : canUpload ? (
+                              /* Active rows provide Upload / Replace / Remove functionality */
                               <>
                                 <div>
                                   <input
@@ -1165,7 +1332,7 @@ const GenerateCaseLetterModal = ({
                                       cursor: merging || saving || savedCaseLetter ? 'not-allowed' : 'pointer',
                                       opacity: merging || saving || savedCaseLetter ? 0.4 : 1
                                     }}
-                                    title={savedCaseLetter ? 'Case Letter already saved. Delete current Case Letter to upload replacements.' : (uploaded ? 'Replace PDF' : 'Upload PDF')}
+                                    title={savedCaseLetter ? 'Case Letter already saved. Delete current Case Letter to upload replacements.' : (uploaded ? `Replace PDF (Max ${maxMb} MB)` : `Upload PDF (Max ${maxMb} MB)`)}
                                   >
                                     <CloudUploadRoundedIcon style={{ fontSize: '13px' }} />
                                     {uploaded ? 'Replace' : 'Upload'}
@@ -1194,7 +1361,7 @@ const GenerateCaseLetterModal = ({
                                   </button>
                                 )}
                               </>
-                            )}
+                            ) : null}
                           </div>
                         </td>
                       </tr>
@@ -1307,7 +1474,7 @@ const GenerateCaseLetterModal = ({
                       fontSize: '12px',
                       fontWeight: '700',
                       cursor: 'pointer',
-                      boxShadow: '0 2px 4px rgba(22, 163, 74, 0.2)'
+                      boxShadow: '0 2px 4px rgba(220, 38, 38, 0.2)'
                     }}
                   >
                     ⬇️ Download
@@ -1359,7 +1526,7 @@ const GenerateCaseLetterModal = ({
               }}>
                 <span style={{ fontWeight: '700', color: '#1e293b', fontSize: '13px', display: 'flex', alignItems: 'center', gap: '6px' }}>
                   <PictureAsPdfRoundedIcon style={{ fontSize: '16px', color: '#2563eb' }} />
-                  Merged Case Letter Preview ({orderDirection === 'bottom-to-top' ? 'Bottom-to-Top' : 'Top-to-Bottom'})
+                  Merged Case Letter Preview
                 </span>
                 <a
                   href={previewBlobUrl}
@@ -1431,7 +1598,7 @@ const GenerateCaseLetterModal = ({
               title={savedCaseLetter ? 'Case Letter already saved. Delete current Case Letter below to re-merge.' : 'Merge all available documents'}
             >
               <MergeTypeRoundedIcon style={{ fontSize: '18px' }} />
-              {merging ? 'Merging Documents...' : (savedCaseLetter ? '🔒 Dossier Already Merged' : 'Merge All PDFs (Bottom to Top)')}
+              {merging ? 'Merging Documents...' : (savedCaseLetter ? '🔒 Dossier Already Merged' : 'Merge & Preview')}
             </button>
 
             {/* SAVE BUTTON */}
@@ -1643,23 +1810,25 @@ const GenerateCaseLetterModal = ({
           top: '-9999px',
           width: '1600px',
           background: '#ffffff',
-          pointerEvents: 'none'
+          padding: '20px'
         }}
       >
-        {getApplicableAnnexureList().map((annexure) => {
-          const AnnexureComponent = annexure.component;
-          if (!AnnexureComponent) return null;
-          const data = annexureDataMap[annexure.id] || [];
+        {getApplicableAnnexureList().map(ann => {
+          const Comp = ann.component;
+          const data = annexureDataMap[ann.id] || [];
           return (
-            <div key={annexure.id} className="annexure-pdf-wrapper" style={{ marginBottom: '40px', background: '#ffffff' }}>
-              <AnnexureComponent
+            <div key={ann.id} style={{ pageBreakAfter: 'always', marginBottom: '40px' }}>
+              <div style={{ padding: '10px 0', borderBottom: '2px solid #000', marginBottom: '15px' }}>
+                <h3 style={{ margin: 0, fontSize: '18px', textTransform: 'uppercase' }}>{ann.title}</h3>
+                <span style={{ fontSize: '12px', color: '#555' }}>Inspection Call: {callNo}</span>
+              </div>
+              <Comp
+                inspectionData={call}
+                callDetails={call}
                 data={data}
-                selectedCall={{
-                  ...call,
-                  call_no: callNo,
-                  vendor_name: vendorName,
-                  product_type: rawProductType
-                }}
+                initialData={data}
+                readOnly={true}
+                hideActions={true}
               />
             </div>
           );

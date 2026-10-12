@@ -8,7 +8,7 @@ export const API_BASE_URL = isLocal
 
 const BASE_URL = API_BASE_URL;
 
-const api = axios.create({
+export const api = axios.create({
     baseURL: BASE_URL,
     timeout: 120000, // 120-second timeout to accommodate large batch saves
     headers: {
@@ -19,9 +19,37 @@ const api = axios.create({
 // Request interceptor to add authentication token
 api.interceptors.request.use(
     (config) => {
-        const token = localStorage.getItem('authToken');
+        const candidates = [
+            localStorage.getItem('sleeper_token'),
+            localStorage.getItem('authToken'),
+            localStorage.getItem('token'),
+            localStorage.getItem('railpad_token'),
+            sessionStorage.getItem('sleeper_token'),
+            sessionStorage.getItem('authToken'),
+            sessionStorage.getItem('token')
+        ];
+        let token = '';
+        for (const c of candidates) {
+            if (c) {
+                const trimmed = String(c).trim();
+                const lower = trimmed.toLowerCase();
+                if (lower !== '' && lower !== 'null' && lower !== 'undefined' && lower !== 'bearer' && lower !== 'bearer null' && lower !== 'bearer undefined') {
+                    token = trimmed.replace(/^Bearer\s+/i, '').trim();
+                    break;
+                }
+            }
+        }
         if (token) {
-            config.headers.Authorization = `Bearer ${token}`;
+            const existing = config.headers?.Authorization || config.headers?.authorization;
+            const isInvalid = !existing || String(existing).includes('null') || String(existing).includes('undefined');
+            if (isInvalid) {
+                if (config.headers && typeof config.headers.set === 'function') {
+                    config.headers.set('Authorization', `Bearer ${token}`);
+                } else {
+                    config.headers = config.headers || {};
+                    config.headers.Authorization = `Bearer ${token}`;
+                }
+            }
         }
         return config;
     },
@@ -51,6 +79,17 @@ const getWithCache = (url, options) => {
 api.interceptors.response.use(
     (response) => response.data,
     (error) => {
+        const status = error?.response?.status;
+        if (status === 401 && typeof window !== 'undefined') {
+            window.dispatchEvent(new CustomEvent('sarthi:session_expired', {
+                detail: { message: 'Authentication token expired or invalid (401)' }
+            }));
+            if (window.parent && window.parent !== window) {
+                try {
+                    window.parent.postMessage({ type: 'sarthi:session_expired' }, '*');
+                } catch (e) {}
+            }
+        }
         const message =
             error.response?.data?.responseStatus?.message ||
             error.response?.data?.message ||

@@ -1,4 +1,4 @@
-import { getBaseUrl, API_ENDPOINTS } from './apiConfig';
+import { getBaseUrl, API_ENDPOINTS, getDefaultHeaders } from './apiConfig';
 import { getStoredUser } from './authService';
 
 export const normalizePlantId = (plantId) => {
@@ -41,7 +41,9 @@ export const fetchPendingWorkflowTransitions = async (roleName, plantId = '', wo
     if (effectiveAssignedTo) {
       url += `&assignedTo=${encodeURIComponent(effectiveAssignedTo)}`;
     }
-    const response = await fetch(url);
+    const response = await fetch(url, {
+      headers: getDefaultHeaders()
+    });
     const data = await response.json();
     if (data.responseStatus?.statusCode === 0) {
       return data.responseData || [];
@@ -53,23 +55,41 @@ export const fetchPendingWorkflowTransitions = async (roleName, plantId = '', wo
   }
 };
 
+const pendingMappedPlantRequests = new Map();
+
 export const fetchMappedPlantIds = async (userId, ieType = 'ALL') => {
   const cacheKey = `mappedPlantIds_${userId}_${ieType}`;
-  try {
-    const response = await fetch(`${getBaseUrl()}${API_ENDPOINTS.RAILPAD_WORKFLOW.MAPPED_PLANT_IDS}?userId=${userId}&ieType=${encodeURIComponent(ieType)}`);
-    const data = await response.json();
-    if (data.responseStatus?.statusCode === 0) {
-      const plantIds = data.responseData || [];
-      localStorage.setItem(cacheKey, JSON.stringify(plantIds));
-      return plantIds;
-    }
-    const cached = localStorage.getItem(cacheKey);
-    return cached ? JSON.parse(cached) : [];
-  } catch (error) {
-    console.error('Error fetching mapped plant IDs:', error);
-    const cached = localStorage.getItem(cacheKey);
-    return cached ? JSON.parse(cached) : [];
+
+  // Deduplicate concurrent calls (e.g. MainLayout and PortalHome mounting simultaneously)
+  if (pendingMappedPlantRequests.has(cacheKey)) {
+    return pendingMappedPlantRequests.get(cacheKey);
   }
+
+  const requestPromise = (async () => {
+    try {
+      const response = await fetch(
+        `${getBaseUrl()}${API_ENDPOINTS.RAILPAD_WORKFLOW.MAPPED_PLANT_IDS}?userId=${userId}&ieType=${encodeURIComponent(ieType)}`,
+        { headers: getDefaultHeaders() }
+      );
+      const data = await response.json();
+      if (data.responseStatus?.statusCode === 0) {
+        const plantIds = data.responseData || [];
+        localStorage.setItem(cacheKey, JSON.stringify(plantIds));
+        return plantIds;
+      }
+      const cached = localStorage.getItem(cacheKey);
+      return cached ? JSON.parse(cached) : [];
+    } catch (error) {
+      console.error('Error fetching mapped plant IDs:', error);
+      const cached = localStorage.getItem(cacheKey);
+      return cached ? JSON.parse(cached) : [];
+    } finally {
+      pendingMappedPlantRequests.delete(cacheKey);
+    }
+  })();
+
+  pendingMappedPlantRequests.set(cacheKey, requestPromise);
+  return requestPromise;
 };
 
 export const fetchCompletedCalls = async (plantId = '', workflowId = '', moduleId = '') => {
@@ -90,7 +110,9 @@ export const fetchCompletedCalls = async (plantId = '', workflowId = '', moduleI
     if (moduleId !== undefined && moduleId !== null && moduleId !== '') {
       url += `&moduleId=${encodeURIComponent(moduleId)}`;
     }
-    const response = await fetch(url);
+    const response = await fetch(url, {
+      headers: getDefaultHeaders()
+    });
     const data = await response.json();
     if (data.responseStatus?.statusCode === 0) {
       return data.responseData || [];
@@ -109,7 +131,9 @@ export const fetchFinalCompletedCalls = async (plantId = '') => {
     if (formattedPlantId) {
       url += `?plantId=${encodeURIComponent(formattedPlantId)}`;
     }
-    const response = await fetch(url);
+    const response = await fetch(url, {
+      headers: getDefaultHeaders()
+    });
     const data = await response.json();
     if (data.responseStatus?.statusCode === 0) {
       return data.responseData || [];
@@ -131,7 +155,9 @@ export const fetchClosedCalls = async (plantId = '', userId = '') => {
     if (params.length > 0) {
       url += `?${params.join('&')}`;
     }
-    const response = await fetch(url);
+    const response = await fetch(url, {
+      headers: getDefaultHeaders()
+    });
     const data = await response.json();
     if (data.responseStatus?.statusCode === 0) {
       return data.responseData || [];
@@ -150,7 +176,10 @@ export const performTransitionAction = async (actionData) => {
     // Auto-resolve to latest active workflowTransitionId for this requestId if available
     if (payload.requestId) {
       try {
-        const histResp = await fetch(`${getBaseUrl()}/railpad-workflow/WorkflowTransitionHistory?requestId=${encodeURIComponent(payload.requestId)}`);
+        const histResp = await fetch(
+          `${getBaseUrl()}/railpad-workflow/WorkflowTransitionHistory?requestId=${encodeURIComponent(payload.requestId)}`,
+          { headers: getDefaultHeaders() }
+        );
         const histData = await histResp.json();
         if (histData.responseStatus?.statusCode === 0 && Array.isArray(histData.responseData) && histData.responseData.length > 0) {
           const latestTx = histData.responseData[histData.responseData.length - 1];
@@ -167,9 +196,9 @@ export const performTransitionAction = async (actionData) => {
 
     const response = await fetch(`${getBaseUrl()}${API_ENDPOINTS.RAILPAD_WORKFLOW.PERFORM_TRANSITION}`, {
       method: 'POST',
-      headers: {
+      headers: getDefaultHeaders({
         'Content-Type': 'application/json'
-      },
+      }),
       body: JSON.stringify(payload)
     });
     if (!response.ok) {
@@ -194,7 +223,10 @@ export const performTransitionAction = async (actionData) => {
 export const fetchCancellationDetails = async (callNo) => {
   try {
     if (!callNo) return null;
-    const response = await fetch(`${getBaseUrl()}/railpad-workflow/cancellation-details?callNo=${encodeURIComponent(callNo)}`);
+    const response = await fetch(
+      `${getBaseUrl()}/railpad-workflow/cancellation-details?callNo=${encodeURIComponent(callNo)}`,
+      { headers: getDefaultHeaders() }
+    );
     const data = await response.json();
     if (data.responseStatus?.statusCode === 0) {
       return data.responseData;
@@ -210,7 +242,10 @@ export const revertToInspection = async (callNo, deletedBy) => {
   try {
     if (!callNo) throw new Error('Call number is required');
     const url = `${getBaseUrl()}/railpad-workflow/back-to-inspection/${encodeURIComponent(callNo)}${deletedBy ? `?deletedBy=${encodeURIComponent(deletedBy)}` : ''}`;
-    const response = await fetch(url, { method: 'DELETE' });
+    const response = await fetch(url, {
+      method: 'DELETE',
+      headers: getDefaultHeaders()
+    });
     if (!response.ok) {
       const errText = await response.text();
       throw new Error(errText || 'Failed to revert to inspection');
@@ -226,7 +261,10 @@ export const revertToIcIssuance = async (callNo, deletedBy) => {
   try {
     if (!callNo) throw new Error('Call number is required');
     const url = `${getBaseUrl()}/railpad-workflow/back-to-ic-issuance/${encodeURIComponent(callNo)}${deletedBy ? `?deletedBy=${encodeURIComponent(deletedBy)}` : ''}`;
-    const response = await fetch(url, { method: 'DELETE' });
+    const response = await fetch(url, {
+      method: 'DELETE',
+      headers: getDefaultHeaders()
+    });
     if (!response.ok) {
       const errText = await response.text();
       throw new Error(errText || 'Failed to revert to IC issuance');

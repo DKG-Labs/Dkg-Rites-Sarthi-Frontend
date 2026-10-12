@@ -4,7 +4,9 @@ import PendingCallDetailsModal from '../../../components/PendingCallDetailsModal
 import ResumeCallModal from '../../../components/ResumeCallModal';
 import Notification from '../../../components/Notification';
 import CorrectionSlipModal from '../../../components/CorrectionSlipModal';
+import CorrectionSlipListModal from '../../../components/CorrectionSlipListModal';
 import AnnexureUploadModal from '../../../components/AnnexureUploadModal';
+import AnnexuresModal from '../../../components/AnnexuresModal';
 import GenerateCaseLetterModal from '../../../components/GenerateCaseLetterModal';
 import './AttendingCallDashboard.css';
 import { apiService, API_BASE_URL } from '../../../services/api';
@@ -12,8 +14,14 @@ import { getStoredUser } from '../../../services/authService';
 import { viewSignedCertificate, getAnnexureDocuments } from '../../../services/certificateService';
 import { useShift } from '../../../context/ShiftContext';
 import { generateCallLetterPDF } from '../../../utils/generateCallLetterPDF';
-import { fetchCorrectionSlipDocument, fetchCorrectionSlip } from '../../../services/correctionSlipService';
-import { downloadOrNotifyCaseLetter } from '../../../services/caseLetterService';
+import {
+    fetchCorrectionSlipDocument,
+    fetchCorrectionSlipDocuments,
+    fetchCorrectionSlip,
+    getViewCorrectionSlipPdfUrl,
+    getViewCorrectionSlipPdfByIdUrl
+} from '../../../services/correctionSlipService';
+import { downloadOrNotifyCaseLetter, fetchSavedCaseLetterInfo } from '../../../services/caseLetterService';
 
 const resolveSleeperCaseNo = (rawCaseNo, rio) => {
     if (!rawCaseNo || !String(rawCaseNo).trim()) return '-';
@@ -161,8 +169,10 @@ const AttendingCallDashboard = ({ mode }) => {
     const [closedCalls, setClosedCalls] = useState([]);
     const [selectedIbsDetail, setSelectedIbsDetail] = useState(null);
     const [correctionSlipRow, setCorrectionSlipRow] = useState(null);
+    const [slipListModalCall, setSlipListModalCall] = useState(null);
     const [isCorrectionSlipViewOnly, setIsCorrectionSlipViewOnly] = useState(false);
     const [slipStatusMap, setSlipStatusMap] = useState({});
+    const [slipDocsMap, setSlipDocsMap] = useState({});
     const [sendIbsCallRow, setSendIbsCallRow] = useState(null);
     const [selectedActionCall, setSelectedActionCall] = useState(null);
     const [pdfLoading, setPdfLoading] = useState(false);
@@ -170,45 +180,27 @@ const AttendingCallDashboard = ({ mode }) => {
     const [expandedActions, setExpandedActions] = useState({});
     const [notification, setNotification] = useState({ message: '', type: 'info' });
     const [uploadAnnexureModal, setUploadAnnexureModal] = useState({ isOpen: false, call: null });
+    const [annexuresModal, setAnnexuresModal] = useState({ isOpen: false, call: null });
     const [generateCaseLetterModalCall, setGenerateCaseLetterModalCall] = useState(null);
     const [downloadingCaseLetterCall, setDownloadingCaseLetterCall] = useState(null);
     const [hasUploadedDocs, setHasUploadedDocs] = useState(false);
     const [checkingDocs, setCheckingDocs] = useState(false);
-
-    // Pre-fetch correction slip existence for loaded closed calls
-    useEffect(() => {
-        if (closedCalls && closedCalls.length > 0) {
-            closedCalls.forEach(call => {
-                const callNo = call.requestId || call.call_no || call.callNo || call.id;
-                if (callNo && slipStatusMap[callNo] === undefined) {
-                    Promise.all([
-                        fetchCorrectionSlipDocument(callNo).catch(() => ({ exists: false })),
-                        fetchCorrectionSlip(callNo).catch(() => [])
-                    ]).then(([doc, saved]) => {
-                        const exists = Boolean((doc && doc.exists) || (Array.isArray(saved) && saved.length > 0));
-                        setSlipStatusMap(prev => ({ ...prev, [callNo]: exists }));
-                    }).catch(() => {});
-                }
-            });
-        }
-    }, [closedCalls, slipStatusMap]);
 
     // Check correction slip existence when a closed call action modal is opened
     useEffect(() => {
         if (selectedActionCall) {
             const isClosed = selectedActionCall.isClosed || activeTab === 'closed';
             const callNo = selectedActionCall.requestId || selectedActionCall.call_no || selectedActionCall.callNo || selectedActionCall.id;
-            if (isClosed && callNo && slipStatusMap[callNo] === undefined) {
-                Promise.all([
-                    fetchCorrectionSlipDocument(callNo).catch(() => ({ exists: false })),
-                    fetchCorrectionSlip(callNo).catch(() => [])
-                ]).then(([doc, saved]) => {
-                    const exists = Boolean((doc && doc.exists) || (Array.isArray(saved) && saved.length > 0));
-                    setSlipStatusMap(prev => ({ ...prev, [callNo]: exists }));
+            if (isClosed && callNo && slipDocsMap[callNo] === undefined) {
+                fetchCorrectionSlipDocuments(callNo).then(docs => {
+                    const list = Array.isArray(docs) ? docs : [];
+                    setSlipDocsMap(prev => ({ ...prev, [callNo]: list }));
+                    setSlipStatusMap(prev => ({ ...prev, [callNo]: list.length > 0 }));
                 }).catch(() => {});
             }
         }
-    }, [selectedActionCall, activeTab, slipStatusMap]);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [selectedActionCall, activeTab]);
 
     useEffect(() => {
         let isMounted = true;
@@ -217,16 +209,15 @@ const AttendingCallDashboard = ({ mode }) => {
             const callNo = targetCall.requestId || targetCall.call_no || targetCall.callNo || targetCall.id;
             if (callNo) {
                 setCheckingDocs(true);
-                getAnnexureDocuments(callNo, 'SLEEPER')
+                fetchSavedCaseLetterInfo(callNo)
                     .then(res => {
                         if (isMounted) {
-                            const docs = (res && res.success && Array.isArray(res.data)) ? res.data : [];
-                            setHasUploadedDocs(docs.length > 0);
+                            setHasUploadedDocs(Boolean(res && res.exists));
                         }
                     })
                     .catch(err => {
                         if (isMounted) {
-                            console.warn("Could not check annexures for call:", err);
+                            console.warn("Could not check case letter for call:", err);
                             setHasUploadedDocs(false);
                         }
                     })
@@ -2027,7 +2018,43 @@ const AttendingCallDashboard = ({ mode }) => {
                                     <span style={{ fontWeight: '700', fontSize: '14px' }}>View IC</span>
                                 </button>
 
-                                {/* 2. Send call to IBS (Completed Calls only) */}
+                                {/* 2. Annexures */}
+                                <button
+                                    onClick={() => {
+                                        const call = selectedActionCall;
+                                        setAnnexuresModal({ isOpen: true, call });
+                                    }}
+                                    style={{
+                                        display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '8px',
+                                        padding: '16px 12px', background: 'linear-gradient(135deg, #f3e8ff 0%, #e9d5ff 100%)',
+                                        border: '1px solid #d8b4fe', borderRadius: '14px',
+                                        cursor: 'pointer', transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                                        color: '#7e22ce', width: '100%',
+                                        boxShadow: '0 4px 6px -1px rgba(126, 34, 206, 0.1), 0 2px 4px -1px rgba(126, 34, 206, 0.06)'
+                                    }}
+                                    onMouseEnter={(e) => { 
+                                        e.currentTarget.style.transform = 'translateY(-3px)';
+                                        e.currentTarget.style.boxShadow = '0 10px 15px -3px rgba(126, 34, 206, 0.2), 0 4px 6px -2px rgba(126, 34, 206, 0.1)'; 
+                                    }}
+                                    onMouseLeave={(e) => { 
+                                        e.currentTarget.style.transform = 'translateY(0)';
+                                        e.currentTarget.style.boxShadow = '0 4px 6px -1px rgba(126, 34, 206, 0.1), 0 2px 4px -1px rgba(126, 34, 206, 0.06)'; 
+                                    }}
+                                    title="View Annexures"
+                                >
+                                    <div style={{ width: '42px', height: '42px', background: '#ffffff', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 2px 4px rgba(0,0,0,0.05)' }}>
+                                        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#7e22ce" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                                            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                                            <polyline points="14 2 14 8 20 8"></polyline>
+                                            <line x1="16" y1="13" x2="8" y2="13"></line>
+                                            <line x1="16" y1="17" x2="8" y2="17"></line>
+                                            <polyline points="10 9 9 9 8 9"></polyline>
+                                        </svg>
+                                    </div>
+                                    <span style={{ fontWeight: '700', fontSize: '14px' }}>Annexures</span>
+                                </button>
+
+                                {/* 3. Send call to IBS (Completed Calls only) */}
                                 {!selectedActionCall.isClosed && activeTab !== 'closed' && (
                                     <button
                                         onClick={() => {
@@ -2064,7 +2091,7 @@ const AttendingCallDashboard = ({ mode }) => {
                                                 e.currentTarget.style.boxShadow = '0 4px 6px -1px rgba(21, 128, 61, 0.1), 0 2px 4px -1px rgba(21, 128, 61, 0.06)'; 
                                             }
                                         }}
-                                        title={checkingDocs ? "Checking uploaded documents..." : (!hasUploadedDocs ? "Upload document is mandatory before sending call to IBS" : "Send call to IBS")}
+                                        title={checkingDocs ? "Checking Case Letter..." : (!hasUploadedDocs ? "Case Letter is mandatory before sending call to IBS" : "Send call to IBS")}
                                     >
                                         <div style={{ 
                                             width: '42px', height: '42px', 
@@ -2077,70 +2104,154 @@ const AttendingCallDashboard = ({ mode }) => {
                                         <span style={{ fontWeight: '700', fontSize: '14px' }}>Send call to IBS</span>
                                         {(!hasUploadedDocs && !checkingDocs) && (
                                             <span style={{ fontSize: '9.5px', color: '#dc2626', fontWeight: '800', marginTop: '-2px', background: '#fee2e2', padding: '2px 6px', borderRadius: '4px' }}>
-                                                Upload Doc Required
+                                                Case Letter Required
                                             </span>
                                         )}
                                         {checkingDocs && (
                                             <span style={{ fontSize: '9.5px', color: '#64748b', fontWeight: '600', marginTop: '-2px' }}>
-                                                Checking Docs...
+                                                Checking Case Letter...
                                             </span>
                                         )}
                                     </button>
                                 )}
 
-                                {/* Correction Slip (Closed Calls only) */}
+                                {/* Correction Slip Actions: 0 -> Issue, 1 -> Issue New + View, >1 -> Issue New + View All Modal */}
                                 {(selectedActionCall.isClosed || activeTab === 'closed') && (() => {
                                     const callNo = selectedActionCall.requestId || selectedActionCall.call_no || selectedActionCall.callNo || selectedActionCall.id;
-                                    const hasCorrectionSlip = Boolean(slipStatusMap[callNo]);
+                                    const docs = slipDocsMap[callNo] || [];
+                                    const hasCorrectionSlip = docs.length > 0;
+
+                                    if (!hasCorrectionSlip) {
+                                        return (
+                                            <button
+                                                onClick={() => {
+                                                    const row = selectedActionCall;
+                                                    setSelectedActionCall(null);
+                                                    setCorrectionSlipRow(row);
+                                                    setIsCorrectionSlipViewOnly(false);
+                                                }}
+                                                style={{
+                                                    display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '8px',
+                                                    padding: '16px 12px',
+                                                    background: 'linear-gradient(135deg, #fef3c7 0%, #fde68a 100%)',
+                                                    border: '1px solid #fcd34d',
+                                                    borderRadius: '14px',
+                                                    cursor: 'pointer', transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                                                    color: '#b45309',
+                                                    width: '100%',
+                                                    boxShadow: '0 4px 6px -1px rgba(180, 83, 9, 0.1), 0 2px 4px -1px rgba(180, 83, 9, 0.06)'
+                                                }}
+                                                onMouseEnter={(e) => { 
+                                                    e.currentTarget.style.transform = 'translateY(-3px)';
+                                                    e.currentTarget.style.boxShadow = '0 10px 15px -3px rgba(180, 83, 9, 0.2), 0 4px 6px -2px rgba(180, 83, 9, 0.1)'; 
+                                                }}
+                                                onMouseLeave={(e) => { 
+                                                    e.currentTarget.style.transform = 'translateY(0)';
+                                                    e.currentTarget.style.boxShadow = '0 4px 6px -1px rgba(180, 83, 9, 0.1), 0 2px 4px -1px rgba(180, 83, 9, 0.06)'
+                                                }}
+                                                title="Issue or View Correction Slip"
+                                            >
+                                                <div style={{ width: '42px', height: '42px', background: '#ffffff', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 2px 4px rgba(0,0,0,0.05)' }}>
+                                                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#b45309" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                                                        <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                                                        <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+                                                    </svg>
+                                                </div>
+                                                <span style={{ fontWeight: '700', fontSize: '14px', textAlign: 'center', lineHeight: '1.2' }}>
+                                                    Issue or View Correction Slip
+                                                </span>
+                                            </button>
+                                        );
+                                    }
 
                                     return (
-                                        <button
-                                            onClick={() => {
-                                                const row = selectedActionCall;
-                                                const exists = Boolean(slipStatusMap[callNo]);
-                                                setSelectedActionCall(null);
-                                                setCorrectionSlipRow(row);
-                                                setIsCorrectionSlipViewOnly(exists);
-                                            }}
-                                            style={{
-                                                display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '8px',
-                                                padding: '16px 12px',
-                                                background: hasCorrectionSlip
-                                                    ? 'linear-gradient(135deg, #fff7ed 0%, #ffedd5 100%)'
-                                                    : 'linear-gradient(135deg, #fef3c7 0%, #fde68a 100%)',
-                                                border: hasCorrectionSlip ? '1px solid #fed7aa' : '1px solid #fcd34d',
-                                                borderRadius: '14px',
-                                                cursor: 'pointer', transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-                                                color: hasCorrectionSlip ? '#ea580c' : '#b45309',
-                                                width: '100%',
-                                                boxShadow: hasCorrectionSlip
-                                                    ? '0 4px 6px -1px rgba(234, 88, 12, 0.1), 0 2px 4px -1px rgba(234, 88, 12, 0.06)'
-                                                    : '0 4px 6px -1px rgba(180, 83, 9, 0.1), 0 2px 4px -1px rgba(180, 83, 9, 0.06)'
-                                            }}
-                                            onMouseEnter={(e) => { 
-                                                e.currentTarget.style.transform = 'translateY(-3px)';
-                                                e.currentTarget.style.boxShadow = hasCorrectionSlip
-                                                    ? '0 10px 15px -3px rgba(234, 88, 12, 0.2), 0 4px 6px -2px rgba(234, 88, 12, 0.1)'
-                                                    : '0 10px 15px -3px rgba(180, 83, 9, 0.2), 0 4px 6px -2px rgba(180, 83, 9, 0.1)'; 
-                                            }}
-                                            onMouseLeave={(e) => { 
-                                                e.currentTarget.style.transform = 'translateY(0)';
-                                                e.currentTarget.style.boxShadow = hasCorrectionSlip
-                                                    ? '0 4px 6px -1px rgba(234, 88, 12, 0.1), 0 2px 4px -1px rgba(234, 88, 12, 0.06)'
-                                                    : '0 4px 6px -1px rgba(180, 83, 9, 0.1), 0 2px 4px -1px rgba(180, 83, 9, 0.06)'; 
-                                            }}
-                                            title={hasCorrectionSlip ? "View Correction Slip" : "Issue Correction Slip"}
-                                        >
-                                            <div style={{ width: '42px', height: '42px', background: '#ffffff', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 2px 4px rgba(0,0,0,0.05)' }}>
-                                                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={hasCorrectionSlip ? "#ea580c" : "#b45309"} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                                                    <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
-                                                    <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
-                                                </svg>
-                                            </div>
-                                            <span style={{ fontWeight: '700', fontSize: '14px', textAlign: 'center', lineHeight: '1.2' }}>
-                                                {hasCorrectionSlip ? "View Correction Slip" : "Issue Correction Slip"}
-                                            </span>
-                                        </button>
+                                        <React.Fragment>
+                                            {/* Issue New Correction Slip */}
+                                            <button
+                                                onClick={() => {
+                                                    const row = selectedActionCall;
+                                                    setSelectedActionCall(null);
+                                                    setCorrectionSlipRow(row);
+                                                    setIsCorrectionSlipViewOnly(false);
+                                                }}
+                                                style={{
+                                                    display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '8px',
+                                                    padding: '16px 12px',
+                                                    background: 'linear-gradient(135deg, #fff7ed 0%, #ffedd5 100%)',
+                                                    border: '1px solid #fed7aa',
+                                                    borderRadius: '14px',
+                                                    cursor: 'pointer', transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                                                    color: '#ea580c',
+                                                    width: '100%',
+                                                    boxShadow: '0 4px 6px -1px rgba(234, 88, 12, 0.1), 0 2px 4px -1px rgba(234, 88, 12, 0.06)'
+                                                }}
+                                                onMouseEnter={(e) => { 
+                                                    e.currentTarget.style.transform = 'translateY(-3px)';
+                                                    e.currentTarget.style.boxShadow = '0 10px 15px -3px rgba(234, 88, 12, 0.2), 0 4px 6px -2px rgba(234, 88, 12, 0.1)'; 
+                                                }}
+                                                onMouseLeave={(e) => { 
+                                                    e.currentTarget.style.transform = 'translateY(0)';
+                                                    e.currentTarget.style.boxShadow = '0 4px 6px -1px rgba(234, 88, 12, 0.1), 0 2px 4px -1px rgba(234, 88, 12, 0.06)'
+                                                }}
+                                                title="Issue New Correction Slip"
+                                            >
+                                                <div style={{ width: '42px', height: '42px', background: '#ffffff', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 2px 4px rgba(0,0,0,0.05)' }}>
+                                                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#ea580c" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                                                        <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                                                        <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+                                                    </svg>
+                                                </div>
+                                                <span style={{ fontWeight: '700', fontSize: '14px', textAlign: 'center', lineHeight: '1.2' }}>
+                                                    Issue New Correction Slip
+                                                </span>
+                                            </button>
+
+                                            {/* View Slip(s) */}
+                                            <button
+                                                onClick={() => {
+                                                    const row = selectedActionCall;
+                                                    if (docs.length === 1) {
+                                                        const singleUrl = docs[0].id
+                                                            ? getViewCorrectionSlipPdfByIdUrl(docs[0].id)
+                                                            : getViewCorrectionSlipPdfUrl(callNo);
+                                                        window.open(singleUrl, '_blank');
+                                                    } else {
+                                                        setSelectedActionCall(null);
+                                                        setSlipListModalCall(row);
+                                                    }
+                                                }}
+                                                style={{
+                                                    display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '8px',
+                                                    padding: '16px 12px',
+                                                    background: 'linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%)',
+                                                    border: '1px solid #86efac',
+                                                    borderRadius: '14px',
+                                                    cursor: 'pointer', transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                                                    color: '#166534',
+                                                    width: '100%',
+                                                    boxShadow: '0 4px 6px -1px rgba(22, 101, 52, 0.1), 0 2px 4px -1px rgba(22, 101, 52, 0.06)'
+                                                }}
+                                                onMouseEnter={(e) => { 
+                                                    e.currentTarget.style.transform = 'translateY(-3px)';
+                                                    e.currentTarget.style.boxShadow = '0 10px 15px -3px rgba(22, 101, 52, 0.2), 0 4px 6px -2px rgba(22, 101, 52, 0.1)'; 
+                                                }}
+                                                onMouseLeave={(e) => { 
+                                                    e.currentTarget.style.transform = 'translateY(0)';
+                                                    e.currentTarget.style.boxShadow = '0 4px 6px -1px rgba(22, 101, 52, 0.1), 0 2px 4px -1px rgba(22, 101, 52, 0.06)'
+                                                }}
+                                                title={docs.length > 1 ? `View Correction Slips (${docs.length})` : "View Correction Slip"}
+                                            >
+                                                <div style={{ width: '42px', height: '42px', background: '#ffffff', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 2px 4px rgba(0,0,0,0.05)' }}>
+                                                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#166534" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                                                        <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                                                        <circle cx="12" cy="12" r="3" />
+                                                    </svg>
+                                                </div>
+                                                <span style={{ fontWeight: '700', fontSize: '14px', textAlign: 'center', lineHeight: '1.2' }}>
+                                                    {docs.length > 1 ? `View Correction Slips (${docs.length})` : "View Correction Slip"}
+                                                </span>
+                                            </button>
+                                        </React.Fragment>
                                     );
                                 })()}
 
@@ -2201,41 +2312,7 @@ const AttendingCallDashboard = ({ mode }) => {
                                     <span style={{ fontWeight: '700', fontSize: '14px' }}>PO & MA</span>
                                 </button>
 
-                                {/* 5. Upload / View Annexures and Other Docs */}
-                                <button
-                                    onClick={() => {
-                                        const call = selectedActionCall;
-                                        const isClosed = call.isClosed || activeTab === 'closed';
-                                        setSelectedActionCall(null);
-                                        setUploadAnnexureModal({ isOpen: true, call, mode: isClosed ? 'view' : 'upload' });
-                                    }}
-                                    style={{
-                                        display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '8px',
-                                        padding: '16px 12px', background: 'linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%)',
-                                        border: '1px solid #86efac', borderRadius: '14px',
-                                        cursor: 'pointer', transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-                                        color: '#166534', width: '100%',
-                                        boxShadow: '0 4px 6px -1px rgba(22, 101, 52, 0.1), 0 2px 4px -1px rgba(22, 101, 52, 0.06)'
-                                    }}
-                                    onMouseEnter={(e) => { 
-                                        e.currentTarget.style.transform = 'translateY(-3px)';
-                                        e.currentTarget.style.boxShadow = '0 10px 15px -3px rgba(22, 101, 52, 0.2), 0 4px 6px -2px rgba(22, 101, 52, 0.1)'; 
-                                    }}
-                                    onMouseLeave={(e) => { 
-                                        e.currentTarget.style.transform = 'translateY(0)';
-                                        e.currentTarget.style.boxShadow = '0 4px 6px -1px rgba(22, 101, 52, 0.1), 0 2px 4px -1px rgba(22, 101, 52, 0.06)'; 
-                                    }}
-                                    title={(selectedActionCall.isClosed || activeTab === 'closed') ? "View uploaded annexures and other documents" : "Upload or manage annexures and other documents"}
-                                >
-                                    <div style={{ width: '42px', height: '42px', background: '#ffffff', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 2px 4px rgba(0,0,0,0.05)' }}>
-                                        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#16a34a" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-                                    </div>
-                                    <span style={{ fontWeight: '700', fontSize: '13.5px', textAlign: 'center', lineHeight: '1.2' }}>
-                                        {(selectedActionCall.isClosed || activeTab === 'closed') ? "View Uploaded Annexures & Docs" : "Upload / Manage Annexures & Docs"}
-                                    </span>
-                                </button>
-
-                                {/* 6. Case Letter (Generate / View) */}
+                                {/* 5. Case Letter (Generate / View) */}
                                 <button
                                     disabled={Boolean(downloadingCaseLetterCall)}
                                     onClick={async () => {
@@ -2248,11 +2325,15 @@ const AttendingCallDashboard = ({ mode }) => {
                                             setNotification({ message: `Fetching and downloading Case Letter for ${callNo}... Please wait.`, type: 'info' });
                                             try {
                                                 const res = await downloadOrNotifyCaseLetter(callNo, {
-                                                    onNotFound: (msg) => {
-                                                        setNotification({ message: msg, type: 'error' });
+                                                    onNotFound: () => {
+                                                        setSelectedActionCall(null);
+                                                        setNotification({ message: 'Case letter not found for this call. Showing uploaded annexures & docs.', type: 'info' });
+                                                        setUploadAnnexureModal({ isOpen: true, call: row, mode: 'view' });
                                                     },
                                                     onError: () => {
-                                                        setNotification({ message: 'Failed to download case letter for this call', type: 'error' });
+                                                        setSelectedActionCall(null);
+                                                        setNotification({ message: 'Case letter not found for this call. Showing uploaded annexures & docs.', type: 'info' });
+                                                        setUploadAnnexureModal({ isOpen: true, call: row, mode: 'view' });
                                                     }
                                                 });
                                                 if (res && res.success) {
@@ -2289,7 +2370,7 @@ const AttendingCallDashboard = ({ mode }) => {
                                             e.currentTarget.style.boxShadow = '0 4px 6px -1px rgba(67, 56, 202, 0.1), 0 2px 4px -1px rgba(67, 56, 202, 0.06)'; 
                                         }
                                     }}
-                                    title={(selectedActionCall.isClosed || activeTab === 'closed') ? "Directly download stored Case Letter dossier for this call" : "Generate Case Letter / Merge Dossier for this call"}
+                                    title={(selectedActionCall.isClosed || activeTab === 'closed') ? "Directly download stored Inspection Call Documents for this call" : "Upload / Generate Inspection Call Documents for this call"}
                                 >
                                     <div style={{ width: '42px', height: '42px', background: '#ffffff', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 2px 4px rgba(0,0,0,0.05)' }}>
                                         {downloadingCaseLetterCall ? (
@@ -2310,7 +2391,7 @@ const AttendingCallDashboard = ({ mode }) => {
                                     <span style={{ fontWeight: '700', fontSize: '13.5px', textAlign: 'center', lineHeight: '1.2' }}>
                                         {downloadingCaseLetterCall 
                                             ? "Downloading..." 
-                                            : ((selectedActionCall.isClosed || activeTab === 'closed') ? "View Case Letter" : "Generate Case Letter")}
+                                            : ((selectedActionCall.isClosed || activeTab === 'closed') ? "View Uploaded Inspection Call Documents" : "Upload/ Generate Inspection Call Documents")}
                                     </span>
                                 </button>
 
@@ -2507,15 +2588,15 @@ const AttendingCallDashboard = ({ mode }) => {
                             }}>
                                 <div>
                                     <div style={{ fontSize: '10.5px', fontWeight: '700', color: hasUploadedDocs ? '#166534' : '#92400e', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '2px' }}>
-                                        Attached Document Status
+                                        Case Letter Status
                                     </div>
                                     <div style={{ fontSize: '13px', fontWeight: '700', color: hasUploadedDocs ? '#15803d' : '#b45309', display: 'flex', alignItems: 'center', gap: '6px' }}>
                                         {checkingDocs ? (
-                                            <span style={{ color: '#64748b', fontWeight: '600' }}>Checking uploaded documents...</span>
+                                            <span style={{ color: '#64748b', fontWeight: '600' }}>Checking Case Letter...</span>
                                         ) : hasUploadedDocs ? (
-                                            <>✓ Document Uploaded & Verified</>
+                                            <>✓ Case Letter Generated & Verified</>
                                         ) : (
-                                            <>⚠️ Document Not Uploaded</>
+                                            <>⚠️ Case Letter Not Generated</>
                                         )}
                                     </div>
                                 </div>
@@ -2524,13 +2605,14 @@ const AttendingCallDashboard = ({ mode }) => {
                                         type="button"
                                         onClick={() => {
                                             const call = sendIbsCallRow;
-                                            setUploadAnnexureModal({ isOpen: true, call, mode: 'upload' });
+                                            setSendIbsCallRow(null);
+                                            setGenerateCaseLetterModalCall(call);
                                         }}
                                         style={{
                                             padding: '6px 12px',
                                             borderRadius: '6px',
-                                            border: '1px solid #16a34a',
-                                            background: '#16a34a',
+                                            border: '1px solid #4f46e5',
+                                            background: '#4f46e5',
                                             color: '#ffffff',
                                             fontWeight: '700',
                                             fontSize: '12px',
@@ -2538,7 +2620,7 @@ const AttendingCallDashboard = ({ mode }) => {
                                             whiteSpace: 'nowrap'
                                         }}
                                     >
-                                        Upload Document
+                                        Generate Case Letter
                                     </button>
                                 )}
                             </div>
@@ -2735,7 +2817,7 @@ const AttendingCallDashboard = ({ mode }) => {
                 </div>
             )}
 
-            {/* Correction Slip Modal */}
+            {/* Correction Slip Modal (Create / Edit) */}
             {correctionSlipRow && (
                 <CorrectionSlipModal
                     row={correctionSlipRow}
@@ -2743,16 +2825,31 @@ const AttendingCallDashboard = ({ mode }) => {
                         const callNo = correctionSlipRow.requestId || correctionSlipRow.call_no || correctionSlipRow.callNo || correctionSlipRow.id;
                         setCorrectionSlipRow(null);
                         if (callNo) {
-                            Promise.all([
-                                fetchCorrectionSlipDocument(callNo).catch(() => ({ exists: false })),
-                                fetchCorrectionSlip(callNo).catch(() => [])
-                            ]).then(([doc, saved]) => {
-                                const exists = Boolean((doc && doc.exists) || (Array.isArray(saved) && saved.length > 0));
-                                setSlipStatusMap(prev => ({ ...prev, [callNo]: exists }));
+                            fetchCorrectionSlipDocuments(callNo).then(docs => {
+                                const list = Array.isArray(docs) ? docs : [];
+                                setSlipDocsMap(prev => ({ ...prev, [callNo]: list }));
+                                setSlipStatusMap(prev => ({ ...prev, [callNo]: list.length > 0 }));
                             }).catch(() => {});
                         }
                     }}
                     viewOnly={isCorrectionSlipViewOnly}
+                />
+            )}
+
+            {/* Correction Slip Selection Modal (When > 1 slip exists) */}
+            {slipListModalCall && (
+                <CorrectionSlipListModal
+                    isOpen={Boolean(slipListModalCall)}
+                    onClose={() => setSlipListModalCall(null)}
+                    callNo={slipListModalCall.requestId || slipListModalCall.call_no || slipListModalCall.callNo || slipListModalCall.id}
+                    icNumber={slipListModalCall.ic_number || slipListModalCall.icNo || ''}
+                    documents={slipDocsMap[slipListModalCall.requestId || slipListModalCall.call_no || slipListModalCall.callNo || slipListModalCall.id] || []}
+                    onIssueNew={() => {
+                        const call = slipListModalCall;
+                        setSlipListModalCall(null);
+                        setCorrectionSlipRow(call);
+                        setIsCorrectionSlipViewOnly(false);
+                    }}
                 />
             )}
 
@@ -2923,13 +3020,28 @@ const AttendingCallDashboard = ({ mode }) => {
                 />
             )}
 
+            {/* Annexures Modal (Annexure 1 to IC) */}
+            {annexuresModal.isOpen && annexuresModal.call && (
+                <AnnexuresModal
+                    isOpen={annexuresModal.isOpen}
+                    onClose={() => setAnnexuresModal({ isOpen: false, call: null })}
+                    call={annexuresModal.call}
+                    showNotification={showNotification}
+                />
+            )}
+
             {/* Generate Case Letter Modal */}
             {generateCaseLetterModalCall && (
                 <GenerateCaseLetterModal
                     isOpen={Boolean(generateCaseLetterModalCall)}
-                    onClose={() => setGenerateCaseLetterModalCall(null)}
+                    onClose={() => {
+                        const currentCall = generateCaseLetterModalCall;
+                        setGenerateCaseLetterModalCall(null);
+                        if (currentCall) setSelectedActionCall(currentCall);
+                    }}
                     call={generateCaseLetterModalCall}
                     onCaseLetterSaved={() => {
+                        setHasUploadedDocs(true);
                         setNotification({
                             message: `Case Letter generated and archived for call ${generateCaseLetterModalCall.requestId || generateCaseLetterModalCall.callNo || ''} successfully!`,
                             type: 'success'

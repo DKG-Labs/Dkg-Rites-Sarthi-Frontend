@@ -9,7 +9,26 @@ import { API_BASE_URL } from './apiConfig';
  * The authService stores the token as 'authToken' in localStorage
  */
 const getAuthHeaders = () => {
-  const token = localStorage.getItem('authToken');
+  const candidates = [
+    localStorage.getItem('authToken'),
+    localStorage.getItem('token'),
+    localStorage.getItem('railpad_token'),
+    localStorage.getItem('sleeper_token'),
+    sessionStorage.getItem('authToken'),
+    sessionStorage.getItem('token'),
+    sessionStorage.getItem('railpad_token')
+  ];
+  let token = '';
+  for (const c of candidates) {
+    if (c) {
+      const trimmed = String(c).trim();
+      const lower = trimmed.toLowerCase();
+      if (lower !== '' && lower !== 'null' && lower !== 'undefined' && lower !== 'bearer' && lower !== 'bearer null' && lower !== 'bearer undefined') {
+        token = trimmed.replace(/^Bearer\s+/i, '').trim();
+        break;
+      }
+    }
+  }
   return {
     'Content-Type': 'application/json',
     'Authorization': token ? `Bearer ${token}` : ''

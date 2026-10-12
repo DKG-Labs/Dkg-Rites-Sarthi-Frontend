@@ -523,11 +523,56 @@ const FinalInspectionScreen = ({ call, onBack }) => {
                                 sleeperCode: typeof s === 'string' ? s : (s?.sleeperCode || s?.sleeperNo || ''),
                                 reason: (typeof s === 'object' && s?.reason) ? s.reason : 'Epoxy Treatment'
                             })).filter(s => Boolean(s.sleeperCode) && String(s.sleeperCode).trim() !== '0'),
-                            mfTestedSleepers: []
+                            mfTestedSleepers: (b.mfSleepers || b.mfTestedSleepers || []).map(s => typeof s === 'string' ? s : (s?.sleeperCode || '')).filter(s => Boolean(s) && String(s).trim() !== '0')
                         }, currentType));
                     }
                 } catch (err) {
                     console.error("Error fetching master batch details:", err);
+                }
+
+                // Enrich masterBatches with call letter details (for ET & MF sleepers) if available
+                try {
+                    const clResp = await apiService.getCallLetterDetails(callNo);
+                    const clBatches = clResp?.responseData?.batchesSelected || clResp?.responseData?.heatDetails || [];
+                    if (Array.isArray(clBatches) && clBatches.length > 0) {
+                        const clMap = new Map();
+                        clBatches.forEach(cb => {
+                            const bNum = (cb.batchNo || '').replace(/^batch\s*[-_:]*\s*/i, '').trim();
+                            if (bNum) {
+                                clMap.set(bNum.toLowerCase(), cb);
+                                clMap.set((cb.batchNo || '').trim().toLowerCase(), cb);
+                            }
+                        });
+                        masterBatches = masterBatches.map(mb => {
+                            const mbNum = (mb.batchNo || '').replace(/^batch\s*[-_:]*\s*/i, '').trim().toLowerCase();
+                            const cb = clMap.get(mbNum) || clMap.get((mb.batchNo || '').trim().toLowerCase());
+                            if (cb) {
+                                let newEt = mb.etSleepers || [];
+                                if ((!newEt || newEt.length === 0) && Array.isArray(cb.etSleepers) && cb.etSleepers.length > 0) {
+                                    newEt = cb.etSleepers.map(s => ({
+                                        sleeperCode: typeof s === 'string' ? s : (s?.sleeperCode || s?.sleeperNo || ''),
+                                        reason: 'Epoxy Treatment'
+                                    })).filter(s => Boolean(s.sleeperCode) && String(s.sleeperCode).trim() !== '0');
+                                }
+                                let newMf = mb.mfTestedSleepers || [];
+                                if (!newMf || newMf.length === 0) {
+                                    if (Array.isArray(cb.mfSleepers) && cb.mfSleepers.length > 0) {
+                                        newMf = cb.mfSleepers.map(s => typeof s === 'string' ? s : (s?.sleeperCode || '')).filter(Boolean);
+                                    } else if (cb.mfNo && String(cb.mfNo).trim() && String(cb.mfNo).trim() !== '-') {
+                                        newMf = String(cb.mfNo).split(',').map(s => s.trim()).filter(Boolean);
+                                    }
+                                }
+                                return {
+                                    ...mb,
+                                    etSleepers: newEt,
+                                    mfTestedSleepers: newMf
+                                };
+                            }
+                            return mb;
+                        });
+                    }
+                } catch (clErr) {
+                    console.log("Optional call letter details enrichment:", clErr);
                 }
 
                 // 2. Fetch Saved Header & Batches from Backend
@@ -578,7 +623,7 @@ const FinalInspectionScreen = ({ call, onBack }) => {
                                 sleeperCode: typeof s === 'string' ? s : (s?.sleeperCode || s?.sleeperNo || ''),
                                 reason: (typeof s === 'object' && s?.reason) ? s.reason : 'Epoxy Treatment'
                             })).filter(s => Boolean(s.sleeperCode) && String(s.sleeperCode).trim() !== '0'),
-                            mfTestedSleepers: (b.mfSleepers || []).map(s => typeof s === 'string' ? s : (s?.sleeperCode || '')).filter(s => Boolean(s) && String(s).trim() !== '0'),
+                            mfTestedSleepers: (b.mfSleepers || b.mfTestedSleepers || []).map(s => typeof s === 'string' ? s : (s?.sleeperCode || '')).filter(s => Boolean(s) && String(s).trim() !== '0'),
                             sleepers: [
                                 ...(b.goodSleepers || []).map(s => typeof s === 'string' ? s : (s?.sleeperCode || '')).filter(s => Boolean(s) && String(s).trim() !== '0'),
                                 ...(b.rejectedSleepers || []).map(s => typeof s === 'string' ? s : (s?.sleeperCode || '')).filter(s => Boolean(s) && String(s).trim() !== '0')
@@ -652,6 +697,14 @@ const FinalInspectionScreen = ({ call, onBack }) => {
                                 finalAccepted = overlay.acceptedSleepers;
                             }
                             const offeredNow = Math.max(mb.offeredNow || 0, mb.acceptedSleepers.length + (mb.rejectedSleepers || []).length);
+                            const overlayEt = (overlay.etSleepers || []).filter(s => getSCode(s) !== '' && getSCode(s) !== '0');
+                            const mbEt = (mb.etSleepers || []).filter(s => getSCode(s) !== '' && getSCode(s) !== '0');
+                            const finalEt = overlayEt.length > 0 ? overlay.etSleepers : mbEt;
+
+                            const overlayMf = (overlay.mfTestedSleepers || []).filter(s => getSCode(s) !== '' && getSCode(s) !== '0');
+                            const mbMf = (mb.mfTestedSleepers || []).filter(s => getSCode(s) !== '' && getSCode(s) !== '0');
+                            const finalMf = overlayMf.length > 0 ? overlay.mfTestedSleepers : mbMf;
+
                             return {
                                 ...mb,
                                 ...overlay,
@@ -663,7 +716,8 @@ const FinalInspectionScreen = ({ call, onBack }) => {
                                 unoffered: Math.max(0, (mb.qtyCasted || 0) - offeredNow),
                                 acceptedSleepers: finalAccepted,
                                 rejectedSleepers: rejList,
-                                etSleepers: overlay.etSleepers || mb.etSleepers || []
+                                etSleepers: finalEt,
+                                mfTestedSleepers: finalMf
                             };
                         }
                         return mb;
@@ -901,6 +955,8 @@ const FinalInspectionScreen = ({ call, onBack }) => {
             ...b,
             acceptedSleepers: naturalSortSleepers(accepted, currentType),
             rejectedSleepers: naturalSortSleepers(rejected, currentType),
+            etSleepers: b.etSleepers || [],
+            mfTestedSleepers: b.mfTestedSleepers || [],
             passed: accepted.length,
             rejected: rejected.length
         };

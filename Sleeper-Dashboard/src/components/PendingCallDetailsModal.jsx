@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import CallCancellationModal from './CallCancellationModal';
+import AnnexuresModal from './AnnexuresModal';
 import { generateCallLetterPDF } from '../utils/generateCallLetterPDF';
 import { API_BASE_URL, apiService } from '../services/api';
 
@@ -34,6 +35,7 @@ const PendingCallDetailsModal = ({
 }) => {
   const [pdfLoading, setPdfLoading] = useState(false);
   const [showCancelModal, setShowCancelModal] = useState(false);
+  const [showAnnexuresModal, setShowAnnexuresModal] = useState(false);
 
   const notify = (msg, type = 'success') => {
     if (showNotification) {
@@ -132,7 +134,9 @@ const PendingCallDetailsModal = ({
     }
   };
 
-  const isCancelled = (call.status || call.jobStatus || '').toUpperCase().includes('CANCEL');
+  const statusStr = (call.status || call.jobStatus || '').toUpperCase();
+  const isCancelled = statusStr.includes('CANCEL');
+  const isCompleted = ['COMPLETED', 'CLOSED', 'IC_ISSUE', 'ACCEPTED', 'VERIFIED'].includes(statusStr) || Boolean(call.isCompleted || call.isClosed);
 
   const formatFullPo = () => {
     const rly = call.scrCode || call.rlyCode || call.rlyShortName || '';
@@ -400,6 +404,32 @@ const PendingCallDetailsModal = ({
               </div>
               <span style={{ fontWeight: '800', fontSize: '14px' }}>PO & MA</span>
             </button>
+
+            {/* Card 6: Annexures (Only shown for completed calls) */}
+            {isCompleted && (
+              <button
+                onClick={() => setShowAnnexuresModal(true)}
+                style={{
+                  display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '10px',
+                  padding: '16px 14px', background: 'linear-gradient(135deg, #f3e8ff 0%, #e9d5ff 100%)',
+                  border: '1px solid #d8b4fe', borderRadius: '16px',
+                  cursor: 'pointer', transition: 'all 0.2s ease',
+                  color: '#7e22ce', width: '100%', minHeight: '112px',
+                  boxShadow: '0 4px 6px -1px rgba(126, 34, 206, 0.1)'
+                }}
+              >
+                <div style={{ width: '42px', height: '42px', background: '#ffffff', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 2px 4px rgba(0,0,0,0.05)' }}>
+                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#7e22ce" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                    <polyline points="14 2 14 8 20 8"></polyline>
+                    <line x1="16" y1="13" x2="8" y2="13"></line>
+                    <line x1="16" y1="17" x2="8" y2="17"></line>
+                    <polyline points="10 9 9 9 8 9"></polyline>
+                  </svg>
+                </div>
+                <span style={{ fontWeight: '800', fontSize: '14px' }}>Annexures</span>
+              </button>
+            )}
           </div>
         </div>
       </div>
@@ -414,6 +444,15 @@ const PendingCallDetailsModal = ({
           if (onClose) onClose();
         }}
       />
+
+      {showAnnexuresModal && (
+        <AnnexuresModal
+          isOpen={showAnnexuresModal}
+          onClose={() => setShowAnnexuresModal(false)}
+          call={call}
+          showNotification={showNotification}
+        />
+      )}
     </div>
   );
 };

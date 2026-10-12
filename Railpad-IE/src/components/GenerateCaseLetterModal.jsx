@@ -560,7 +560,22 @@ const GenerateCaseLetterModal = ({
       setSuccessMessage(`Successfully merged ${attachedCount} documents! Review the preview below.`);
     } catch (err) {
       console.error('Merge error:', err);
-      setErrorMessage(err.message || 'Failed to merge documents into Case Letter PDF.');
+      let errorMsg = err.message || 'Failed to merge documents into Case Letter PDF.';
+      if (err.response) {
+        const headerErr = err.response.headers?.['x-error-message'];
+        if (headerErr) {
+          errorMsg = headerErr;
+        } else if (err.response.data instanceof Blob) {
+          try {
+            const text = await err.response.data.text();
+            const parsed = JSON.parse(text);
+            if (parsed.message) errorMsg = parsed.message;
+          } catch (_) {}
+        } else if (err.response.data?.message) {
+          errorMsg = err.response.data.message;
+        }
+      }
+      setErrorMessage(errorMsg);
     } finally {
       setMerging(false);
     }

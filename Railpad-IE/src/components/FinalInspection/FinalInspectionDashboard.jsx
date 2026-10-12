@@ -830,6 +830,7 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
   // IMPORTANT: These must be declared here (before any early returns) to satisfy React Rules of Hooks.
   const lastInitializedLotRef = React.useRef(null);
   const prevRequiredRef = React.useRef(false);
+  const loadingLotIdRef = React.useRef(null);
 
   useEffect(() => {
     // If data hasn't loaded yet for the selected lot, do nothing
@@ -1066,7 +1067,12 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
   };
 
   const loadLotData = async (lotId, lotsOverride = null) => {
-    // In a real app, this would be an API call
+    if (!lotId) return;
+    if (loadingLotIdRef.current === lotId) {
+      console.log(`Already loading data for lot ${lotId}, skipping duplicate call.`);
+      return;
+    }
+    loadingLotIdRef.current = lotId;
     console.log(`Loading data for ${lotId}...`);
     setLoading(true);
     setSelectedLot(lotId);
@@ -1895,18 +1901,68 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
         ncrSetsAccepted: currentNcrAcc || '',
         ncrSetsRejected: currentNcrRej || ''
       };
-      localStorage.setItem(draftKey, JSON.stringify(initialDraftData));
+      possibleCallIds.forEach(cid => {
+        localStorage.setItem(`railpad_draft_${cid}_${lotId}`, JSON.stringify(initialDraftData));
+      });
     } catch (err) {
       console.error("Error loading lot data:", err);
     } finally {
+      loadingLotIdRef.current = null;
       // Set the loaded lot ref so we know loading is complete!
       setLoadedLot(lotId);
       setLoading(false);
     }
-  }
+  };
+
+  const saveCurrentLotDraftSync = () => {
+    if (!selectedLot || !currentCallId) return;
+    const draftData = {
+      activeTab,
+      visualData,
+      weightData,
+      physicalData,
+      elecData,
+      specData,
+      periodicData,
+      specType,
+      reTestActive,
+      reOfferActive,
+      remarks,
+      sealingType,
+      steelStampNumber,
+      hologramEntries,
+      dbDimensionalStatus,
+      dbDimensionalNotOk,
+      ncrSetsOffered,
+      ncrSetsAccepted,
+      ncrSetsRejected
+    };
+
+    const possibleCallIds = Array.from(new Set([
+      currentCallId,
+      call?.callNo,
+      call?.icNumber,
+      call?.requestId,
+      call?.id ? String(call.id) : null
+    ].filter(Boolean)));
+
+    possibleCallIds.forEach(cid => {
+      localStorage.setItem(`railpad_draft_${cid}_${selectedLot}`, JSON.stringify(draftData));
+      localStorage.setItem(`railpad_selected_lot_${cid}`, selectedLot);
+      localStorage.setItem(`railpad_call_hologram_${cid}`, JSON.stringify(hologramEntries));
+      localStorage.setItem(`railpad_call_sealing_type_${cid}`, sealingType);
+      if (isNCRGRSP) {
+        if (ncrSetsOffered !== undefined && ncrSetsOffered !== '') localStorage.setItem(`railpad_ncr_sets_offered_${cid}`, ncrSetsOffered);
+        if (ncrSetsAccepted !== undefined && ncrSetsAccepted !== '') localStorage.setItem(`railpad_ncr_sets_accepted_${cid}`, ncrSetsAccepted);
+        if (ncrSetsRejected !== undefined && ncrSetsRejected !== '') localStorage.setItem(`railpad_ncr_sets_rejected_${cid}`, ncrSetsRejected);
+      }
+    });
+  };
 
   const handleLotClick = (lotId) => {
     if (lotId === selectedLot) return;
+    // Flush current lot's in-memory data to draft storage BEFORE switching to prevent losing changes
+    saveCurrentLotDraftSync();
     setLoading(true);
     setSelectedLot(lotId);
   };
@@ -2405,26 +2461,62 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
 
     const lotPromises = [
       finalInspectionLotResultsService.save(savePayload),
-      finalVisualDimensionalInspectionService.save(visualDimPayload),
-      finalWeightTestService.save(weightTestPayload),
-      finalHardnessTestService.save(hardnessPayload),
-      finalTensileStrengthService.save(tensilePayload),
-      finalElongationService.save(elongationPayload),
-      finalModulusService.save(modulusPayload),
-      finalCompressionSetService.save(compressionPayload),
-      finalTensionSetService.save(tensionPayload),
-      finalLoadTestService.save(loadPayload),
-      finalElectricalResistanceService.save(electricalPayload),
-      finalSpecificGravityService.save(sgPayload),
-      finalAshContentService.save(ashPayload),
-      finalAdhesionService.save(adhesionPayload),
-      finalSecantStiffnessService.save(secantPayload),
-      finalResilienceTestService.save(resiliencePayload),
-      finalOzoneTestService.save(ozonePayload),
-      finalPeriodicTgaService.save(tgaPayload),
-      finalPeriodicDurabilityService.save(durabilityPayload),
-      finalPeriodicAbrasionService.save(abrasionPayload)
+      finalVisualDimensionalInspectionService.save(visualDimPayload)
     ];
+
+    if (weightSamplesList.length > 0) {
+      lotPromises.push(finalWeightTestService.save(weightTestPayload));
+    }
+    const hasHardness = (tPhys.hardness?.compoundA || []).some(v => v !== '') || (tPhys.hardness?.compoundB || []).some(v => v !== '');
+    if (hasHardness) lotPromises.push(finalHardnessTestService.save(hardnessPayload));
+
+    const hasTensile = (tPhys.tensile?.before || []).some(v => v !== '') || (tPhys.tensile?.after || []).some(v => v !== '');
+    if (hasTensile) lotPromises.push(finalTensileStrengthService.save(tensilePayload));
+
+    const hasElongation = (tPhys.elongation?.before || []).some(v => v !== '') || (tPhys.elongation?.after || []).some(v => v !== '');
+    if (hasElongation) lotPromises.push(finalElongationService.save(elongationPayload));
+
+    const hasModulus = (tPhys.modulus?.before || []).some(v => v !== '') || (tPhys.modulus?.after || []).some(v => v !== '');
+    if (hasModulus) lotPromises.push(finalModulusService.save(modulusPayload));
+
+    const hasCompression = (tPhys.compression?.initial || []).some(v => v !== '') || (tPhys.compression?.final || []).some(v => v !== '');
+    if (hasCompression) lotPromises.push(finalCompressionSetService.save(compressionPayload));
+
+    const hasTension = (tPhys.tension?.initial || []).some(v => v !== '') || (tPhys.tension?.final || []).some(v => v !== '');
+    if (hasTension) lotPromises.push(finalTensionSetService.save(tensionPayload));
+
+    const hasLoad = (tPhys.loadTest?.pad1 || []).some(p => p.left !== '' || p.right !== '');
+    if (hasLoad) lotPromises.push(finalLoadTestService.save(loadPayload));
+
+    const hasElectrical = (tElec.resistance || []).some(r => r.bF !== '' || r.bR !== '');
+    if (hasElectrical) lotPromises.push(finalElectricalResistanceService.save(electricalPayload));
+
+    const hasSg = (tElec.sg?.compoundA || []).some(s => s.air !== '' || s.water !== '');
+    if (hasSg) lotPromises.push(finalSpecificGravityService.save(sgPayload));
+
+    const hasAsh = (tElec.ash?.compoundA || []).some(a => a.crucible !== '' || a.ash !== '');
+    if (hasAsh) lotPromises.push(finalAshContentService.save(ashPayload));
+
+    const hasAdhesion = (tSpec.adhesion || []).some(a => a !== '');
+    if (hasAdhesion) lotPromises.push(finalAdhesionService.save(adhesionPayload));
+
+    const hasSecant = (tSpec.secant || []).some(s => s.s20?.a !== '');
+    if (hasSecant) lotPromises.push(finalSecantStiffnessService.save(secantPayload));
+
+    const hasResilience = (tPhys.resilience || []).some(r => r.i1 !== '');
+    if (hasResilience) lotPromises.push(finalResilienceTestService.save(resiliencePayload));
+
+    const hasOzone = (tElec.ozone || []).some(o => o.initial !== '' || o.obs !== '');
+    if (hasOzone) lotPromises.push(finalOzoneTestService.save(ozonePayload));
+
+    const hasTga = (tPeriodic.tga?.samples || []).some(s => s.lotNo !== '' || s.weight !== '');
+    if (hasTga) lotPromises.push(finalPeriodicTgaService.save(tgaPayload));
+
+    const hasDurability = (tPeriodic.durability?.samples || []).some(s => s.lotNo !== '' || s.initialThick !== '');
+    if (hasDurability) lotPromises.push(finalPeriodicDurabilityService.save(durabilityPayload));
+
+    const hasAbrasion = (tPeriodic.abrasion?.samples || []).some(s => s.lotNo !== '' || s.initialMass !== '');
+    if (hasAbrasion) lotPromises.push(finalPeriodicAbrasionService.save(abrasionPayload));
 
     if (oIsNCRGRSP) {
       const ncrAdhesionPayload = {
@@ -2478,17 +2570,31 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
         ncrCordStatus: 'PASS', notOkCount: 0, remarks: tRemarks || ''
       };
 
-      lotPromises.push(
-        finalNcrAdhesionService.save(ncrAdhesionPayload),
-        finalNcrBreakingLoadService.save(ncrBreakingPayload),
-        finalNcrNylonCordService.save(ncrCordPayload)
-      );
+      const hasNcrAdhesion = (tSpec.ncrgrsp?.adhesion || []).some(a => a.peel !== '' || a.hpull !== '');
+      if (hasNcrAdhesion) lotPromises.push(finalNcrAdhesionService.save(ncrAdhesionPayload));
+
+      const hasNcrBreaking = (tSpec.ncrgrsp?.breaking || []).some(b => b !== '');
+      if (hasNcrBreaking) lotPromises.push(finalNcrBreakingLoadService.save(ncrBreakingPayload));
+
+      const hasNcrCord = (tSpec.ncrgrsp?.nylonCord || []).some(c => c.denier !== '' || c.loadAtBreak !== '');
+      if (hasNcrCord) lotPromises.push(finalNcrNylonCordService.save(ncrCordPayload));
     }
 
     return lotPromises;
   };
 
   const handleSaveAction = async (actionType) => {
+    // Flush current lot's in-memory data to draft storage immediately before any async save
+    saveCurrentLotDraftSync();
+
+    const possibleCallIds = Array.from(new Set([
+      currentCallId,
+      call?.callNo,
+      call?.icNumber,
+      call?.requestId,
+      call?.id ? String(call.id) : null
+    ].filter(Boolean)));
+
     if (actionType === 'FINISH') {
       if (!remarks.trim()) {
         showNotification('Remarks are required to finish the inspection.', 'warning');
@@ -2518,14 +2624,6 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
       try {
         setIsSubmitting(true);
         setSubmitMessage('Saving Inspection Data...');
-
-        const possibleCallIds = Array.from(new Set([
-          currentCallId,
-          call?.callNo,
-          call?.icNumber,
-          call?.requestId,
-          call?.id ? String(call.id) : null
-        ].filter(Boolean)));
 
         if (isNCRGRSP) {
           possibleCallIds.forEach(cid => {
@@ -3683,8 +3781,11 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
 
         const otherLotsFinish = lots.filter(l => l.id !== selectedLot);
         for (const oLot of otherLotsFinish) {
-          const oDraftKey = `railpad_draft_${currentCallId}_${oLot.id}`;
-          const oDraftSaved = localStorage.getItem(oDraftKey);
+          let oDraftSaved = null;
+          for (const cid of possibleCallIds) {
+            oDraftSaved = localStorage.getItem(`railpad_draft_${cid}_${oLot.id}`);
+            if (oDraftSaved) break;
+          }
           if (oDraftSaved) {
             try {
               const oDraft = JSON.parse(oDraftSaved);
@@ -3742,17 +3843,19 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
         setIsDirty(false);
         setIsSubmitting(false);
 
-        const keysToRemove = [];
-        for (let i = 0; i < localStorage.length; i++) {
-          const key = localStorage.key(i);
-          if (key && key.startsWith(`railpad_draft_${currentCallId}_`)) {
-            keysToRemove.push(key);
+        possibleCallIds.forEach(cid => {
+          const keysToRemove = [];
+          for (let i = 0; i < localStorage.length; i++) {
+            const key = localStorage.key(i);
+            if (key && key.startsWith(`railpad_draft_${cid}_`)) {
+              keysToRemove.push(key);
+            }
           }
-        }
-        keysToRemove.forEach(key => localStorage.removeItem(key));
-        localStorage.removeItem(`railpad_selected_lot_${currentCallId}`);
-        localStorage.removeItem(`railpad_call_hologram_${currentCallId}`);
-        localStorage.removeItem(`railpad_call_sealing_type_${currentCallId}`);
+          keysToRemove.forEach(key => localStorage.removeItem(key));
+          localStorage.removeItem(`railpad_selected_lot_${cid}`);
+          localStorage.removeItem(`railpad_call_hologram_${cid}`);
+          localStorage.removeItem(`railpad_call_sealing_type_${cid}`);
+        });
         showNotification(`Inspection finished successfully. All inspected lots have been saved.`, 'success');
         if (onPauseComplete) {
           setTimeout(() => {
@@ -4903,39 +5006,82 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
         setSubmitMessage('Saving Inspection Data...');
         const pausePromises = [
           finalInspectionLotResultsService.save(savePayload),
-          finalVisualDimensionalInspectionService.save(visualDimPayload),
-          finalWeightTestService.save(weightTestPayload),
-          finalHardnessTestService.save(hardnessPayloadPause),
-          finalTensileStrengthService.save(tensilePayloadPause),
-          finalElongationService.save(elongationPayloadPause),
-          finalModulusService.save(modulusPayloadPause),
-          finalCompressionSetService.save(compressionPayloadPause),
-          finalTensionSetService.save(tensionPayloadPause),
-          finalLoadTestService.save(loadPayloadPause),
-          finalElectricalResistanceService.save(electricalPayloadPause),
-          finalSpecificGravityService.save(sgPayloadPause),
-          finalAshContentService.save(ashPayloadPause),
-          finalAdhesionService.save(adhesionPayloadPause),
-          finalSecantStiffnessService.save(secantPayloadPause),
-          finalResilienceTestService.save(resiliencePayloadPause),
-          finalOzoneTestService.save(ozonePayloadPause),
-          finalPeriodicTgaService.save(tgaPayloadPause),
-          finalPeriodicDurabilityService.save(durabilityPayloadPause),
-          finalPeriodicAbrasionService.save(abrasionPayloadPause)
+          finalVisualDimensionalInspectionService.save(visualDimPayload)
         ];
 
+        if (!isNCRGRSP && weightSamplesList.length > 0) {
+          pausePromises.push(finalWeightTestService.save(weightTestPayload));
+        }
+
+        const hasHardness = (physicalData.hardness?.compoundA || []).some(v => v !== '') || (physicalData.hardness?.compoundB || []).some(v => v !== '');
+        if (hasHardness) pausePromises.push(finalHardnessTestService.save(hardnessPayloadPause));
+
+        const hasTensile = (physicalData.tensile?.before || []).some(v => v !== '') || (physicalData.tensile?.after || []).some(v => v !== '');
+        if (hasTensile) pausePromises.push(finalTensileStrengthService.save(tensilePayloadPause));
+
+        const hasElongation = (physicalData.elongation?.before || []).some(v => v !== '') || (physicalData.elongation?.after || []).some(v => v !== '');
+        if (hasElongation) pausePromises.push(finalElongationService.save(elongationPayloadPause));
+
+        const hasModulus = (physicalData.modulus?.before || []).some(v => v !== '') || (physicalData.modulus?.after || []).some(v => v !== '');
+        if (hasModulus) pausePromises.push(finalModulusService.save(modulusPayloadPause));
+
+        const hasCompression = (physicalData.compression?.initial || []).some(v => v !== '') || (physicalData.compression?.final || []).some(v => v !== '');
+        if (hasCompression) pausePromises.push(finalCompressionSetService.save(compressionPayloadPause));
+
+        const hasTension = (physicalData.tension?.initial || []).some(v => v !== '') || (physicalData.tension?.final || []).some(v => v !== '');
+        if (hasTension) pausePromises.push(finalTensionSetService.save(tensionPayloadPause));
+
+        const hasLoad = (physicalData.loadTest?.pad1 || []).some(p => p.left !== '' || p.right !== '');
+        if (hasLoad) pausePromises.push(finalLoadTestService.save(loadPayloadPause));
+
+        const hasElectrical = (elecData.resistance || []).some(r => r.bF !== '' || r.bR !== '');
+        if (hasElectrical) pausePromises.push(finalElectricalResistanceService.save(electricalPayloadPause));
+
+        const hasSg = (elecData.sg?.compoundA || []).some(s => s.air !== '' || s.water !== '');
+        if (hasSg) pausePromises.push(finalSpecificGravityService.save(sgPayloadPause));
+
+        const hasAsh = (elecData.ash?.compoundA || []).some(a => a.crucible !== '' || a.ash !== '');
+        if (hasAsh) pausePromises.push(finalAshContentService.save(ashPayloadPause));
+
+        const hasAdhesion = (specData.adhesion || []).some(a => a !== '');
+        if (hasAdhesion) pausePromises.push(finalAdhesionService.save(adhesionPayloadPause));
+
+        const hasSecant = (specData.secant || []).some(s => s.s20?.a !== '');
+        if (hasSecant) pausePromises.push(finalSecantStiffnessService.save(secantPayloadPause));
+
+        const hasResilience = (physicalData.resilience || []).some(r => r.i1 !== '');
+        if (hasResilience) pausePromises.push(finalResilienceTestService.save(resiliencePayloadPause));
+
+        const hasOzone = (elecData.ozone || []).some(o => o.initial !== '' || o.obs !== '');
+        if (hasOzone) pausePromises.push(finalOzoneTestService.save(ozonePayloadPause));
+
+        const hasTga = (periodicData.tga?.samples || []).some(s => s.lotNo !== '' || s.weight !== '');
+        if (hasTga) pausePromises.push(finalPeriodicTgaService.save(tgaPayloadPause));
+
+        const hasDurability = (periodicData.durability?.samples || []).some(s => s.lotNo !== '' || s.initialThick !== '');
+        if (hasDurability) pausePromises.push(finalPeriodicDurabilityService.save(durabilityPayloadPause));
+
+        const hasAbrasion = (periodicData.abrasion?.samples || []).some(s => s.lotNo !== '' || s.initialMass !== '');
+        if (hasAbrasion) pausePromises.push(finalPeriodicAbrasionService.save(abrasionPayloadPause));
+
         if (isNCRGRSP) {
-          pausePromises.push(
-            finalNcrAdhesionService.save(ncrAdhesionPayloadPause),
-            finalNcrBreakingLoadService.save(ncrBreakingPayloadPause),
-            finalNcrNylonCordService.save(ncrCordPayloadPause)
-          );
+          const hasNcrAdhesion = (specData.ncrgrsp?.adhesion || []).some(a => a.peel !== '' || a.hpull !== '');
+          if (hasNcrAdhesion) pausePromises.push(finalNcrAdhesionService.save(ncrAdhesionPayloadPause));
+
+          const hasNcrBreaking = (specData.ncrgrsp?.breaking || []).some(b => b !== '');
+          if (hasNcrBreaking) pausePromises.push(finalNcrBreakingLoadService.save(ncrBreakingPayloadPause));
+
+          const hasNcrCord = (specData.ncrgrsp?.nylonCord || []).some(c => c.denier !== '' || c.loadAtBreak !== '');
+          if (hasNcrCord) pausePromises.push(finalNcrNylonCordService.save(ncrCordPayloadPause));
         }
  
         const otherLotsPause = lots.filter(l => l.id !== selectedLot);
         for (const oLot of otherLotsPause) {
-          const oDraftKey = `railpad_draft_${currentCallId}_${oLot.id}`;
-          const oDraftSaved = localStorage.getItem(oDraftKey);
+          let oDraftSaved = null;
+          for (const cid of possibleCallIds) {
+            oDraftSaved = localStorage.getItem(`railpad_draft_${cid}_${oLot.id}`);
+            if (oDraftSaved) break;
+          }
           if (oDraftSaved) {
             try {
               const oDraft = JSON.parse(oDraftSaved);
@@ -4989,17 +5135,19 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
         setIsSubmitting(false);
 
         // Clear ALL cached data for this call
-        const pauseKeysToRemove = [];
-        for (let i = 0; i < localStorage.length; i++) {
-          const key = localStorage.key(i);
-          if (key && key.startsWith(`railpad_draft_${currentCallId}_`)) {
-            pauseKeysToRemove.push(key);
+        possibleCallIds.forEach(cid => {
+          const pauseKeysToRemove = [];
+          for (let i = 0; i < localStorage.length; i++) {
+            const key = localStorage.key(i);
+            if (key && key.startsWith(`railpad_draft_${cid}_`)) {
+              pauseKeysToRemove.push(key);
+            }
           }
-        }
-        pauseKeysToRemove.forEach(key => localStorage.removeItem(key));
-        localStorage.removeItem(`railpad_selected_lot_${currentCallId}`);
-        localStorage.removeItem(`railpad_call_hologram_${currentCallId}`);
-        localStorage.removeItem(`railpad_call_sealing_type_${currentCallId}`);
+          pauseKeysToRemove.forEach(key => localStorage.removeItem(key));
+          localStorage.removeItem(`railpad_selected_lot_${cid}`);
+          localStorage.removeItem(`railpad_call_hologram_${cid}`);
+          localStorage.removeItem(`railpad_call_sealing_type_${cid}`);
+        });
 
         showNotification('Inspection paused successfully. All inspected lots have been saved.', 'success');
         setIsDirty(false);

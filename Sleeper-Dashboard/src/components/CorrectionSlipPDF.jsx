@@ -533,22 +533,6 @@ const CorrectionSlipPDF = ({ icData = {}, corrections = [], callNo = '', icField
 
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
             <button
-              onClick={handleDirectDownload}
-              disabled={isESigning}
-              style={{
-                padding: '8px 18px',
-                background: '#f8fafc',
-                color: '#334155',
-                border: '1px solid #cbd5e1',
-                borderRadius: '6px',
-                fontSize: '13px',
-                fontWeight: 600,
-                cursor: isESigning ? 'not-allowed' : 'pointer',
-              }}
-            >
-              📥 Download PDF
-            </button>
-            <button
               onClick={handleESign}
               disabled={isESigning}
               style={{

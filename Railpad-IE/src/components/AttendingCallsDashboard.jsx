@@ -27,8 +27,7 @@ import {
   fetchCorrectionSlipDocument,
   fetchCorrectionSlip,
   fetchCorrectionSlipDocuments,
-  getViewCorrectionSlipPdfUrl,
-  getViewCorrectionSlipPdfByIdUrl
+  viewCorrectionSlipPdf
 } from '../services/correctionSlipService';
 import { downloadOrNotifyCaseLetter, fetchSavedCaseLetterInfo } from '../services/caseLetterService';
 
@@ -2284,10 +2283,7 @@ const AttendingCallsDashboard = ({
                         onClick={() => {
                           const row = selectedActionCall;
                           if (docs.length === 1) {
-                            const singleUrl = docs[0].id
-                              ? getViewCorrectionSlipPdfByIdUrl(docs[0].id)
-                              : getViewCorrectionSlipPdfUrl(callNo);
-                            window.open(singleUrl, '_blank');
+                            viewCorrectionSlipPdf(callNo, docs[0].id);
                           } else {
                             setSelectedActionCall(null);
                             setSlipListModalCall(row);

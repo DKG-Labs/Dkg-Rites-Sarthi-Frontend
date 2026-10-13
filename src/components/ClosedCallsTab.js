@@ -14,8 +14,7 @@ import CorrectionSlipListModal from './CorrectionSlipListModal';
 import Modal from './Modal';
 import {
   fetchCorrectionSlipDocuments,
-  getViewCorrectionSlipPdfUrl,
-  getViewCorrectionSlipPdfByIdUrl
+  viewCorrectionSlipPdf
 } from '../services/correctionSlipService';
 import { downloadOrNotifyCaseLetter } from '../services/caseLetterService';
 import axios from 'axios';
@@ -703,11 +702,8 @@ const ClosedCallsTab = ({ setSelectedCall, setCurrentPage }) => {
                         onClick={() => {
                           const row = selectedActionCall;
                           if (docs.length === 1) {
-                            // Only 1 slip -> directly open/view PDF
-                            const singleUrl = docs[0].id
-                              ? getViewCorrectionSlipPdfByIdUrl(docs[0].id)
-                              : getViewCorrectionSlipPdfUrl(currentCallNo);
-                            window.open(singleUrl, '_blank');
+                            // Only 1 slip -> directly open/view PDF with authenticated fetch
+                            viewCorrectionSlipPdf(currentCallNo, docs[0].id);
                           } else {
                             // More than 1 slip -> open Selection Modal
                             setSelectedActionCall(null);

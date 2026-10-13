@@ -5,8 +5,8 @@ import VisibilityRoundedIcon from '@mui/icons-material/VisibilityRounded';
 import AddCircleOutlineRoundedIcon from '@mui/icons-material/AddCircleOutlineRounded';
 import CloseRoundedIcon from '@mui/icons-material/CloseRounded';
 import {
-  getViewCorrectionSlipPdfByIdUrl,
-  getDownloadCorrectionSlipPdfByIdUrl
+  viewCorrectionSlipPdf,
+  downloadCorrectionSlipPdf
 } from '../services/correctionSlipService';
 
 const CorrectionSlipListModal = ({
@@ -176,8 +176,6 @@ const CorrectionSlipListModal = ({
           ) : (
             documents.map((doc, idx) => {
               const slipNumber = doc.slipNumber || idx + 1;
-              const viewUrl = doc.id ? getViewCorrectionSlipPdfByIdUrl(doc.id) : null;
-              const downloadUrl = doc.id ? getDownloadCorrectionSlipPdfByIdUrl(doc.id) : null;
 
               return (
                 <div
@@ -258,73 +256,66 @@ const CorrectionSlipListModal = ({
 
                   {/* Actions */}
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
-                    {viewUrl && (
-                      <a
-                        href={viewUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        style={{
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          gap: '6px',
-                          padding: '8px 14px',
-                          background: '#eff6ff',
-                          color: '#2563eb',
-                          border: '1px solid #bfdbfe',
-                          borderRadius: '8px',
-                          fontWeight: 600,
-                          fontSize: '13px',
-                          textDecoration: 'none',
-                          cursor: 'pointer',
-                          transition: 'all 0.2s'
-                        }}
-                        onMouseEnter={(e) => {
-                          e.currentTarget.style.background = '#2563eb';
-                          e.currentTarget.style.color = '#ffffff';
-                        }}
-                        onMouseLeave={(e) => {
-                          e.currentTarget.style.background = '#eff6ff';
-                          e.currentTarget.style.color = '#2563eb';
-                        }}
-                        title="View Correction Slip PDF inline"
-                      >
-                        <VisibilityRoundedIcon style={{ fontSize: '16px' }} />
-                        View
-                      </a>
-                    )}
-                    {downloadUrl && (
-                      <a
-                        href={downloadUrl}
-                        download={`Correction_Slip_${callNo}_${slipNumber}.pdf`}
-                        style={{
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          gap: '6px',
-                          padding: '8px 14px',
-                          background: '#f8fafc',
-                          color: '#475569',
-                          border: '1px solid #cbd5e1',
-                          borderRadius: '8px',
-                          fontWeight: 600,
-                          fontSize: '13px',
-                          textDecoration: 'none',
-                          cursor: 'pointer',
-                          transition: 'all 0.2s'
-                        }}
-                        onMouseEnter={(e) => {
-                          e.currentTarget.style.background = '#334155';
-                          e.currentTarget.style.color = '#ffffff';
-                        }}
-                        onMouseLeave={(e) => {
-                          e.currentTarget.style.background = '#f8fafc';
-                          e.currentTarget.style.color = '#475569';
-                        }}
-                        title="Download Correction Slip PDF"
-                      >
-                        <FileDownloadRoundedIcon style={{ fontSize: '16px' }} />
-                        Download
-                      </a>
-                    )}
+                    <button
+                      type="button"
+                      onClick={() => viewCorrectionSlipPdf(callNo, doc.id)}
+                      style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '6px',
+                        padding: '8px 14px',
+                        background: '#eff6ff',
+                        color: '#2563eb',
+                        border: '1px solid #bfdbfe',
+                        borderRadius: '8px',
+                        fontWeight: 600,
+                        fontSize: '13px',
+                        cursor: 'pointer',
+                        transition: 'all 0.2s'
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.background = '#2563eb';
+                        e.currentTarget.style.color = '#ffffff';
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.background = '#eff6ff';
+                        e.currentTarget.style.color = '#2563eb';
+                      }}
+                      title="View Correction Slip PDF inline"
+                    >
+                      <VisibilityRoundedIcon style={{ fontSize: '16px' }} />
+                      View
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => downloadCorrectionSlipPdf(callNo, doc.id, `Correction_Slip_${callNo}_${slipNumber}.pdf`)}
+                      style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '6px',
+                        padding: '8px 14px',
+                        background: '#f8fafc',
+                        color: '#475569',
+                        border: '1px solid #cbd5e1',
+                        borderRadius: '8px',
+                        fontWeight: 600,
+                        fontSize: '13px',
+                        cursor: 'pointer',
+                        transition: 'all 0.2s'
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.background = '#334155';
+                        e.currentTarget.style.color = '#ffffff';
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.background = '#f8fafc';
+                        e.currentTarget.style.color = '#475569';
+                      }}
+                      title="Download Correction Slip PDF"
+                    >
+                      <FileDownloadRoundedIcon style={{ fontSize: '16px' }} />
+                      Download
+                    </button>
                   </div>
                 </div>
               );

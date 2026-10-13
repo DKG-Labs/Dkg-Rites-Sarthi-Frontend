@@ -34,15 +34,10 @@ export const checkTolerance = (field, value, productType) => {
     const num = parseFloat(value);
     if (isNaN(num)) return { isValid: false, isApplicable: true };
 
-<<<<<<< HEAD
-    const isMk3 = /MK[- ]?III/i.test(productType || '');
-    const isMkV = /MK[- ]?V/i.test(productType || '');
-=======
     const str = String(productType || '').trim();
-    const isMk3 = /MK-?III/i.test(str);
-    const isMkV = /MK-?V/i.test(str);
+    const isMk3 = /MK[- ]?III/i.test(str);
+    const isMkV = /MK[- ]?V/i.test(str);
     const isJType = /J(-?Type|-?Clip)?/i.test(str) || /ERC-?J/i.test(str) || /^J$/i.test(str) || /4158/i.test(str);
->>>>>>> fixedcode
     let rules = TOLERANCE_RULES[field];
 
     if (!rules) return { isValid: true, isApplicable: false };

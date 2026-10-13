@@ -8,11 +8,18 @@ import { getBaseUrl } from './apiConfig';
 
 const LS_KEY_PREFIX = 'correctionSlip_';
 
+const getToken = () => {
+  return localStorage.getItem('token') ||
+         localStorage.getItem('authToken') ||
+         localStorage.getItem('jwtToken') ||
+         sessionStorage.getItem('token') || '';
+};
+
 const getAuthHeaders = () => {
-  const token = localStorage.getItem('authToken');
+  const token = getToken();
   return {
     'Content-Type': 'application/json',
-    Authorization: token ? `Bearer ${token}` : '',
+    Authorization: token ? (token.startsWith('Bearer ') ? token : `Bearer ${token}`) : '',
   };
 };
 
@@ -162,6 +169,72 @@ export const getViewCorrectionSlipPdfByIdUrl = (id) => {
 
 export const getDownloadCorrectionSlipPdfByIdUrl = (id) => {
   return `${getEndpoint()}/download-pdf-by-id/${id}`;
+};
+
+/**
+ * View stored Correction Slip PDF using authenticated fetch
+ */
+export const viewCorrectionSlipPdf = async (callNo, docId = null) => {
+  if (!callNo && !docId) return;
+  const token = getToken();
+  const url = docId 
+    ? getViewCorrectionSlipPdfByIdUrl(docId) 
+    : getViewCorrectionSlipPdfUrl(callNo);
+
+  try {
+    const headers = {};
+    if (token) {
+      headers['Authorization'] = token.startsWith('Bearer ') ? token : `Bearer ${token}`;
+    }
+    const response = await fetch(url, { method: 'GET', headers });
+    if (!response.ok) {
+      throw new Error(`Failed to load PDF (HTTP ${response.status})`);
+    }
+    const blob = await response.blob();
+    const pdfBlob = new Blob([blob], { type: 'application/pdf' });
+    const blobUrl = window.URL.createObjectURL(pdfBlob);
+    window.open(blobUrl, '_blank');
+    setTimeout(() => window.URL.revokeObjectURL(blobUrl), 60000);
+  } catch (error) {
+    console.error('Error viewing correction slip PDF via authenticated fetch:', error);
+    window.open(url, '_blank');
+  }
+};
+
+/**
+ * Download stored Correction Slip PDF using authenticated fetch
+ */
+export const downloadCorrectionSlipPdf = async (callNo, docId = null, filename = null) => {
+  if (!callNo && !docId) return;
+  const token = getToken();
+  const url = docId 
+    ? getDownloadCorrectionSlipPdfByIdUrl(docId) 
+    : getDownloadCorrectionSlipPdfUrl(callNo);
+
+  try {
+    const headers = {};
+    if (token) {
+      headers['Authorization'] = token.startsWith('Bearer ') ? token : `Bearer ${token}`;
+    }
+    const response = await fetch(url, { method: 'GET', headers });
+    if (!response.ok) {
+      throw new Error(`Failed to download PDF (HTTP ${response.status})`);
+    }
+    const blob = await response.blob();
+    const pdfBlob = new Blob([blob], { type: 'application/pdf' });
+    const blobUrl = window.URL.createObjectURL(pdfBlob);
+    
+    const link = document.createElement('a');
+    link.href = blobUrl;
+    link.download = filename || `Correction_Slip_${callNo || docId}.pdf`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    setTimeout(() => window.URL.revokeObjectURL(blobUrl), 30000);
+  } catch (error) {
+    console.error('Error downloading correction slip PDF via authenticated fetch:', error);
+    window.open(url, '_blank');
+  }
 };
 
 export const deleteCorrectionSlip = async (callNo) => {

@@ -12,8 +12,8 @@ import {
 import {
   fetchCorrectionSlip,
   fetchCorrectionSlipDocument,
-  getViewCorrectionSlipPdfUrl,
-  getDownloadCorrectionSlipPdfUrl,
+  viewCorrectionSlipPdf,
+  downloadCorrectionSlipPdf,
   deleteCorrectionSlip
 } from '../services/correctionSlipService';
 import { getStoredUser } from '../services/authService';
@@ -968,7 +968,7 @@ const CorrectionSlipModal = ({ row, onClose, viewOnly = false, isViewOnly = fals
               <>
                 <button
                   type="button"
-                  onClick={() => window.open(getViewCorrectionSlipPdfUrl(callNo), '_blank')}
+                  onClick={() => viewCorrectionSlipPdf(callNo)}
                   style={{
                     padding: '6px 12px',
                     background: '#ecfdf5',
@@ -988,7 +988,7 @@ const CorrectionSlipModal = ({ row, onClose, viewOnly = false, isViewOnly = fals
                 </button>
                 <button
                   type="button"
-                  onClick={() => window.open(getDownloadCorrectionSlipPdfUrl(callNo), '_blank')}
+                  onClick={() => downloadCorrectionSlipPdf(callNo)}
                   style={{
                     padding: '6px 12px',
                     background: '#f0f9ff',
@@ -1041,7 +1041,7 @@ const CorrectionSlipModal = ({ row, onClose, viewOnly = false, isViewOnly = fals
               {storedDoc && (
                 <button
                   type="button"
-                  onClick={() => window.open(getViewCorrectionSlipPdfUrl(callNo), '_blank')}
+                  onClick={() => viewCorrectionSlipPdf(callNo)}
                   style={{
                     padding: '8px 14px', background: '#ffffff', color: '#1d4ed8',
                     border: '1.5px solid #93c5fd', borderRadius: '8px', fontWeight: '600', fontSize: '12.5px',
@@ -1190,7 +1190,7 @@ const CorrectionSlipModal = ({ row, onClose, viewOnly = false, isViewOnly = fals
               {storedDoc && (
                 <button
                   style={{ ...S.btnSuccess, background: '#059669' }}
-                  onClick={() => window.open(getViewCorrectionSlipPdfUrl(callNo), '_blank')}
+                  onClick={() => viewCorrectionSlipPdf(callNo)}
                 >
                   📄 View Stored PDF
                 </button>

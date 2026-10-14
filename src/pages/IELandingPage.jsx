@@ -173,11 +173,11 @@ const IELandingPage = ({ onStartInspection, onStartMultipleInspections, setSelec
       if (!userId) return;
       const signed = await fetchSignedCallsForIC(userId);
       const validSigned = signed.filter(c => 
-        c.status === 'Completed' || 
-        c.status === 'DSC_SIGN_IC' || 
-        c.originalStatus === 'DSC_SIGN_IC' ||
-        (c.status || '').toUpperCase().includes('CANCEL') ||
-        (c.originalStatus || '').toUpperCase().includes('CANCEL')
+        (c.status === 'Completed' || c.status === 'DSC_SIGN_IC' || c.originalStatus === 'DSC_SIGN_IC') &&
+        !(c.status || '').toUpperCase().includes('CANCEL') &&
+        !(c.originalStatus || '').toUpperCase().includes('CANCEL') &&
+        (c.status || '').toUpperCase() !== 'BLOCKED' &&
+        (c.originalStatus || '').toUpperCase() !== 'BLOCKED'
       );
       setSignedCallsCount(validSigned.length);
     } catch (error) {

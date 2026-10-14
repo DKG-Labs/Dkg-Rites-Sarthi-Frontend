@@ -118,13 +118,13 @@ const CompletedCallsTab = ({ setSelectedCall, setCurrentPage, onCallSentToIbs })
           return;
         }
         const fetched = await fetchSignedCallsForIC(userId);
-        // Keep completed / signed / cancelled calls
+        // Keep completed / signed calls (exclude cancelled and blocked)
         const validCalls = fetched.filter(c => 
-          c.status === 'Completed' || 
-          c.status === 'DSC_SIGN_IC' || 
-          c.originalStatus === 'DSC_SIGN_IC' ||
-          (c.status || '').toUpperCase().includes('CANCEL') ||
-          (c.originalStatus || '').toUpperCase().includes('CANCEL')
+          (c.status === 'Completed' || c.status === 'DSC_SIGN_IC' || c.originalStatus === 'DSC_SIGN_IC') &&
+          !(c.status || '').toUpperCase().includes('CANCEL') &&
+          !(c.originalStatus || '').toUpperCase().includes('CANCEL') &&
+          (c.status || '').toUpperCase() !== 'BLOCKED' &&
+          (c.originalStatus || '').toUpperCase() !== 'BLOCKED'
         );
         setCompletedCalls(validCalls);
       } catch (err) {

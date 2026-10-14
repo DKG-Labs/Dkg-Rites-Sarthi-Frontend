@@ -3361,53 +3361,89 @@ const ScadaMonitor = ({ selectedProduct }) => {
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '15px', marginBottom: '15px' }}>
                     <div>
                         <label style={{ display: 'block', fontSize: '12px', fontWeight: '700', color: '#166534', marginBottom: '5px' }}>Manufacturer</label>
-                        <select
-                            value={manufacturer}
-                            onChange={(e) => { setManufacturer(e.target.value); setCurrentPage(0); }}
-                            style={{ width: '100%', padding: '8px', borderRadius: '6px', border: '1px solid #bbf7d0', background: '#f0fdf4', fontSize: '13px' }}
-                        >
-                            <option value="">Select Manufacturer</option>
-                            {SCADA_MANUFACTURERS.map(m => <option key={m.value} value={m.value}>{m.label}</option>)}
-                        </select>
+                        <Select
+                            showSearch
+                            allowClear
+                            placeholder="Select Manufacturer"
+                            value={manufacturer || undefined}
+                            onChange={(val) => { setManufacturer(val || ''); setCurrentPage(0); }}
+                            className="scada-select"
+                            popupClassName="scada-select-dropdown"
+                            dropdownClassName="scada-select-dropdown"
+                            style={{ width: '100%' }}
+                            listHeight={260}
+                            options={SCADA_MANUFACTURERS}
+                            filterOption={(input, option) =>
+                                (option?.label ?? '').toLowerCase().includes(input.toLowerCase()) ||
+                                (option?.value ?? '').toLowerCase().includes(input.toLowerCase())
+                            }
+                        />
                     </div>
 
                     <div>
                         <label style={{ display: 'block', fontSize: '12px', fontWeight: '700', color: '#166534', marginBottom: '5px' }}>Unit</label>
-                        <select
-                            value={unit}
-                            onChange={(e) => { setUnit(e.target.value); setCurrentPage(0); }}
+                        <Select
+                            showSearch
+                            allowClear
+                            placeholder="Search or Select Unit"
+                            value={unit || undefined}
+                            onChange={(val) => { setUnit(val || ''); setCurrentPage(0); }}
                             disabled={!manufacturer}
-                            style={{ width: '100%', padding: '8px', borderRadius: '6px', border: '1px solid #bbf7d0', background: manufacturer ? '#f0fdf4' : '#f8fafc', fontSize: '13px' }}
-                        >
-                            <option value="">Select Unit</option>
-                            {SCADA_UNITS.map(u => <option key={u.value} value={u.value}>{u.label}</option>)}
-                        </select>
+                            className="scada-select"
+                            popupClassName="scada-select-dropdown"
+                            dropdownClassName="scada-select-dropdown"
+                            style={{ width: '100%' }}
+                            listHeight={260}
+                            options={SCADA_UNITS}
+                            filterOption={(input, option) =>
+                                (option?.label ?? '').toLowerCase().includes(input.toLowerCase()) ||
+                                (option?.value ?? '').toLowerCase().includes(input.toLowerCase())
+                            }
+                        />
                     </div>
 
                     <div>
                         <label style={{ display: 'block', fontSize: '12px', fontWeight: '700', color: '#166534', marginBottom: '5px' }}>Line</label>
-                        <select
-                            value={line}
-                            onChange={(e) => { setLine(e.target.value); setCurrentPage(0); }}
+                        <Select
+                            showSearch
+                            allowClear
+                            placeholder="Select Line"
+                            value={line || undefined}
+                            onChange={(val) => { setLine(val || ''); setCurrentPage(0); }}
                             disabled={!unit}
-                            style={{ width: '100%', padding: '8px', borderRadius: '6px', border: '1px solid #bbf7d0', background: unit ? '#f0fdf4' : '#f8fafc', fontSize: '13px' }}
-                        >
-                            <option value="">Select Line</option>
-                            {SCADA_LINES.map(l => <option key={l.value} value={l.value}>{l.label}</option>)}
-                        </select>
+                            className="scada-select"
+                            popupClassName="scada-select-dropdown"
+                            dropdownClassName="scada-select-dropdown"
+                            style={{ width: '100%' }}
+                            listHeight={260}
+                            options={SCADA_LINES}
+                            filterOption={(input, option) =>
+                                (option?.label ?? '').toLowerCase().includes(input.toLowerCase()) ||
+                                (option?.value ?? '').toLowerCase().includes(input.toLowerCase())
+                            }
+                        />
                     </div>
 
                     <div>
                         <label style={{ display: 'block', fontSize: '12px', fontWeight: '700', color: '#166534', marginBottom: '5px' }}>Data Acquisition Stage</label>
-                        <select
-                            value={stage}
-                            onChange={(e) => { setStage(e.target.value); setCurrentPage(0); }}
+                        <Select
+                            showSearch
+                            allowClear
+                            placeholder="Select Stage"
+                            value={stage || undefined}
+                            onChange={(val) => { setStage(val || ''); setCurrentPage(0); }}
                             disabled={!line}
-                            style={{ width: '100%', padding: '8px', borderRadius: '6px', border: '1px solid #bbf7d0', background: line ? '#f0fdf4' : '#f8fafc', fontSize: '13px' }}
-                        >
-                            <option value="">Select Stage</option>
-                            {SCADA_STAGES.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
-                        </select>
+                            className="scada-select"
+                            popupClassName="scada-select-dropdown"
+                            dropdownClassName="scada-select-dropdown"
+                            style={{ width: '100%' }}
+                            listHeight={260}
+                            options={SCADA_STAGES}
+                            filterOption={(input, option) =>
+                                (option?.label ?? '').toLowerCase().includes(input.toLowerCase()) ||
+                                (option?.value ?? '').toLowerCase().includes(input.toLowerCase())
+                            }
+                        />
                     </div>
                 </div>
 

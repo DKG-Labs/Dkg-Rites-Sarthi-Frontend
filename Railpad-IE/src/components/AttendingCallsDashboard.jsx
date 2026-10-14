@@ -31,6 +31,22 @@ import {
 } from '../services/correctionSlipService';
 import { downloadOrNotifyCaseLetter, fetchSavedCaseLetterInfo } from '../services/caseLetterService';
 
+const isProcessCall = (call) => {
+  if (!call) return false;
+  const callNo = String(call.call_no || call.callNumber || call.requestId || call.callNo || '').toUpperCase().trim();
+  if (callNo.startsWith('EP-') || callNo.startsWith('EP_') || callNo === 'EP' || (callNo.startsWith('EP') && /^EP[-_0-9]/.test(callNo))) {
+    return true;
+  }
+  if (callNo.startsWith('RPP-') || callNo.startsWith('RPP_') || callNo === 'RPP' || (callNo.startsWith('RPP') && /^RPP[-_0-9]/.test(callNo))) {
+    return true;
+  }
+  const stage = String(call.stage || call.call_stage || call.callStage || call.callType || call.call_type || '').toUpperCase();
+  if (stage.includes('PROCESS') || stage === 'P' || stage === 'EP' || stage === 'RPP') {
+    return true;
+  }
+  return false;
+};
+
 const AttendingCallsDashboard = ({ 
   onStart, 
   onResume, 
@@ -2129,63 +2145,85 @@ const AttendingCallsDashboard = ({
                 </button>
 
                 {/* 2. Send call to IBS (Completed Calls only) */}
-                {!selectedActionCall.isClosed && activeTab !== 'closed' && (
-                  <button
-                    onClick={() => {
-                      if (!hasCaseLetter || checkingCaseLetter) return;
-                      const row = selectedActionCall;
-                      setSelectedActionCall(null);
-                      setSendIbsCallRow(row);
-                    }}
-                    disabled={!hasCaseLetter || checkingCaseLetter}
-                    style={{
-                      display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '6px',
-                      padding: '16px 12px',
-                      background: (!hasCaseLetter || checkingCaseLetter) ? '#f8fafc' : 'linear-gradient(135deg, #dcfce7 0%, #bbf7d0 100%)',
-                      border: (!hasCaseLetter || checkingCaseLetter) ? '1.5px dashed #cbd5e1' : '1px solid #86efac',
-                      borderRadius: '14px',
-                      cursor: (!hasCaseLetter || checkingCaseLetter) ? 'not-allowed' : 'pointer',
-                      transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-                      color: (!hasCaseLetter || checkingCaseLetter) ? '#94a3b8' : '#15803d',
-                      width: '100%',
-                      opacity: (!hasCaseLetter || checkingCaseLetter) ? 0.7 : 1,
-                      boxShadow: (!hasCaseLetter || checkingCaseLetter) ? 'none' : '0 4px 6px -1px rgba(21, 128, 61, 0.1), 0 2px 4px -1px rgba(21, 128, 61, 0.06)'
-                    }}
-                    onMouseEnter={(e) => { 
-                      if (hasCaseLetter && !checkingCaseLetter) {
-                        e.currentTarget.style.transform = 'translateY(-3px)';
-                        e.currentTarget.style.boxShadow = '0 10px 15px -3px rgba(21, 128, 61, 0.2), 0 4px 6px -2px rgba(21, 128, 61, 0.1)'; 
+                {!selectedActionCall.isClosed && activeTab !== 'closed' && (() => {
+                  const isProcess = isProcessCall(selectedActionCall);
+                  const isCaseLetterMandatory = !isProcess;
+                  const canSendToIbs = hasCaseLetter || !isCaseLetterMandatory;
+                  const isBtnDisabled = !canSendToIbs || checkingCaseLetter;
+
+                  return (
+                    <button
+                      onClick={() => {
+                        if (isBtnDisabled) return;
+                        const row = selectedActionCall;
+                        setSelectedActionCall(null);
+                        setSendIbsCallRow(row);
+                      }}
+                      disabled={isBtnDisabled}
+                      style={{
+                        display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '6px',
+                        padding: '16px 12px',
+                        background: isBtnDisabled ? '#f8fafc' : 'linear-gradient(135deg, #dcfce7 0%, #bbf7d0 100%)',
+                        border: isBtnDisabled ? '1.5px dashed #cbd5e1' : '1px solid #86efac',
+                        borderRadius: '14px',
+                        cursor: isBtnDisabled ? 'not-allowed' : 'pointer',
+                        transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                        color: isBtnDisabled ? '#94a3b8' : '#15803d',
+                        width: '100%',
+                        opacity: isBtnDisabled ? 0.7 : 1,
+                        boxShadow: isBtnDisabled ? 'none' : '0 4px 6px -1px rgba(21, 128, 61, 0.1), 0 2px 4px -1px rgba(21, 128, 61, 0.06)'
+                      }}
+                      onMouseEnter={(e) => { 
+                        if (!isBtnDisabled) {
+                          e.currentTarget.style.transform = 'translateY(-3px)';
+                          e.currentTarget.style.boxShadow = '0 10px 15px -3px rgba(21, 128, 61, 0.2), 0 4px 6px -2px rgba(21, 128, 61, 0.1)'; 
+                        }
+                      }}
+                      onMouseLeave={(e) => { 
+                        if (!isBtnDisabled) {
+                          e.currentTarget.style.transform = 'translateY(0)';
+                          e.currentTarget.style.boxShadow = '0 4px 6px -1px rgba(21, 128, 61, 0.1), 0 2px 4px -1px rgba(21, 128, 61, 0.06)'; 
+                        }
+                      }}
+                      title={
+                        checkingCaseLetter
+                          ? "Checking Case Letter..."
+                          : !hasCaseLetter
+                            ? (isCaseLetterMandatory ? "Case Letter is mandatory before sending call to IBS" : "Send call to IBS (Case Letter optional)")
+                            : "Send call to IBS"
                       }
-                    }}
-                    onMouseLeave={(e) => { 
-                      if (hasCaseLetter && !checkingCaseLetter) {
-                        e.currentTarget.style.transform = 'translateY(0)';
-                        e.currentTarget.style.boxShadow = '0 4px 6px -1px rgba(21, 128, 61, 0.1), 0 2px 4px -1px rgba(21, 128, 61, 0.06)'; 
-                      }
-                    }}
-                    title={checkingCaseLetter ? "Checking Case Letter..." : (!hasCaseLetter ? "Case Letter is mandatory before sending call to IBS" : "Send call to IBS")}
-                  >
-                    <div style={{
-                      width: '42px', height: '42px',
-                      background: (!hasCaseLetter || checkingCaseLetter) ? '#f1f5f9' : '#ffffff',
-                      borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      boxShadow: '0 2px 4px rgba(0,0,0,0.05)'
-                    }}>
-                      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={(!hasCaseLetter || checkingCaseLetter) ? '#94a3b8' : '#15803d'} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
-                    </div>
-                    <span style={{ fontWeight: '700', fontSize: '14px' }}>Send call to IBS</span>
-                    {(!hasCaseLetter && !checkingCaseLetter) && (
-                      <span style={{ fontSize: '9.5px', color: '#dc2626', fontWeight: '800', marginTop: '-2px', background: '#fee2e2', padding: '2px 6px', borderRadius: '4px' }}>
-                        Case Letter Required
-                      </span>
-                    )}
-                    {checkingCaseLetter && (
-                      <span style={{ fontSize: '9.5px', color: '#64748b', fontWeight: '600', marginTop: '-2px' }}>
-                        Checking Case Letter...
-                      </span>
-                    )}
-                  </button>
-                )}
+                    >
+                      <div style={{
+                        width: '42px', height: '42px',
+                        background: isBtnDisabled ? '#f1f5f9' : '#ffffff',
+                        borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        boxShadow: '0 2px 4px rgba(0,0,0,0.05)'
+                      }}>
+                        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={isBtnDisabled ? '#94a3b8' : '#15803d'} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+                      </div>
+                      <span style={{ fontWeight: '700', fontSize: '14px' }}>Send call to IBS</span>
+                      {checkingCaseLetter ? (
+                        <span style={{ fontSize: '9.5px', color: '#64748b', fontWeight: '600', marginTop: '-2px' }}>
+                          Checking Case Letter...
+                        </span>
+                      ) : !hasCaseLetter ? (
+                        isCaseLetterMandatory ? (
+                          <span style={{ fontSize: '9.5px', color: '#dc2626', fontWeight: '800', marginTop: '-2px', background: '#fee2e2', padding: '2px 6px', borderRadius: '4px' }}>
+                            Case Letter Required
+                          </span>
+                        ) : (
+                          <span style={{ fontSize: '9.5px', color: '#0369a1', fontWeight: '700', marginTop: '-2px', background: '#e0f2fe', padding: '2px 6px', borderRadius: '4px' }}>
+                            Case Letter Optional
+                          </span>
+                        )
+                      ) : (
+                        <span style={{ fontSize: '9.5px', color: '#15803d', fontWeight: '700', marginTop: '-2px', background: '#dcfce7', padding: '2px 6px', borderRadius: '4px' }}>
+                          Case Letter Attached
+                        </span>
+                      )}
+                    </button>
+                  );
+                })()}
 
                 {/* Correction Slip (Closed Calls only) */}
                 {(selectedActionCall.isClosed || activeTab === 'closed') && (() => {

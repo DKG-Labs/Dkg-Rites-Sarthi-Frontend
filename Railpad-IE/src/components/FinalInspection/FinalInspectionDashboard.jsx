@@ -360,6 +360,16 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
   const activeRailpadType = activeLot.railpadType || call?.railPadType || call?.railpadType || 'GRSP';
   const isNCRGRSP = (activeRailpadType || '').toUpperCase().includes('NCR') || (call?.railPadType || '').toUpperCase().includes('NCR') || (call?.railpadType || '').toUpperCase().includes('NCR');
 
+  const isHiddenWeightTest = (lot, callObj) => {
+    const type = String(lot?.railpadType || activeRailpadType || callObj?.railPadType || callObj?.railpadType || '').toUpperCase().trim();
+    const dwg = String(lot?.drawingNo || lot?.drgNo || callObj?.drawingNo || callObj?.drawing_no || '').toUpperCase().trim();
+    const is10mmCgrsp = (type.includes('10') && type.includes('CGRSP')) || type.includes('10.00MM CGRSP') || type.includes('10MM CGRSP');
+    const isTargetDrg = dwg.includes('8694') || dwg.includes('8998');
+    return is10mmCgrsp && isTargetDrg;
+  };
+
+  const isWeightHidden = isNCRGRSP || isHiddenWeightTest(activeLot, call);
+
   // State Management for Dirty Form
   const [isDirty, setIsDirty] = useState(false);
   const [pendingLotId, setPendingLotId] = useState(null);
@@ -2651,8 +2661,10 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
         const ncrStatus = ncrDecision === 'LOT PASSED' ? 'PASS' : ncrDecision === 'PENDING VERIFICATION' ? 'PENDING' : ncrDecision === 'RE-TEST REQUIRED' ? 'RE-TEST' : 'FAIL';
 
         const isDimensionalReOffered = dimensionalStatus === 'RE-OFFERED' || dimensionalStatus === 'RE-OFFER';
-        const isWeightPass = isNCRGRSP ? true : (weightStatus === 'ACCEPTED');
-        const isWeightPending = isNCRGRSP ? false : (!isWeightPass && weightStatus !== 'REJECTED');
+        const currentLotObj = lots.find(l => l.id === selectedLot) || activeLot;
+        const currentLotWeightHidden = isNCRGRSP || isHiddenWeightTest(currentLotObj, call);
+        const isWeightPass = currentLotWeightHidden ? true : (weightStatus === 'ACCEPTED');
+        const isWeightPending = currentLotWeightHidden ? false : (!isWeightPass && weightStatus !== 'REJECTED');
         const isAllCorePass = visualStatus === 'PASS' && dimensionalStatus === 'PASS' && isWeightPass;
         const isAnyCorePending = visualStatus === 'PENDING'
           || (dimensionalStatus === 'PENDING' && !isDimensionalReOffered)
@@ -2798,7 +2810,7 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
             sampleSize: String(visualData.dimN || 25),
             status: dimensionalResult
           },
-          ...(!isNCRGRSP ? [{
+          ...(!currentLotWeightHidden ? [{
             sectionKey: 'weight',
             sectionName: 'Weight Test',
             sampleSize: String((weightData.isSecondActive || showWeightSecond) ? `${weightData.n1} + ${weightData.n2}` : weightData.n1),
@@ -3904,8 +3916,10 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
         // Visual Inspection, Dimensional Inspection, Weight Test.
         // Priority: RE-OFFERED (dimensional) > PENDING > ACCEPTED > REJECTED
         const isDimensionalReOffered = dimensionalStatus === 'RE-OFFERED' || dimensionalStatus === 'RE-OFFER';
-        const isWeightPass = isNCRGRSP ? true : (weightStatus === 'ACCEPTED');
-        const isWeightPending = isNCRGRSP ? false : (!isWeightPass && weightStatus !== 'REJECTED');
+        const currentLotObj = lots.find(l => l.id === selectedLot) || activeLot;
+        const currentLotWeightHidden = isNCRGRSP || isHiddenWeightTest(currentLotObj, call);
+        const isWeightPass = currentLotWeightHidden ? true : (weightStatus === 'ACCEPTED');
+        const isWeightPending = currentLotWeightHidden ? false : (!isWeightPass && weightStatus !== 'REJECTED');
         const isAllCorePass = visualStatus === 'PASS' && dimensionalStatus === 'PASS' && isWeightPass;
         // PENDING check covers ALL sections - if any section (incl. Physical/Elec/Spec) is not yet done, lot stays PENDING
         const isAnyCorePending = visualStatus === 'PENDING'
@@ -4057,7 +4071,7 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
             sampleSize: String(visualData.dimN || 25),
             status: dimensionalResult
           },
-          ...(!isNCRGRSP ? [{
+          ...(!currentLotWeightHidden ? [{
             sectionKey: 'weight',
             sectionName: 'Weight Test',
             sampleSize: String((weightData.isSecondActive || showWeightSecond) ? `${weightData.n1} + ${weightData.n2}` : weightData.n1),
@@ -5009,7 +5023,7 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
           finalVisualDimensionalInspectionService.save(visualDimPayload)
         ];
 
-        if (!isNCRGRSP && weightSamplesList.length > 0) {
+        if (!currentLotWeightHidden && weightSamplesList.length > 0) {
           pausePromises.push(finalWeightTestService.save(weightTestPayload));
         }
 
@@ -5257,6 +5271,8 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
   const totalNotOk = notOk1 + notOk2;
 
   const filled1 = weightData.samples1.filter(v => v !== '').length;
+  const filled2 = weightData.samples2.filter(v => v !== '').length;
+  const hasWeightData = filled1 > 0 || filled2 > 0;
   let weightStatus = 'PENDING';
 
   if (notOk1 >= weightData.re1) {
@@ -5266,7 +5282,6 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
       weightStatus = 'ACCEPTED';
     } else {
       weightStatus = '2ND SAMPLING';
-      const filled2 = weightData.samples2.filter(v => v !== '').length;
       if (totalNotOk >= weightData.re2) {
         weightStatus = 'REJECTED';
       } else if (filled2 >= weightData.n2) {
@@ -5295,9 +5310,10 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
 
   const isCGRSP = Boolean(activeRailpadType && activeRailpadType.includes('CGRSP'));
 
-  const finalDecision = (visualResult === 'PASS' && dimensionalResult === 'PASS' && (isNCRGRSP || weightStatus === 'ACCEPTED' || weightStatus === 'PENDING' || weightStatus === '2ND SAMPLING'))
+  const finalDecision = (visualResult === 'PASS' && dimensionalResult === 'PASS' && (isWeightHidden || weightStatus === 'ACCEPTED' || weightStatus === 'PENDING' || weightStatus === '2ND SAMPLING'))
     ? 'LOT PASSED'
     : (visualResult === 'PENDING' || dimensionalResult === 'PENDING') ? 'PENDING VERIFICATION'
+      : (weightStatus === 'REJECTED' && !isWeightHidden) ? 'LOT REJECTED (Weight)'
       : (dimensionalResult === 'FAIL') ? 'LOT REJECTED (Dimensional)'
       : (visualResult !== 'PASS' && dimensionalResult !== 'PASS') ? 'LOT REJECTED (Visual & Dimensional)'
         : (dimensionalResult !== 'PASS') ? 'RE-OFFER REQUIRED (Dimensional)' : 'RE-TEST REQUIRED (Visual)';
@@ -6169,9 +6185,11 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
   const ncrStatus = ncrDecision === 'LOT PASSED' ? 'PASS' : ncrDecision === 'PENDING VERIFICATION' ? 'PENDING' : ncrDecision === 'RE-TEST REQUIRED' ? 'RE-TEST' : 'FAIL';
   const periodicStatus = periodicDecision === 'LOT PASSED' ? 'PASS' : periodicDecision === 'PENDING VERIFICATION' ? 'PENDING' : periodicDecision === 'RE-TEST REQUIRED' ? 'RE-TEST' : 'FAIL';
   const isDimensionalReOffered = dimensionalStatus === 'RE-OFFERED' || dimensionalStatus === 'RE-OFFER';
-  const isWeightPass = isNCRGRSP ? true : (weightStatus === 'ACCEPTED');
-  const isWeightPending = isNCRGRSP ? false : (!isWeightPass && weightStatus !== 'REJECTED');
-  const isWeightFailed = isNCRGRSP ? false : (weightStatus === 'REJECTED');
+  const currentLotObj = lots.find(l => l.id === selectedLot) || activeLot;
+  const currentLotWeightHidden = isNCRGRSP || isHiddenWeightTest(currentLotObj, call);
+  const isWeightPass = currentLotWeightHidden ? true : (weightStatus === 'ACCEPTED');
+  const isWeightPending = currentLotWeightHidden ? false : (!isWeightPass && weightStatus !== 'REJECTED');
+  const isWeightFailed = currentLotWeightHidden ? false : (weightStatus === 'REJECTED');
   const isAllCorePass = visualStatus === 'PASS' && dimensionalStatus === 'PASS' && isWeightPass;
   const isAnyCorePending = visualStatus === 'PENDING'
     || (dimensionalStatus === 'PENDING' && !isDimensionalReOffered)
@@ -6693,15 +6711,17 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
                     </table>
                   </div>
 
-                  {!isNCRGRSP && (
+                  {!isWeightHidden && (
                     <div style={{ background: '#fff', borderRadius: '16px', border: '1px solid #e2e8f0', overflow: 'hidden', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05)' }}>
                       <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '14px' }}>
                         <tbody>
                           <tr style={{ background: '#f8fafc' }}>
                             <td style={{ padding: '16px', fontWeight: '800', color: '#0f172a', width: '250px' }}>
-                              Weight Testing (gm)
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                <span>Weight Testing (gm)</span>
+                              </div>
                               <div style={{ fontSize: '10px', color: '#64748b', marginTop: '4px', fontWeight: '500' }}>
-                                Type: {lots.find(l => l.id === selectedLot)?.railpadType} | Drg: {lots.find(l => l.id === selectedLot)?.drawingNo}
+                                Type: {lots.find(l => l.id === selectedLot)?.railpadType || activeRailpadType} | Drg: {lots.find(l => l.id === selectedLot)?.drawingNo || activeLot?.drawingNo || call?.drawingNo}
                               </div>
                               <div style={{ fontSize: '10px', color: '#64748b', marginTop: '2px', fontWeight: '500' }}>
                                 Max Permissible Weight: {weightData.max}g
@@ -6789,8 +6809,16 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
                                 borderRadius: '6px',
                                 fontSize: '11px',
                                 fontWeight: '800',
-                                background: weightStatus === 'ACCEPTED' ? '#dcfce7' : weightStatus === 'REJECTED' ? '#fee2e2' : weightStatus === '2ND SAMPLING' ? '#fff7ed' : '#f1f5f9',
-                                color: weightStatus === 'ACCEPTED' ? '#166534' : weightStatus === 'REJECTED' ? '#991b1b' : weightStatus === '2ND SAMPLING' ? '#c2410c' : '#475569'
+                                background: weightStatus === 'ACCEPTED' ? '#dcfce7' 
+                                  : weightStatus === 'REJECTED' ? '#fee2e2' 
+                                  : weightStatus === '2ND SAMPLING' ? '#fff7ed' 
+                                  : weightStatus === 'OPTIONAL' ? '#e0f2fe' 
+                                  : '#f1f5f9',
+                                color: weightStatus === 'ACCEPTED' ? '#166534' 
+                                  : weightStatus === 'REJECTED' ? '#991b1b' 
+                                  : weightStatus === '2ND SAMPLING' ? '#c2410c' 
+                                  : weightStatus === 'OPTIONAL' ? '#0369a1' 
+                                  : '#475569'
                               }}>
                                 {weightStatus}
                               </span>
@@ -9703,9 +9731,11 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
               {/* Submodule Status Badges / Tab Selection */}
               <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginBottom: '16px', alignItems: 'center' }}>
                 {(() => {
-                  const visualDimStatus = (visualStatus === 'FAIL' || dimensionalStatus === 'FAIL') ? 'FAIL'
+                  const isWeightTabPending = !isWeightHidden && isWeightPending;
+                  const isWeightTabFailed = !isWeightHidden && isWeightFailed;
+                  const visualDimStatus = (visualStatus === 'FAIL' || dimensionalStatus === 'FAIL' || isWeightTabFailed) ? 'FAIL'
                     : (visualStatus === 'RE-OFFERED' || dimensionalStatus === 'RE-OFFERED' || visualStatus === 'RE-OFFER' || dimensionalStatus === 'RE-OFFER') ? 'RE-OFFERED'
-                      : (visualStatus === 'PENDING' || dimensionalStatus === 'PENDING') ? 'PENDING'
+                      : (visualStatus === 'PENDING' || dimensionalStatus === 'PENDING' || isWeightTabPending) ? 'PENDING'
                         : 'PASS';
                   return [
                     { key: 'visualDim', label: 'Visual & Dimensional', status: visualDimStatus },
@@ -9795,7 +9825,7 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
                         rows = [
                           { name: "Visual Inspection", size: visualData.visualN || 25, status: visualResult },
                           { name: "Dimensional Inspection", size: visualData.dimN || 25, status: dimensionalResult },
-                          ...(!isNCRGRSP ? [{
+                          ...(!isWeightHidden ? [{
                             name: "Weight Test",
                             size: (weightData.isSecondActive || showWeightSecond) ? `${weightData.n1} + ${weightData.n2}` : weightData.n1,
                             status: weightStatus === 'ACCEPTED' ? 'PASS' : weightStatus === 'REJECTED' ? 'FAIL' : weightStatus

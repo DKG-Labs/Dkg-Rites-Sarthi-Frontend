@@ -157,7 +157,8 @@ export const UserForm = ({ user, roles = [], rolesLoading = false, existingUsers
         rio: '',
         cm: '',
         zonalRly: '',
-        status: ''
+        status: '',
+        vendorAddress: ''
     });
 
     useEffect(() => {
@@ -203,7 +204,8 @@ export const UserForm = ({ user, roles = [], rolesLoading = false, existingUsers
                 productType: user.productType || '',
                 profilePhotoPath: user.profilePhotoPath || '',
                 status: normalizedStatus,
-                zonalRly: derivedZonalRly
+                zonalRly: derivedZonalRly,
+                vendorAddress: user.vendorAddress || ''
             }));
 
             // Fetch vendor units if this is an ERC vendor
@@ -226,6 +228,7 @@ export const UserForm = ({ user, roles = [], rolesLoading = false, existingUsers
                             fullName: data.companyName || prev.fullName,
                             employeeCode: data.vendorCode || prev.employeeCode,
                             email: data.email || prev.email,
+                            vendorAddress: data.vendorAddress || prev.vendorAddress || '',
                             status: data.status ? (data.status.toLowerCase() === 'inactive' ? 'Inactive' : 'Active') : prev.status
                         }));
                         if (data.units && data.units.length > 0) {
@@ -349,7 +352,8 @@ export const UserForm = ({ user, roles = [], rolesLoading = false, existingUsers
                 rio: '',
                 cm: '',
                 zonalRly: '',
-                status: ''
+                status: '',
+                vendorAddress: ''
             });
             setVendorUnits([
                 {
@@ -654,6 +658,34 @@ export const UserForm = ({ user, roles = [], rolesLoading = false, existingUsers
         }
     };
 
+    const lookupVendorDetails = async (vendorCode) => {
+        const cleanCode = (vendorCode || '').trim();
+        if (!cleanCode) return;
+        try {
+            const res = await fetch(`${API_BASE_URL || ''}/api/auth/api/vendor-master/lookup?vendorCode=${encodeURIComponent(cleanCode)}`, {
+                headers: getAuthHeaders()
+            });
+            const json = await res.json();
+            if (json?.responseData && Object.keys(json.responseData).length > 0) {
+                const { vendorName, vendorDetails } = json.responseData;
+                setFormData(prev => ({
+                    ...prev,
+                    fullName: prev.fullName || vendorName || '',
+                    vendorAddress: prev.vendorAddress || vendorDetails || ''
+                }));
+            }
+        } catch (e) {
+            console.error('Error looking up vendor master:', e);
+        }
+    };
+
+    const handleVendorCodeBlur = () => {
+        const isErc = formData.roleNames.some(r => r === 'Vendor' || r === 'ERC Vendor');
+        if (isErc && formData.employeeCode) {
+            lookupVendorDetails(formData.employeeCode);
+        }
+    };
+
     const handleChange = (e) => {
         const { name, value } = e.target;
         
@@ -942,6 +974,7 @@ export const UserForm = ({ user, roles = [], rolesLoading = false, existingUsers
                 password: formData.password || undefined,
                 status: formData.status || 'Active',
                 roleNames: ['Vendor'],
+                vendorAddress: formData.vendorAddress ? formData.vendorAddress.trim() : null,
                 units: vendorUnits
             };
 
@@ -1083,6 +1116,10 @@ export const UserForm = ({ user, roles = [], rolesLoading = false, existingUsers
                                     ...prev,
                                     roleNames: values || []
                                 }));
+                                const isNowErc = (values || []).some(r => r === 'Vendor' || r === 'ERC Vendor');
+                                if (isNowErc && formData.employeeCode && !formData.vendorAddress) {
+                                    lookupVendorDetails(formData.employeeCode);
+                                }
                             }}
                             allowClear
                             style={{ width: '100%', minHeight: '38px' }}
@@ -1191,10 +1228,11 @@ export const UserForm = ({ user, roles = [], rolesLoading = false, existingUsers
                                     placeholder="e.g. 1024626 or DV001"
                                     value={formData.employeeCode}
                                     onChange={handleChange}
+                                    onBlur={handleVendorCodeBlur}
                                     required
                                 />
                             </div>
-                            <div className="form-group" style={{ gridColumn: 'span 2' }}>
+                            <div className="form-group" style={{ gridColumn: isErcVendor ? 'span 1' : 'span 2' }}>
                                 <label className="form-label">Email Address</label>
                                 <input
                                     type="email"
@@ -1205,6 +1243,19 @@ export const UserForm = ({ user, roles = [], rolesLoading = false, existingUsers
                                     onChange={handleChange}
                                 />
                             </div>
+                            {isErcVendor && (
+                                <div className="form-group" style={{ gridColumn: 'span 1' }}>
+                                    <label className="form-label">Vendor Address</label>
+                                    <input
+                                        type="text"
+                                        name="vendorAddress"
+                                        className="form-control"
+                                        placeholder="e.g. Registered vendor office / head office address"
+                                        value={formData.vendorAddress || ''}
+                                        onChange={handleChange}
+                                    />
+                                </div>
+                            )}
                         </div>
                     </div>
 

@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { Select } from 'antd';
 import './SleeperSummary.css';
 import ExcelJS from 'exceljs/dist/exceljs.min.js';
 
@@ -7,9 +8,20 @@ const SCADA_MANUFACTURERS = [
 ];
 
 const SCADA_UNITS = [
-    { label: 'Wadiyaram Unit', value: 'WDM' },
-    { label: 'Thirumangalam', value: 'TMQ' },
-    { label: 'Pahtri', value: 'PAT' }
+    { label: 'Wadiyaram Unit', value: 'Wadiyaram Unit', code: 'WDM' },
+    { label: 'Thirumangalam', value: 'Thirumangalam', code: 'TMQ' },
+    { label: 'Pahtri', value: 'Pahtri', code: 'PAT' },
+    { label: 'Hubli', value: 'Hubli', code: 'HUB' },
+    { label: 'Sholaka', value: 'Sholaka', code: 'SHO' },
+    { label: 'Anara-1', value: 'Anara-1', code: 'ANR' },
+    { label: 'Anara-2', value: 'Anara-2', code: 'ANR' },
+    { label: 'Mirza-1', value: 'Mirza-1', code: 'MRZ' },
+    { label: 'Mirza-2', value: 'Mirza-2', code: 'MRZ' },
+    { label: 'Gaya-1', value: 'Gaya-1', code: 'GYA' },
+    { label: 'Gaya-2', value: 'Gaya-2', code: 'GYA' },
+    { label: 'Kaipadar-1', value: 'Kaipadar-1', code: 'KPR' },
+    { label: 'Kaipadar-2', value: 'Kaipadar-2', code: 'KPR' },
+    { label: 'ACPL', value: 'ACPL', code: 'BUW' }
 ];
 
 const SCADA_LINES = [
@@ -170,10 +182,12 @@ const SleeperScadaMonitor = ({ selectedProduct }) => {
             };
             
             try {
+                const selectedUnitObj = SCADA_UNITS.find(u => u.value === unit || u.label === unit || u.code === unit);
+                const plantUnitCode = selectedUnitObj ? selectedUnitObj.code : unit;
                 const params = new URLSearchParams({
                     type: apiType,
                     plant: manufacturer,
-                    plantUnit: unit,
+                    plantUnit: plantUnitCode,
                     line: line,
                     machine: stage,
                     page: currentPage.toString(),
@@ -390,53 +404,93 @@ const SleeperScadaMonitor = ({ selectedProduct }) => {
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '20px', marginBottom: '20px' }}>
                     <div className="filter-group">
                         <label style={{ display: 'block', fontSize: '11px', fontWeight: '700', color: '#64748b', marginBottom: '6px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Manufacturer</label>
-                        <select 
-                            value={manufacturer} 
-                            onChange={(e) => { setManufacturer(e.target.value); setCurrentPage(0); }}
-                            style={{ width: '100%', padding: '10px 14px', borderRadius: '10px', border: '1px solid #e2e8f0', background: '#f8fafc', fontSize: '13px', color: '#1e293b', fontWeight: '600', outline: 'none' }}
-                        >
-                            <option value="">Select Manufacturer</option>
-                            {SCADA_MANUFACTURERS.map(m => <option key={m.value} value={m.value}>{m.label}</option>)}
-                        </select>
+                        <Select 
+                            showSearch
+                            allowClear
+                            placeholder="Select Manufacturer"
+                            value={manufacturer || undefined} 
+                            onChange={(val) => { setManufacturer(val || ''); setCurrentPage(0); }}
+                            className="scada-select"
+                            popupClassName="scada-select-dropdown"
+                            dropdownClassName="scada-select-dropdown"
+                            style={{ width: '100%' }}
+                            listHeight={260}
+                            options={SCADA_MANUFACTURERS}
+                            filterOption={(input, option) =>
+                                (option?.label ?? '').toLowerCase().includes(input.toLowerCase()) ||
+                                (option?.value ?? '').toLowerCase().includes(input.toLowerCase())
+                            }
+                        />
                     </div>
                     
                     <div className="filter-group">
                         <label style={{ display: 'block', fontSize: '11px', fontWeight: '700', color: '#64748b', marginBottom: '6px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Unit</label>
-                        <select 
-                            value={unit} 
-                            onChange={(e) => { setUnit(e.target.value); setCurrentPage(0); }}
+                        <Select 
+                            showSearch
+                            allowClear
+                            placeholder="Search or Select Unit"
+                            value={unit || undefined} 
+                            onChange={(val) => { setUnit(val || ''); setCurrentPage(0); }}
                             disabled={!manufacturer}
-                            style={{ width: '100%', padding: '10px 14px', borderRadius: '10px', border: '1px solid #e2e8f0', background: manufacturer ? '#f8fafc' : '#f1f5f9', fontSize: '13px', color: '#1e293b', fontWeight: '600', outline: 'none', cursor: manufacturer ? 'pointer' : 'not-allowed' }}
-                        >
-                            <option value="">Select Unit</option>
-                            {SCADA_UNITS.map(u => <option key={u.value} value={u.value}>{u.label}</option>)}
-                        </select>
+                            className="scada-select"
+                            popupClassName="scada-select-dropdown"
+                            dropdownClassName="scada-select-dropdown"
+                            style={{ width: '100%' }}
+                            listHeight={260}
+                            options={SCADA_UNITS.map(u => ({
+                                label: u.label,
+                                value: u.value,
+                                code: u.code
+                            }))}
+                            filterOption={(input, option) => {
+                                const text = `${option?.label ?? ''} ${option?.code ?? ''} ${option?.value ?? ''}`;
+                                return text.toLowerCase().includes(input.toLowerCase());
+                            }}
+                        />
                     </div>
                     
                     <div className="filter-group">
                         <label style={{ display: 'block', fontSize: '11px', fontWeight: '700', color: '#64748b', marginBottom: '6px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Line</label>
-                        <select 
-                            value={line} 
-                            onChange={(e) => { setLine(e.target.value); setCurrentPage(0); }}
+                        <Select 
+                            showSearch
+                            allowClear
+                            placeholder="Select Line"
+                            value={line || undefined} 
+                            onChange={(val) => { setLine(val || ''); setCurrentPage(0); }}
                             disabled={!unit}
-                            style={{ width: '100%', padding: '10px 14px', borderRadius: '10px', border: '1px solid #e2e8f0', background: unit ? '#f8fafc' : '#f1f5f9', fontSize: '13px', color: '#1e293b', fontWeight: '600', outline: 'none', cursor: unit ? 'pointer' : 'not-allowed' }}
-                        >
-                            <option value="">Select Line</option>
-                            {SCADA_LINES.map(l => <option key={l.value} value={l.value}>{l.label}</option>)}
-                        </select>
+                            className="scada-select"
+                            popupClassName="scada-select-dropdown"
+                            dropdownClassName="scada-select-dropdown"
+                            style={{ width: '100%' }}
+                            listHeight={260}
+                            options={SCADA_LINES}
+                            filterOption={(input, option) =>
+                                (option?.label ?? '').toLowerCase().includes(input.toLowerCase()) ||
+                                (option?.value ?? '').toLowerCase().includes(input.toLowerCase())
+                            }
+                        />
                     </div>
                     
                     <div className="filter-group">
                         <label style={{ display: 'block', fontSize: '11px', fontWeight: '700', color: '#64748b', marginBottom: '6px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Acquisition Stage</label>
-                        <select 
-                            value={stage} 
-                            onChange={(e) => { setStage(e.target.value); setCurrentPage(0); }}
+                        <Select 
+                            showSearch
+                            allowClear
+                            placeholder="Select Stage"
+                            value={stage || undefined} 
+                            onChange={(val) => { setStage(val || ''); setCurrentPage(0); }}
                             disabled={!line}
-                            style={{ width: '100%', padding: '10px 14px', borderRadius: '10px', border: '1px solid #e2e8f0', background: line ? '#f8fafc' : '#f1f5f9', fontSize: '13px', color: '#1e293b', fontWeight: '600', outline: 'none', cursor: line ? 'pointer' : 'not-allowed' }}
-                        >
-                            <option value="">Select Stage</option>
-                            {SCADA_STAGES.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
-                        </select>
+                            className="scada-select"
+                            popupClassName="scada-select-dropdown"
+                            dropdownClassName="scada-select-dropdown"
+                            style={{ width: '100%' }}
+                            listHeight={260}
+                            options={SCADA_STAGES}
+                            filterOption={(input, option) =>
+                                (option?.label ?? '').toLowerCase().includes(input.toLowerCase()) ||
+                                (option?.value ?? '').toLowerCase().includes(input.toLowerCase())
+                            }
+                        />
                     </div>
                 </div>
 

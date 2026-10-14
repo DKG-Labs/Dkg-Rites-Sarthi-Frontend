@@ -4,6 +4,7 @@ import reportService from '../../services/reportService';
 import Pagination from '../Pagination';
 import useReportData from '../../hooks/useReportData';
 import { formatDate, formatDecimal } from '../../utils/helpers';
+import { computeAcceptedQty } from '../ProcessDefectSummaryCard';
 
 // --- Level 3 & 4 Components ---
 
@@ -100,7 +101,7 @@ function Level4Table({ callNo, parentSerial, railway }) {
                                     <td>{shift.basicDetails?.shift || '-'}</td>
                                     <td>{shift.basicDetails?.poSrNo || callNo}</td>
                                     <td>{shift.basicDetails?.lotNumber || '-'}</td>
-                                    <td>{shift.basicDetails?.totalAcceptedQty ?? 0}</td>
+                                    <td>{computeAcceptedQty(shift)}</td>
                                     <td>{shift.basicDetails?.totalRejectionQty ?? 0}</td>
 
                                     <td>{shift.processQty?.shearingProductionQty ?? 0}</td><td>{shift.processQty?.shearingRejectionQty ?? 0}</td>

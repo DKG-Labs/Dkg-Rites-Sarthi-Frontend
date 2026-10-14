@@ -135,6 +135,7 @@ export const getDetailedStatus = (systemStatus) => {
     'CANCELLED': { mainStatus: 'Cancelled', subStatus: 'CANCELLED' },
     'CANCEL': { mainStatus: 'Cancelled', subStatus: 'CANCELLED' },
     'COMPLETED-CANCELLED': { mainStatus: 'Cancelled', subStatus: 'CANCELLED' },
+    'BLOCKED': { mainStatus: 'Blocked', subStatus: 'Payment Pending' },
     'WITHHELD': { mainStatus: 'Under Inspection', subStatus: 'withheld' },
     'IC_PENDING': { mainStatus: 'Completed', subStatus: 'IC Pending' }
   };

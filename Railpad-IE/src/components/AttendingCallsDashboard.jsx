@@ -342,10 +342,7 @@ const AttendingCallsDashboard = ({
                jobStatus === 'IC_GENERATION' ||
                jobStatus === 'GENERATED' ||
                jobStatus === 'IC_SIGNED' ||
-               jobStatus === 'IC_ISSUE' ||
-               status.includes('CANCEL') ||
-               jobStatus.includes('CANCEL') ||
-               action.includes('CANCEL');
+               jobStatus === 'IC_ISSUE';
       };
 
       const isClosedOrSentToIbs = (c) => {
@@ -354,12 +351,27 @@ const AttendingCallsDashboard = ({
         const jobStatus = (c.jobStatus || '').toUpperCase();
         return action.includes('SEND_CALL_TO_IBS') || action.includes('SENT_TO_IBS') || action.includes('CLOSED') ||
                status.includes('SEND_CALL_TO_IBS') || status.includes('SENT_TO_IBS') || status.includes('CLOSED') ||
-               jobStatus.includes('SEND_CALL_TO_IBS') || jobStatus.includes('SENT_TO_IBS') || jobStatus.includes('CLOSED');
+               jobStatus.includes('SEND_CALL_TO_IBS') || jobStatus.includes('SENT_TO_IBS') || jobStatus.includes('CLOSED') ||
+               status.includes('CANCEL') || jobStatus.includes('CANCEL') || action.includes('CANCEL') ||
+               status === 'BLOCKED' || jobStatus === 'BLOCKED' || action === 'BLOCKED';
       };
 
       let certCalls = uniqueCompletedAll.filter(c => !isCallSignedAndCompleted(c) && !isClosedOrSentToIbs(c));
       let finalCompletedCalls = uniqueCompletedAll.filter(c => isCallSignedAndCompleted(c) && !isClosedOrSentToIbs(c));
-      let finalClosedCalls = uniqueClosed;
+      
+      const cancelledOrBlockedInCompleted = uniqueCompletedAll.filter(c => isClosedOrSentToIbs(c));
+      const closedMap = new Map();
+      uniqueClosed.forEach(c => {
+        const k = String(c.requestId || c.callNo || c.id || '').trim();
+        if (k) closedMap.set(k, c);
+      });
+      cancelledOrBlockedInCompleted.forEach(c => {
+        const k = String(c.requestId || c.callNo || c.id || '').trim();
+        if (k && !closedMap.has(k)) {
+          closedMap.set(k, c);
+        }
+      });
+      let finalClosedCalls = Array.from(closedMap.values());
 
       const newCounts = {
         pending: uniquePending.length,
@@ -1138,19 +1150,62 @@ const AttendingCallsDashboard = ({
                         {call.scheduledDate ? new Date(call.scheduledDate).toLocaleDateString('en-GB') : (call.scheduleDate ? new Date(call.scheduleDate).toLocaleDateString('en-GB') : '-')}
                       </td>
                       <td style={{ padding: '14px 18px' }}>
-                        <span style={{
-                          padding: '4px 10px',
-                          borderRadius: '9999px',
-                          fontSize: '11px',
-                          fontWeight: '700',
-                          background: '#e0e7ff',
-                          color: '#4338ca',
-                          border: '1px solid #c7d2fe',
-                          display: 'inline-block',
-                          whiteSpace: 'nowrap'
-                        }}>
-                          Closed - Sent to IBS
-                        </span>
+                        {(() => {
+                          const act = (call.action || call.latestAction || '').toUpperCase();
+                          const st = (call.status || call.workflowStatus || '').toUpperCase();
+                          const jst = (call.jobStatus || '').toUpperCase();
+                          const isCancelled = act.includes('CANCEL') || st.includes('CANCEL') || jst.includes('CANCEL');
+                          const isBlocked = act === 'BLOCKED' || st === 'BLOCKED' || jst === 'BLOCKED';
+                          if (isCancelled) {
+                            return (
+                              <span style={{
+                                padding: '4px 10px',
+                                borderRadius: '9999px',
+                                fontSize: '11px',
+                                fontWeight: '700',
+                                background: '#fee2e2',
+                                color: '#b91c1c',
+                                border: '1px solid #fecaca',
+                                display: 'inline-block',
+                                whiteSpace: 'nowrap'
+                              }}>
+                                Cancelled
+                              </span>
+                            );
+                          }
+                          if (isBlocked) {
+                            return (
+                              <span style={{
+                                padding: '4px 10px',
+                                borderRadius: '9999px',
+                                fontSize: '11px',
+                                fontWeight: '700',
+                                background: '#fef3c7',
+                                color: '#b45309',
+                                border: '1px solid #fde68a',
+                                display: 'inline-block',
+                                whiteSpace: 'nowrap'
+                              }}>
+                                Blocked
+                              </span>
+                            );
+                          }
+                          return (
+                            <span style={{
+                              padding: '4px 10px',
+                              borderRadius: '9999px',
+                              fontSize: '11px',
+                              fontWeight: '700',
+                              background: '#e0e7ff',
+                              color: '#4338ca',
+                              border: '1px solid #c7d2fe',
+                              display: 'inline-block',
+                              whiteSpace: 'nowrap'
+                            }}>
+                              Closed - Sent to IBS
+                            </span>
+                          );
+                        })()}
                       </td>
                       <td style={{ padding: '14px 18px' }}>
                         {renderIbsStatusBadge(call)}
@@ -2087,7 +2142,14 @@ const AttendingCallsDashboard = ({
                   <div>
                     <label style={{ fontSize: '11px', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: '700', marginBottom: '2px', display: 'block' }}>Status</label>
                     <div style={{ display: 'inline-block', background: '#f1f5f9', color: '#475569', padding: '3px 10px', borderRadius: '20px', fontSize: '13px', fontWeight: '600' }}>
-                      {selectedActionCall.isClosed || activeTab === 'closed' ? 'Closed - Sent to IBS' : (selectedActionCall.status || 'Completed')}
+                      {(() => {
+                        const act = (selectedActionCall.action || selectedActionCall.latestAction || '').toUpperCase();
+                        const st = (selectedActionCall.status || selectedActionCall.workflowStatus || '').toUpperCase();
+                        const jst = (selectedActionCall.jobStatus || '').toUpperCase();
+                        if (act.includes('CANCEL') || st.includes('CANCEL') || jst.includes('CANCEL')) return 'Cancelled';
+                        if (act === 'BLOCKED' || st === 'BLOCKED' || jst === 'BLOCKED') return 'Blocked';
+                        return (selectedActionCall.isClosed || activeTab === 'closed') ? 'Closed - Sent to IBS' : (selectedActionCall.status || 'Completed');
+                      })()}
                     </div>
                   </div>
                   <div>

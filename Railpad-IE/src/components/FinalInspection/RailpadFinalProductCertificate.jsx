@@ -164,7 +164,10 @@ export default function RailpadFinalProductCertificate({ call = {}, onBack, isVi
               icNumber: targetIcNo,
               installmentNo: currentData.offeredInstNo,
               offeredInstNo: currentData.offeredInstNo,
-              passedInstNo: currentData.passedInstNo
+              passedInstNo: currentData.passedInstNo,
+              offeredSets: currentData.offeredSets !== undefined && currentData.offeredSets !== null && currentData.offeredSets !== '' ? Number(currentData.offeredSets) : null,
+              acceptedSets: currentData.acceptedSets !== undefined && currentData.acceptedSets !== null && currentData.acceptedSets !== '' ? Number(currentData.acceptedSets) : null,
+              rejectedSets: currentData.rejectedSets !== undefined && currentData.rejectedSets !== null && currentData.rejectedSets !== '' ? Number(currentData.rejectedSets) : null
             });
           } else {
             await saveFinalIcEditData({ ...currentData, icNumber: targetIcNo });
@@ -466,6 +469,9 @@ export default function RailpadFinalProductCertificate({ call = {}, onBack, isVi
             mappedData.qtyOfferedPreviously = savedEdit.qtyOfferedPreviously ?? mappedData.qtyOfferedPreviously;
             mappedData.qtyPassedPreviously = savedEdit.qtyPassedPreviously ?? mappedData.qtyPassedPreviously;
             mappedData.qtyNowRejected = savedEdit.qtyNowRejected ?? mappedData.qtyNowRejected;
+            mappedData.offeredSets = savedEdit.offeredSets ?? mappedData.offeredSets;
+            mappedData.acceptedSets = savedEdit.acceptedSets ?? mappedData.acceptedSets;
+            mappedData.rejectedSets = savedEdit.rejectedSets ?? mappedData.rejectedSets;
             mappedData.qtyStillDue = savedEdit.qtyStillDue ?? mappedData.qtyStillDue;
             mappedData.quantityNowPassedText = savedEdit.quantityNowPassedText || mappedData.quantityNowPassedText;
             mappedData.noOfItemsChecked = savedEdit.noOfItemsChecked || mappedData.noOfItemsChecked;
@@ -589,7 +595,10 @@ export default function RailpadFinalProductCertificate({ call = {}, onBack, isVi
           icNumber: targetIcNo,
           installmentNo: data.offeredInstNo,
           offeredInstNo: data.offeredInstNo,
-          passedInstNo: data.passedInstNo
+          passedInstNo: data.passedInstNo,
+          offeredSets: data.offeredSets !== undefined && data.offeredSets !== null && data.offeredSets !== '' ? Number(data.offeredSets) : null,
+          acceptedSets: data.acceptedSets !== undefined && data.acceptedSets !== null && data.acceptedSets !== '' ? Number(data.acceptedSets) : null,
+          rejectedSets: data.rejectedSets !== undefined && data.rejectedSets !== null && data.rejectedSets !== '' ? Number(data.rejectedSets) : null
         });
       } else {
         await saveFinalIcSaveChanges({ ...data, icNumber: targetIcNo });
@@ -613,7 +622,10 @@ export default function RailpadFinalProductCertificate({ call = {}, onBack, isVi
           icNumber: targetIcNo,
           installmentNo: data.offeredInstNo,
           offeredInstNo: data.offeredInstNo,
-          passedInstNo: data.passedInstNo
+          passedInstNo: data.passedInstNo,
+          offeredSets: data.offeredSets !== undefined && data.offeredSets !== null && data.offeredSets !== '' ? Number(data.offeredSets) : null,
+          acceptedSets: data.acceptedSets !== undefined && data.acceptedSets !== null && data.acceptedSets !== '' ? Number(data.acceptedSets) : null,
+          rejectedSets: data.rejectedSets !== undefined && data.rejectedSets !== null && data.rejectedSets !== '' ? Number(data.rejectedSets) : null
         });
       } else {
         await saveFinalIcEditData({ ...data, icNumber: targetIcNo });

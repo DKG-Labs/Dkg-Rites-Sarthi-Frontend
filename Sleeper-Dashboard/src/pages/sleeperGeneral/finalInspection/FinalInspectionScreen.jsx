@@ -183,6 +183,8 @@ const FinalInspectionScreen = ({ call, onBack }) => {
             icForm?.ercType ||
             summaryData?.sleeperType ||
             call?.sleeperType ||
+            call?.itemDesc ||
+            summaryData?.itemDescription ||
             ''
         ).toLowerCase();
 
@@ -190,9 +192,15 @@ const FinalInspectionScreen = ({ call, onBack }) => {
                sleeperTypeStr.includes('pnc') ||
                sleeperTypeStr.includes('turnout') ||
                sleeperTypeStr.includes('set') ||
+               sleeperTypeStr.includes('rt-8838') ||
+               sleeperTypeStr.includes('rt-6068') ||
                sleeperTypeStr.includes('rt-9790') ||
                sleeperTypeStr.includes('rt-4218') ||
-               sleeperTypeStr.includes('rt-4865');
+               sleeperTypeStr.includes('rt-4865') ||
+               sleeperTypeStr.includes('points') ||
+               sleeperTypeStr.includes('crossing') ||
+               sleeperTypeStr.includes('derail') ||
+               sleeperTypeStr.includes('switch');
     })();
 
     const getEffectiveUom = (sec1, sec2, summary, call) => {
@@ -295,7 +303,16 @@ const FinalInspectionScreen = ({ call, onBack }) => {
                         place: summary.placeOfInspection || ''
                     }));
                 }
-                const initialVendorSets = Number(call?.totalOffered || call?.offeredQty || call?.qty || sec2?.callQtyMt || summary?.qtyOfferedNow || 0) || 0;
+                const initialVendorSets = Number(
+                    sec2?.callQtyMt || 
+                    summary?.qtyOfferedNow || 
+                    call?.totalOffered || 
+                    (isSetUom && call?.offeredSetsQuantity ? call.offeredSetsQuantity : null) || 
+                    call?.qtyOffered || 
+                    call?.offeredQty || 
+                    call?.qty || 
+                    0
+                ) || 0;
                 if (initialVendorSets > 0) {
                     setOfferedSetsQty(initialVendorSets);
                 }
@@ -671,6 +688,9 @@ const FinalInspectionScreen = ({ call, onBack }) => {
                     const finalResResp = await apiService.getSleeperFinalResult(callNo);
                     const finalResData = finalResResp?.responseData || finalResResp;
                     if (finalResData) {
+                        if (finalResData.offeredSetsQuantity != null && Number(finalResData.offeredSetsQuantity) > 0) {
+                            setOfferedSetsQty(Number(finalResData.offeredSetsQuantity));
+                        }
                         if (finalResData.rejectedSetsQuantity != null) {
                             setRejectedSetsQty(Number(finalResData.rejectedSetsQuantity));
                         }
@@ -1021,6 +1041,12 @@ const FinalInspectionScreen = ({ call, onBack }) => {
             console.warn("Error saving to saveSleeperFinalResult:", err);
         }
 
+        const effectiveOfferedSets = Number(offeredSetsQty || 0) > 0 
+            ? Number(offeredSetsQty) 
+            : Number(sec2?.callQtyMt || summaryData?.qtyOfferedNow || summaryData?.offeredSetsQuantity || call?.totalOffered || call?.qtyOffered || 0);
+
+        const effectiveAcceptedSets = Math.max(0, effectiveOfferedSets - Number(rejectedSetsQty || 0));
+
         // 2. Save Header Details (Existing final_call_inspection_header table)
         const headerPayload = {
             rlyPoNo: summaryData?.poNo || poForm.poNo,
@@ -1030,9 +1056,9 @@ const FinalInspectionScreen = ({ call, onBack }) => {
             poQty: Number(String(summaryData?.quantityOnOrder || poForm.poQty).replace(/\D/g, '')),
             maNo: poForm.maNo === 'N/A' ? '' : poForm.maNo,
             maDate: formatDateDMY(poForm.maDate),
-            qtyOfferedNow: totalOfferedNow,
-            acceptedQty: totalAccepted,
-            rejectedQty: totalRejected,
+            qtyOfferedNow: isSetUom ? effectiveOfferedSets : totalOfferedNow,
+            acceptedQty: isSetUom ? effectiveAcceptedSets : totalAccepted,
+            rejectedQty: isSetUom ? Number(rejectedSetsQty || 0) : totalRejected,
             etSleepers: totalEt,
             callDate: inspectionDate,
             noOfBatches: batches.length,

@@ -422,7 +422,10 @@ const AttendingCallDashboard = ({ mode }) => {
                 const jobStatus = (c.jobStatus || '').toUpperCase();
                 return action.includes('SEND_CALL_TO_IBS') || action.includes('SENT_TO_IBS') || action.includes('CLOSED') ||
                        status.includes('SEND_CALL_TO_IBS') || status.includes('SENT_TO_IBS') || status.includes('CLOSED') ||
-                       jobStatus.includes('SEND_CALL_TO_IBS') || jobStatus.includes('SENT_TO_IBS') || jobStatus.includes('CLOSED');
+                       jobStatus.includes('SEND_CALL_TO_IBS') || jobStatus.includes('SENT_TO_IBS') || jobStatus.includes('CLOSED') ||
+                       action.includes('CANCEL') || status.includes('CANCEL') || jobStatus.includes('CANCEL') ||
+                       action.includes('WITHDRAW') || status.includes('WITHDRAW') || jobStatus.includes('WITHDRAW') ||
+                       action === 'BLOCKED' || status === 'BLOCKED' || jobStatus === 'BLOCKED';
             };
 
             if (tabToLoad === 'closed') {
@@ -430,13 +433,26 @@ const AttendingCallDashboard = ({ mode }) => {
                 const closedData = (closedRes && closedRes.responseData) ? closedRes.responseData : (Array.isArray(closedRes) ? closedRes : []);
                 const mappedClosed = closedData.filter(c => {
                     return allowedPlants.length === 0 || isPlantMatching(c.plantId, allowedPlants);
-                }).map(item => ({
-                    ...item,
-                    id: item.workflowTransitionId || item.id,
-                    requestId: item.requestId || item.callNo,
-                    status: 'Closed - Sent to IBS',
-                    checked: false
-                }));
+                }).map(item => {
+                    const action = (item.action || '').toUpperCase();
+                    const status = (item.status || '').toUpperCase();
+                    const jobStatus = (item.jobStatus || '').toUpperCase();
+                    let displayStatus = 'Closed - Sent to IBS';
+                    if (action.includes('CANCEL') || status.includes('CANCEL') || jobStatus.includes('CANCEL')) {
+                        displayStatus = 'Cancelled';
+                    } else if (action.includes('WITHDRAW') || status.includes('WITHDRAW') || jobStatus.includes('WITHDRAW')) {
+                        displayStatus = 'Withdrawn';
+                    } else if (action === 'BLOCKED' || status === 'BLOCKED' || jobStatus === 'BLOCKED') {
+                        displayStatus = 'Blocked';
+                    }
+                    return {
+                        ...item,
+                        id: item.workflowTransitionId || item.id,
+                        requestId: item.requestId || item.callNo,
+                        status: displayStatus,
+                        checked: false
+                    };
+                });
                 setClosedCalls(mappedClosed);
             } else if (tabToLoad === 'pending') {
                 // 1. List of Calls Pending: ONLY trigger pending workflow transitions
@@ -481,22 +497,16 @@ const AttendingCallDashboard = ({ mode }) => {
                         action === 'IC_GENERATION' ||
                         action === 'DSC_SIGN_IC' ||
                         action === 'IC_SIGNED' ||
-                        action.includes('CANCEL') ||
-                        action.includes('WITHDRAW') ||
                         jobStatus === 'GENERATE_IC' ||
                         jobStatus === 'IC_GENERATION' ||
                         jobStatus === 'GENERATED' ||
                         jobStatus === 'DSC_SIGN_IC' ||
                         jobStatus === 'IC_SIGNED' ||
-                        jobStatus.includes('CANCEL') ||
-                        jobStatus.includes('WITHDRAW') ||
                         status === 'GENERATE_IC' ||
                         status === 'IC_GENERATION' ||
                         status === 'GENERATED' ||
                         status === 'DSC_SIGN_IC' ||
-                        status === 'IC_SIGNED' ||
-                        status.includes('CANCEL') ||
-                        status.includes('WITHDRAW')
+                        status === 'IC_SIGNED'
                     );
                 };
 

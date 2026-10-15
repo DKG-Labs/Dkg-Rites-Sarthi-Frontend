@@ -1,13 +1,15 @@
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
-import { useSearchParams } from 'react-router-dom';
 import Pagination from '../Pagination';
 import { useInspection } from '../../context/InspectionContext';
-import AnnexurePage from '../../pages/AnnexurePage';
 import AnnexureUploadModal from '../AnnexureUploadModal';
 import { API_ENDPOINTS, getAuthHeaders, handleResponse } from '../../services/apiConfig';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { downloadExcel } from './SharedComponents';
+import { fetchSavedCaseLetterInfo, viewSavedCaseLetterPdf } from '../../services/caseLetterService';
+import { getAnnexureDocuments } from '../../services/certificateService';
+import { fetchCallLetterDetails } from '../../call-desk-module/src/services/callLetterApi';
+import { generateCallLetterPDF } from '../../call-desk-module/src/utils/generateCallLetterPDF';
 import './DownloadIcAnnexures.css';
 
 const formatPoNumber = (record) => {
@@ -118,15 +120,14 @@ const DownloadIcAnnexures = ({ selectedProduct = 'ERC', fromDate: initialFromDat
     // 1. Backend Data State
     const [records, setRecords] = useState([]);
     const [loading, setLoading] = useState(false);
-    const [isViewingAnnexures, setIsViewingAnnexures] = useState(false);
+    const [checkingAnnexureCallNo, setCheckingAnnexureCallNo] = useState(null);
     const [viewAnnexureModal, setViewAnnexureModal] = useState({
         isOpen: false,
         callNo: '',
         icNumber: '',
         moduleType: 'SLEEPER'
     });
-    const { setSelectedCall, getIcAnnexuresCachedData, updateIcAnnexuresCache, clearIcAnnexuresCache } = useInspection();
-    const [, setSearchParams] = useSearchParams();
+    const { getIcAnnexuresCachedData, updateIcAnnexuresCache, clearIcAnnexuresCache } = useInspection();
 
     // 2. Local Filters state
     const [stageFilter, setStageFilter] = useState('all');
@@ -528,28 +529,92 @@ const DownloadIcAnnexures = ({ selectedProduct = 'ERC', fromDate: initialFromDat
         }
     };
 
-    // Real Download Annexures sequence which triggers the Annexures view
-    const handleDownloadAnnexures = (record) => {
-        const normProduct = (selectedProduct || '').toUpperCase();
-        if (normProduct.includes('SLEEPER') || normProduct.includes('RAIL')) {
-            setViewAnnexureModal({
-                isOpen: true,
-                callNo: record.callNumber || '',
-                icNumber: record.icNumber || '',
-                moduleType: normProduct.includes('SLEEPER') ? 'SLEEPER' : 'RAILPAD'
-            });
+    // 3-tier Fallback Download Annexures sequence:
+    // Tier 1: Check & Open Case Letter PDF if exists
+    // Tier 2: Check & Display Uploaded Annexures (or ERC Inspection Register)
+    // Tier 3: Fetch & Generate Call Letter PDF
+    // Tier 4: Show alert if none found
+    const handleDownloadAnnexures = async (record) => {
+        const callNo = record.callNumber || record.callNo;
+        if (!callNo) {
+            alert('Call number not found for this record.');
             return;
         }
 
-        // For ERC, continue with the standard tabular AnnexurePage
-        const callObj = {
-            call_no: record.callNumber,
-            vendor_name: record.vendorName,
-            product_type: `${selectedProduct}-${record.stage}`,
-            icIssuedDate: record.icIssuedDate
-        };
-        setSelectedCall(callObj);
-        setIsViewingAnnexures(true);
+        const normProduct = (selectedProduct || '').toUpperCase();
+        const moduleType = normProduct.includes('SLEEPER') ? 'SLEEPER' : normProduct.includes('RAIL') ? 'RAILPAD' : 'ERC';
+
+        setCheckingAnnexureCallNo(callNo);
+
+        try {
+            // ==========================================
+            // TIER 1: Check Stored Case Letter
+            // ==========================================
+            try {
+                const caseLetterInfo = await fetchSavedCaseLetterInfo(callNo);
+                if (caseLetterInfo && caseLetterInfo.exists && caseLetterInfo.data) {
+                    const blob = await viewSavedCaseLetterPdf(callNo);
+                    const fileUrl = window.URL.createObjectURL(new Blob([blob], { type: 'application/pdf' }));
+                    window.open(fileUrl, '_blank');
+                    return;
+                }
+            } catch (caseErr) {
+                console.warn('[Annexures] No case letter found or error checking case letter:', caseErr);
+            }
+
+            // ==========================================
+            // TIER 2: Check Uploaded Annexures
+            // ==========================================
+            try {
+                const annexRes = await getAnnexureDocuments(callNo, moduleType);
+                if (annexRes && annexRes.success && Array.isArray(annexRes.data) && annexRes.data.length > 0) {
+                    setViewAnnexureModal({
+                        isOpen: true,
+                        callNo: callNo,
+                        icNumber: record.icNumber || '',
+                        moduleType: moduleType
+                    });
+                    return;
+                }
+            } catch (annexErr) {
+                console.warn('[Annexures] Error checking uploaded annexures:', annexErr);
+            }
+
+            // ==========================================
+            // TIER 3: Check & Generate Call Letter
+            // ==========================================
+            try {
+                const details = await fetchCallLetterDetails(callNo);
+                if (details && (details.responseData || details.callNumber || details.poNumber || details.poNo)) {
+                    const callDetails = details.responseData || details;
+                    const enrichedCall = {
+                        ...record,
+                        ...callDetails,
+                        callNumber: callNo,
+                        call_no: callNo,
+                        requestId: callNo,
+                        poNumber: record.formattedPo || record.poNumber || callDetails.poNo || callDetails.poNumber,
+                        po_no: record.formattedPo || record.poNumber || callDetails.poNo || callDetails.poNumber,
+                        vendorName: record.vendorName || callDetails.vendorName || callDetails.vendor_name,
+                        vendor_name: record.vendorName || callDetails.vendorName || callDetails.vendor_name
+                    };
+                    generateCallLetterPDF(enrichedCall, true);
+                    return;
+                }
+            } catch (callLetterErr) {
+                console.warn('[Annexures] Error fetching call letter details:', callLetterErr);
+            }
+
+            // ==========================================
+            // TIER 4: None Found
+            // ==========================================
+            alert(`No Case Letter, Annexures, or Call Letter found for Call No: ${callNo}`);
+        } catch (err) {
+            console.error('[Annexures] Error in handleDownloadAnnexures:', err);
+            alert(`Failed to retrieve documents for Call No: ${callNo}. Error: ${err.message || err}`);
+        } finally {
+            setCheckingAnnexureCallNo(null);
+        }
     };
 
     // Export entire filtered Inspection Certificates list to Excel (.xlsx)
@@ -688,16 +753,6 @@ const DownloadIcAnnexures = ({ selectedProduct = 'ERC', fromDate: initialFromDat
         doc.save(`Inspection_Certificates_${selectedProduct}_${new Date().toISOString().split('T')[0]}.pdf`);
     };
 
-    if (isViewingAnnexures) {
-        return (
-            <AnnexurePage 
-                onBack={() => {
-                    setIsViewingAnnexures(false);
-                    setSearchParams({});
-                }} 
-            />
-        );
-    }
 
     return (
         <div className="ic-annexures-container">
@@ -1003,9 +1058,17 @@ const DownloadIcAnnexures = ({ selectedProduct = 'ERC', fromDate: initialFromDat
                                                 <button 
                                                     className="ic-annexures-btn"
                                                     onClick={() => handleDownloadAnnexures(record)}
-                                                    title="View Call Annexures"
+                                                    disabled={checkingAnnexureCallNo === (record.callNumber || record.callNo)}
+                                                    title="View Case Letter / Annexures / Call Letter"
                                                 >
-                                                    Annexures
+                                                    {checkingAnnexureCallNo === (record.callNumber || record.callNo) ? (
+                                                        <>
+                                                            <i className="fa-solid fa-spinner fa-spin" style={{ marginRight: '4px' }}></i>
+                                                            Loading...
+                                                        </>
+                                                    ) : (
+                                                        'Annexures'
+                                                    )}
                                                 </button>
                                             </div>
                                         </td>

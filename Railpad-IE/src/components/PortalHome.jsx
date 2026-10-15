@@ -70,7 +70,14 @@ const PortalHome = ({
   const [mappedPlants, setMappedPlants] = useState([]);
   const [mainCounts, setMainCounts] = useState({ pending: 0, certificates: 0, completed: 0, closed: 0, plantPending: 0 });
   const [loadingCounts, setLoadingCounts] = useState(false);
-  const [selectedMainTab, setSelectedMainTab] = useState('pending'); // 'pending' | 'certificates' | 'completed' | 'closed' | 'plant'
+  const [selectedMainTab, setSelectedMainTab] = useState(() => {
+    return sessionStorage.getItem('railpad_portal_active_tab') || 'pending';
+  }); // 'pending' | 'certificates' | 'completed' | 'closed' | 'plant'
+
+  // Persist active tab so refresh and post-action returns land on the same tab
+  useEffect(() => {
+    sessionStorage.setItem('railpad_portal_active_tab', selectedMainTab);
+  }, [selectedMainTab]);
 
   const roleInput = user?.roleName || localStorage.getItem('roleName') || '';
   const roleLower = (Array.isArray(roleInput) ? roleInput.join(' ') : String(roleInput)).toLowerCase();

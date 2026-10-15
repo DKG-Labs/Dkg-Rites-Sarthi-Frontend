@@ -14,7 +14,7 @@ import CorrectionSlipListModal from './CorrectionSlipListModal';
 import Modal from './Modal';
 import {
   fetchCorrectionSlipDocuments,
-  viewCorrectionSlipPdf
+  downloadAllCorrectionSlips
 } from '../services/correctionSlipService';
 import { downloadOrNotifyCaseLetter } from '../services/caseLetterService';
 import axios from 'axios';
@@ -55,6 +55,7 @@ const ClosedCallsTab = ({ setSelectedCall, setCurrentPage }) => {
   const [slipListModalCall, setSlipListModalCall] = useState(null);
   const [isCorrectionSlipViewOnly, setIsCorrectionSlipViewOnly] = useState(false);
   const [slipDocsMap, setSlipDocsMap] = useState({});
+  const [slipDownloadState, setSlipDownloadState] = useState({});
   const [pdfLoading, setPdfLoading] = useState(false);
   const [tcPdfLoading, setTcPdfLoading] = useState(false);
   const [downloadingCaseLetterCall, setDownloadingCaseLetterCall] = useState(null);
@@ -135,6 +136,50 @@ const ClosedCallsTab = ({ setSelectedCall, setCurrentPage }) => {
 
     return result;
   }, [closedCalls, filters, globalSearchTerm]);
+
+  const handleDownloadCorrectionSlips = async (currentCall, docs) => {
+    if (!currentCall) return;
+    const totalCount = (Array.isArray(docs) && docs.length > 0) ? docs.length : 1;
+    setSlipDownloadState(prev => ({
+      ...prev,
+      [currentCall]: { status: 'downloading', current: 1, total: totalCount }
+    }));
+
+    try {
+      await downloadAllCorrectionSlips(currentCall, docs, ({ current, total }) => {
+        setSlipDownloadState(prev => ({
+          ...prev,
+          [currentCall]: { status: 'downloading', current, total }
+        }));
+      });
+
+      setSlipDownloadState(prev => ({
+        ...prev,
+        [currentCall]: { status: 'completed', current: totalCount, total: totalCount }
+      }));
+
+      setTimeout(() => {
+        setSlipDownloadState(prev => {
+          const next = { ...prev };
+          delete next[currentCall];
+          return next;
+        });
+      }, 3500);
+    } catch (err) {
+      console.error('Error downloading correction slips:', err);
+      setSlipDownloadState(prev => ({
+        ...prev,
+        [currentCall]: { status: 'error', error: err.message || 'Download failed' }
+      }));
+      setTimeout(() => {
+        setSlipDownloadState(prev => {
+          const next = { ...prev };
+          delete next[currentCall];
+          return next;
+        });
+      }, 4000);
+    }
+  };
 
   const handleFilterChange = (key, value) => {
     setFilters(prev => ({ ...prev, [key]: value }));
@@ -579,6 +624,81 @@ const ClosedCallsTab = ({ setSelectedCall, setCurrentPage }) => {
               <h3 style={{ fontSize: '18px', fontWeight: '700', marginBottom: '20px', color: '#0f172a', display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <span style={{ color: '#f59e0b' }}>⚡</span> Actions & Documents
               </h3>
+
+              {/* Correction Slips Download Status Banner */}
+              {(() => {
+                const currentCallNo = selectedActionCall?.call_no || selectedActionCall?.callNumber || selectedActionCall?.requestId || '';
+                const callDownload = slipDownloadState[currentCallNo];
+                if (!callDownload) return null;
+
+                return (
+                  <div style={{
+                    display: 'flex', alignItems: 'center', gap: '12px',
+                    padding: '12px 16px', borderRadius: '12px', marginBottom: '16px',
+                    background: callDownload.status === 'error' ? '#fef2f2' : (callDownload.status === 'completed' ? '#f0fdf4' : '#eff6ff'),
+                    border: `1.5px solid ${callDownload.status === 'error' ? '#fecaca' : (callDownload.status === 'completed' ? '#86efac' : '#93c5fd')}`,
+                    boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)',
+                    transition: 'all 0.3s ease'
+                  }}>
+                    {callDownload.status === 'downloading' && (
+                      <>
+                        <div style={{ width: '24px', height: '24px', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                          <svg style={{ animation: 'spin 0.8s linear infinite' }} width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#2563eb" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M21 12a9 9 0 1 1-6.219-8.56" />
+                          </svg>
+                        </div>
+                        <div style={{ flex: 1 }}>
+                          <div style={{ fontSize: '13.5px', fontWeight: '700', color: '#1e40af' }}>
+                            Downloading Correction Slips ({callDownload.current} of {callDownload.total})...
+                          </div>
+                          <div style={{ fontSize: '12px', color: '#3b82f6', marginTop: '2px' }}>
+                            Please wait while PDF files are being downloaded to your computer.
+                          </div>
+                          <div style={{ width: '100%', height: '5px', background: '#dbeafe', borderRadius: '999px', marginTop: '6px', overflow: 'hidden' }}>
+                            <div style={{
+                              width: `${Math.round((callDownload.current / callDownload.total) * 100)}%`,
+                              height: '100%',
+                              background: '#2563eb',
+                              transition: 'width 0.3s ease-in-out',
+                              borderRadius: '999px'
+                            }} />
+                          </div>
+                        </div>
+                      </>
+                    )}
+                    {callDownload.status === 'completed' && (
+                      <>
+                        <div style={{ width: '26px', height: '26px', borderRadius: '50%', background: '#22c55e', color: '#ffffff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', fontSize: '14px', flexShrink: 0 }}>
+                          ✓
+                        </div>
+                        <div>
+                          <div style={{ fontSize: '13.5px', fontWeight: '700', color: '#166534' }}>
+                            Downloaded Successfully!
+                          </div>
+                          <div style={{ fontSize: '12px', color: '#15803d', marginTop: '2px' }}>
+                            All {callDownload.total} correction slip(s) for {currentCallNo} have been downloaded.
+                          </div>
+                        </div>
+                      </>
+                    )}
+                    {callDownload.status === 'error' && (
+                      <>
+                        <div style={{ width: '26px', height: '26px', borderRadius: '50%', background: '#ef4444', color: '#ffffff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', fontSize: '14px', flexShrink: 0 }}>
+                          !
+                        </div>
+                        <div>
+                          <div style={{ fontSize: '13.5px', fontWeight: '700', color: '#991b1b' }}>
+                            Download Failed
+                          </div>
+                          <div style={{ fontSize: '12px', color: '#b91c1c', marginTop: '2px' }}>
+                            {callDownload.error || 'Failed to download correction slip files. Please try again.'}
+                          </div>
+                        </div>
+                      </>
+                    )}
+                  </div>
+                );
+              })()}
               
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: '16px' }}>
                 {/* 1. View IC */}
@@ -697,47 +817,84 @@ const ClosedCallsTab = ({ setSelectedCall, setCurrentPage }) => {
                         </span>
                       </button>
 
-                      {/* View Slip(s) Button */}
-                      <button
-                        onClick={() => {
-                          const row = selectedActionCall;
-                          if (docs.length === 1) {
-                            // Only 1 slip -> directly open/view PDF with authenticated fetch
-                            viewCorrectionSlipPdf(currentCallNo, docs[0].id);
-                          } else {
-                            // More than 1 slip -> open Selection Modal
-                            setSelectedActionCall(null);
-                            setSlipListModalCall(row);
-                          }
-                        }}
-                        style={{
-                          display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '12px',
-                          padding: '24px 16px',
-                          background: 'linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%)',
-                          border: '1px solid #86efac',
-                          borderRadius: '16px',
-                          cursor: 'pointer', transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-                          color: '#166534',
-                          width: '100%',
-                          boxShadow: '0 4px 6px -1px rgba(22, 101, 52, 0.1), 0 2px 4px -1px rgba(22, 101, 52, 0.06)'
-                        }}
-                        onMouseEnter={(e) => { 
-                          e.currentTarget.style.transform = 'translateY(-4px)';
-                          e.currentTarget.style.boxShadow = '0 10px 15px -3px rgba(22, 101, 52, 0.2), 0 4px 6px -2px rgba(22, 101, 52, 0.1)'; 
-                        }}
-                        onMouseLeave={(e) => { 
-                          e.currentTarget.style.transform = 'translateY(0)';
-                          e.currentTarget.style.boxShadow = '0 4px 6px -1px rgba(22, 101, 52, 0.1), 0 2px 4px -1px rgba(22, 101, 52, 0.06)'; 
-                        }}
-                        title={docs.length > 1 ? `View Correction Slips (${docs.length})` : "View Correction Slip"}
-                      >
-                        <div style={{ width: '48px', height: '48px', background: '#ffffff', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 2px 4px rgba(0,0,0,0.05)' }}>
-                          <VisibilityRoundedIcon style={{ fontSize: '26px', color: '#166534' }} />
-                        </div>
-                        <span style={{ fontWeight: '700', fontSize: '15px', textAlign: 'center', lineHeight: '1.2' }}>
-                          {docs.length > 1 ? `View Correction Slips (${docs.length})` : 'View Correction Slip'}
-                        </span>
-                      </button>
+                      {/* View / Download Slip(s) Button */}
+                      {(() => {
+                        const callDownload = slipDownloadState[currentCallNo];
+                        const isDownloading = callDownload?.status === 'downloading';
+                        const isCompleted = callDownload?.status === 'completed';
+
+                        return (
+                          <button
+                            type="button"
+                            disabled={isDownloading}
+                            onClick={() => {
+                              const row = selectedActionCall;
+                              const call = currentCallNo || row?.call_no || row?.callNo || row?.requestId;
+                              handleDownloadCorrectionSlips(call, docs);
+                            }}
+                            style={{
+                              display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '12px',
+                              padding: '24px 16px',
+                              background: isCompleted 
+                                ? 'linear-gradient(135deg, #dcfce7 0%, #bbf7d0 100%)' 
+                                : isDownloading 
+                                  ? 'linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%)' 
+                                  : 'linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%)',
+                              border: isCompleted 
+                                ? '1.5px solid #22c55e' 
+                                : isDownloading 
+                                  ? '1.5px solid #4ade80' 
+                                  : '1px solid #86efac',
+                              borderRadius: '16px',
+                              cursor: isDownloading ? 'wait' : 'pointer',
+                              opacity: isDownloading ? 0.85 : 1,
+                              transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                              color: '#166534',
+                              width: '100%',
+                              boxShadow: '0 4px 6px -1px rgba(22, 101, 52, 0.1), 0 2px 4px -1px rgba(22, 101, 52, 0.06)'
+                            }}
+                            onMouseEnter={(e) => { 
+                              if (!isDownloading) {
+                                e.currentTarget.style.transform = 'translateY(-4px)';
+                                e.currentTarget.style.boxShadow = '0 10px 15px -3px rgba(22, 101, 52, 0.2), 0 4px 6px -2px rgba(22, 101, 52, 0.1)'; 
+                              }
+                            }}
+                            onMouseLeave={(e) => { 
+                              if (!isDownloading) {
+                                e.currentTarget.style.transform = 'translateY(0)';
+                                e.currentTarget.style.boxShadow = '0 4px 6px -1px rgba(22, 101, 52, 0.1), 0 2px 4px -1px rgba(22, 101, 52, 0.06)'; 
+                              }
+                            }}
+                            title={isDownloading ? "Downloading correction slips..." : (docs.length > 1 ? `View Correction Slips (${docs.length})` : "View Correction Slip")}
+                          >
+                            <div style={{
+                              width: '48px', height: '48px',
+                              background: isCompleted ? '#22c55e' : '#ffffff',
+                              borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                              boxShadow: '0 2px 4px rgba(0,0,0,0.05)'
+                            }}>
+                              {isDownloading ? (
+                                <svg style={{ animation: 'spin 0.8s linear infinite' }} width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#166534" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                  <path d="M21 12a9 9 0 1 1-6.219-8.56" />
+                                </svg>
+                              ) : isCompleted ? (
+                                <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#ffffff" strokeWidth="2.8" strokeLinecap="round" strokeLinejoin="round">
+                                  <polyline points="20 6 9 17 4 12" />
+                                </svg>
+                              ) : (
+                                <VisibilityRoundedIcon style={{ fontSize: '26px', color: '#166534' }} />
+                              )}
+                            </div>
+                            <span style={{ fontWeight: '700', fontSize: isDownloading ? '13px' : '15px', textAlign: 'center', lineHeight: '1.2' }}>
+                              {isDownloading 
+                                ? (callDownload?.total > 1 ? `Downloading (${callDownload.current}/${callDownload.total})...` : "Downloading...") 
+                                : isCompleted 
+                                  ? `✓ Downloaded (${callDownload?.total})!` 
+                                  : (docs.length > 1 ? `View Correction Slips (${docs.length})` : 'View Correction Slip')}
+                            </span>
+                          </button>
+                        );
+                      })()}
                     </React.Fragment>
                   );
                 })()}

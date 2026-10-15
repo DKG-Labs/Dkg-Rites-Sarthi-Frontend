@@ -597,38 +597,7 @@ const CorrectionSlipModal = ({ row = {}, onClose, viewOnly = false, isViewOnly =
 
         {/* Body */}
         <div style={S.body}>
-          {/* Top Banner when issuing a new slip for a call that already had one */}
-          {hasExistingSlip && !isViewMode && (
-            <div style={{
-              background: '#eff6ff', border: '1.5px solid #bfdbfe', borderRadius: '10px',
-              padding: '14px 18px', marginBottom: '20px', display: 'flex',
-              alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '14px'
-            }}>
-              <div style={{ flex: 1, minWidth: '260px' }}>
-                <div style={{ fontWeight: 700, color: '#1e40af', fontSize: '14px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <span>ℹ️</span> Previous Correction Slip(s) on Record
-                </div>
-                <div style={{ fontSize: '12.5px', color: '#1e3a8a', marginTop: '4px', lineHeight: '1.4' }}>
-                  This call already has previous correction slip(s) issued. You can review past changes using the button on the right. Add your new correction rows below to generate and issue the next revision.
-                </div>
-              </div>
-              {storedDoc && (
-                <button
-                  type="button"
-                  onClick={() => viewCorrectionSlipPdf(callNo)}
-                  style={{
-                    padding: '8px 14px', background: '#ffffff', color: '#1d4ed8',
-                    border: '1.5px solid #93c5fd', borderRadius: '8px', fontWeight: '600', fontSize: '12.5px',
-                    cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '6px',
-                    boxShadow: '0 1px 2px rgba(0,0,0,0.05)', whiteSpace: 'nowrap'
-                  }}
-                  title="View previous correction slip PDF"
-                >
-                  📄 View Previous PDF
-                </button>
-              )}
-            </div>
-          )}
+
 
           {/* Section 1 – IC Data */}
           <div>

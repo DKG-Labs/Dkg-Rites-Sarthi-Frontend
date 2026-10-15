@@ -237,6 +237,41 @@ export const downloadCorrectionSlipPdf = async (callNo, docId = null, filename =
   }
 };
 
+/**
+ * Download all stored Correction Slip PDFs for a call number separately
+ */
+export const downloadAllCorrectionSlips = async (callNo, initialDocs = [], onProgress = null) => {
+  if (!callNo) return;
+  let docs = Array.isArray(initialDocs) && initialDocs.length > 0 ? initialDocs : [];
+  if (docs.length === 0) {
+    try {
+      docs = await fetchCorrectionSlipDocuments(callNo);
+    } catch (e) {
+      console.warn('Could not fetch documents list for download:', e);
+    }
+  }
+
+  if (Array.isArray(docs) && docs.length > 0) {
+    const total = docs.length;
+    for (let i = 0; i < total; i++) {
+      const doc = docs[i];
+      if (typeof onProgress === 'function') {
+        onProgress({ current: i + 1, total, doc });
+      }
+      const filename = doc.originalFileName || `Correction_Slip_${callNo}_${doc.id || (i + 1)}.pdf`;
+      await downloadCorrectionSlipPdf(callNo, doc.id, filename);
+      if (i < total - 1) {
+        await new Promise((resolve) => setTimeout(resolve, 500));
+      }
+    }
+  } else {
+    if (typeof onProgress === 'function') {
+      onProgress({ current: 1, total: 1, doc: null });
+    }
+    await downloadCorrectionSlipPdf(callNo, null, `Correction_Slip_${callNo}.pdf`);
+  }
+};
+
 export const deleteCorrectionSlip = async (callNo) => {
   if (!callNo) {
     throw new Error('Call number is required to delete correction slip.');

@@ -18,6 +18,7 @@ import SleeperSummary from './sleeper-board/SleeperSummary';
 import SleeperQuality from './sleeper-board/SleeperQuality';
 import SleeperLifecycle from './sleeper-board/SleeperLifecycle';
 import SleeperMauReport from './sleeper-board/SleeperMauReport';
+import { computeAcceptedQty } from '../ProcessDefectSummaryCard';
 import SleeperMprReport from './sleeper-board/SleeperMprReport';
 import SleeperLwclReport from './sleeper-board/SleeperLwclReport';
 import SleeperScadaMonitor from './sleeper-board/SleeperScadaMonitor';
@@ -2168,7 +2169,7 @@ const ProfessionalCardSection = ({
                                                                                     shift: row.basicDetails?.shift || '-',
                                                                                     poSrNo: row.basicDetails?.poSrNo || '-',
                                                                                     lotNumber: row.basicDetails?.lotNumber || '-',
-                                                                                    acceptedQty: row.basicDetails?.totalAcceptedQty || 0,
+                                                                                    acceptedQty: computeAcceptedQty(row),
                                                                                     rejectedQty: row.basicDetails?.totalRejectionQty || 0,
                                                                                     shearingProd: row.processQty?.shearingProductionQty || 0,
                                                                                     shearingRej: row.processQty?.shearingRejectionQty || 0,
@@ -2659,7 +2660,7 @@ const Level4ReportTable = ({ data }) => {
                 case 'shift': aVal = basicA.shift || ''; bVal = basicB.shift || ''; break;
                 case 'poSrNo': aVal = basicA.poSrNo || ''; bVal = basicB.poSrNo || ''; break;
                 case 'lotNumber': aVal = basicA.lotNumber || ''; bVal = basicB.lotNumber || ''; break;
-                case 'acceptedQty': aVal = basicA.totalAcceptedQty || 0; bVal = basicB.totalAcceptedQty || 0; break;
+                case 'acceptedQty': aVal = computeAcceptedQty(a); bVal = computeAcceptedQty(b); break;
                 case 'rejectedQty': aVal = basicA.totalRejectionQty || 0; bVal = basicB.totalRejectionQty || 0; break;
                 case 'shearProd': aVal = qtyA.shearingProductionQty || 0; bVal = qtyB.shearingProductionQty || 0; break;
                 case 'shearRej': aVal = qtyA.shearingRejectionQty || 0; bVal = qtyB.shearingRejectionQty || 0; break;
@@ -2774,7 +2775,7 @@ const Level4ReportTable = ({ data }) => {
                                 <td className="text-center"><span className="shift-badge">{basic.shift || '-'}</span></td>
                                 <td className="text-center">{basic.poSrNo || '-'}</td>
                                 <td className="text-center">{basic.lotNumber || '-'}</td>
-                                <td className="text-center text-emerald-600 bg-emerald-50/30 font-bold">{basic.totalAcceptedQty?.toLocaleString() || 0}</td>
+                                <td className="text-center text-emerald-600 bg-emerald-50/30 font-bold">{computeAcceptedQty(row)?.toLocaleString() || 0}</td>
                                 <td className="text-center text-red-600 bg-red-50/30 font-bold">{basic.totalRejectionQty?.toLocaleString() || 0}</td>
                                 <td className="text-center text-red-500 font-medium" title={shearingTitle} style={{ cursor: 'help' }}>{qty.shearingRejectionQty || 0}</td>
                                 <td className="text-center text-red-500 font-medium" title={turningTitle} style={{ cursor: 'help' }}>{qty.turningRejectionQty || 0}</td>

@@ -11,7 +11,7 @@ import {
   revertToIcIssuance
 } from '../services/workflowService';
 import { scheduleInspection } from '../services/scheduleService';
-import { viewSignedCertificate } from '../services/certificateService';
+import { viewSignedCertificate, getAnnexureDocuments } from '../services/certificateService';
 import { getBaseUrl } from '../services/apiConfig';
 import Notification from './Notification';
 import { getStoredUser } from '../services/authService';
@@ -27,9 +27,10 @@ import {
   fetchCorrectionSlipDocument,
   fetchCorrectionSlip,
   fetchCorrectionSlipDocuments,
-  viewCorrectionSlipPdf
+  viewCorrectionSlipPdf,
+  downloadAllCorrectionSlips
 } from '../services/correctionSlipService';
-import { downloadOrNotifyCaseLetter, fetchSavedCaseLetterInfo } from '../services/caseLetterService';
+import { downloadOrNotifyCaseLetter, fetchSavedCaseLetterInfo, viewSavedCaseLetterPdf } from '../services/caseLetterService';
 
 const isProcessCall = (call) => {
   if (!call) return false;
@@ -87,6 +88,7 @@ const AttendingCallsDashboard = ({
   const [isCorrectionSlipViewOnly, setIsCorrectionSlipViewOnly] = useState(false);
   const [slipDocsMap, setSlipDocsMap] = useState({});
   const [slipStatusMap, setSlipStatusMap] = useState({});
+  const [slipDownloadState, setSlipDownloadState] = useState({});
   const [uploadAnnexureModal, setUploadAnnexureModal] = useState({ isOpen: false, call: null });
   const [selectedCertificateCall, setSelectedCertificateCall] = useState(null);
   const [generateCaseLetterModalCall, setGenerateCaseLetterModalCall] = useState(null);
@@ -138,6 +140,50 @@ const AttendingCallsDashboard = ({
       setSlipStatusMap(prev => ({ ...prev, [callNo]: list.length > 0 }));
     }).catch(() => {});
   }, [selectedActionCall]);
+
+  const handleDownloadCorrectionSlips = async (currentCall, docs) => {
+    if (!currentCall) return;
+    const totalCount = (Array.isArray(docs) && docs.length > 0) ? docs.length : 1;
+    setSlipDownloadState(prev => ({
+      ...prev,
+      [currentCall]: { status: 'downloading', current: 1, total: totalCount }
+    }));
+
+    try {
+      await downloadAllCorrectionSlips(currentCall, docs, ({ current, total }) => {
+        setSlipDownloadState(prev => ({
+          ...prev,
+          [currentCall]: { status: 'downloading', current, total }
+        }));
+      });
+
+      setSlipDownloadState(prev => ({
+        ...prev,
+        [currentCall]: { status: 'completed', current: totalCount, total: totalCount }
+      }));
+
+      setTimeout(() => {
+        setSlipDownloadState(prev => {
+          const next = { ...prev };
+          delete next[currentCall];
+          return next;
+        });
+      }, 3500);
+    } catch (err) {
+      console.error('Error downloading correction slips:', err);
+      setSlipDownloadState(prev => ({
+        ...prev,
+        [currentCall]: { status: 'error', error: err.message || 'Download failed' }
+      }));
+      setTimeout(() => {
+        setSlipDownloadState(prev => {
+          const next = { ...prev };
+          delete next[currentCall];
+          return next;
+        });
+      }, 4000);
+    }
+  };
 
   // Check case letter existence when a completed call action popup is opened
   useEffect(() => {
@@ -734,8 +780,58 @@ const AttendingCallsDashboard = ({
 
   const handleDownloadSignedIC = handleViewSignedIC;
 
-  const handleDownloadAnnexures = (call) => {
-    setNotification({ message: `Annexure generation and download for call ${call.requestId || call.callNo || call.id} is being prepared.`, type: 'info' });
+  const handleDownloadAnnexures = async (call) => {
+    if (!call) return;
+    const callNo = call.requestId || call.call_no || call.callNo || call.id;
+    if (!callNo) {
+      setNotification({ message: 'Call number not found for this record.', type: 'error' });
+      return;
+    }
+
+    try {
+      // 1. Check Saved Case Letter
+      try {
+        const caseLetterInfo = await fetchSavedCaseLetterInfo(callNo);
+        if (caseLetterInfo && caseLetterInfo.exists && caseLetterInfo.data) {
+          const blob = await viewSavedCaseLetterPdf(callNo);
+          const fileUrl = window.URL.createObjectURL(new Blob([blob], { type: 'application/pdf' }));
+          window.open(fileUrl, '_blank');
+          setNotification({ message: 'Case letter opened successfully.', type: 'success' });
+          return;
+        }
+      } catch (caseErr) {
+        console.warn('[Annexures] No case letter found or error checking case letter:', caseErr);
+      }
+
+      // 2. Check Uploaded Annexures
+      try {
+        const annexRes = await getAnnexureDocuments(callNo, 'RAILPAD');
+        if (annexRes && annexRes.success && Array.isArray(annexRes.data) && annexRes.data.length > 0) {
+          setUploadAnnexureModal({
+            isOpen: true,
+            call: call,
+            mode: 'view'
+          });
+          return;
+        }
+      } catch (annexErr) {
+        console.warn('[Annexures] Error checking uploaded annexures:', annexErr);
+      }
+
+      // 3. Fetch & Generate Call Letter
+      try {
+        await handleDownloadLetter(call);
+        return;
+      } catch (callLetterErr) {
+        console.warn('[Annexures] Error generating call letter:', callLetterErr);
+      }
+
+      // 4. Fallback: Not Found
+      setNotification({ message: `No Case Letter, Annexures, or Call Letter found for Call No: ${callNo}`, type: 'warning' });
+    } catch (err) {
+      console.error('[Annexures] Error in handleDownloadAnnexures:', err);
+      setNotification({ message: `Failed to retrieve documents for Call No: ${callNo}`, type: 'error' });
+    }
   };
 
   const handleDownloadLetter = async (call) => {
@@ -2173,6 +2269,81 @@ const AttendingCallsDashboard = ({
                 <span style={{ color: '#f59e0b' }}>⚡</span> Actions & Documents
               </h3>
               
+              {/* Correction Slips Download Status Banner */}
+              {(() => {
+                const callNo = selectedActionCall?.call_no || selectedActionCall?.callNo || selectedActionCall?.requestId;
+                const callDownload = slipDownloadState[callNo];
+                if (!callDownload) return null;
+
+                return (
+                  <div style={{
+                    display: 'flex', alignItems: 'center', gap: '12px',
+                    padding: '12px 16px', borderRadius: '12px', marginBottom: '16px',
+                    background: callDownload.status === 'error' ? '#fef2f2' : (callDownload.status === 'completed' ? '#f0fdf4' : '#eff6ff'),
+                    border: `1.5px solid ${callDownload.status === 'error' ? '#fecaca' : (callDownload.status === 'completed' ? '#86efac' : '#93c5fd')}`,
+                    boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)',
+                    transition: 'all 0.3s ease'
+                  }}>
+                    {callDownload.status === 'downloading' && (
+                      <>
+                        <div style={{ width: '24px', height: '24px', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                          <svg style={{ animation: 'spin 0.8s linear infinite' }} width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#2563eb" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M21 12a9 9 0 1 1-6.219-8.56" />
+                          </svg>
+                        </div>
+                        <div style={{ flex: 1 }}>
+                          <div style={{ fontSize: '13.5px', fontWeight: '700', color: '#1e40af' }}>
+                            Downloading Correction Slips ({callDownload.current} of {callDownload.total})...
+                          </div>
+                          <div style={{ fontSize: '12px', color: '#3b82f6', marginTop: '2px' }}>
+                            Please wait while PDF files are being downloaded to your computer.
+                          </div>
+                          <div style={{ width: '100%', height: '5px', background: '#dbeafe', borderRadius: '999px', marginTop: '6px', overflow: 'hidden' }}>
+                            <div style={{
+                              width: `${Math.round((callDownload.current / callDownload.total) * 100)}%`,
+                              height: '100%',
+                              background: '#2563eb',
+                              transition: 'width 0.3s ease-in-out',
+                              borderRadius: '999px'
+                            }} />
+                          </div>
+                        </div>
+                      </>
+                    )}
+                    {callDownload.status === 'completed' && (
+                      <>
+                        <div style={{ width: '26px', height: '26px', borderRadius: '50%', background: '#22c55e', color: '#ffffff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', fontSize: '14px', flexShrink: 0 }}>
+                          ✓
+                        </div>
+                        <div>
+                          <div style={{ fontSize: '13.5px', fontWeight: '700', color: '#166534' }}>
+                            Downloaded Successfully!
+                          </div>
+                          <div style={{ fontSize: '12px', color: '#15803d', marginTop: '2px' }}>
+                            All {callDownload.total} correction slip(s) for {callNo} have been downloaded.
+                          </div>
+                        </div>
+                      </>
+                    )}
+                    {callDownload.status === 'error' && (
+                      <>
+                        <div style={{ width: '26px', height: '26px', borderRadius: '50%', background: '#ef4444', color: '#ffffff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', fontSize: '14px', flexShrink: 0 }}>
+                          !
+                        </div>
+                        <div>
+                          <div style={{ fontSize: '13.5px', fontWeight: '700', color: '#991b1b' }}>
+                            Download Failed
+                          </div>
+                          <div style={{ fontSize: '12px', color: '#b91c1c', marginTop: '2px' }}>
+                            {callDownload.error || 'Failed to download correction slip files. Please try again.'}
+                          </div>
+                        </div>
+                      </>
+                    )}
+                  </div>
+                );
+              })()}
+              
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '16px' }}>
                 {/* 1. View IC */}
                 <button
@@ -2378,48 +2549,87 @@ const AttendingCallsDashboard = ({
                         </span>
                       </button>
 
-                      {/* View Slip(s) */}
-                      <button
-                        onClick={() => {
-                          const row = selectedActionCall;
-                          if (docs.length === 1) {
-                            viewCorrectionSlipPdf(callNo, docs[0].id);
-                          } else {
-                            setSelectedActionCall(null);
-                            setSlipListModalCall(row);
-                          }
-                        }}
-                        style={{
-                          display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '8px',
-                          padding: '16px 12px',
-                          background: 'linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%)',
-                          border: '1px solid #86efac',
-                          borderRadius: '14px',
-                          cursor: 'pointer', transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-                          color: '#166534',
-                          width: '100%',
-                          boxShadow: '0 4px 6px -1px rgba(22, 101, 52, 0.1), 0 2px 4px -1px rgba(22, 101, 52, 0.06)'
-                        }}
-                        onMouseEnter={(e) => { 
-                          e.currentTarget.style.transform = 'translateY(-3px)';
-                          e.currentTarget.style.boxShadow = '0 10px 15px -3px rgba(22, 101, 52, 0.2), 0 4px 6px -2px rgba(22, 101, 52, 0.1)'; 
-                        }}
-                        onMouseLeave={(e) => { 
-                          e.currentTarget.style.transform = 'translateY(0)';
-                          e.currentTarget.style.boxShadow = '0 4px 6px -1px rgba(22, 101, 52, 0.1), 0 2px 4px -1px rgba(22, 101, 52, 0.06)'
-                        }}
-                        title={docs.length > 1 ? `View Correction Slips (${docs.length})` : "View Correction Slip"}
-                      >
-                        <div style={{ width: '42px', height: '42px', background: '#ffffff', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 2px 4px rgba(0,0,0,0.05)' }}>
-                          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#166534" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
-                            <circle cx="12" cy="12" r="3" />
-                          </svg>
-                        </div>
-                        <span style={{ fontWeight: '700', fontSize: '14px', textAlign: 'center', lineHeight: '1.2' }}>
-                          {docs.length > 1 ? `View Correction Slips (${docs.length})` : "View Correction Slip"}
-                        </span>
-                      </button>
+                      {/* View / Download Slip(s) */}
+                      {(() => {
+                        const callDownload = slipDownloadState[callNo];
+                        const isDownloading = callDownload?.status === 'downloading';
+                        const isCompleted = callDownload?.status === 'completed';
+
+                        return (
+                          <button
+                            type="button"
+                            disabled={isDownloading}
+                            onClick={() => {
+                              const row = selectedActionCall;
+                              const currentCall = callNo || row?.call_no || row?.callNo || row?.requestId;
+                              handleDownloadCorrectionSlips(currentCall, docs);
+                            }}
+                            style={{
+                              display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '8px',
+                              padding: '16px 12px',
+                              background: isCompleted 
+                                ? 'linear-gradient(135deg, #dcfce7 0%, #bbf7d0 100%)' 
+                                : isDownloading 
+                                  ? 'linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%)' 
+                                  : 'linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%)',
+                              border: isCompleted 
+                                ? '1.5px solid #22c55e' 
+                                : isDownloading 
+                                  ? '1.5px solid #4ade80' 
+                                  : '1px solid #86efac',
+                              borderRadius: '14px',
+                              cursor: isDownloading ? 'wait' : 'pointer',
+                              opacity: isDownloading ? 0.85 : 1,
+                              transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                              color: '#166534',
+                              width: '100%',
+                              boxShadow: '0 4px 6px -1px rgba(22, 101, 52, 0.1), 0 2px 4px -1px rgba(22, 101, 52, 0.06)'
+                            }}
+                            onMouseEnter={(e) => { 
+                              if (!isDownloading) {
+                                e.currentTarget.style.transform = 'translateY(-3px)';
+                                e.currentTarget.style.boxShadow = '0 10px 15px -3px rgba(22, 101, 52, 0.2), 0 4px 6px -2px rgba(22, 101, 52, 0.1)'; 
+                              }
+                            }}
+                            onMouseLeave={(e) => { 
+                              if (!isDownloading) {
+                                e.currentTarget.style.transform = 'translateY(0)';
+                                e.currentTarget.style.boxShadow = '0 4px 6px -1px rgba(22, 101, 52, 0.1), 0 2px 4px -1px rgba(22, 101, 52, 0.06)';
+                              }
+                            }}
+                            title={isDownloading ? "Downloading correction slips..." : (docs.length > 1 ? `View Correction Slips (${docs.length})` : "View Correction Slip")}
+                          >
+                            <div style={{
+                              width: '42px', height: '42px',
+                              background: isCompleted ? '#22c55e' : '#ffffff',
+                              borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                              boxShadow: '0 2px 4px rgba(0,0,0,0.05)'
+                            }}>
+                              {isDownloading ? (
+                                <svg style={{ animation: 'spin 0.8s linear infinite' }} width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#166534" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                  <path d="M21 12a9 9 0 1 1-6.219-8.56" />
+                                </svg>
+                              ) : isCompleted ? (
+                                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#ffffff" strokeWidth="2.8" strokeLinecap="round" strokeLinejoin="round">
+                                  <polyline points="20 6 9 17 4 12" />
+                                </svg>
+                              ) : (
+                                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#166534" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                                  <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                                  <circle cx="12" cy="12" r="3" />
+                                </svg>
+                              )}
+                            </div>
+                            <span style={{ fontWeight: '700', fontSize: isDownloading ? '12.5px' : '14px', textAlign: 'center', lineHeight: '1.2' }}>
+                              {isDownloading 
+                                ? (callDownload?.total > 1 ? `Downloading (${callDownload.current}/${callDownload.total})...` : "Downloading...") 
+                                : isCompleted 
+                                  ? `✓ Downloaded (${callDownload?.total})!` 
+                                  : (docs.length > 1 ? `View Correction Slips (${docs.length})` : "View Correction Slip")}
+                            </span>
+                          </button>
+                        );
+                      })()}
                     </React.Fragment>
                   );
                 })()}
@@ -2479,6 +2689,32 @@ const AttendingCallsDashboard = ({
                     <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#7e22ce" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
                   </div>
                   <span style={{ fontWeight: '700', fontSize: '14px' }}>PO & MA</span>
+                </button>
+
+                {/* 4b. Download Annexures */}
+                <button
+                  onClick={() => handleDownloadAnnexures(selectedActionCall)}
+                  style={{
+                    display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '8px',
+                    padding: '16px 12px', background: 'linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%)',
+                    border: '1px solid #bae6fd', borderRadius: '14px',
+                    cursor: 'pointer', transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                    color: '#0284c7', width: '100%',
+                    boxShadow: '0 4px 6px -1px rgba(2, 132, 199, 0.1), 0 2px 4px -1px rgba(2, 132, 199, 0.06)'
+                  }}
+                  onMouseEnter={(e) => { 
+                    e.currentTarget.style.transform = 'translateY(-3px)';
+                    e.currentTarget.style.boxShadow = '0 10px 15px -3px rgba(2, 132, 199, 0.2), 0 4px 6px -2px rgba(2, 132, 199, 0.1)'; 
+                  }}
+                  onMouseLeave={(e) => { 
+                    e.currentTarget.style.transform = 'translateY(0)';
+                    e.currentTarget.style.boxShadow = '0 4px 6px -1px rgba(2, 132, 199, 0.1), 0 2px 4px -1px rgba(2, 132, 199, 0.06)'; 
+                  }}
+                >
+                  <div style={{ width: '42px', height: '42px', background: '#ffffff', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 2px 4px rgba(0,0,0,0.05)' }}>
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#0284c7" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                  </div>
+                  <span style={{ fontWeight: '700', fontSize: '14px' }}>Download Annexures</span>
                 </button>
 
                 {/* 5. Case Letter (Generate / View) */}

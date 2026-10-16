@@ -318,8 +318,13 @@ const padSpecData = (sd) => {
   };
 };
 
-const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onPauseComplete }) => {
+const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onPauseComplete, specificVersion: propSpecificVersion, onSpecificVersionChange }) => {
   const currentCallId = call?.callNo || call?.icNumber || call?.requestId || (call?.id ? String(call.id) : '');
+  const [internalSpecificVersion, setInternalSpecificVersion] = useState(() => {
+    return localStorage.getItem(`railpad_specific_version_${currentCallId}`) || 'T-55-2025';
+  });
+  const specificVersion = propSpecificVersion || internalSpecificVersion;
+  const isT55_2023 = specificVersion === 'T-55-2023';
   const [lots, setLots] = useState([]);
   const [loading, setLoading] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -331,6 +336,17 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
   const [searchTerm, setSearchTerm] = useState('');
   const [activeSubmoduleTab, setActiveSubmoduleTab] = useState('visualDim');
   const [visibleLoadRows, setVisibleLoadRows] = useState(4);
+
+  useEffect(() => {
+    if (isT55_2023) {
+      if (activeTab === 'periodic') {
+        setActiveTab('visual');
+      }
+      if (activeSubmoduleTab === 'periodic') {
+        setActiveSubmoduleTab('visualDim');
+      }
+    }
+  }, [isT55_2023, activeTab, activeSubmoduleTab]);
 
   const handleDeleteRow = (indexToDelete) => {
     if (visibleLoadRows <= 1) return;
@@ -985,6 +1001,24 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
           ]);
           const data = dataResult.status === 'fulfilled' ? dataResult.value : null;
           const savedLotResults = savedLotResultsResult.status === 'fulfilled' ? (savedLotResultsResult.value || []) : [];
+
+          // Restore specificVersion from DB if present
+          let dbSpecificVersion = null;
+          if (savedLotResults && savedLotResults.length > 0) {
+            const foundVer = savedLotResults.find(r => r.specificVersion)?.specificVersion;
+            if (foundVer) dbSpecificVersion = foundVer;
+          }
+          if (!dbSpecificVersion && data?.specificVersion) {
+            dbSpecificVersion = data.specificVersion;
+          }
+          if (dbSpecificVersion) {
+            setInternalSpecificVersion(dbSpecificVersion);
+            if (onSpecificVersionChange) {
+              onSpecificVersionChange(dbSpecificVersion);
+            }
+            localStorage.setItem(`railpad_specific_version_${currentCallId}`, dbSpecificVersion);
+          }
+
           if (data && data.lots) {
             // Map backend lot data to frontend format if needed
             const formattedLots = data.lots.map(l => {
@@ -1348,6 +1382,16 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
 
         visualDbData = results[0].status === 'fulfilled' ? results[0].value : null;
         lotResults = results[1].status === 'fulfilled' ? (results[1].value || []) : [];
+        if (lotResults && lotResults.length > 0) {
+          const foundVer = lotResults.find(r => r.specificVersion)?.specificVersion;
+          if (foundVer) {
+            setInternalSpecificVersion(foundVer);
+            if (onSpecificVersionChange) {
+              onSpecificVersionChange(foundVer);
+            }
+            localStorage.setItem(`railpad_specific_version_${currentCallId}`, foundVer);
+          }
+        }
         hardnessDbData = results[2].status === 'fulfilled' ? results[2].value : null;
         tensileDbData = results[3].status === 'fulfilled' ? results[3].value : null;
         elongationDbData = results[4].status === 'fulfilled' ? results[4].value : null;
@@ -2062,6 +2106,7 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
       hologram: hologramStr,
       remarks: tRemarks || '',
       userId: userId ? parseInt(userId, 10) : null,
+      specificVersion: specificVersion,
       sectionResults: [
         { sectionKey: 'visual', sectionName: 'Visual Inspection', sampleSize: String(tVisual.visualN || 25), status: vStatus },
         { sectionKey: 'dimensional', sectionName: 'Dimensional Inspection', sampleSize: String(tVisual.dimN || 25), status: dStatus }
@@ -2513,20 +2558,22 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
     const hasSecant = (tSpec.secant || []).some(s => s.s20?.a !== '');
     if (hasSecant) lotPromises.push(finalSecantStiffnessService.save(secantPayload));
 
-    const hasResilience = (tPhys.resilience || []).some(r => r.i1 !== '');
-    if (hasResilience) lotPromises.push(finalResilienceTestService.save(resiliencePayload));
+    if (!isT55_2023) {
+      const hasResilience = (tPhys.resilience || []).some(r => r.i1 !== '');
+      if (hasResilience) lotPromises.push(finalResilienceTestService.save(resiliencePayload));
 
-    const hasOzone = (tElec.ozone || []).some(o => o.initial !== '' || o.obs !== '');
-    if (hasOzone) lotPromises.push(finalOzoneTestService.save(ozonePayload));
+      const hasOzone = (tElec.ozone || []).some(o => o.initial !== '' || o.obs !== '');
+      if (hasOzone) lotPromises.push(finalOzoneTestService.save(ozonePayload));
 
-    const hasTga = (tPeriodic.tga?.samples || []).some(s => s.lotNo !== '' || s.weight !== '');
-    if (hasTga) lotPromises.push(finalPeriodicTgaService.save(tgaPayload));
+      const hasTga = (tPeriodic.tga?.samples || []).some(s => s.lotNo !== '' || s.weight !== '');
+      if (hasTga) lotPromises.push(finalPeriodicTgaService.save(tgaPayload));
 
-    const hasDurability = (tPeriodic.durability?.samples || []).some(s => s.lotNo !== '' || s.initialThick !== '');
-    if (hasDurability) lotPromises.push(finalPeriodicDurabilityService.save(durabilityPayload));
+      const hasDurability = (tPeriodic.durability?.samples || []).some(s => s.lotNo !== '' || s.initialThick !== '');
+      if (hasDurability) lotPromises.push(finalPeriodicDurabilityService.save(durabilityPayload));
 
-    const hasAbrasion = (tPeriodic.abrasion?.samples || []).some(s => s.lotNo !== '' || s.initialMass !== '');
-    if (hasAbrasion) lotPromises.push(finalPeriodicAbrasionService.save(abrasionPayload));
+      const hasAbrasion = (tPeriodic.abrasion?.samples || []).some(s => s.lotNo !== '' || s.initialMass !== '');
+      if (hasAbrasion) lotPromises.push(finalPeriodicAbrasionService.save(abrasionPayload));
+    }
 
     if (oIsNCRGRSP) {
       const ncrAdhesionPayload = {
@@ -2720,18 +2767,21 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
 
         const localActiveSections = [
           'hardness', 'tensile', 'elongation', 'modulus', 'compression', 'tension', 'load',
-          'resistance', 'sg', 'ash', 'adhesion', 'secant', 'resilience', 'ozone'
+          'resistance', 'sg', 'ash', 'adhesion', 'secant',
+          ...(!isT55_2023 ? ['resilience', 'ozone'] : [])
         ];
         if (isNCRGRSP) {
           localActiveSections.push('ncrAdhesion', 'ncrBreaking', 'ncrCord');
         }
 
-        const isTgaMandatory = parseInt(periodicData?.tga?.qtyProduced || 0, 10) >= 30000;
-        const isDurabilityMandatory = parseInt(periodicData?.durability?.qtyProduced || 0, 10) >= 100000;
-        const isAbrasionMandatory = parseInt(periodicData?.abrasion?.qtyProduced || 0, 10) >= 100000;
-        if (isTgaMandatory) localActiveSections.push('tga');
-        if (isDurabilityMandatory) localActiveSections.push('durability');
-        if (isAbrasionMandatory) localActiveSections.push('abrasion');
+        if (!isT55_2023) {
+          const isTgaMandatory = parseInt(periodicData?.tga?.qtyProduced || 0, 10) >= 30000;
+          const isDurabilityMandatory = parseInt(periodicData?.durability?.qtyProduced || 0, 10) >= 100000;
+          const isAbrasionMandatory = parseInt(periodicData?.abrasion?.qtyProduced || 0, 10) >= 100000;
+          if (isTgaMandatory) localActiveSections.push('tga');
+          if (isDurabilityMandatory) localActiveSections.push('durability');
+          if (isAbrasionMandatory) localActiveSections.push('abrasion');
+        }
 
         const localRawReports = {};
         localActiveSections.forEach(key => {
@@ -2754,6 +2804,9 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
         const isLocalAbrasionMandatory = hasLocalAbrasionQty && parseInt(periodicData?.abrasion?.qtyProduced || 0, 10) >= 100000;
 
         const localGetSectionStatus = (key) => {
+          if (isT55_2023 && ['tga', 'durability', 'abrasion', 'resilience', 'ozone'].includes(key)) {
+            return 'NOT_APPLICABLE';
+          }
           const rep = localRawReports[key];
           if (!rep) return 'PENDING';
 
@@ -2783,7 +2836,7 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
           }
 
           if (rep.primaryFilled < rep.primaryCount) {
-            return rep.primaryFilled > 0 ? 'UNDER TESTING' : 'PENDING';
+            return (rep.primaryFilled > 0 || rep.hasAnyInput) ? 'UNDER TESTING' : 'PENDING';
           }
           if (rep.primaryOutCount === 0) return 'PASS';
           if (key === localMarginalKey) {
@@ -2851,6 +2904,7 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
           hologram: hologramStr,
           remarks: remarks || '',
           userId: userId ? parseInt(userId, 10) : null,
+          specificVersion: specificVersion,
           sectionResults: sectionResultsPayload
         };
 
@@ -3783,13 +3837,15 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
           remarks: remarks || ''
         };
 
-        savePromises.push(
-          finalResilienceTestService.save(resiliencePayload),
-          finalOzoneTestService.save(ozonePayload),
-          finalPeriodicTgaService.save(tgaPayload),
-          finalPeriodicDurabilityService.save(durabilityPayload),
-          finalPeriodicAbrasionService.save(abrasionPayload)
-        );
+        if (!isT55_2023) {
+          savePromises.push(
+            finalResilienceTestService.save(resiliencePayload),
+            finalOzoneTestService.save(ozonePayload),
+            finalPeriodicTgaService.save(tgaPayload),
+            finalPeriodicDurabilityService.save(durabilityPayload),
+            finalPeriodicAbrasionService.save(abrasionPayload)
+          );
+        }
 
         const otherLotsFinish = lots.filter(l => l.id !== selectedLot);
         for (const oLot of otherLotsFinish) {
@@ -3981,18 +4037,21 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
 
         const localActiveSections = [
           'hardness', 'tensile', 'elongation', 'modulus', 'compression', 'tension', 'load',
-          'resistance', 'sg', 'ash', 'adhesion', 'secant', 'resilience', 'ozone'
+          'resistance', 'sg', 'ash', 'adhesion', 'secant',
+          ...(!isT55_2023 ? ['resilience', 'ozone'] : [])
         ];
         if (isNCRGRSP) {
           localActiveSections.push('ncrAdhesion', 'ncrBreaking', 'ncrCord');
         }
 
-        const isTgaMandatory = parseInt(periodicData?.tga?.qtyProduced || 0, 10) >= 30000;
-        const isDurabilityMandatory = parseInt(periodicData?.durability?.qtyProduced || 0, 10) >= 100000;
-        const isAbrasionMandatory = parseInt(periodicData?.abrasion?.qtyProduced || 0, 10) >= 100000;
-        if (isTgaMandatory) localActiveSections.push('tga');
-        if (isDurabilityMandatory) localActiveSections.push('durability');
-        if (isAbrasionMandatory) localActiveSections.push('abrasion');
+        if (!isT55_2023) {
+          const isTgaMandatory = parseInt(periodicData?.tga?.qtyProduced || 0, 10) >= 30000;
+          const isDurabilityMandatory = parseInt(periodicData?.durability?.qtyProduced || 0, 10) >= 100000;
+          const isAbrasionMandatory = parseInt(periodicData?.abrasion?.qtyProduced || 0, 10) >= 100000;
+          if (isTgaMandatory) localActiveSections.push('tga');
+          if (isDurabilityMandatory) localActiveSections.push('durability');
+          if (isAbrasionMandatory) localActiveSections.push('abrasion');
+        }
 
         const localRawReports = {};
         localActiveSections.forEach(key => {
@@ -4015,6 +4074,9 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
         const isLocalAbrasionMandatoryPause = hasLocalAbrasionQtyPause && parseInt(periodicData?.abrasion?.qtyProduced || 0, 10) >= 100000;
 
         const localGetSectionStatus = (key) => {
+          if (isT55_2023 && ['tga', 'durability', 'abrasion', 'resilience', 'ozone'].includes(key)) {
+            return 'NOT_APPLICABLE';
+          }
           const rep = localRawReports[key];
           if (!rep) return 'PENDING';
 
@@ -4044,7 +4106,7 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
           }
 
           if (rep.primaryFilled < rep.primaryCount) {
-            return rep.primaryFilled > 0 ? 'UNDER TESTING' : 'PENDING';
+            return (rep.primaryFilled > 0 || rep.hasAnyInput) ? 'UNDER TESTING' : 'PENDING';
           }
           if (rep.primaryOutCount === 0) return 'PASS';
           if (key === localMarginalKey) {
@@ -4112,6 +4174,7 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
           hologram: hologramStr,
           remarks: remarks || '',
           userId: userId ? parseInt(userId, 10) : null,
+          specificVersion: specificVersion,
           sectionResults: sectionResultsPayload
         };
 
@@ -5063,20 +5126,22 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
         const hasSecant = (specData.secant || []).some(s => s.s20?.a !== '');
         if (hasSecant) pausePromises.push(finalSecantStiffnessService.save(secantPayloadPause));
 
-        const hasResilience = (physicalData.resilience || []).some(r => r.i1 !== '');
-        if (hasResilience) pausePromises.push(finalResilienceTestService.save(resiliencePayloadPause));
+        if (!isT55_2023) {
+          const hasResilience = (physicalData.resilience || []).some(r => r.i1 !== '');
+          if (hasResilience) pausePromises.push(finalResilienceTestService.save(resiliencePayloadPause));
 
-        const hasOzone = (elecData.ozone || []).some(o => o.initial !== '' || o.obs !== '');
-        if (hasOzone) pausePromises.push(finalOzoneTestService.save(ozonePayloadPause));
+          const hasOzone = (elecData.ozone || []).some(o => o.initial !== '' || o.obs !== '');
+          if (hasOzone) pausePromises.push(finalOzoneTestService.save(ozonePayloadPause));
 
-        const hasTga = (periodicData.tga?.samples || []).some(s => s.lotNo !== '' || s.weight !== '');
-        if (hasTga) pausePromises.push(finalPeriodicTgaService.save(tgaPayloadPause));
+          const hasTga = (periodicData.tga?.samples || []).some(s => s.lotNo !== '' || s.weight !== '');
+          if (hasTga) pausePromises.push(finalPeriodicTgaService.save(tgaPayloadPause));
 
-        const hasDurability = (periodicData.durability?.samples || []).some(s => s.lotNo !== '' || s.initialThick !== '');
-        if (hasDurability) pausePromises.push(finalPeriodicDurabilityService.save(durabilityPayloadPause));
+          const hasDurability = (periodicData.durability?.samples || []).some(s => s.lotNo !== '' || s.initialThick !== '');
+          if (hasDurability) pausePromises.push(finalPeriodicDurabilityService.save(durabilityPayloadPause));
 
-        const hasAbrasion = (periodicData.abrasion?.samples || []).some(s => s.lotNo !== '' || s.initialMass !== '');
-        if (hasAbrasion) pausePromises.push(finalPeriodicAbrasionService.save(abrasionPayloadPause));
+          const hasAbrasion = (periodicData.abrasion?.samples || []).some(s => s.lotNo !== '' || s.initialMass !== '');
+          if (hasAbrasion) pausePromises.push(finalPeriodicAbrasionService.save(abrasionPayloadPause));
+        }
 
         if (isNCRGRSP) {
           const hasNcrAdhesion = (specData.ncrgrsp?.adhesion || []).some(a => a.peel !== '' || a.hpull !== '');
@@ -5327,6 +5392,7 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
     let primaryOutCount = 0;
     let doubleFilled = 0;
     let doubleOutCount = 0;
+    let hasAnyInput = false;
 
     switch (key) {
       case 'hardness': {
@@ -5744,14 +5810,32 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
       case 'ncrAdhesion': {
         if (!specData.ncrgrsp || !specData.ncrgrsp.adhesion) break;
         const checkSample = (v) => {
-          if (!v || v.peel === '' || v.peel === undefined || v.peel === null) return { filled: false, out: false };
+          if (!v) return { filled: false, out: false };
+          const hasPeel = v.peel !== '' && v.peel !== undefined && v.peel !== null;
+          const hasHpull = v.hpull !== '' && v.hpull !== undefined && v.hpull !== null;
+          if (hasPeel || hasHpull) hasAnyInput = true;
+
+          // Peel Adhesion is always required (Limit >= 4.0 Kgf)
+          if (!hasPeel) return { filled: false, out: false };
           const peelVal = parseFloat(v.peel);
           if (isNaN(peelVal)) return { filled: false, out: false };
           let isOut = peelVal < 4;
-          if (v.hpull !== '' && v.hpull !== undefined && v.hpull !== null) {
+
+          // Under T-55-2023, H-Pull Test (Kgf) is mandatory (Limit >= 10.0 Kgf)
+          if (isT55_2023) {
+            if (!hasHpull) return { filled: false, out: false };
             const hpullVal = parseFloat(v.hpull);
-            if (!isNaN(hpullVal) && hpullVal < 10) {
+            if (isNaN(hpullVal)) return { filled: false, out: false };
+            if (hpullVal < 10) {
               isOut = true;
+            }
+          } else {
+            // Optional under T-55-2025: if entered, must meet limit >= 10.0 Kgf
+            if (hasHpull) {
+              const hpullVal = parseFloat(v.hpull);
+              if (!isNaN(hpullVal) && hpullVal < 10) {
+                isOut = true;
+              }
             }
           }
           return { filled: true, out: isOut };
@@ -5803,7 +5887,18 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
       case 'ncrCord': {
         if (!specData.ncrgrsp || !specData.ncrgrsp.nylonCord) break;
         const checkSample = (v) => {
-          if (!v || v.denier === '' || v.epi === '' || v.thickness === '' || v.loadAtBreak === '' || v.elongation === '' || v.twists === '') return { filled: false, out: false };
+          if (!v) return { filled: false, out: false };
+          const hasAny = (v.denier !== '' && v.denier !== undefined && v.denier !== null) ||
+                         (v.epi !== '' && v.epi !== undefined && v.epi !== null) ||
+                         (v.thickness !== '' && v.thickness !== undefined && v.thickness !== null) ||
+                         (v.loadAtBreak !== '' && v.loadAtBreak !== undefined && v.loadAtBreak !== null) ||
+                         (v.elongation !== '' && v.elongation !== undefined && v.elongation !== null) ||
+                         (v.twists !== '' && v.twists !== undefined && v.twists !== null);
+          if (hasAny) hasAnyInput = true;
+          if (v.denier === '' || v.epi === '' || v.thickness === '' || v.loadAtBreak === '' || v.elongation === '' || v.twists === '' ||
+              v.denier === undefined || v.epi === undefined || v.thickness === undefined || v.loadAtBreak === undefined || v.elongation === undefined || v.twists === undefined) {
+            return { filled: false, out: false };
+          }
           const denierVal = parseFloat(v.denier);
           const epiVal = parseFloat(v.epi);
           const thickVal = parseFloat(v.thickness);
@@ -5811,7 +5906,9 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
           const elongVal = parseFloat(v.elongation);
           const twistVal = parseFloat(v.twists);
           if (isNaN(denierVal) || isNaN(epiVal) || isNaN(thickVal) || isNaN(loadVal) || isNaN(elongVal) || isNaN(twistVal)) return { filled: false, out: false };
-          const out = denierVal < 3200 || epiVal < 22 || epiVal > 26 || thickVal < 0.75 || loadVal < 16 || elongVal > 20 || twistVal < 305 || twistVal > 335;
+          const isDenierOut = isT55_2023 ? (denierVal < 2400) : (denierVal < 3200);
+          const isTwistOut = isT55_2023 ? (twistVal < 380 || twistVal > 400) : (twistVal < 305 || twistVal > 335);
+          const out = isDenierOut || epiVal < 22 || epiVal > 26 || thickVal < 0.75 || loadVal < 16 || elongVal > 20 || isTwistOut;
           return { filled: true, out };
         };
 
@@ -5939,20 +6036,22 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
       primaryFilled,
       primaryOutCount,
       doubleFilled,
-      doubleOutCount
+      doubleOutCount,
+      hasAnyInput
     };
   };
 
   const activeSections = [
     'hardness', 'tensile', 'elongation', 'modulus', 'compression', 'tension', 'load',
-    'resistance', 'sg', 'ash', 'adhesion', 'secant', 'resilience', 'ozone', 'tga', 'durability', 'abrasion'
+    'resistance', 'sg', 'ash', 'adhesion', 'secant',
+    ...(!isT55_2023 ? ['resilience', 'ozone', 'tga', 'durability', 'abrasion'] : [])
   ];
   if (isNCRGRSP) {
     activeSections.push('ncrAdhesion', 'ncrBreaking', 'ncrCord');
   }
 
   const rawReports = {};
-  const defaultSectionReport = { primaryCount: 0, doubleCount: 0, primaryFilled: 0, primaryOutCount: 0, doubleFilled: 0, doubleOutCount: 0 };
+  const defaultSectionReport = { primaryCount: 0, doubleCount: 0, primaryFilled: 0, primaryOutCount: 0, doubleFilled: 0, doubleOutCount: 0, hasAnyInput: false };
   activeSections.forEach(key => {
     try {
       rawReports[key] = getSectionRawInfo(key);
@@ -5983,6 +6082,9 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
   const isAbrasionMandatory = hasAbrasionQty && parseInt(periodicData?.abrasion?.qtyProduced || 0, 10) >= 100000;
 
   const getSectionStatus = (key) => {
+    if (isT55_2023 && ['tga', 'durability', 'abrasion', 'resilience', 'ozone'].includes(key)) {
+      return 'NOT_APPLICABLE';
+    }
     const rep = rawReports[key];
     if (!rep) return 'PENDING';
 
@@ -6023,7 +6125,7 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
     }
 
     if (rep.primaryFilled < rep.primaryCount) {
-      return rep.primaryFilled > 0 ? 'UNDER TESTING' : 'PENDING';
+      return (rep.primaryFilled > 0 || rep.hasAnyInput) ? 'UNDER TESTING' : 'PENDING';
     }
 
     if (rep.primaryOutCount === 0) {
@@ -6046,6 +6148,19 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
   const hardnessStatus = getSectionStatus('hardness');
   const filledHardness = rawReports['hardness'] ? rawReports['hardness'].primaryFilled : 0;
   const totalRequired = isCGRSP ? 10 : 5;
+
+  const isCordValueOut = (key, val) => {
+    if (val === '' || val === undefined || val === null) return false;
+    const num = parseFloat(val);
+    if (isNaN(num)) return false;
+    if (key === 'denier') return isT55_2023 ? num < 2400 : num < 3200;
+    if (key === 'epi') return num < 22 || num > 26;
+    if (key === 'thickness') return num < 0.75;
+    if (key === 'loadAtBreak') return num < 16;
+    if (key === 'elongation') return num > 20;
+    if (key === 'twists') return isT55_2023 ? (num < 380 || num > 400) : (num < 305 || num > 335);
+    return false;
+  };
 
   const downloadTemplate = (target) => {
     const sampleSize = target === 'samples1' ? weightData.n1 : weightData.n2;
@@ -6109,7 +6224,7 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
     compression: getSectionStatus('compression'),
     tension: getSectionStatus('tension'),
     load: getSectionStatus('load'),
-    resilience: getSectionStatus('resilience')
+    ...(!isT55_2023 ? { resilience: getSectionStatus('resilience') } : {})
   };
 
   const physicalFailedCount = Object.values(physicalResults).filter(r => r === 'FAIL').length;
@@ -6125,7 +6240,7 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
     resistance: getSectionStatus('resistance'),
     sg: getSectionStatus('sg'),
     ash: getSectionStatus('ash'),
-    ozone: getSectionStatus('ozone')
+    ...(!isT55_2023 ? { ozone: getSectionStatus('ozone') } : {})
   };
   const elecFailedCount = Object.values(elecResults).filter(r => r === 'FAIL').length;
   const elecPendingCount = Object.values(elecResults).filter(r => r === 'PENDING' || r === 'UNDER TESTING' || r === 'MARGINAL').length;
@@ -6156,7 +6271,7 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
     cord: getSectionStatus('ncrCord')
   };
 
-  const periodicResults = {
+  const periodicResults = isT55_2023 ? {} : {
     tga: getSectionStatus('tga'),
     durability: getSectionStatus('durability'),
     abrasion: getSectionStatus('abrasion')
@@ -6164,7 +6279,7 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
 
   const periodicFailedCount = Object.values(periodicResults).filter(r => r === 'FAIL').length;
   const periodicPendingCount = Object.values(periodicResults).filter(r => r === 'PENDING' || r === 'UNDER TESTING' || r === 'MARGINAL').length;
-  const periodicDecision = periodicPendingCount > 0 && periodicFailedCount === 0 ? 'PENDING VERIFICATION' : (periodicFailedCount === 0 ? 'LOT PASSED' : 'PERMANENT REJECT');
+  const periodicDecision = isT55_2023 ? 'LOT PASSED' : (periodicPendingCount > 0 && periodicFailedCount === 0 ? 'PENDING VERIFICATION' : (periodicFailedCount === 0 ? 'LOT PASSED' : 'PERMANENT REJECT'));
 
 
   const specFailedCount = Object.values(specResults).filter(r => r === 'FAIL').length;
@@ -6183,7 +6298,7 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
   const elecStatus = elecDecision === 'LOT PASSED' ? 'PASS' : elecDecision === 'PENDING VERIFICATION' ? 'PENDING' : elecDecision === 'RE-TEST REQUIRED' ? 'RE-TEST' : 'FAIL';
   const specStatus = specDecision === 'LOT PASSED' ? 'PASS' : specDecision === 'PENDING VERIFICATION' ? 'PENDING' : specDecision === 'RE-TEST REQUIRED' ? 'RE-TEST' : 'FAIL';
   const ncrStatus = ncrDecision === 'LOT PASSED' ? 'PASS' : ncrDecision === 'PENDING VERIFICATION' ? 'PENDING' : ncrDecision === 'RE-TEST REQUIRED' ? 'RE-TEST' : 'FAIL';
-  const periodicStatus = periodicDecision === 'LOT PASSED' ? 'PASS' : periodicDecision === 'PENDING VERIFICATION' ? 'PENDING' : periodicDecision === 'RE-TEST REQUIRED' ? 'RE-TEST' : 'FAIL';
+  const periodicStatus = isT55_2023 ? 'PASS' : (periodicDecision === 'LOT PASSED' ? 'PASS' : periodicDecision === 'PENDING VERIFICATION' ? 'PENDING' : periodicDecision === 'RE-TEST REQUIRED' ? 'RE-TEST' : 'FAIL');
   const isDimensionalReOffered = dimensionalStatus === 'RE-OFFERED' || dimensionalStatus === 'RE-OFFER';
   const currentLotObj = lots.find(l => l.id === selectedLot) || activeLot;
   const currentLotWeightHidden = isNCRGRSP || isHiddenWeightTest(currentLotObj, call);
@@ -6279,7 +6394,7 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
     { id: 'electrical', label: 'Electrical & Chemical' },
     ...(!isNCRGRSP ? [{ id: 'specialized', label: 'Dynamic & Durability Test' }] : []),
     ...(isNCRGRSP ? [{ id: 'ncrgrsp', label: 'NCRGRSP Test' }] : []),
-    { id: 'periodic', label: 'Periodic Testing' },
+    ...(!isT55_2023 ? [{ id: 'periodic', label: 'Periodic Testing' }] : []),
     ...(showMarginalTab ? [{ id: 'marginal', label: 'Marginal Double-Sampling' }] : [])
   ];
 
@@ -7706,6 +7821,7 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
                   </div>
 
                   {/* Resilience by Vertical Rebound Test */}
+                  {!isT55_2023 && (
                   <div style={{ background: '#fff', borderRadius: '16px', border: '1px solid #e2e8f0', overflow: 'hidden', marginTop: '12px' }}>
                     <div style={{ background: '#f8fafc', padding: '12px 20px', borderBottom: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                       <div>
@@ -7757,6 +7873,7 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
                       </tbody>
                     </table>
                   </div>
+                  )}
 
                   {/* Layer 3: Physical Decision */}
                   {physicalDecision !== 'PENDING VERIFICATION' && (
@@ -8001,6 +8118,7 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
                   </div>
 
                   {/* Ozone Test */}
+                  {!isT55_2023 && (
                   <div style={{ background: 'white', borderRadius: '20px', border: '1px solid #e2e8f0', overflow: 'hidden', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05)', marginTop: '24px' }}>
                     <div style={{ padding: '16px 20px', background: '#f8fafc', borderBottom: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                       <div>
@@ -8045,6 +8163,7 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
                       </table>
                     </div>
                   </div>
+                  )}
 
                   {/* Layer 3: Electrical Decision */}
                   {elecDecision !== 'PENDING VERIFICATION' && (
@@ -8204,6 +8323,7 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
                   activeRailpadType={activeRailpadType}
                   getSectionStatus={getSectionStatus}
                   markDirty={markDirty}
+                  specificVersion={specificVersion}
                 />
               )}
 
@@ -8214,7 +8334,9 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
                     <div style={{ padding: '16px 20px', background: '#f8fafc', borderBottom: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                       <div>
                         <h3 style={{ margin: 0, fontSize: '15px', fontWeight: '800', color: '#0f172a' }}>Adhesion Test</h3>
-                        <div style={{ fontSize: '11px', color: '#21808d', fontWeight: '700', marginTop: '2px' }}>Limit: Peel ≥ 4.0 Kgf | H-Pull ≥ 10 Kgf (Optional)</div>
+                        <div style={{ fontSize: '11px', color: '#21808d', fontWeight: '700', marginTop: '2px' }}>
+                          Limit: Peel ≥ 4.0 Kgf | H-Pull ≥ 10 Kgf {isT55_2023 ? '(Mandatory)' : '(Optional)'}
+                        </div>
                       </div>
                       <span style={{ padding: '4px 12px', borderRadius: '6px', fontSize: '11px', fontWeight: '800', background: ncrResults.adhesion === 'PASS' ? '#dcfce7' : ncrResults.adhesion === 'FAIL' ? '#fef3c7' : '#fee2e2', color: ncrResults.adhesion === 'PASS' ? '#166534' : ncrResults.adhesion === 'FAIL' ? '#b45309' : '#991b1b' }}>{ncrResults.adhesion === 'FAIL' ? 'MARGINAL' : ncrResults.adhesion}</span>
                     </div>
@@ -8224,7 +8346,9 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
                           <tr>
                             <th style={{ padding: '10px', border: '1px solid #e2e8f0', background: '#f8fafc', fontSize: '11px', color: '#64748b' }}>Sample No.</th>
                             <th style={{ padding: '10px', border: '1px solid #e2e8f0', background: '#f1f5f9', fontSize: '12px', color: '#475569', fontWeight: '800' }}>Peel Adhesion (Kgf)</th>
-                            <th style={{ padding: '10px', border: '1px solid #e2e8f0', background: '#f1f5f9', fontSize: '12px', color: '#475569', fontWeight: '800' }}>H-Pull Test (Kgf) <span style={{ fontSize: '10px', color: '#64748b', fontWeight: 'normal' }}>(Optional)</span></th>
+                            <th style={{ padding: '10px', border: '1px solid #e2e8f0', background: '#f1f5f9', fontSize: '12px', color: '#475569', fontWeight: '800' }}>
+                              H-Pull Test (Kgf) {isT55_2023 ? <span style={{ fontSize: '10px', color: '#dc2626', fontWeight: '700' }}>(Mandatory)</span> : <span style={{ fontSize: '10px', color: '#64748b', fontWeight: 'normal' }}>(Optional)</span>}
+                            </th>
                           </tr>
                         </thead>
                         <tbody>
@@ -8240,12 +8364,26 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
                                 }} style={{ width: '100%', padding: '10px', border: 'none', textAlign: 'center', fontWeight: '900', fontSize: '15px', color: row.peel !== '' && row.peel < 4 ? '#ef4444' : '#21808d' }} />
                               </td>
                               <td style={{ padding: '4px', border: '1px solid #e2e8f0' }}>
-                                <input type="number" value={row.hpull} onChange={(e) => {
-                                  const newVal = [...specData.ncrgrsp.adhesion];
-                                  newVal[idx].hpull = e.target.value;
-                                  setSpecData(prev => ({ ...prev, ncrgrsp: { ...prev.ncrgrsp, adhesion: newVal } }));
-                                  markDirty();
-                                }} style={{ width: '100%', padding: '10px', border: 'none', textAlign: 'center', fontWeight: '900', fontSize: '15px', color: row.hpull !== '' && row.hpull < 10 ? '#ef4444' : '#21808d' }} />
+                                <input
+                                  type="number"
+                                  value={row.hpull}
+                                  onChange={(e) => {
+                                    const newVal = [...specData.ncrgrsp.adhesion];
+                                    newVal[idx].hpull = e.target.value;
+                                    setSpecData(prev => ({ ...prev, ncrgrsp: { ...prev.ncrgrsp, adhesion: newVal } }));
+                                    markDirty();
+                                  }}
+                                  style={{
+                                    width: '100%',
+                                    padding: '10px',
+                                    border: 'none',
+                                    textAlign: 'center',
+                                    fontWeight: '900',
+                                    fontSize: '15px',
+                                    color: row.hpull !== '' && row.hpull < 10 ? '#ef4444' : '#21808d',
+                                    background: (isT55_2023 && (row.hpull === '' || row.hpull === undefined) && row.peel !== '' && row.peel !== undefined) ? '#fffbeb' : 'transparent'
+                                  }}
+                                />
                               </td>
                             </tr>
                           ))}
@@ -8292,7 +8430,15 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
                   <div style={{ background: 'white', borderRadius: '20px', border: '1px solid #e2e8f0', overflow: 'hidden', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05)' }}>
                     <div style={{ padding: '16px 20px', background: '#f8fafc', borderBottom: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                       <div>
-                        <h3 style={{ margin: 0, fontSize: '15px', fontWeight: '800', color: '#0f172a' }}>Physical Properties of Nylon Cord</h3>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          <h3 style={{ margin: 0, fontSize: '15px', fontWeight: '800', color: '#0f172a' }}>Physical Properties of Nylon Cord</h3>
+                          <span style={{ fontSize: '10px', fontWeight: '800', padding: '2px 8px', borderRadius: '6px', background: isT55_2023 ? '#fef3c7' : '#e0f2fe', color: isT55_2023 ? '#92400e' : '#0369a1' }}>
+                            {isT55_2023 ? 'IRS T-55-2023' : 'IRS T-55-2025'}
+                          </span>
+                        </div>
+                        <div style={{ fontSize: '11px', color: '#21808d', fontWeight: '700', marginTop: '3px' }}>
+                          Limit: Denier ≥ {isT55_2023 ? '2400' : '3200'} | EPI: 22-26 | Thickness ≥ 0.75mm | Load ≥ 16 kg | Elongation ≤ 20% | Twists: {isT55_2023 ? '380-400' : '305-335'}
+                        </div>
                       </div>
                       <span style={{ padding: '4px 12px', borderRadius: '6px', fontSize: '11px', fontWeight: '800', background: ncrResults.cord === 'PASS' ? '#dcfce7' : ncrResults.cord === 'FAIL' ? '#fef3c7' : '#fee2e2', color: ncrResults.cord === 'PASS' ? '#166534' : ncrResults.cord === 'FAIL' ? '#b45309' : '#991b1b' }}>{ncrResults.cord === 'FAIL' ? 'MARGINAL' : ncrResults.cord}</span>
                     </div>
@@ -8301,28 +8447,45 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
                         <thead>
                           <tr>
                             <th style={{ padding: '8px', border: '1px solid #e2e8f0', fontSize: '10px', color: '#64748b' }}>Sample</th>
-                            <th style={{ padding: '8px', border: '1px solid #e2e8f0', fontSize: '10px', color: '#64748b' }}>Denier (gm/9000m) (3200 min)</th>
+                            <th style={{ padding: '8px', border: '1px solid #e2e8f0', fontSize: '10px', color: '#64748b' }}>Denier (gm/9000m) ({isT55_2023 ? '2400 min' : '3200 min'})</th>
                             <th style={{ padding: '8px', border: '1px solid #e2e8f0', fontSize: '10px', color: '#64748b' }}>No. of ends/inch (22-26)</th>
                             <th style={{ padding: '8px', border: '1px solid #e2e8f0', fontSize: '10px', color: '#64748b' }}>Thickness (mm) (0.75 min)</th>
                             <th style={{ padding: '8px', border: '1px solid #e2e8f0', fontSize: '10px', color: '#64748b' }}>Load at Break (kg) (16 min)</th>
                             <th style={{ padding: '8px', border: '1px solid #e2e8f0', fontSize: '10px', color: '#64748b' }}>Elongation at Break (%) (20 max)</th>
-                            <th style={{ padding: '8px', border: '1px solid #e2e8f0', fontSize: '10px', color: '#64748b' }}>Twists/m (305-335)</th>
+                            <th style={{ padding: '8px', border: '1px solid #e2e8f0', fontSize: '10px', color: '#64748b' }}>Twists/m ({isT55_2023 ? '380-400' : '305-335'})</th>
                           </tr>
                         </thead>
                         <tbody>
                           {specData.ncrgrsp.nylonCord && specData.ncrgrsp.nylonCord.slice(0, 3).map((row, idx) => (
                             <tr key={idx}>
                               <td style={{ padding: '10px', border: '1px solid #e2e8f0', textAlign: 'center', fontWeight: '800', color: '#475569' }}>S{idx + 1}</td>
-                              {Object.keys(row).map(key => (
-                                <td key={key} style={{ padding: '2px', border: '1px solid #e2e8f0' }}>
-                                  <input type="number" value={row[key]} onChange={(e) => {
-                                    const newVal = [...specData.ncrgrsp.nylonCord];
-                                    newVal[idx][key] = e.target.value;
-                                    setSpecData(prev => ({ ...prev, ncrgrsp: { ...prev.ncrgrsp, nylonCord: newVal } }));
-                                    markDirty();
-                                  }} style={{ width: '100%', padding: '8px', border: 'none', textAlign: 'center', fontWeight: '800', fontSize: '13px' }} />
-                                </td>
-                              ))}
+                              {Object.keys(row).map(key => {
+                                const isInvalid = isCordValueOut(key, row[key]);
+                                return (
+                                  <td key={key} style={{ padding: '2px', border: '1px solid #e2e8f0' }}>
+                                    <input
+                                      type="number"
+                                      value={row[key]}
+                                      onChange={(e) => {
+                                        const newVal = [...specData.ncrgrsp.nylonCord];
+                                        newVal[idx][key] = e.target.value;
+                                        setSpecData(prev => ({ ...prev, ncrgrsp: { ...prev.ncrgrsp, nylonCord: newVal } }));
+                                        markDirty();
+                                      }}
+                                      style={{
+                                        width: '100%',
+                                        padding: '8px',
+                                        border: 'none',
+                                        textAlign: 'center',
+                                        fontWeight: '800',
+                                        fontSize: '13px',
+                                        color: isInvalid ? '#ef4444' : '#21808d',
+                                        background: isInvalid ? '#fef2f2' : 'transparent'
+                                      }}
+                                    />
+                                  </td>
+                                );
+                              })}
                             </tr>
                           ))}
                         </tbody>
@@ -9370,7 +9533,9 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
                             <div style={{ padding: '16px 20px', background: '#f8fafc', borderBottom: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                               <div>
                                 <h3 style={{ margin: 0, fontSize: '15px', fontWeight: '800', color: '#0f172a' }}>{config.name} (Double Sampling)</h3>
-                                <div style={{ fontSize: '11px', color: '#21808d', fontWeight: '700', marginTop: '2px' }}>Limit: Peel ≥ 4.0 Kgf | H-Pull ≥ 10 Kgf (Optional)</div>
+                                <div style={{ fontSize: '11px', color: '#21808d', fontWeight: '700', marginTop: '2px' }}>
+                                  Limit: Peel ≥ 4.0 Kgf | H-Pull ≥ 10 Kgf {isT55_2023 ? '(Mandatory)' : '(Optional)'}
+                                </div>
                               </div>
                               <span style={{ padding: '4px 12px', borderRadius: '6px', fontSize: '11px', fontWeight: '800', background: status === 'PASS' ? '#dcfce7' : status === 'FAIL' ? '#fee2e2' : '#fff7ed', color: status === 'PASS' ? '#166534' : status === 'FAIL' ? '#991b1b' : '#c2410c', textTransform: 'uppercase' }}>{status}</span>
                             </div>
@@ -9380,7 +9545,9 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
                                   <tr>
                                     <th style={{ padding: '10px', border: '1px solid #e2e8f0', background: '#f8fafc', fontSize: '11px', color: '#64748b' }}>Sample No.</th>
                                     <th style={{ padding: '10px', border: '1px solid #e2e8f0', background: '#f1f5f9', fontSize: '12px', color: '#475569', fontWeight: '800' }}>Peel Adhesion (Kgf)</th>
-                                    <th style={{ padding: '10px', border: '1px solid #e2e8f0', background: '#f1f5f9', fontSize: '12px', color: '#475569', fontWeight: '800' }}>H-Pull Test (Kgf) <span style={{ fontSize: '10px', color: '#64748b', fontWeight: 'normal' }}>(Optional)</span></th>
+                                    <th style={{ padding: '10px', border: '1px solid #e2e8f0', background: '#f1f5f9', fontSize: '12px', color: '#475569', fontWeight: '800' }}>
+                                      H-Pull Test (Kgf) {isT55_2023 ? <span style={{ fontSize: '10px', color: '#dc2626', fontWeight: '700' }}>(Mandatory)</span> : <span style={{ fontSize: '10px', color: '#64748b', fontWeight: 'normal' }}>(Optional)</span>}
+                                    </th>
                                   </tr>
                                 </thead>
                                 <tbody>
@@ -9399,12 +9566,26 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
                                           }} style={{ width: '100%', padding: '10px', border: 'none', textAlign: 'center', fontWeight: '900', fontSize: '15px', color: row.peel !== '' && row.peel < 4 ? '#ef4444' : '#21808d' }} />
                                         </td>
                                         <td style={{ padding: '4px', border: '1px solid #e2e8f0' }}>
-                                          <input type="number" value={row.hpull || ''} onChange={(e) => {
-                                            const newVal = [...specData.ncrgrsp.adhesion];
-                                            newVal[realIdx].hpull = e.target.value;
-                                            setSpecData(prev => ({ ...prev, ncrgrsp: { ...prev.ncrgrsp, adhesion: newVal } }));
-                                            markDirty();
-                                          }} style={{ width: '100%', padding: '10px', border: 'none', textAlign: 'center', fontWeight: '900', fontSize: '15px', color: row.hpull !== '' && row.hpull < 10 ? '#ef4444' : '#21808d' }} />
+                                          <input
+                                            type="number"
+                                            value={row.hpull || ''}
+                                            onChange={(e) => {
+                                              const newVal = [...specData.ncrgrsp.adhesion];
+                                              newVal[realIdx].hpull = e.target.value;
+                                              setSpecData(prev => ({ ...prev, ncrgrsp: { ...prev.ncrgrsp, adhesion: newVal } }));
+                                              markDirty();
+                                            }}
+                                            style={{
+                                              width: '100%',
+                                              padding: '10px',
+                                              border: 'none',
+                                              textAlign: 'center',
+                                              fontWeight: '900',
+                                              fontSize: '15px',
+                                              color: row.hpull !== '' && row.hpull < 10 ? '#ef4444' : '#21808d',
+                                              background: (isT55_2023 && (row.hpull === '' || row.hpull === undefined) && row.peel !== '' && row.peel !== undefined) ? '#fffbeb' : 'transparent'
+                                            }}
+                                          />
                                         </td>
                                       </tr>
                                     );
@@ -9464,7 +9645,15 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
                           <div style={{ background: 'white', borderRadius: '20px', border: '1px solid #e2e8f0', overflow: 'hidden', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05)' }}>
                             <div style={{ padding: '16px 20px', background: '#f8fafc', borderBottom: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                               <div>
-                                <h3 style={{ margin: 0, fontSize: '15px', fontWeight: '800', color: '#0f172a' }}>{config.name} (Double Sampling)</h3>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                  <h3 style={{ margin: 0, fontSize: '15px', fontWeight: '800', color: '#0f172a' }}>{config.name} (Double Sampling)</h3>
+                                  <span style={{ fontSize: '10px', fontWeight: '800', padding: '2px 8px', borderRadius: '6px', background: isT55_2023 ? '#fef3c7' : '#e0f2fe', color: isT55_2023 ? '#92400e' : '#0369a1' }}>
+                                    {isT55_2023 ? 'IRS T-55-2023' : 'IRS T-55-2025'}
+                                  </span>
+                                </div>
+                                <div style={{ fontSize: '11px', color: '#21808d', fontWeight: '700', marginTop: '3px' }}>
+                                  Limit: Denier ≥ {isT55_2023 ? '2400' : '3200'} | EPI: 22-26 | Thickness ≥ 0.75mm | Load ≥ 16 kg | Elongation ≤ 20% | Twists: {isT55_2023 ? '380-400' : '305-335'}
+                                </div>
                               </div>
                               <span style={{ padding: '4px 12px', borderRadius: '6px', fontSize: '11px', fontWeight: '800', background: status === 'PASS' ? '#dcfce7' : status === 'FAIL' ? '#fee2e2' : '#fff7ed', color: status === 'PASS' ? '#166534' : status === 'FAIL' ? '#991b1b' : '#c2410c', textTransform: 'uppercase' }}>{status}</span>
                             </div>
@@ -9473,12 +9662,12 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
                                 <thead>
                                   <tr>
                                     <th style={{ padding: '8px', border: '1px solid #e2e8f0', fontSize: '10px', color: '#64748b' }}>Sample</th>
-                                    <th style={{ padding: '8px', border: '1px solid #e2e8f0', fontSize: '10px', color: '#64748b' }}>Denier (gm/9000m) (3200 min)</th>
+                                    <th style={{ padding: '8px', border: '1px solid #e2e8f0', fontSize: '10px', color: '#64748b' }}>Denier (gm/9000m) ({isT55_2023 ? '2400 min' : '3200 min'})</th>
                                     <th style={{ padding: '8px', border: '1px solid #e2e8f0', fontSize: '10px', color: '#64748b' }}>No. of ends/inch (22-26)</th>
                                     <th style={{ padding: '8px', border: '1px solid #e2e8f0', fontSize: '10px', color: '#64748b' }}>Thickness (mm) (0.75 min)</th>
                                     <th style={{ padding: '8px', border: '1px solid #e2e8f0', fontSize: '10px', color: '#64748b' }}>Load at Break (kg) (16 min)</th>
                                     <th style={{ padding: '8px', border: '1px solid #e2e8f0', fontSize: '10px', color: '#64748b' }}>Elongation at Break (%) (20 max)</th>
-                                    <th style={{ padding: '8px', border: '1px solid #e2e8f0', fontSize: '10px', color: '#64748b' }}>Twists/m (305-335)</th>
+                                    <th style={{ padding: '8px', border: '1px solid #e2e8f0', fontSize: '10px', color: '#64748b' }}>Twists/m ({isT55_2023 ? '380-400' : '305-335'})</th>
                                   </tr>
                                 </thead>
                                 <tbody>
@@ -9488,16 +9677,33 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
                                     return (
                                       <tr key={sn}>
                                         <td style={{ padding: '10px', border: '1px solid #e2e8f0', textAlign: 'center', fontWeight: '800', color: '#475569' }}>S{sn}</td>
-                                        {Object.keys(row).map(key => (
-                                          <td key={key} style={{ padding: '2px', border: '1px solid #e2e8f0' }}>
-                                            <input type="number" value={row[key] || ''} onChange={(e) => {
-                                              const newVal = [...specData.ncrgrsp.nylonCord];
-                                              newVal[realIdx][key] = e.target.value;
-                                              setSpecData(prev => ({ ...prev, ncrgrsp: { ...prev.ncrgrsp, nylonCord: newVal } }));
-                                              markDirty();
-                                            }} style={{ width: '100%', padding: '8px', border: 'none', textAlign: 'center', fontWeight: '800', fontSize: '13px' }} />
-                                          </td>
-                                        ))}
+                                        {Object.keys(row).map(key => {
+                                          const isInvalid = isCordValueOut(key, row[key]);
+                                          return (
+                                            <td key={key} style={{ padding: '2px', border: '1px solid #e2e8f0' }}>
+                                              <input
+                                                type="number"
+                                                value={row[key] || ''}
+                                                onChange={(e) => {
+                                                  const newVal = [...specData.ncrgrsp.nylonCord];
+                                                  newVal[realIdx][key] = e.target.value;
+                                                  setSpecData(prev => ({ ...prev, ncrgrsp: { ...prev.ncrgrsp, nylonCord: newVal } }));
+                                                  markDirty();
+                                                }}
+                                                style={{
+                                                  width: '100%',
+                                                  padding: '8px',
+                                                  border: 'none',
+                                                  textAlign: 'center',
+                                                  fontWeight: '800',
+                                                  fontSize: '13px',
+                                                  color: isInvalid ? '#ef4444' : '#21808d',
+                                                  background: isInvalid ? '#fef2f2' : 'transparent'
+                                                }}
+                                              />
+                                            </td>
+                                          );
+                                        })}
                                       </tr>
                                     );
                                   })}
@@ -9742,7 +9948,7 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
                     { key: 'physical', label: 'Physical & Ageing Properties', status: physicalStatus },
                     { key: 'electrical', label: 'Electrical & Chemical', status: elecStatus },
                     ...(!isNCRGRSP ? [{ key: 'specialized', label: 'Dynamic & Durability Test', status: specStatus }] : []),
-                    { key: 'periodic', label: 'Periodic Testing', status: periodicStatus },
+                    ...(!isT55_2023 ? [{ key: 'periodic', label: 'Periodic Testing', status: periodicStatus }] : []),
                     ...(isNCRGRSP ? [{ key: 'ncrgrsp', label: 'NCRGRSP', status: ncrStatus }] : [])
                   ].map(({ key, label, status }) => {
                     const badge = getSubmoduleBadge(status);
@@ -9832,7 +10038,7 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
                           }] : [])
                         ];
                       } else if (activeSubmoduleTab === 'physical') {
-                        const keys = ['hardness', 'tensile', 'elongation', 'modulus', 'compression', 'tension', 'load', 'resilience'];
+                        const keys = ['hardness', 'tensile', 'elongation', 'modulus', 'compression', 'tension', 'load', ...(!isT55_2023 ? ['resilience'] : [])];
                         rows = keys.map(k => {
                           const rep = rawReports[k];
                           const name = SECTION_CONFIG[k]?.name || k;
@@ -9840,7 +10046,7 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
                           return { name, size, status: getSectionStatus(k) };
                         });
                       } else if (activeSubmoduleTab === 'electrical') {
-                        const keys = ['resistance', 'sg', 'ash', 'ozone'];
+                        const keys = ['resistance', 'sg', 'ash', ...(!isT55_2023 ? ['ozone'] : [])];
                         rows = keys.map(k => {
                           const rep = rawReports[k];
                           const name = SECTION_CONFIG[k]?.name || k;
@@ -9864,13 +10070,23 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
                           return { name, size, status: getSectionStatus(k) };
                         });
                       } else if (activeSubmoduleTab === 'periodic') {
-                        const keys = ['tga', 'durability', 'abrasion'];
+                        const keys = isT55_2023 ? [] : ['tga', 'durability', 'abrasion'];
                         rows = keys.map(k => {
                           const rep = rawReports[k];
                           const name = SECTION_CONFIG[k]?.name || k;
                           const size = (rep && (rep.doubleFilled > 0 || k === marginalSectionKey)) ? `${rep.primaryCount} + ${rep.doubleCount}` : (rep ? rep.primaryCount : 0);
                           return { name, size, status: getSectionStatus(k) };
                         });
+                      }
+
+                      if (rows.length === 0) {
+                        return (
+                          <tr>
+                            <td colSpan="3" style={{ padding: '20px', textAlign: 'center', color: '#64748b', fontSize: '13px', fontStyle: 'italic' }}>
+                              No tests applicable under IRS T-55-2023 for this section
+                            </td>
+                          </tr>
+                        );
                       }
 
                       return rows.map((row, idx) => {

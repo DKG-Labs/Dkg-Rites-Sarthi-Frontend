@@ -31,6 +31,7 @@ import RailpadFinalProductCertificate from './components/FinalInspection/Railpad
 import RailpadProcessInspectionDashboard from './components/ProcessInspection/RailpadProcessInspectionDashboard';
 import VersionUpdateBanner from './components/common/VersionUpdateBanner';
 import SessionExpiryModal from './components/common/SessionExpiryModal';
+import SpecificVersionDropdown from './components/common/SpecificVersionDropdown';
 
 const SUB_CARDS = [
   { id: 'raw-material', title: 'Raw Material Weighment', description: 'Monitor and log raw material proportions' },
@@ -152,6 +153,205 @@ const App = () => {
     onConfirm: () => { },
     type: 'info'
   });
+
+  const [specificVersion, setSpecificVersion] = useState(() => {
+    const savedCall = localStorage.getItem('railpad_ie_selected_call');
+    try {
+      const parsed = savedCall ? JSON.parse(savedCall) : null;
+      const callId = parsed?.requestId || parsed?.callNo || parsed?.id;
+      return (callId && localStorage.getItem(`railpad_specific_version_${callId}`)) || 'T-55-2025';
+    } catch (e) {
+      return 'T-55-2025';
+    }
+  });
+
+  useEffect(() => {
+    if (selectedCallForInitiation) {
+      const callId = selectedCallForInitiation?.requestId || selectedCallForInitiation?.callNo || selectedCallForInitiation?.id;
+      if (callId) {
+        const saved = localStorage.getItem(`railpad_specific_version_${callId}`);
+        setSpecificVersion(selectedCallForInitiation.specificVersion || saved || 'T-55-2025');
+      }
+    }
+  }, [selectedCallForInitiation?.requestId, selectedCallForInitiation?.callNo, selectedCallForInitiation?.specificVersion]);
+
+  const handleSpecificVersionChange = (newVal) => {
+    if (newVal === 'T-55-2023') {
+      setConfirmConfig({
+        isOpen: true,
+        title: 'Switch Specification Version',
+        type: 'warning',
+        confirmText: 'Confirm & Switch',
+        cancelText: 'Cancel',
+        message: (
+          <div style={{ textAlign: 'left' }}>
+            {/* Version Transition Badge */}
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '12px',
+              padding: '8px 12px',
+              background: '#f8fafc',
+              border: '1px solid #e2e8f0',
+              borderRadius: '10px',
+              marginBottom: '16px'
+            }}>
+              <span style={{ fontSize: '13px', fontWeight: '700', color: '#64748b' }}>
+                T-55-2025
+              </span>
+              <span style={{ color: '#d97706', fontSize: '14px', fontWeight: '800' }}>➔</span>
+              <span style={{
+                fontSize: '13px',
+                fontWeight: '800',
+                color: '#b45309',
+                background: '#fef3c7',
+                padding: '2px 8px',
+                borderRadius: '6px',
+                border: '1px solid #fde68a'
+              }}>
+                T-55-2023
+              </span>
+            </div>
+
+            {/* Non-applicable tests structured card */}
+            <div style={{
+              background: '#fefdfb',
+              border: '1px solid #fef3c7',
+              borderRadius: '12px',
+              padding: '14px',
+              marginBottom: '14px',
+              boxShadow: '0 1px 3px rgba(0,0,0,0.02)'
+            }}>
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                marginBottom: '10px'
+              }}>
+                <span style={{
+                  fontSize: '11px',
+                  fontWeight: '800',
+                  color: '#92400e',
+                  letterSpacing: '0.04em',
+                  textTransform: 'uppercase'
+                }}>
+                  Non-Applicable Tests
+                </span>
+                <span style={{
+                  fontSize: '10px',
+                  fontWeight: '700',
+                  background: '#fee2e2',
+                  color: '#b91c1c',
+                  padding: '2px 7px',
+                  borderRadius: '9999px',
+                  border: '1px solid #fecaca'
+                }}>
+                  5 Excluded
+                </span>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+                {[
+                  { name: 'TGA TEST', tag: 'Periodic' },
+                  { name: 'OZONE TEST', tag: 'Electrical' },
+                  { name: 'DURABILITY TEST', tag: 'Periodic' },
+                  { name: 'RESILIENCE TEST', tag: 'Physical' },
+                  { name: 'ABRASION TEST', tag: 'Periodic', fullWidth: true }
+                ].map((item, idx) => (
+                  <div
+                    key={idx}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      padding: '8px 10px',
+                      background: '#ffffff',
+                      borderRadius: '8px',
+                      border: '1px solid #fef08a',
+                      boxShadow: '0 1px 2px rgba(0,0,0,0.02)',
+                      gridColumn: item.fullWidth ? 'span 2' : 'span 1'
+                    }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <span style={{
+                        width: '16px',
+                        height: '16px',
+                        borderRadius: '50%',
+                        background: '#fef2f2',
+                        color: '#ef4444',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        fontSize: '10px',
+                        fontWeight: '800',
+                        flexShrink: 0
+                      }}>
+                        ✕
+                      </span>
+                      <span style={{ fontSize: '12px', fontWeight: '800', color: '#1e293b' }}>
+                        {item.name}
+                      </span>
+                    </div>
+                    <span style={{
+                      fontSize: '9.5px',
+                      fontWeight: '700',
+                      color: '#64748b',
+                      background: '#f1f5f9',
+                      padding: '2px 5px',
+                      borderRadius: '4px'
+                    }}>
+                      {item.tag}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              padding: '8px 12px',
+              background: '#eff6ff',
+              border: '1px solid #bfdbfe',
+              borderRadius: '8px',
+              marginBottom: '10px'
+            }}>
+              <span style={{ fontSize: '13px', color: '#2563eb', fontWeight: '800' }}>ℹ</span>
+              <span style={{ fontSize: '12px', color: '#1e40af', fontWeight: '600', lineHeight: '1.4' }}>
+                H-Pull Test (Kgf) under NCRGRSP Adhesion becomes <strong>Mandatory</strong> (≥ 10 Kgf).
+              </span>
+            </div>
+
+            <p style={{
+              margin: 0,
+              fontSize: '12px',
+              color: '#64748b',
+              lineHeight: '1.5',
+              textAlign: 'center'
+            }}>
+              The 5 excluded tests above will be hidden from pass/fail verification under IRS T-55-2023.
+            </p>
+          </div>
+        ),
+        onConfirm: () => {
+          setSpecificVersion('T-55-2023');
+          const callId = selectedCallForInitiation?.requestId || selectedCallForInitiation?.callNo || selectedCallForInitiation?.id;
+          if (callId) {
+            localStorage.setItem(`railpad_specific_version_${callId}`, 'T-55-2023');
+          }
+          setConfirmConfig(prev => ({ ...prev, isOpen: false }));
+        }
+      });
+    } else {
+      setSpecificVersion(newVal);
+      const callId = selectedCallForInitiation?.requestId || selectedCallForInitiation?.callNo || selectedCallForInitiation?.id;
+      if (callId) {
+        localStorage.setItem(`railpad_specific_version_${callId}`, newVal);
+      }
+    }
+  };
 
   const [currentUser, setCurrentUser] = useState(getStoredUser);
   const loggedInUser = currentUser || getStoredUser();
@@ -1148,7 +1348,8 @@ const App = () => {
             boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.05), 0 10px 10px -5px rgba(0, 0, 0, 0.02)',
             border: '1px solid rgba(255, 255, 255, 0.8)',
             position: 'relative',
-            overflow: 'hidden'
+            overflow: 'visible',
+            zIndex: 30
           }}>
             {/* Subtle background decoration */}
             <div style={{ 
@@ -1157,7 +1358,10 @@ const App = () => {
               right: 0, 
               bottom: 0, 
               width: '4px', 
-              background: 'linear-gradient(to bottom, #3b82f6, #6366f1)' 
+              background: 'linear-gradient(to bottom, #3b82f6, #6366f1)',
+              borderTopRightRadius: '24px',
+              borderBottomRightRadius: '24px',
+              pointerEvents: 'none'
             }} />
 
             <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '8px' }}>
@@ -1167,7 +1371,7 @@ const App = () => {
               </span>
             </div>
             
-            <div style={{ width: '1px', height: '40px', background: '#f1f5f9', margin: '0 32px' }} />
+            <div style={{ width: '1px', height: '40px', background: '#f1f5f9', margin: '0 20px' }} />
 
             <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '8px' }}>
               <span style={{ fontSize: '11px', fontWeight: '800', color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.1em' }}>VENDOR NAME</span>
@@ -1176,7 +1380,7 @@ const App = () => {
               </span>
             </div>
 
-            <div style={{ width: '1px', height: '40px', background: '#f1f5f9', margin: '0 32px' }} />
+            <div style={{ width: '1px', height: '40px', background: '#f1f5f9', margin: '0 20px' }} />
 
             <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '8px' }}>
               <span style={{ fontSize: '11px', fontWeight: '800', color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.1em' }}>RAILPADTYPE</span>
@@ -1193,13 +1397,25 @@ const App = () => {
               </span>
             </div>
 
-            <div style={{ width: '1px', height: '40px', background: '#f1f5f9', margin: '0 32px' }} />
+            <div style={{ width: '1px', height: '40px', background: '#f1f5f9', margin: '0 20px' }} />
 
             <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '8px' }}>
               <span style={{ fontSize: '11px', fontWeight: '800', color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.1em' }}>PLANT ID</span>
               <span style={{ fontSize: '18px', fontWeight: '800', color: '#1e293b' }}>
                 {selectedCallForInitiation?.plantId || 'N/A'}
               </span>
+            </div>
+
+            <div style={{ width: '1px', height: '40px', background: '#f1f5f9', margin: '0 20px' }} />
+
+            <div style={{ flex: 1, minWidth: '190px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              <span style={{ fontSize: '11px', fontWeight: '800', color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.1em', whiteSpace: 'nowrap' }}>
+                SPECIFIC VERSION
+              </span>
+              <SpecificVersionDropdown
+                value={specificVersion}
+                onChange={handleSpecificVersionChange}
+              />
             </div>
           </div>
 
@@ -1212,6 +1428,8 @@ const App = () => {
               user={loggedInUser} 
               isShiftActive={isShiftActive} 
               call={selectedCallForInitiation} 
+              specificVersion={specificVersion}
+              onSpecificVersionChange={handleSpecificVersionChange}
               onUpdateCall={(updatedData) => {
                 setSelectedCallForInitiation(prev => ({
                   ...prev,

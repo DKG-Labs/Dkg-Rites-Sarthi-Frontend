@@ -1,6 +1,7 @@
 import React from 'react';
 
-const PeriodicTestingTab = ({ periodicData, setPeriodicData, activeRailpadType, getSectionStatus, markDirty }) => {
+const PeriodicTestingTab = ({ periodicData, setPeriodicData, activeRailpadType, getSectionStatus, markDirty, specificVersion = 'T-55-2025' }) => {
+  const isT55_2023 = specificVersion === 'T-55-2023';
   const tgaStatus = getSectionStatus('tga');
   const durabilityStatus = getSectionStatus('durability');
   const abrasionStatus = getSectionStatus('abrasion');
@@ -199,6 +200,58 @@ const PeriodicTestingTab = ({ periodicData, setPeriodicData, activeRailpadType, 
       </div>
     </div>
   );
+
+  if (isT55_2023) {
+    return (
+      <div style={{
+        background: '#ffffff',
+        borderRadius: '20px',
+        border: '1px solid #e2e8f0',
+        padding: '56px 32px',
+        textAlign: 'center',
+        boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05)',
+        animation: 'fadeIn 0.4s ease-out'
+      }}>
+        <div style={{
+          width: '64px',
+          height: '64px',
+          borderRadius: '50%',
+          background: '#f0fdf4',
+          border: '2px solid #bbf7d0',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          fontSize: '28px',
+          margin: '0 auto 16px auto',
+          color: '#16a34a'
+        }}>
+          ✓
+        </div>
+        <h3 style={{ margin: '0 0 10px 0', fontSize: '20px', fontWeight: '800', color: '#0f172a' }}>
+          Periodic Tests Not Applicable for T-55-2023
+        </h3>
+        <p style={{ margin: '0 0 20px 0', fontSize: '14px', color: '#64748b', maxWidth: '520px', marginInline: 'auto', lineHeight: '1.6' }}>
+          As per Specification <strong>IRS T-55-2023</strong>, the following periodic tests are <strong>not applicable</strong> and have been excluded from inspection:
+        </p>
+        <div style={{
+          display: 'inline-flex',
+          gap: '12px',
+          flexWrap: 'wrap',
+          justifyContent: 'center'
+        }}>
+          <span style={{ background: '#f8fafc', border: '1px solid #e2e8f0', padding: '6px 14px', borderRadius: '8px', fontSize: '13px', fontWeight: '700', color: '#475569' }}>
+            🚫 TGA Test
+          </span>
+          <span style={{ background: '#f8fafc', border: '1px solid #e2e8f0', padding: '6px 14px', borderRadius: '8px', fontSize: '13px', fontWeight: '700', color: '#475569' }}>
+            🚫 Durability Test
+          </span>
+          <span style={{ background: '#f8fafc', border: '1px solid #e2e8f0', padding: '6px 14px', borderRadius: '8px', fontSize: '13px', fontWeight: '700', color: '#475569' }}>
+            🚫 Abrasion Test
+          </span>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '24px', animation: 'fadeIn 0.4s ease-out' }}>

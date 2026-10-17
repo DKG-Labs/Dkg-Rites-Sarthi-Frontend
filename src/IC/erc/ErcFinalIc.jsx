@@ -3,7 +3,7 @@ import React from "react";
 // Allowed fields from Excel specs
 const allowedFields = [
   "bookNo", "setNo", "offeredInstNo", "passedInstNo", "maNumberAndDate",
-  "consignee", "purchasingAuthority", "description", 
+  "billPayingOfficer", "consignee", "purchasingAuthority", "description", 
   "qtyOfferedPreviously", "qtyPassedPreviously", "qtyStillDue", "trRecDate",
   "quantityNowPassedText", "noOfVisits", "datesOfInspection", "sealingPattern",
   "facsimileText", "reasonsForRejection", "inspectingEngineer"

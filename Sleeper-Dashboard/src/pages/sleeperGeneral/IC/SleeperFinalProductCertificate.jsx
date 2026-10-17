@@ -602,6 +602,21 @@ export default function SleeperFinalProductCertificate() {
   };
 
   const handleSaveChanges = async () => {
+    if (!data.bookNo || !data.setNo) {
+      setNotification({ open: true, message: "Please fill in both Book No. and Set No. before saving.", severity: 'warning' });
+      return;
+    }
+
+    if (!/^\d{3}$/.test(data.setNo)) {
+      setNotification({ open: true, message: "Set No. must be exactly 3 digits.", severity: 'warning' });
+      return;
+    }
+
+    if (!bookSetValidation?.isValid) {
+      setNotification({ open: true, message: "Please Verify the Book No. and Set No. before saving changes.", severity: 'warning' });
+      return;
+    }
+
     try {
       const user = getStoredUser();
       const primaryIcNo = data.certificateNo || call.certificateNo || call.icNo || call.requestId || call.callNo || call.call_no || "Sleeper_IC";

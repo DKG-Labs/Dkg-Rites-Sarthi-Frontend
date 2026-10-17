@@ -568,6 +568,16 @@ export default function FinalProductCertificate({ call = {}, onBack }) {
       return;
     }
 
+    if (!/^\d{3}$/.test(data.setNo)) {
+      setNotification({ open: true, message: "Set No. must be exactly 3 digits.", severity: 'warning' });
+      return;
+    }
+
+    if (!bookSetValidation?.isValid) {
+      setNotification({ open: true, message: "Please Verify the Book No. and Set No. before saving changes.", severity: 'warning' });
+      return;
+    }
+
     if (data.bookNo.trim().length < 4) {
       setBookWarningModal({
         show: true,
@@ -651,7 +661,7 @@ export default function FinalProductCertificate({ call = {}, onBack }) {
           return;
       }
       
-      if (!bookSetValidation.isValid) {
+      if (!bookSetValidation?.isValid) {
           console.warn("⚠️ Validation failed: Book No or Set No has not been verified.");
           setNotification({ open: true, message: "Please Verify the Book No. and Set No. before signing.", severity: 'warning' });
           setIsESigning(false);

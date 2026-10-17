@@ -485,7 +485,6 @@ const GenerateCaseLetterModal = ({
           let images = [];
           try {
             const res = await axios.get(`${API_BASE_URL}/api/images/call/${encodeURIComponent(cNo)}`, {
-              params: { typeOfCall: 'ERC' },
               headers: token ? { Authorization: `Bearer ${token}` } : {}
             });
             const dataObj = res?.data || res;
@@ -496,7 +495,7 @@ const GenerateCaseLetterModal = ({
 
           if (images && images.length > 0) {
             const formattedImages = images.map(img => {
-              let url = img.preview || img.base64Data || img.url || img;
+              let url = img.url || img.photoUrl || img.preview || img.base64Data || img;
               if (typeof url === 'string' && url.startsWith('/api/')) {
                 url = `${API_BASE_URL.replace(/\/api$/, '')}${url}`;
               } else if (typeof url === 'string' && url.startsWith('/') && !url.startsWith('http')) {
@@ -550,6 +549,30 @@ const GenerateCaseLetterModal = ({
             call?.linkedRmCallNo
           ].filter(Boolean);
 
+          if (rmCandidates.length === 0 && callNo) {
+            try {
+              const token = localStorage.getItem('authToken');
+              const authHeaders = {
+                'Content-Type': 'application/json',
+                'Authorization': token ? `Bearer ${token}` : ''
+              };
+              const res = await fetch(`${API_BASE_URL}/api/process-material/initiation/call/${encodeURIComponent(callNo)}`, {
+                headers: authHeaders
+              });
+              if (res.ok) {
+                const data = await res.json();
+                const list = data?.responseData?.rmIcHeatInfoList || [];
+                for (const item of list) {
+                  if (item?.rmIcNumber) {
+                    rmCandidates.push(item.rmIcNumber);
+                  }
+                }
+              }
+            } catch (initErr) {
+              console.warn('Could not auto-fetch linked RM IC mapping from process initiation:', initErr);
+            }
+          }
+
           let signedBlob = null;
           for (const cand of rmCandidates) {
             try {
@@ -596,6 +619,30 @@ const GenerateCaseLetterModal = ({
             call?.linked_process_call_no,
             call?.processCallNumber
           ].filter(Boolean);
+
+          if (processCandidates.length === 0 && callNo) {
+            try {
+              const token = localStorage.getItem('authToken');
+              const authHeaders = {
+                'Content-Type': 'application/json',
+                'Authorization': token ? `Bearer ${token}` : ''
+              };
+              const res = await fetch(`${API_BASE_URL}/api/final-material/inspection/${encodeURIComponent(callNo)}`, {
+                headers: authHeaders
+              });
+              if (res.ok) {
+                const data = await res.json();
+                const mappings = data?.responseData?.mappings || data?.responseData?.processMappings || [];
+                for (const m of mappings) {
+                  if (m?.processIcNumber) {
+                    processCandidates.push(m.processIcNumber);
+                  }
+                }
+              }
+            } catch (err) {
+              console.warn('Could not auto-fetch linked Process IC mapping from final inspection:', err);
+            }
+          }
 
           let signedBlob = null;
           for (const cand of processCandidates) {

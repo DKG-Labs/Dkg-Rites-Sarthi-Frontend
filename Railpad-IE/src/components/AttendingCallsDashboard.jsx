@@ -449,6 +449,14 @@ const AttendingCallsDashboard = ({
 
   const handleConfirmSendToIbs = async () => {
     if (!sendIbsCallRow) return;
+    if (!hasCaseLetter) {
+      setNotification({
+        message: 'Case Letter is mandatory before sending call to IBS.',
+        type: 'error'
+      });
+      setSendIbsCallRow(null);
+      return;
+    }
     setIsSendingIbs(true);
     try {
       const uId = user?.userId || localStorage.getItem('userId');
@@ -2379,9 +2387,7 @@ const AttendingCallsDashboard = ({
 
                 {/* 2. Send call to IBS (Completed Calls only) */}
                 {!selectedActionCall.isClosed && activeTab !== 'closed' && (() => {
-                  const isProcess = isProcessCall(selectedActionCall);
-                  const isCaseLetterMandatory = !isProcess;
-                  const canSendToIbs = hasCaseLetter || !isCaseLetterMandatory;
+                  const canSendToIbs = hasCaseLetter;
                   const isBtnDisabled = !canSendToIbs || checkingCaseLetter;
 
                   return (
@@ -2422,7 +2428,7 @@ const AttendingCallsDashboard = ({
                         checkingCaseLetter
                           ? "Checking Case Letter..."
                           : !hasCaseLetter
-                            ? (isCaseLetterMandatory ? "Case Letter is mandatory before sending call to IBS" : "Send call to IBS (Case Letter optional)")
+                            ? "Case Letter is mandatory before sending call to IBS"
                             : "Send call to IBS"
                       }
                     >
@@ -2440,15 +2446,9 @@ const AttendingCallsDashboard = ({
                           Checking Case Letter...
                         </span>
                       ) : !hasCaseLetter ? (
-                        isCaseLetterMandatory ? (
-                          <span style={{ fontSize: '9.5px', color: '#dc2626', fontWeight: '800', marginTop: '-2px', background: '#fee2e2', padding: '2px 6px', borderRadius: '4px' }}>
-                            Case Letter Required
-                          </span>
-                        ) : (
-                          <span style={{ fontSize: '9.5px', color: '#0369a1', fontWeight: '700', marginTop: '-2px', background: '#e0f2fe', padding: '2px 6px', borderRadius: '4px' }}>
-                            Case Letter Optional
-                          </span>
-                        )
+                        <span style={{ fontSize: '9.5px', color: '#dc2626', fontWeight: '800', marginTop: '-2px', background: '#fee2e2', padding: '2px 6px', borderRadius: '4px' }}>
+                          Case Letter Required
+                        </span>
                       ) : (
                         <span style={{ fontSize: '9.5px', color: '#15803d', fontWeight: '700', marginTop: '-2px', background: '#dcfce7', padding: '2px 6px', borderRadius: '4px' }}>
                           Case Letter Attached
@@ -3479,6 +3479,7 @@ const AttendingCallsDashboard = ({
           }}
           call={generateCaseLetterModalCall}
           onCaseLetterSaved={(savedDoc) => {
+            setHasCaseLetter(true);
             setNotification({
               message: `Case Letter generated and archived for call ${generateCaseLetterModalCall.requestId || generateCaseLetterModalCall.callNo || ''} successfully!`,
               type: 'success'

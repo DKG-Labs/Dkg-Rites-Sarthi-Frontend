@@ -26,21 +26,6 @@ import PictureAsPdfRoundedIcon from '@mui/icons-material/PictureAsPdfRounded';
 import AssignmentReturnRoundedIcon from '@mui/icons-material/AssignmentReturnRounded';
 import { fetchSavedCaseLetterInfo } from '../services/caseLetterService';
 
-const isProcessCall = (call) => {
-  if (!call) return false;
-  const callNo = String(call.call_no || call.callNumber || call.requestId || call.callNo || '').toUpperCase().trim();
-  if (callNo.startsWith('EP-') || callNo.startsWith('EP_') || callNo === 'EP' || (callNo.startsWith('EP') && /^EP[-_0-9]/.test(callNo))) {
-    return true;
-  }
-  if (callNo.startsWith('RPP-') || callNo.startsWith('RPP_') || callNo === 'RPP' || (callNo.startsWith('RPP') && /^RPP[-_0-9]/.test(callNo))) {
-    return true;
-  }
-  const stage = String(call.stage || call.call_stage || call.callStage || call.callType || call.call_type || '').toUpperCase();
-  if (stage.includes('PROCESS') || stage === 'P' || stage === 'EP' || stage === 'RPP') {
-    return true;
-  }
-  return false;
-};
 
 const CompletedCallsTab = ({ setSelectedCall, setCurrentPage, onCallSentToIbs }) => {
   const [showFilters, setShowFilters] = useState(false);
@@ -99,7 +84,8 @@ const CompletedCallsTab = ({ setSelectedCall, setCurrentPage, onCallSentToIbs })
         setCheckingCaseLetter(false);
       }
     } else {
-      setHasCaseLetter(false);
+      // Don't reset hasCaseLetter here — it may have been cleared to open the confirm dialog
+      // and the value is still needed for handleConfirmSendToIbs
       setCheckingCaseLetter(false);
     }
     return () => {

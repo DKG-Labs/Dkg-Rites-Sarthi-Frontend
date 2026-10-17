@@ -15,7 +15,7 @@ const EditableField = ({ value, fieldName, placeholder = "", className = "", typ
     if (type === "textarea") {
       return (
         <textarea
-          value={value || ""}
+          value={value ?? ""}
           onChange={(e) => onFieldChange(fieldName, e.target.value)}
           placeholder={placeholder}
           className={`w-full p-1 border border-blue-400 bg-blue-50 text-sm`}
@@ -28,10 +28,10 @@ const EditableField = ({ value, fieldName, placeholder = "", className = "", typ
     return (
       <input
         type="text"
-        value={value || ""}
+        value={value ?? ""}
         onChange={(e) => onFieldChange(fieldName, e.target.value)}
         placeholder={placeholder}
-        className={`w-full p-0 border border-blue-400 bg-blue-50 text-sm`}
+        className={`w-full p-0.5 border border-blue-400 bg-blue-50 text-sm text-center font-bold`}
         style={type === "inline" ? { display: "inline-block", width: "80px" } : {}}
         disabled={disabled || isBusy}
         maxLength={maxLength}
@@ -165,9 +165,17 @@ const ErcFinalIc = ({ data = {}, isEditing = false, isBusy = false, onFieldChang
     setNo = "",
   } = data;
 
+  const effectiveQtyOfferedPreviously = (qtyOfferedPreviously !== undefined && qtyOfferedPreviously !== null && qtyOfferedPreviously !== "")
+    ? qtyOfferedPreviously
+    : (data?.cummQtyOfferedPrev ?? data?.cummQtyOfferedPreviously ?? data?.cumm_qty_offered_previously ?? 0);
+
+  const effectiveQtyPassedPreviously = (qtyPassedPreviously !== undefined && qtyPassedPreviously !== null && qtyPassedPreviously !== "")
+    ? qtyPassedPreviously
+    : (data?.qtyPrevPassed ?? data?.cummQtyPassedPreviously ?? data?.cumm_qty_passed_previously ?? 0);
+
   // Qty Now Accepted = Offered - Rejected - ErcUsed (or from qtyNowPassed)
   const numQtyOnOrder = parseFloat(qtyOnOrder) || 0;
-  const numQtyPassedPreviously = parseFloat(qtyPassedPreviously) || 0;
+  const numQtyPassedPreviously = parseFloat(effectiveQtyPassedPreviously) || 0;
   const numQtyNowOffered = parseFloat(qtyNowOffered) || 0;
   const numQtyNowRejected = parseFloat(qtyNowRejected) || 0;
 
@@ -481,8 +489,8 @@ const ErcFinalIc = ({ data = {}, isEditing = false, isBusy = false, onFieldChang
             {/* Units and Values for cols 3-9 */}
             {[
               { val: qtyOnOrder, field: "qtyOnOrder" },
-              { val: qtyOfferedPreviously, field: "qtyOfferedPreviously" },
-              { val: qtyPassedPreviously, field: "qtyPassedPreviously" },
+              { val: effectiveQtyOfferedPreviously, field: "qtyOfferedPreviously" },
+              { val: effectiveQtyPassedPreviously, field: "qtyPassedPreviously" },
               { val: qtyNowOffered, field: "qtyNowOffered" },
               { val: displayQtyNowPassed, field: "qtyNowPassed" },
               { val: qtyNowRejected, field: "qtyNowRejected", isRejection: true },

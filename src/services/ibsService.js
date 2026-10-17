@@ -37,6 +37,31 @@ export const getIbsCallRegistrationData = async () => {
 };
 
 /**
+ * Reverts a pending IBS call back to completed by deleting the SEND_CALL_TO_IBS
+ * workflow transition and archiving it to the delete history table.
+ */
+export const revertIbsCallToCompleted = async (callNumber, deletedBy) => {
+    const token = getAuthToken() || '';
+    const headers = {
+        'Content-Type': 'application/json',
+        'Authorization': token.startsWith('Bearer ') ? token : `Bearer ${token}`
+    };
+
+    const params = new URLSearchParams({ callNumber });
+    if (deletedBy != null) params.append('deletedBy', deletedBy);
+
+    const url = `${API_BASE_URL}/api/ibs/revert-to-completed?${params.toString()}`;
+
+    const response = await fetch(url, { method: 'DELETE', headers });
+    if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(errorText || `Failed to revert call: Status ${response.status}`);
+    }
+    const data = await response.json();
+    return data;
+};
+
+/**
  * Service to fetch completed IBS calls from ibs_call_registration
  */
 export const getIbsCompletedCallsData = async () => {

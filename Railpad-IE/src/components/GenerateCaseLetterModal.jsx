@@ -293,7 +293,7 @@ const GenerateCaseLetterModal = ({
         try {
           let images = [];
           try {
-            const apiRes = await fetch(`${baseUrl}/images/call/${encodeURIComponent(cNo)}?typeOfCall=RAILPAD`, {
+            const apiRes = await fetch(`${baseUrl}/images/call/${encodeURIComponent(cNo)}`, {
               headers: token ? { Authorization: `Bearer ${token}` } : {}
             });
             if (apiRes.ok) {
@@ -307,7 +307,7 @@ const GenerateCaseLetterModal = ({
           if (images && images.length > 0) {
             // Format images to have full URLs if relative
             const formattedImages = images.map(img => {
-              let url = img.preview || img.base64Data || img.url || img;
+              let url = img.url || img.photoUrl || img.preview || img.base64Data || img;
               if (typeof url === 'string' && url.startsWith('/api/')) {
                 url = `${baseUrl.replace(/\/api$/, '')}${url}`;
               } else if (typeof url === 'string' && url.startsWith('/') && !url.startsWith('http')) {

@@ -585,6 +585,24 @@ export default function RailpadFinalProductCertificate({ call = {}, onBack, isVi
   };
 
   const handleSaveChanges = async () => {
+    const bookNo = data.bookNo || '';
+    const setNo = data.setNo || '';
+
+    if (!bookNo || !setNo) {
+      showToast("Please enter Book No. and Set No. before saving.", "warning");
+      return;
+    }
+
+    if (!/^\d{3}$/.test(setNo)) {
+      showToast("Set No. must be exactly 3 digits.", "warning");
+      return;
+    }
+
+    if (!bookSetValidation?.isValid) {
+      showToast("Please Verify the Book No. and Set No. before saving changes.", "warning");
+      return;
+    }
+
     try {
       showToast("Saving draft changes...", "info");
       const callNo = call.callNo || call.call_no || call.requestId;
@@ -918,6 +936,16 @@ export default function RailpadFinalProductCertificate({ call = {}, onBack, isVi
 
     if (!data?.bookNo || !data?.setNo) {
       setManualUploadError("Please ensure both Book No. and Set No. are filled before finalizing.");
+      return;
+    }
+
+    if (!/^\d{3}$/.test(data?.setNo)) {
+      setManualUploadError("Set No. must be exactly 3 digits.");
+      return;
+    }
+
+    if (!bookSetValidation?.isValid) {
+      setManualUploadError("Please verify Book No. and Set No. before finalizing.");
       return;
     }
 

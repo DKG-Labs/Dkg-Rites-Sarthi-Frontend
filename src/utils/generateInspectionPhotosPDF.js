@@ -57,12 +57,30 @@ export const generateInspectionPhotosPDF = async (images = [], call = {}) => {
   const imgH = cellH - 10;
 
   // Helper to load image as Base64 Data URL
-  const loadImageData = (src) => {
-    return new Promise((resolve) => {
-      if (typeof src === 'string' && src.startsWith('data:image')) {
-        resolve(src);
-        return;
+  const loadImageData = async (src) => {
+    if (!src) return null;
+    if (typeof src === 'string' && src.startsWith('data:image')) {
+      return src;
+    }
+    // Attempt 1: Fetch as blob to avoid canvas CORS / tainting issues
+    try {
+      const resp = await fetch(src);
+      if (resp.ok) {
+        const blob = await resp.blob();
+        if (blob && blob.size > 0) {
+          return await new Promise((resolve) => {
+            const reader = new FileReader();
+            reader.onloadend = () => resolve(reader.result);
+            reader.onerror = () => resolve(null);
+            reader.readAsDataURL(blob);
+          });
+        }
       }
+    } catch (e) {
+      // Fallback to Image element
+    }
+
+    return new Promise((resolve) => {
       const img = new Image();
       img.crossOrigin = 'Anonymous';
       img.onload = () => {
@@ -72,7 +90,7 @@ export const generateInspectionPhotosPDF = async (images = [], call = {}) => {
           canvas.height = img.naturalHeight || img.height || 300;
           const ctx = canvas.getContext('2d');
           ctx.drawImage(img, 0, 0);
-          resolve(canvas.toDataURL('image/jpeg', 0.85));
+          resolve(canvas.toDataURL('image/png'));
         } catch (e) {
           resolve(null);
         }
@@ -117,7 +135,7 @@ export const generateInspectionPhotosPDF = async (images = [], call = {}) => {
       const x = margin + col * (cellW + 8);
       const y = contentTop + row * (cellH + 6);
 
-      const photoSrc = item?.url || item?.photoUrl || item?.src || (typeof item === 'string' ? item : null);
+      const photoSrc = item?.url || item?.photoUrl || item?.preview || item?.base64Data || item?.src || (typeof item === 'string' ? item : null);
       const photoLabel = item?.label || item?.stageName || item?.caption || `Inspection Photo #${startIndex + i + 1}`;
       const timestamp = item?.timestamp || item?.capturedAt || '';
 
@@ -130,7 +148,8 @@ export const generateInspectionPhotosPDF = async (images = [], call = {}) => {
         try {
           const base64Img = await loadImageData(photoSrc);
           if (base64Img) {
-            doc.addImage(base64Img, 'JPEG', x + 1, y + 1, imgW - 2, imgH - 2, undefined, 'FAST');
+            const format = base64Img.startsWith('data:image/png') ? 'PNG' : 'JPEG';
+            doc.addImage(base64Img, format, x + 1, y + 1, imgW - 2, imgH - 2, undefined, 'NONE');
           } else {
             doc.setFontSize(8);
             doc.setTextColor(148, 163, 184);

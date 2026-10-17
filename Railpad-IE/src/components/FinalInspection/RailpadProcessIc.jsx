@@ -98,7 +98,7 @@ const EditableField = ({
   onFieldChange = () => {}
 }) => {
   const isBookOrSet = fieldName === "bookNo" || fieldName === "setNo";
-  const canEdit = isEditing && allowedFields.includes(fieldName) && (isBookOrSet || bookSetValidation?.isValid);
+  const canEdit = isEditing && allowedFields.includes(fieldName) && (isBookOrSet || bookSetValidation?.isValid === true);
   
   if (canEdit) {
     if (type === "textarea") {
@@ -216,8 +216,6 @@ const RailpadProcessIc = ({
     "quantityNowPassedText", "reasonsForRejection",
     "dateOfCall", "noOfVisits", "datesOfInspection", "sealingPattern", "inspectingEngineer"
   ];
-
-  const isBookSetEntered = Boolean(bookNo && bookNo.trim().length > 0 && setNo && /^\d{3}$/.test(setNo.trim()));
 
   const fieldProps = {
     isEditing,

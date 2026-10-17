@@ -7,7 +7,7 @@ const allowedFields = [
   "contractRef", "maNumberAndDate", "billPayingOfficer", "consignee", "purchasingAuthority",
   "itemNo", "description", "qtyOfferedPreviously", "qtyPassedPreviously", "qtyStillDue", "trRecDate",
   "quantityNowPassedText", "noOfVisits", "datesOfInspection", "sealingPattern", "facsimileText",
-  "reasonsForRejection", "inspectingEngineer", "noOfItemsChecked", "dateOfCall", "icType"
+  "reasonsForRejection", "inspectingEngineer", "noOfItemsChecked", "dateOfCall"
 ];
 
 // Top-level EditableField component to prevent focus loss during typing
@@ -23,10 +23,11 @@ const EditableField = ({
   isEditing = false,
   isBusy = false,
   isBookSetEntered = false,
+  bookSetValidation = null,
   onFieldChange = () => {}
 }) => {
   const isBookOrSet = fieldName === "bookNo" || fieldName === "setNo";
-  const canEdit = isEditing && allowedFields.includes(fieldName) && (isBookOrSet || isBookSetEntered);
+  const canEdit = isEditing && allowedFields.includes(fieldName) && (isBookOrSet || bookSetValidation?.isValid === true);
 
   if (canEdit) {
     if (type === "textarea") {
@@ -157,6 +158,7 @@ const SleeperFinalIc = ({
     isEditing,
     isBusy,
     isBookSetEntered,
+    bookSetValidation,
     onFieldChange
   };
 
@@ -225,7 +227,6 @@ const SleeperFinalIc = ({
       {/* Book & Set Number Centered Container */}
       <div style={{ display: 'flex', justifyContent: 'center', width: '100%', marginBottom: '12px' }}>
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-
           <div style={{ display: 'flex', border: '2px solid black', width: '180px', background: 'white' }}>
             <div style={{ flex: 1, borderRight: '2px solid black', display: 'flex', flexDirection: 'column' }}>
               <div style={{

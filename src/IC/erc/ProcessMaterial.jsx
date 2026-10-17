@@ -250,6 +250,16 @@ export default function ProcessMaterialCertificate({ call = {}, onBack }) {
       return;
     }
 
+    if (!/^\d{3}$/.test(setNo)) {
+      setNotification({ open: true, message: "Set No. must be exactly 3 digits.", severity: 'warning' });
+      return;
+    }
+
+    if (!bookSetValidation?.isValid) {
+      setNotification({ open: true, message: "Please Verify the Book No. and Set No. before saving changes.", severity: 'warning' });
+      return;
+    }
+
     if (bookNo.trim().length < 4) {
       setBookWarningModal({
         show: true,
@@ -328,6 +338,11 @@ export default function ProcessMaterialCertificate({ call = {}, onBack }) {
 
     if (!/^\d{3}$/.test(setNo)) {
       setNotification({ open: true, message: "Set No. must be exactly 3 digits.", severity: 'warning' });
+      return;
+    }
+
+    if (!bookSetValidation?.isValid) {
+      setNotification({ open: true, message: "Please Verify the Book No. and Set No. before uploading signed IC.", severity: 'warning' });
       return;
     }
 

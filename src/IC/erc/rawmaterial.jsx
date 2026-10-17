@@ -283,7 +283,7 @@ export default function RawMaterialCertificate({ call = {}, onBack }) {
 
   const handleDataChange = (field, value) => {
     setEditableData((prev) => ({ ...prev, [field]: value }));
-    if (field === 'bookNo' || field === 'setNo') {
+    if (field === 'bookNo' || field === 'setNo' || field === 'icType') {
       setBookSetValidation({ isValid: null, message: null, isValidating: false });
     }
   };
@@ -337,6 +337,16 @@ export default function RawMaterialCertificate({ call = {}, onBack }) {
   const handleSaveChanges = () => {
     if (!dataToPass.bookNo || !dataToPass.setNo) {
       setNotification({ open: true, message: "Please fill in both Book No. and Set No. before saving.", severity: 'warning' });
+      return;
+    }
+
+    if (!/^\d{3}$/.test(dataToPass.setNo)) {
+      setNotification({ open: true, message: "Set No. must be exactly 3 digits.", severity: 'warning' });
+      return;
+    }
+
+    if (dataToPass.icType === 'new' && !bookSetValidation?.isValid) {
+      setNotification({ open: true, message: "Please Verify the Book No. and Set No. before saving changes.", severity: 'warning' });
       return;
     }
 
@@ -424,7 +434,7 @@ export default function RawMaterialCertificate({ call = {}, onBack }) {
           return;
       }
       
-      if (dataToPass.icType === 'new' && !bookSetValidation.isValid) {
+      if (dataToPass.icType === 'new' && !bookSetValidation?.isValid) {
           console.warn("⚠️ Validation failed: Book No or Set No has not been verified.");
           setNotification({ open: true, message: "Please Verify the Book No. and Set No. before signing.", severity: 'warning' });
           setIsESigning(false);

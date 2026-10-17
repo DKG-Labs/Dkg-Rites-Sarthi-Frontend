@@ -374,6 +374,12 @@ const CompletedCallsTab = ({ setSelectedCall, setCurrentPage, onCallSentToIbs })
 
   const handleConfirmSendToIbs = async () => {
     if (!sendIbsCallRow) return;
+    if (!hasCaseLetter) {
+      setNotificationType('error');
+      setNotificationMessage('Case Letter is mandatory before sending call to IBS.');
+      setSendIbsCallRow(null);
+      return;
+    }
     try {
       setIsSendingIbs(true);
       const userId = getCurrentUserId();
@@ -676,9 +682,7 @@ const CompletedCallsTab = ({ setSelectedCall, setCurrentPage, onCallSentToIbs })
 
                 {/* 3. Send call to IBS */}
                 {(() => {
-                  const isProcess = isProcessCall(selectedActionCall);
-                  const isCaseLetterMandatory = !isProcess;
-                  const canSendToIbs = hasCaseLetter || !isCaseLetterMandatory;
+                  const canSendToIbs = hasCaseLetter;
                   const isBtnDisabled = !canSendToIbs || checkingCaseLetter;
 
                   return (
@@ -719,7 +723,7 @@ const CompletedCallsTab = ({ setSelectedCall, setCurrentPage, onCallSentToIbs })
                         checkingCaseLetter
                           ? "Checking Case Letter..."
                           : !hasCaseLetter
-                            ? (isCaseLetterMandatory ? "Case Letter is mandatory before sending call to IBS" : "Send call to IBS (Case Letter optional)")
+                            ? "Case Letter is mandatory before sending call to IBS"
                             : "Send call to IBS"
                       }
                     >
@@ -737,15 +741,9 @@ const CompletedCallsTab = ({ setSelectedCall, setCurrentPage, onCallSentToIbs })
                           Checking Case Letter...
                         </span>
                       ) : !hasCaseLetter ? (
-                        isCaseLetterMandatory ? (
-                          <span style={{ fontSize: '10px', color: '#dc2626', fontWeight: '800', marginTop: '-2px', background: '#fee2e2', padding: '2px 8px', borderRadius: '4px' }}>
-                            Case Letter Required
-                          </span>
-                        ) : (
-                          <span style={{ fontSize: '10px', color: '#0369a1', fontWeight: '700', marginTop: '-2px', background: '#e0f2fe', padding: '2px 8px', borderRadius: '4px' }}>
-                            Case Letter Optional
-                          </span>
-                        )
+                        <span style={{ fontSize: '10px', color: '#dc2626', fontWeight: '800', marginTop: '-2px', background: '#fee2e2', padding: '2px 8px', borderRadius: '4px' }}>
+                          Case Letter Required
+                        </span>
                       ) : (
                         <span style={{ fontSize: '10px', color: '#15803d', fontWeight: '700', marginTop: '-2px', background: '#dcfce7', padding: '2px 8px', borderRadius: '4px' }}>
                           Case Letter Attached

@@ -284,7 +284,22 @@ const GenerateCaseLetterModal = ({
         }
 
         if (images && images.length > 0) {
-          const photoBlob = await generateInspectionPhotosPDF(images, {
+          const formattedImages = images.map(img => {
+            let url = img.url || img.photoUrl || img.preview || img.base64Data || img;
+            if (typeof url === 'string' && url.startsWith('/api/')) {
+              url = `${API_BASE_URL.replace(/\/api$/, '')}${url}`;
+            } else if (typeof url === 'string' && url.startsWith('/') && !url.startsWith('http')) {
+              url = `${API_BASE_URL}${url}`;
+            }
+            return {
+              ...img,
+              url,
+              caption: img.caption || img.label || 'Inspection Photo',
+              timestamp: img.timestamp || img.createdAt || ''
+            };
+          });
+
+          const photoBlob = await generateInspectionPhotosPDF(formattedImages, {
             ...call,
             callNumber: cNo,
             call_no: cNo,

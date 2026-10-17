@@ -2,6 +2,7 @@ import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import Pagination from '../Pagination';
 import { useInspection } from '../../context/InspectionContext';
 import AnnexureUploadModal from '../AnnexureUploadModal';
+import AnnexurePage from '../../pages/AnnexurePage';
 import { API_ENDPOINTS, getAuthHeaders, handleResponse } from '../../services/apiConfig';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
@@ -127,7 +128,8 @@ const DownloadIcAnnexures = ({ selectedProduct = 'ERC', fromDate: initialFromDat
         icNumber: '',
         moduleType: 'SLEEPER'
     });
-    const { getIcAnnexuresCachedData, updateIcAnnexuresCache, clearIcAnnexuresCache } = useInspection();
+    const { getIcAnnexuresCachedData, updateIcAnnexuresCache, clearIcAnnexuresCache, setSelectedCall } = useInspection();
+    const [annexurePageModal, setAnnexurePageModal] = useState({ isOpen: false, callNo: '' });
 
     // 2. Local Filters state
     const [stageFilter, setStageFilter] = useState('all');
@@ -563,8 +565,13 @@ const DownloadIcAnnexures = ({ selectedProduct = 'ERC', fromDate: initialFromDat
             }
 
             // ==========================================
-            // TIER 2: Check Uploaded Annexures
+            // TIER 2: System Annexures (ERC) / Uploaded Annexures (others)
             // ==========================================
+            if (moduleType === 'ERC') {
+                setSelectedCall({ call_no: callNo });
+                setAnnexurePageModal({ isOpen: true, callNo });
+                return;
+            }
             try {
                 const annexRes = await getAnnexureDocuments(callNo, moduleType);
                 if (annexRes && annexRes.success && Array.isArray(annexRes.data) && annexRes.data.length > 0) {
@@ -1162,6 +1169,39 @@ const DownloadIcAnnexures = ({ selectedProduct = 'ERC', fromDate: initialFromDat
                     moduleType={viewAnnexureModal.moduleType}
                     mode="view"
                 />
+            )}
+
+            {/* System Annexures Modal for ERC */}
+            {annexurePageModal.isOpen && (
+                <div style={{
+                    position: 'fixed', inset: 0, zIndex: 9999,
+                    background: 'rgba(0,0,0,0.6)',
+                    display: 'flex', flexDirection: 'column'
+                }}>
+                    <div style={{
+                        background: '#fff', flex: 1, display: 'flex', flexDirection: 'column',
+                        maxHeight: '100vh', overflow: 'hidden'
+                    }}>
+                        <div style={{
+                            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                            padding: '12px 20px', background: '#0f3a5e', color: '#fff'
+                        }}>
+                            <span style={{ fontWeight: 600, fontSize: '15px' }}>
+                                Annexures — Call No: {annexurePageModal.callNo}
+                            </span>
+                            <button
+                                onClick={() => setAnnexurePageModal({ isOpen: false, callNo: '' })}
+                                style={{
+                                    background: 'none', border: 'none', color: '#fff',
+                                    fontSize: '22px', cursor: 'pointer', lineHeight: 1
+                                }}
+                            >✕</button>
+                        </div>
+                        <div style={{ flex: 1, overflowY: 'auto' }}>
+                            <AnnexurePage onBack={() => setAnnexurePageModal({ isOpen: false, callNo: '' })} />
+                        </div>
+                    </div>
+                </div>
             )}
         </div>
     );

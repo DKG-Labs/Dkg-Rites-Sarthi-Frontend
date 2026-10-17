@@ -2005,7 +2005,7 @@ export default function FinalProductDashboard({ onBack, onNavigateToSubModule })
                         </select>
                       </td>
                       <td className="fp-lot-cell" style={{ fontWeight: 'bold', color: '#0d9488' }}>
-                        {calculateBagsForSampling(lotRow.noOfBags)}
+                        {calculateBagsForSampling(lotRow.sampleSize)}
                       </td>
                     </tr>
                   )) : null}
@@ -2034,7 +2034,7 @@ export default function FinalProductDashboard({ onBack, onNavigateToSubModule })
               </FormField>
 
               <FormField label="Total No.of Sampling Bags">
-                <input className="fp-input" value={lotsWithSampling.reduce((sum, lot) => sum + calculateBagsForSampling(lot.noOfBags), 0) || "-"} disabled />
+                <input className="fp-input" value={lotsWithSampling.reduce((sum, lot) => sum + calculateBagsForSampling(lot.sampleSize), 0) || "-"} disabled />
               </FormField>
             </div>
           </div>

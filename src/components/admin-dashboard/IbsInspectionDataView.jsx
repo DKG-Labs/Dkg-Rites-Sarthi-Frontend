@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { getIbsCallRegistrationData, getIbsCompletedCallsData } from '../../services/ibsService';
+import { getIbsCallRegistrationData, getIbsCompletedCallsData, revertIbsCallToCompleted } from '../../services/ibsService';
 import './IbsInspectionDataView.css';
 
 // Master category definitions for the 6 specific call streams
@@ -234,6 +234,10 @@ export const IbsInspectionDataView = ({ onNotify }) => {
     const [selectedCall, setSelectedCall] = useState(null);
     const [copiedField, setCopiedField] = useState(null);
 
+    // Revert to Completed state
+    const [revertingCall, setRevertingCall] = useState(null);
+    const [revertConfirmCall, setRevertConfirmCall] = useState(null);
+
     // View Mode State: 'CARDS' (mobile friendly, zero horizontal scrolling) | 'TABLE' (spreadsheet table)
     const [viewMode, setViewMode] = useState(() => {
         return (typeof window !== 'undefined' && window.innerWidth <= 768) ? 'CARDS' : 'TABLE';
@@ -328,6 +332,23 @@ export const IbsInspectionDataView = ({ onNotify }) => {
         } else {
             await fetchCompletedCalls();
             notify('Refreshed completed calls data', 'success');
+        }
+    };
+
+    const handleRevertToCompleted = async (call) => {
+        const callNumber = call.callNo || call.callNumber;
+        if (!callNumber) return;
+        setRevertingCall(callNumber);
+        try {
+            const deletedBy = parseInt(localStorage.getItem('userId'), 10) || null;
+            await revertIbsCallToCompleted(callNumber, deletedBy);
+            notify(`Call ${callNumber} reverted to Completed successfully.`, 'success');
+            setRevertConfirmCall(null);
+            await fetchPendingCalls();
+        } catch (err) {
+            notify(`Failed to revert ${callNumber}: ${err.message}`, 'error');
+        } finally {
+            setRevertingCall(null);
         }
     };
 
@@ -1529,6 +1550,16 @@ export const IbsInspectionDataView = ({ onNotify }) => {
                                             >
                                                 👁️ Details
                                             </button>
+                                            {!isCompleted && (
+                                                <button
+                                                    type="button"
+                                                    className="ibs-action-btn ibs-btn-revert"
+                                                    onClick={() => setRevertConfirmCall(call.callNo || call.callNumber)}
+                                                    title="Move this call back to completed calls"
+                                                >
+                                                    ↩ Back to Completed
+                                                </button>
+                                            )}
                                         </div>
                                     </div>
                                 </div>
@@ -1723,6 +1754,16 @@ export const IbsInspectionDataView = ({ onNotify }) => {
                                                     >
                                                         👁️ Details
                                                     </button>
+                                                    {!isCompleted && (
+                                                        <button
+                                                            type="button"
+                                                            className="ibs-action-btn ibs-btn-revert"
+                                                            onClick={() => setRevertConfirmCall(call.callNo || call.callNumber)}
+                                                            title="Move this call back to completed calls"
+                                                        >
+                                                            ↩ Back to Completed
+                                                        </button>
+                                                    )}
                                                 </div>
                                             </td>
                                         </tr>
@@ -2029,6 +2070,85 @@ export const IbsInspectionDataView = ({ onNotify }) => {
                                     Close
                                 </button>
                             </div>
+                        </div>
+                    </div>
+                );
+            })()}
+
+            {/* ── Back to Completed Confirmation Modal ── */}
+            {revertConfirmCall && (() => {
+                const callNo = revertConfirmCall;
+                const isReverting = revertingCall === callNo;
+                return (
+                    <div className="ibs-modal-overlay" onClick={() => !isReverting && setRevertConfirmCall(null)}>
+                        <div className="ibs-revert-modal" onClick={e => e.stopPropagation()}>
+
+                            {/* Header */}
+                            <div className="ibs-revert-modal-header">
+                                <div className="ibs-revert-modal-icon">↩</div>
+                                <div style={{ flex: 1 }}>
+                                    <h3 className="ibs-revert-modal-title">Move to Completed</h3>
+                                    <p style={{ margin: 0, fontSize: 12, color: '#94a3b8', marginTop: 2 }}>
+                                        This call will be moved to completed calls
+                                    </p>
+                                </div>
+                                <button
+                                    type="button"
+                                    className="ibs-modal-close"
+                                    disabled={isReverting}
+                                    onClick={() => setRevertConfirmCall(null)}
+                                >✕</button>
+                            </div>
+
+                            {/* Body */}
+                            <div className="ibs-revert-modal-body">
+                                <div className="ibs-revert-call-tag">{callNo}</div>
+
+                                <p className="ibs-revert-message">
+                                    Are you sure you want to move <strong>{callNo}</strong> back to completed calls?
+                                    This call will no longer appear in the pending list.
+                                </p>
+
+                                <div className="ibs-revert-effects">
+                                    <div className="ibs-revert-effect-row">
+                                        <span className="ibs-revert-effect-icon remove">✕</span>
+                                        <span>Call will be <strong>removed from Pending</strong> list</span>
+                                    </div>
+                                    <div className="ibs-revert-effect-row">
+                                        <span className="ibs-revert-effect-icon archive">✔</span>
+                                        <span>Call will be <strong>moved to Completed</strong> calls</span>
+                                    </div>
+                                    <div className="ibs-revert-effect-row">
+                                        <span className="ibs-revert-effect-icon warning">⚠</span>
+                                        <span>This action <strong>cannot be undone</strong></span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Footer */}
+                            <div className="ibs-revert-modal-footer">
+                                <button
+                                    type="button"
+                                    className="ibs-revert-btn-cancel"
+                                    disabled={isReverting}
+                                    onClick={() => setRevertConfirmCall(null)}
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    type="button"
+                                    className="ibs-revert-btn-confirm"
+                                    disabled={isReverting}
+                                    onClick={() => handleRevertToCompleted({ callNo })}
+                                >
+                                    {isReverting ? (
+                                        <><span className="ibs-revert-spinner" /> Processing…</>
+                                    ) : (
+                                        <>✔ Yes, Move to Completed</>
+                                    )}
+                                </button>
+                            </div>
+
                         </div>
                     </div>
                 );

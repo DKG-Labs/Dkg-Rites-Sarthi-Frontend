@@ -416,8 +416,8 @@ export default function FinalProductCertificate({ call = {}, onBack }) {
       description: c.description || "",
       uom: c.uom || c.unit || c.poUom || c.itemUom || c.poQtyUnit || "",
       qtyOnOrder: c.qtyOnOrder || 0,
-      qtyOfferedPreviously: c.qtyOfferedPreviously || 0,
-      qtyPassedPreviously: c.qtyPassedPreviously || 0,
+      qtyOfferedPreviously: c.qtyOfferedPreviously ?? c.cummQtyOfferedPrev ?? c.cummQtyOfferedPreviously ?? c.cumm_qty_offered_previously ?? 0,
+      qtyPassedPreviously: c.qtyPassedPreviously ?? c.qtyPrevPassed ?? c.cummQtyPassedPreviously ?? c.cumm_qty_passed_previously ?? 0,
       qtyNowOffered: c.qtyNowOffered || 0,
       qtyNowPassed: passedVal,
       qtyNowRejected: c.qtyNowRejected || 0,
@@ -467,9 +467,15 @@ export default function FinalProductCertificate({ call = {}, onBack }) {
               offeredInstNo: savedEdit.offeredInstallmentNo || initialData.offeredInstNo,
               passedInstNo: savedEdit.passedInstallmentNo || initialData.passedInstNo,
               consignee: savedEdit.consignee || initialData.consignee,
-              qtyOfferedPreviously: savedEdit.cummQtyOfferedPrev || initialData.qtyOfferedPreviously,
-              qtyPassedPreviously: savedEdit.qtyPrevPassed || initialData.qtyPassedPreviously,
-              qtyStillDue: savedEdit.qtyStillDue || initialData.qtyStillDue,
+              qtyOfferedPreviously: (savedEdit.cummQtyOfferedPrev !== undefined && savedEdit.cummQtyOfferedPrev !== null && savedEdit.cummQtyOfferedPrev !== "") 
+                ? savedEdit.cummQtyOfferedPrev 
+                : initialData.qtyOfferedPreviously,
+              qtyPassedPreviously: (savedEdit.qtyPrevPassed !== undefined && savedEdit.qtyPrevPassed !== null && savedEdit.qtyPrevPassed !== "") 
+                ? savedEdit.qtyPrevPassed 
+                : initialData.qtyPassedPreviously,
+              qtyStillDue: (savedEdit.qtyStillDue !== undefined && savedEdit.qtyStillDue !== null && savedEdit.qtyStillDue !== "") 
+                ? savedEdit.qtyStillDue 
+                : initialData.qtyStillDue,
               maNumberAndDate: savedEdit.maNumberAndDate || initialData.maNumberAndDate,
               billPayingOfficer: savedEdit.billPayingOfficer || initialData.billPayingOfficer,
               purchasingAuthority: savedEdit.purchasingAuthority || initialData.purchasingAuthority,
@@ -793,9 +799,15 @@ export default function FinalProductCertificate({ call = {}, onBack }) {
           offeredInstNo: savedEdit.offeredInstallmentNo || initialData.offeredInstNo,
           passedInstNo: savedEdit.passedInstallmentNo || initialData.passedInstNo,
           consignee: savedEdit.consignee || initialData.consignee,
-          qtyOfferedPreviously: savedEdit.cummQtyOfferedPrev || initialData.qtyOfferedPreviously,
-          qtyPassedPreviously: savedEdit.qtyPrevPassed || initialData.qtyPassedPreviously,
-          qtyStillDue: savedEdit.qtyStillDue || initialData.qtyStillDue,
+          qtyOfferedPreviously: (savedEdit.cummQtyOfferedPrev !== undefined && savedEdit.cummQtyOfferedPrev !== null && savedEdit.cummQtyOfferedPrev !== "") 
+            ? savedEdit.cummQtyOfferedPrev 
+            : initialData.qtyOfferedPreviously,
+          qtyPassedPreviously: (savedEdit.qtyPrevPassed !== undefined && savedEdit.qtyPrevPassed !== null && savedEdit.qtyPrevPassed !== "") 
+            ? savedEdit.qtyPrevPassed 
+            : initialData.qtyPassedPreviously,
+          qtyStillDue: (savedEdit.qtyStillDue !== undefined && savedEdit.qtyStillDue !== null && savedEdit.qtyStillDue !== "") 
+            ? savedEdit.qtyStillDue 
+            : initialData.qtyStillDue,
           maNumberAndDate: savedEdit.maNumberAndDate || initialData.maNumberAndDate,
           billPayingOfficer: savedEdit.billPayingOfficer || initialData.billPayingOfficer,
           purchasingAuthority: savedEdit.purchasingAuthority || initialData.purchasingAuthority,

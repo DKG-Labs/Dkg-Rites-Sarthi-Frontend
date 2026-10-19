@@ -12,6 +12,7 @@ export const UserForm = ({ user, roles = [], rolesLoading = false, existingUsers
     const [isRolesLoading, setIsRolesLoading] = useState(rolesLoading || (roles && roles.length === 0));
     const [roleSearchValue, setRoleSearchValue] = useState('');
     const [isVendorLoading, setIsVendorLoading] = useState(false);
+    const [cmName, setCmName] = useState('');
 
     const showValidationToast = (msg) => {
         message.error({
@@ -159,6 +160,20 @@ export const UserForm = ({ user, roles = [], rolesLoading = false, existingUsers
         zonalRly: '',
         status: ''
     });
+
+    useEffect(() => {
+        const cmId = formData.controllingManagerId;
+        if (!cmId) { setCmName(''); return; }
+        fetch(`${API_BASE_URL}/api/auth/api/controlling-managers`, { headers: getAuthHeaders() })
+            .then(r => r.json())
+            .catch(() => null)
+            .then(json => {
+                if (json?.responseData) {
+                    const cm = json.responseData.find(c => c.userId === cmId || c.userId === Number(cmId));
+                    setCmName(cm ? `${cm.fullName} (${cm.employeeCode})` : `CM #${cmId}`);
+                }
+            });
+    }, [formData.controllingManagerId]);
 
     useEffect(() => {
         if (user) {
@@ -2110,6 +2125,16 @@ export const UserForm = ({ user, roles = [], rolesLoading = false, existingUsers
                                             <option value="REGULAR">REGULAR</option>
                                             <option value="CONTRACTUAL">CONTRACTUAL</option>
                                         </select>
+                                    </div>
+                                    <div className="form-group">
+                                        <label className="form-label">Controlling Manager</label>
+                                        <input
+                                            type="text"
+                                            className="form-control"
+                                            value={formData.controllingManagerId ? (cmName || 'Loading...') : 'Not Assigned'}
+                                            readOnly
+                                            style={{ backgroundColor: '#f5f5f5', cursor: 'not-allowed', color: formData.controllingManagerId ? '#555' : '#999' }}
+                                        />
                                     </div>
                                 </>
                             )}

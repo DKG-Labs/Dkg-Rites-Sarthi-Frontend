@@ -866,6 +866,19 @@ const GenerateCaseLetterModal = ({
 
   // Merge All Available Documents
   const handleMergePdfs = async () => {
+    // Block if any auto-fetch document is still loading
+    const anyFetching = Object.values(loadingItems).some(Boolean);
+    if (anyFetching) {
+      setErrorMessage('Please wait — some documents are still being fetched. Try merging once all fetches complete.');
+      return;
+    }
+    // Block if any mandatory document has not been uploaded/fetched
+    const missingMandatory = docList.filter(d => d.isMandatory && !d.isDisabled && !isDocAvailable(d));
+    if (missingMandatory.length > 0) {
+      const names = missingMandatory.map(d => d.name || d.key).join(', ');
+      setErrorMessage(`Mandatory document(s) must be uploaded before merging: ${names}`);
+      return;
+    }
     try {
       setMerging(true);
       setErrorMessage('');
@@ -1641,9 +1654,21 @@ const GenerateCaseLetterModal = ({
 
           <div style={{ display: 'flex', gap: '12px' }}>
             {/* MERGE BUTTON */}
+            {(() => {
+              const anyFetching = Object.values(loadingItems).some(Boolean);
+              const missingMandatory = docList.filter(d => d.isMandatory && !d.isDisabled && !isDocAvailable(d));
+              const mergeBlocked = merging || loadingDocs || Boolean(savedCaseLetter) || anyFetching || missingMandatory.length > 0;
+              const mergeTitle = savedCaseLetter
+                ? 'Case Letter already saved. Delete current Case Letter below to re-merge.'
+                : anyFetching
+                  ? 'Please wait — documents are still being fetched.'
+                  : missingMandatory.length > 0
+                    ? `Upload mandatory document(s) first: ${missingMandatory.map(d => d.name || d.key).join(', ')}`
+                    : 'Merge all available documents';
+              return (
             <button
               onClick={handleMergePdfs}
-              disabled={merging || loadingDocs || Boolean(savedCaseLetter)}
+              disabled={mergeBlocked}
               style={{
                 display: 'inline-flex', alignItems: 'center', gap: '6px',
                 padding: '9px 20px',
@@ -1653,15 +1678,17 @@ const GenerateCaseLetterModal = ({
                 borderRadius: '8px',
                 fontSize: '13px',
                 fontWeight: '700',
-                cursor: (merging || loadingDocs || savedCaseLetter) ? 'not-allowed' : 'pointer',
+                cursor: mergeBlocked ? 'not-allowed' : 'pointer',
                 boxShadow: (merging || savedCaseLetter) ? 'none' : '0 4px 6px -1px rgba(37, 99, 235, 0.2)',
-                opacity: savedCaseLetter ? 0.6 : (merging || loadingDocs ? 0.7 : 1)
+                opacity: savedCaseLetter ? 0.6 : (mergeBlocked ? 0.7 : 1)
               }}
-              title={savedCaseLetter ? 'Case Letter already saved. Delete current Case Letter below to re-merge.' : 'Merge all available documents'}
+              title={mergeTitle}
             >
               <MergeTypeRoundedIcon style={{ fontSize: '18px' }} />
               {merging ? 'Merging Documents...' : (savedCaseLetter ? '🔒 Dossier Already Merged' : 'Merge & Preview')}
             </button>
+              );
+            })()}
 
             {/* SAVE BUTTON */}
             {previewBlobUrl && !savedCaseLetter && (

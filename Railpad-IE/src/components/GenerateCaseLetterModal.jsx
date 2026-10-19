@@ -1107,24 +1107,24 @@ const GenerateCaseLetterModal = ({
 
               <div style={{ display: 'flex', gap: '10px' }}>
                 <button
-                  disabled={merging || Boolean(savedCaseLetter)}
+                  disabled={merging || loadingDocs || Boolean(savedCaseLetter)}
                   onClick={handleMergePdfs}
                   style={{
                     display: 'inline-flex', alignItems: 'center', gap: '6px',
                     padding: '10px 18px',
-                    background: (merging || savedCaseLetter) ? '#94a3b8' : 'linear-gradient(135deg, #0284c7 0%, #0369a1 100%)',
+                    background: (merging || loadingDocs || savedCaseLetter) ? '#94a3b8' : 'linear-gradient(135deg, #0284c7 0%, #0369a1 100%)',
                     color: '#ffffff',
                     border: 'none',
                     borderRadius: '8px',
                     fontSize: '13px',
                     fontWeight: '700',
-                    cursor: (merging || savedCaseLetter) ? 'not-allowed' : 'pointer',
-                    boxShadow: (merging || savedCaseLetter) ? 'none' : '0 4px 12px rgba(2, 132, 199, 0.25)',
-                    opacity: savedCaseLetter ? 0.6 : 1
+                    cursor: (merging || loadingDocs || savedCaseLetter) ? 'not-allowed' : 'pointer',
+                    boxShadow: (merging || loadingDocs || savedCaseLetter) ? 'none' : '0 4px 12px rgba(2, 132, 199, 0.25)',
+                    opacity: savedCaseLetter ? 0.6 : (merging || loadingDocs ? 0.7 : 1)
                   }}
-                  title={savedCaseLetter ? 'Case Letter already saved. Delete current Case Letter below to re-merge.' : 'Merge all available documents'}
+                  title={savedCaseLetter ? 'Case Letter already saved. Delete current Case Letter below to re-merge.' : (loadingDocs ? 'Please wait while documents are loading...' : 'Merge all available documents')}
                 >
-                  {merging ? 'Merging Documents...' : (savedCaseLetter ? '🔒 Dossier Already Merged' : 'Merge & Preview')}
+                  {merging ? 'Merging Documents...' : (loadingDocs ? 'Loading Documents...' : (savedCaseLetter ? '🔒 Dossier Already Merged' : 'Merge & Preview'))}
                 </button>
 
                 {previewBlobUrl && !savedCaseLetter && (

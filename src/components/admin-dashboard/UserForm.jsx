@@ -3,7 +3,7 @@ import { Select, message } from 'antd';
 import Visibility from '@mui/icons-material/Visibility';
 import VisibilityOff from '@mui/icons-material/VisibilityOff';
 import { REGIONS, DESIGNATIONS, DISCIPLINES } from './utils/mockData';
-import { API_BASE_URL } from '../../services/apiConfig';
+import { API_BASE_URL, getAuthHeaders } from '../../services/apiConfig';
 
 export const UserForm = ({ user, roles = [], rolesLoading = false, existingUsers = [], onSubmit, onCancel, formError, isSubmitting = false }) => {
     const [roleAddPrompt, setRoleAddPrompt] = useState(null);

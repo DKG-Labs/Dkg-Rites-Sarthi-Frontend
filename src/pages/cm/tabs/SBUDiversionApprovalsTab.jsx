@@ -15,7 +15,7 @@ const SBUDiversionApprovalsTab = () => {
   const [selectedRequest, setSelectedRequest] = useState(null);
   const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
   const [isActionModalOpen, setIsActionModalOpen] = useState(false);
-  const [actionType, setActionType] = useState(''); // 'APPROVE' or 'RETURN'
+  const [actionType, setActionType] = useState(''); // 'SBU_HEAD_APPROVE_DIVERSION' or 'SBU_HEAD_RETURN_DIVERSION'
   const [remarks, setRemarks] = useState('');
   const [actionLoading, setActionLoading] = useState(false);
   const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false);
@@ -59,7 +59,7 @@ const SBUDiversionApprovalsTab = () => {
   };
 
   const handleExecuteAction = async () => {
-    if (actionType === 'RETURN' && !remarks.trim()) {
+    if (actionType === 'SBU_HEAD_RETURN_DIVERSION' && !remarks.trim()) {
       showNotification('Remarks are strictly mandatory when returning a request.', 'error');
       return;
     }
@@ -67,25 +67,25 @@ const SBUDiversionApprovalsTab = () => {
     setActionLoading(true);
     try {
       const payload = {
-        diversionId: selectedRequest.diversionId,
+        diversionId: selectedRequest.diversionId || selectedRequest.id,
         actionRemarks: remarks,
         actionBy: 'SBU_HEAD_OFFICER',
         actionByRole: 'SBU_HEAD'
       };
 
-      if (actionType === 'APPROVE') {
+      if (actionType === 'SBU_HEAD_APPROVE_DIVERSION') {
         await diversionService.sbuApprove(payload);
-        showNotification(`Request ${selectedRequest.diversionRequestNo} APPROVED! Virtual Basket has been successfully credited with ${selectedRequest.totalDivertedQty} units.`, 'success');
+        showNotification(`Request ${selectedRequest.diversionRequestNo} APPROVED! Basket created.`, 'success');
       } else {
         await diversionService.sbuReturn(payload);
-        showNotification(`Request ${selectedRequest.diversionRequestNo} returned to CM with remarks.`, 'warning');
+        showNotification(`Request ${selectedRequest.diversionRequestNo} returned to Vendor.`, 'warning');
       }
 
       setIsActionModalOpen(false);
       setSelectedRequest(null);
       fetchPendingRequests();
     } catch (err) {
-      console.error(`Failed to execute SBU ${actionType}:`, err);
+      console.error(`Failed to execute SBU action ${actionType}:`, err);
       showNotification(`Action failed: ${err.message}`, 'error');
     } finally {
       setActionLoading(false);
@@ -194,7 +194,7 @@ const SBUDiversionApprovalsTab = () => {
           </button>
           <button
             className="btn btn-sm btn-success"
-            onClick={() => handleOpenActionModal(row, 'APPROVE')}
+            onClick={() => handleOpenActionModal(row, 'SBU_HEAD_APPROVE_DIVERSION')}
             title="Final Approve & Credit Basket"
             style={{ fontSize: '12px', padding: '4px 8px', backgroundColor: '#059669', borderColor: '#059669', color: '#fff', fontWeight: '600' }}
           >
@@ -202,8 +202,8 @@ const SBUDiversionApprovalsTab = () => {
           </button>
           <button
             className="btn btn-sm btn-warning"
-            onClick={() => handleOpenActionModal(row, 'RETURN')}
-            title="Return to CM"
+            onClick={() => handleOpenActionModal(row, 'SBU_HEAD_RETURN_DIVERSION')}
+            title="Return to Vendor"
             style={{ fontSize: '12px', padding: '4px 8px', backgroundColor: '#f59e0b', borderColor: '#f59e0b', color: '#fff' }}
           >
             ↩ Return
@@ -350,11 +350,11 @@ const SBUDiversionApprovalsTab = () => {
 
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: '16px' }}>
               <button className="btn btn-secondary" onClick={() => setIsDetailsModalOpen(false)}>Close</button>
-              <button className="btn btn-warning" onClick={() => { setIsDetailsModalOpen(false); handleOpenActionModal(selectedRequest, 'RETURN'); }}>
-                ↩ Return to CM
+              <button className="btn btn-warning" onClick={() => { setIsDetailsModalOpen(false); handleOpenActionModal(selectedRequest, 'SBU_HEAD_RETURN_DIVERSION'); }}>
+                ↩ Return
               </button>
-              <button className="btn btn-success" onClick={() => { setIsDetailsModalOpen(false); handleOpenActionModal(selectedRequest, 'APPROVE'); }}>
-                ✓ Final Approve & Credit Basket
+              <button className="btn btn-success" onClick={() => { setIsDetailsModalOpen(false); handleOpenActionModal(selectedRequest, 'SBU_HEAD_APPROVE_DIVERSION'); }}>
+                ✓ Approve & Credit Basket
               </button>
             </div>
           </div>
@@ -366,24 +366,24 @@ const SBUDiversionApprovalsTab = () => {
         <Modal
           isOpen={isActionModalOpen}
           onClose={() => setIsActionModalOpen(false)}
-          title={actionType === 'APPROVE' ? 'Authorize & Credit Basket' : 'Return Request to CM'}
+          title={actionType === 'SBU_HEAD_APPROVE_DIVERSION' ? 'Authorize & Credit Basket' : 'Return Request to Vendor'}
         >
           <div style={{ padding: '10px' }}>
             <p style={{ fontSize: '14px', marginBottom: '12px' }}>
-              {actionType === 'APPROVE'
-                ? `You are giving FINAL SBU AUTHORIZATION for Request ${selectedRequest.diversionRequestNo}. This will automatically credit the Diverted Passed Material Basket for Target PO ${selectedRequest.targetPoNo}.`
-                : `You are returning request ${selectedRequest.diversionRequestNo} back to the Controlling Manager.`
+              {actionType === 'SBU_HEAD_APPROVE_DIVERSION'
+                ? `You are giving FINAL SBU AUTHORIZATION for Request ${selectedRequest.diversionRequestNo}. This will automatically credit the Diverted Passed Material Basket.`
+                : `You are returning request ${selectedRequest.diversionRequestNo} to the vendor.`
               }
             </p>
 
             <div className="form-group" style={{ marginBottom: '16px' }}>
               <label style={{ fontWeight: '600', fontSize: '13px', display: 'block', marginBottom: '6px' }}>
-                {actionType === 'RETURN' ? 'Return Remarks (Strictly Mandatory): *' : 'SBU Head Approval Remarks (Optional):'}
+                {actionType === 'SBU_HEAD_RETURN_DIVERSION' ? 'Return Remarks (Mandatory): *' : 'SBU Head Approval Remarks (Optional):'}
               </label>
               <textarea
                 className="form-control"
                 rows="3"
-                placeholder={actionType === 'RETURN' ? 'Please state why this request is being returned to the CM...' : 'Enter approval observations...'}
+                placeholder={actionType === 'SBU_HEAD_RETURN_DIVERSION' ? 'State reason for returning...' : 'Enter approval observations...'}
                 value={remarks}
                 onChange={(e) => setRemarks(e.target.value)}
                 style={{ width: '100%', padding: '8px', borderRadius: '6px', border: '1px solid #cbd5e1' }}
@@ -395,11 +395,11 @@ const SBUDiversionApprovalsTab = () => {
                 Cancel
               </button>
               <button
-                className={`btn ${actionType === 'APPROVE' ? 'btn-success' : 'btn-warning'}`}
+                className={`btn ${actionType === 'SBU_HEAD_APPROVE_DIVERSION' ? 'btn-success' : 'btn-warning'}`}
                 onClick={handleExecuteAction}
                 disabled={actionLoading}
               >
-                {actionLoading ? 'Processing...' : (actionType === 'APPROVE' ? 'Confirm Final Approval' : 'Confirm Return to CM')}
+                {actionLoading ? 'Processing...' : (actionType === 'SBU_HEAD_APPROVE_DIVERSION' ? '✓ Confirm Approval' : '↩ Confirm Return')}
               </button>
             </div>
           </div>

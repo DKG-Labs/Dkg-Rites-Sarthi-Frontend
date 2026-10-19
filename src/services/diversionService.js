@@ -4,8 +4,9 @@ const BASE_URL = `${API_BASE_URL}/api/erc/diversion`;
 
 export const diversionService = {
   // 1. CM Actions
-  getPendingCmRequests: async () => {
-    const response = await fetch(`${BASE_URL}/cm/pending-requests`, {
+  getPendingCmRequests: async (cmUserId) => {
+    const params = cmUserId ? `?cmUserId=${encodeURIComponent(cmUserId)}` : '';
+    const response = await fetch(`${BASE_URL}/cm/pending-requests${params}`, {
       method: 'GET',
       headers: getAuthHeaders()
     });
@@ -16,12 +17,16 @@ export const diversionService = {
     const response = await fetch(`${BASE_URL}/cm/approve`, {
       method: 'POST',
       headers: getAuthHeaders(),
-      body: JSON.stringify({
-        diversionId,
-        actionRemarks,
-        actionBy,
-        actionByRole: actionByRole || 'CONTROLLING_MANAGER'
-      })
+      body: JSON.stringify({ requestId: diversionId, remarks: actionRemarks, userId: actionBy, role: actionByRole || 'CONTROLLING_MANAGER' })
+    });
+    return handleResponse(response);
+  },
+
+  cmSendToSbu: async ({ diversionId, actionRemarks, actionBy, actionByRole }) => {
+    const response = await fetch(`${BASE_URL}/cm/send-to-sbu`, {
+      method: 'POST',
+      headers: getAuthHeaders(),
+      body: JSON.stringify({ requestId: diversionId, remarks: actionRemarks, userId: actionBy, role: actionByRole || 'CONTROLLING_MANAGER' })
     });
     return handleResponse(response);
   },
@@ -30,12 +35,7 @@ export const diversionService = {
     const response = await fetch(`${BASE_URL}/cm/return`, {
       method: 'POST',
       headers: getAuthHeaders(),
-      body: JSON.stringify({
-        diversionId,
-        actionRemarks,
-        actionBy,
-        actionByRole: actionByRole || 'CONTROLLING_MANAGER'
-      })
+      body: JSON.stringify({ requestId: diversionId, remarks: actionRemarks, userId: actionBy, role: actionByRole || 'CONTROLLING_MANAGER' })
     });
     return handleResponse(response);
   },
@@ -49,16 +49,28 @@ export const diversionService = {
     return handleResponse(response);
   },
 
+  getPendingCmApprovedRequests: async (cmUserId) => {
+    const params = cmUserId ? `?cmUserId=${encodeURIComponent(cmUserId)}` : '';
+    const response = await fetch(`${BASE_URL}/cm/approved-requests${params}`, {
+      method: 'GET',
+      headers: getAuthHeaders()
+    });
+    return handleResponse(response);
+  },
+
+  getPendingSbuApprovedRequests: async () => {
+    const response = await fetch(`${BASE_URL}/sbu/approved-requests`, {
+      method: 'GET',
+      headers: getAuthHeaders()
+    });
+    return handleResponse(response);
+  },
+
   sbuApprove: async ({ diversionId, actionRemarks, actionBy, actionByRole }) => {
     const response = await fetch(`${BASE_URL}/sbu/approve`, {
       method: 'POST',
       headers: getAuthHeaders(),
-      body: JSON.stringify({
-        diversionId,
-        actionRemarks,
-        actionBy,
-        actionByRole: actionByRole || 'SBU_HEAD'
-      })
+      body: JSON.stringify({ requestId: diversionId, remarks: actionRemarks, userId: actionBy, role: actionByRole || 'SBU_HEAD' })
     });
     return handleResponse(response);
   },
@@ -67,12 +79,7 @@ export const diversionService = {
     const response = await fetch(`${BASE_URL}/sbu/return`, {
       method: 'POST',
       headers: getAuthHeaders(),
-      body: JSON.stringify({
-        diversionId,
-        actionRemarks,
-        actionBy,
-        actionByRole: actionByRole || 'SBU_HEAD'
-      })
+      body: JSON.stringify({ requestId: diversionId, remarks: actionRemarks, userId: actionBy, role: actionByRole || 'SBU_HEAD' })
     });
     return handleResponse(response);
   },

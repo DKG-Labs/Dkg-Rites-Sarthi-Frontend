@@ -665,6 +665,7 @@ export const CMDashboardPage = ({ isEmbedded = false, activeTabFromProps = null,
 
   // Fetch IE Wise Call Status Data
   const cmEmpId = localStorage.getItem('employeeCode') || localStorage.getItem('loginId') || localStorage.getItem('userId') || '10431';
+  const cmDbUserId = localStorage.getItem('userId') || localStorage.getItem('loginId') || cmEmpId;
 
   // Accordion row togglers
   const togglePo = useCallback((poNo) => {
@@ -1916,23 +1917,6 @@ export const CMDashboardPage = ({ isEmbedded = false, activeTabFromProps = null,
             >
               <i className="cm-menu-item-icon fa-solid fa-shuffle"></i>
               {!isSidebarCollapsed && <span>Diversion Queue (CM)</span>}
-            </div>
-          </div>
-
-          {/* Material Diversion (SBU Head Approvals) */}
-          <div className="cm-menu-group">
-            <div
-              className={`cm-menu-item ${activeTab === 'Material Diversion (SBU)' ? 'active' : ''}`}
-              onClick={() => {
-                setActiveTab('Material Diversion (SBU)');
-                setCallMenuOpen(false);
-                setIeMenuOpen(false);
-                setVendorMenuOpen(false);
-                setReportsMenuOpen(false);
-              }}
-            >
-              <i className="cm-menu-item-icon fa-solid fa-crown"></i>
-              {!isSidebarCollapsed && <span>Diversion Auth (SBU)</span>}
             </div>
           </div>
 
@@ -4405,7 +4389,7 @@ export const CMDashboardPage = ({ isEmbedded = false, activeTabFromProps = null,
 
         {/* 11. Material Diversion (CM Approvals) view */}
         {activeTab === 'Material Diversion (CM)' && (
-          <CMDiversionApprovalsTab />
+          <CMDiversionApprovalsTab cmUserId={cmDbUserId} />
         )}
 
         {/* 12. Material Diversion (SBU Head Approvals) view */}

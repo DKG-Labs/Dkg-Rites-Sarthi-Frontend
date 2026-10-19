@@ -764,13 +764,28 @@ export const generateCallLetterPDF = (call, shouldDownload = true) => {
     if (call.rlyPoSr && call.rlyPoSr !== '-') {
         poBase = call.rlyPoSr;
     } else {
+        let rawPo = String(call.poNumber || call.poNo || '').trim();
+        let rly = String(call.rlyShortName || '').trim();
+        let sr = String(call.poSerialNo || call.srNo || call.itemSrNo || '').trim();
+        
+        if (rly && rawPo.toUpperCase().startsWith(rly.toUpperCase() + ' /')) {
+            rawPo = rawPo.substring(rly.length + 2).trim();
+        } else if (rly && rawPo.toUpperCase().startsWith(rly.toUpperCase() + '/')) {
+            rawPo = rawPo.substring(rly.length + 1).trim();
+        }
+        
+        if (sr && (rawPo.endsWith('/ ' + sr) || rawPo.endsWith('/' + sr))) {
+            sr = '';
+        }
+
         const parts = [
-            call.rlyShortName && call.rlyShortName !== '-' ? call.rlyShortName : null,
-            call.poNumber && call.poNumber !== '-' ? call.poNumber : null,
-            call.poSerialNo && call.poSerialNo !== '-' ? call.poSerialNo : null
+            rly && rly !== '-' ? rly : null,
+            rawPo && rawPo !== '-' ? rawPo : null,
+            sr && sr !== '-' ? sr : null
         ].filter(Boolean);
         poBase = parts.join(' / ') || '-';
     }
+    poBase = poBase.replace(/^([A-Za-z]+)\s*\/\s*\1\s*\//, '$1 /');
     const poValue = [
         poBase,
         call.poDate ? `Date of PO: ${call.poDate}` : ''
@@ -787,15 +802,29 @@ export const generateCallLetterPDF = (call, shouldDownload = true) => {
     drawRow('Product Selected By Vendor', val(call.product), { rowH: 9 });
 
     // PO Sr. No. Qty — uses poQty + uom from CallLetterDetailsDto
-    const poSrNoQty = call.poQty
-        ? `${call.poQty}${call.uom ? ' ' + call.uom : ''}`
-        : (call.quantity ? `${call.quantity} MT` : '-');
+    const rawPoSrQty = (call.poQty !== undefined && call.poQty !== null && String(call.poQty).trim() !== '' && String(call.poQty) !== '-')
+        ? call.poQty
+        : (call.poSrQty || call.orderedQty || call.quantity || call.poQuantity);
+    const poSrNoQty = rawPoSrQty && rawPoSrQty !== '-'
+        ? `${rawPoSrQty}${call.uom ? ' ' + call.uom : (call.quantity ? ' MT' : ' Nos.')}`
+        : '-';
     drawRow('PO Sr. No. Qty', poSrNoQty, { rowH: 9 });
 
-    // Call Qty — uses callQty + callUnit from CallLetterDetailsDto
-    const callQtyStr = call.callQty
-        ? `${call.callQty}${call.callUnit ? ' ' + call.callUnit : ''}`
-        : (call.subPoQuantity ? `${call.subPoQuantity} MT` : '-');
+    // Call Qty
+    const rawUomStr = String(call.uom || call.callUnit || '').toUpperCase();
+    const isSetUomType = rawUomStr.includes('SET');
+    let callQtyStr;
+    if (isSetUomType) {
+        callQtyStr = `${call.totalOffered || call.callQty || '1'} Set`;
+    } else if (call.totalOffered != null && !isNaN(Number(call.totalOffered))) {
+        const off = Number(call.totalOffered);
+        const rej = Number(call.totalRejected || call.rejectedCount || call.rejectedQty || 0);
+        callQtyStr = `${off + rej} Nos.`;
+    } else if (call.callQty) {
+        callQtyStr = `${call.callQty}${call.callUnit ? ' ' + call.callUnit : ' Nos.'}`;
+    } else {
+        callQtyStr = call.subPoQuantity ? `${call.subPoQuantity} MT` : '-';
+    }
     drawRow('Call Qty', callQtyStr, { rowH: 9 });
 
     // DP Dates — uses deliveryDate / extendedDeliveryDate from CallLetterDetailsDto (pre-formatted dd.MM.yyyy by backend)

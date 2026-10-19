@@ -1049,17 +1049,27 @@ const AttendingCallDashboard = ({ mode }) => {
         }
         setPdfLoading(true);
         try {
-            const pdfCallData = {
-                ...call,
-                callNumber: callNumber,
-                poNumber: call.rlyPoSrNo || call.po_no || call.poNumber || call.poNo,
-                vendorName: call.vendorName || call.vendor_name || call.vendorCode
-            };
-            
+            let details = null;
+            try {
+                const res = await apiService.getCallLetterDetails(callNumber);
+                const dataObj = res?.data || res;
+                if (dataObj && (dataObj.responseData || dataObj.data)) {
+                    details = dataObj.responseData || dataObj.data;
+                } else if (dataObj && typeof dataObj === 'object') {
+                    details = dataObj;
+                }
+            } catch (fetchErr) {
+                console.warn('Could not fetch online call letter details, generating from call cache:', fetchErr);
+            }
+
             const user = getStoredUser();
-            const enrichedCall = { 
-                ...pdfCallData, 
-                rio: pdfCallData.rio || pdfCallData.plantRio || user?.rio 
+            const enrichedCall = {
+                ...call,
+                ...(details || {}),
+                callNumber: callNumber,
+                poNumber: details?.poNo || call.rlyPoSrNo || call.po_no || call.poNumber || call.poNo,
+                vendorName: details?.vendorName || call.vendorName || call.vendor_name || call.vendorCode,
+                rio: details?.rio || call.rio || call.plantRio || user?.rio
             };
             
             generateCallLetterPDF(enrichedCall);

@@ -296,17 +296,33 @@ export const generateCallLetterPDF = (call, shouldDownload = true) => {
     drawRow('Stage of Inspection', { text: 'Final Inspection', color: DARK }, { rowH: 9 });
 
     // PO Number & Date
-    let poBase;
+    let poBase = '-';
     if (call.rlyPoSr && call.rlyPoSr !== '-') {
         poBase = call.rlyPoSr;
     } else {
+        let rawPo = String(call.poNumber || call.poNo || '').trim();
+        let rly = String(call.rlyShortName || '').trim();
+        let sr = String(call.poSerialNo || call.srNo || call.itemSrNo || '').trim();
+        
+        if (rly && rawPo.toUpperCase().startsWith(rly.toUpperCase() + ' /')) {
+            rawPo = rawPo.substring(rly.length + 2).trim();
+        } else if (rly && rawPo.toUpperCase().startsWith(rly.toUpperCase() + '/')) {
+            rawPo = rawPo.substring(rly.length + 1).trim();
+        }
+        
+        if (sr && (rawPo.endsWith('/ ' + sr) || rawPo.endsWith('/' + sr))) {
+            sr = '';
+        }
+
         const parts = [
-            call.rlyShortName && call.rlyShortName !== '-' ? call.rlyShortName : null,
-            (call.poNumber || call.poNo) && (call.poNumber || call.poNo) !== '-' ? (call.poNumber || call.poNo) : null,
-            (call.poSerialNo || call.srNo || call.itemSrNo) && (call.poSerialNo || call.srNo || call.itemSrNo) !== '-' ? (call.poSerialNo || call.srNo || call.itemSrNo) : null
+            rly && rly !== '-' ? rly : null,
+            rawPo && rawPo !== '-' ? rawPo : null,
+            sr && sr !== '-' ? sr : null
         ].filter(Boolean);
-        poBase = parts.join(' / ') || (call.poNumber || call.poNo || '-');
+        poBase = parts.join(' / ') || '-';
     }
+    // Deduplicate any repeated railway prefix e.g. "WR / WR / 26265431204011 / 022" -> "WR / 26265431204011 / 022"
+    poBase = poBase.replace(/^([A-Za-z]+)\s*\/\s*\1\s*\//, '$1 /');
     const poValue = [
         poBase,
         call.poDate ? `Date of PO: ${call.poDate}` : ''
@@ -342,63 +358,79 @@ export const generateCallLetterPDF = (call, shouldDownload = true) => {
     };
 
     // PO Sr. No. Qty
-    drawRow('PO Sr. No. Qty', formatQtyWithUom(call.poQty || call.poSrQty || call.poQuantity), { rowH: 9 });
+    const rawPoSrQty = (call.poQty !== undefined && call.poQty !== null && String(call.poQty).trim() !== '' && String(call.poQty) !== '-')
+        ? call.poQty
+        : (call.poSrQty
+            ? call.poSrQty
+            : (call.orderedQty
+                ? call.orderedQty
+                : (call.poQuantity ? call.poQuantity : '-')));
+    drawRow('PO Sr. No. Qty', formatQtyWithUom(rawPoSrQty), { rowH: 9 });
 
     // Call Qty
     let callQtyDisplay;
     if (isSetUom) {
-        // If UOM = Set: show offered quantity (in sets)
+        // If UOM = Set: show total offered quantity (in sets)
         let setQty = 1;
         if (call.offeredSetsQuantity != null && Number(call.offeredSetsQuantity) > 0) {
             setQty = Number(call.offeredSetsQuantity);
         } else if (call.toBeOffered != null && Number(call.toBeOffered) > 0) {
             setQty = Number(call.toBeOffered);
-        } else if (call.totalOffered != null && Number(call.totalOffered) > 0 && Number(call.totalOffered) <= 50) {
+        } else if (call.totalOffered != null && Number(call.totalOffered) > 0) {
             setQty = Number(call.totalOffered);
-        } else if (call.callQty != null && Number(String(call.callQty).replace(/\D/g, '')) > 0 && Number(String(call.callQty).replace(/\D/g, '')) <= 50) {
+        } else if (call.callQty != null && Number(String(call.callQty).replace(/\D/g, '')) > 0) {
             setQty = Number(String(call.callQty).replace(/\D/g, ''));
         }
         callQtyDisplay = `${setQty} Set`;
     } else {
-        // If UOM = Nos: show total offered quantity = accepted + rejected
-        let acceptedCount = Number(call.acceptedQty || call.acceptedCount || call.goodSleepersCount || 0);
-        let rejectedCount = Number(call.rejectedQty || call.rejectedCount || call.badSleepersCount || call.totalRejected || 0);
-
-        if (acceptedCount === 0 && rejectedCount === 0) {
-            if (call.heatDetails && Array.isArray(call.heatDetails) && call.heatDetails.length > 0) {
-                call.heatDetails.forEach(h => {
-                    const g = h.goodCount != null ? Number(h.goodCount) : (h.goodSleepers ? (Array.isArray(h.goodSleepers) ? h.goodSleepers.length : Number(h.goodSleepers)) : 0);
-                    const r = h.badCount != null ? Number(h.badCount) : (h.badSleepers ? (Array.isArray(h.badSleepers) ? h.badSleepers.length : Number(h.badSleepers)) : 0);
-                    acceptedCount += (g || 0);
-                    rejectedCount += (r || 0);
-                });
-            } else if (call.batchesSelected && Array.isArray(call.batchesSelected) && call.batchesSelected.length > 0) {
-                call.batchesSelected.forEach(b => {
-                    const g = b.goodSleepers ? (Array.isArray(b.goodSleepers) ? b.goodSleepers.length : Number(b.goodSleepers)) : (Number(b.goodSleepersCount || 0));
-                    const r = b.badSleepers ? (Array.isArray(b.badSleepers) ? b.badSleepers.length : Number(b.badSleepers)) : (Number(b.badSleepersCount || 0));
-                    acceptedCount += (g || 0);
-                    rejectedCount += (r || 0);
-                });
-            }
-        }
-
+        // If UOM = Nos: show total offered + total rejected
         let totalNos;
-        if (acceptedCount + rejectedCount > 0) {
-            totalNos = acceptedCount + rejectedCount;
+        const totalOfferedVal = (call.totalOffered != null && !isNaN(Number(call.totalOffered)) && Number(call.totalOffered) > 0)
+            ? Number(call.totalOffered)
+            : null;
+        const totalRejectedVal = (call.totalRejected != null && !isNaN(Number(call.totalRejected)))
+            ? Number(call.totalRejected)
+            : (call.rejectedCount != null ? Number(call.rejectedCount) : (call.rejectedQty != null ? Number(call.rejectedQty) : 0));
+
+        if (totalOfferedVal != null) {
+            totalNos = totalOfferedVal + totalRejectedVal;
+        } else if (call.heatDetails && Array.isArray(call.heatDetails) && call.heatDetails.length > 0) {
+            let sumOffered = 0;
+            let sumRejected = 0;
+            call.heatDetails.forEach(h => {
+                const g = h.goodCount != null ? Number(h.goodCount) : (h.goodSleepers ? (Array.isArray(h.goodSleepers) ? h.goodSleepers.length : Number(h.goodSleepers)) : 0);
+                const r = h.badCount != null ? Number(h.badCount) : (h.badSleepers ? (Array.isArray(h.badSleepers) ? h.badSleepers.length : Number(h.badSleepers)) : 0);
+                sumOffered += (g || 0);
+                sumRejected += (r || 0);
+            });
+            totalNos = sumOffered + sumRejected;
+        } else if (call.batchesSelected && Array.isArray(call.batchesSelected) && call.batchesSelected.length > 0) {
+            let sumOffered = 0;
+            let sumRejected = 0;
+            call.batchesSelected.forEach(b => {
+                const g = b.goodSleepers ? (Array.isArray(b.goodSleepers) ? b.goodSleepers.length : Number(b.goodSleepers)) : (Number(b.goodSleepersCount || 0));
+                const r = b.badSleepers ? (Array.isArray(b.badSleepers) ? b.badSleepers.length : Number(b.badSleepers)) : (Number(b.badSleepersCount || 0));
+                sumOffered += (g || 0);
+                sumRejected += (r || 0);
+            });
+            totalNos = sumOffered + sumRejected;
         } else if (call.callQty && !isNaN(Number(String(call.callQty).replace(/\D/g, '')))) {
             totalNos = Number(String(call.callQty).replace(/\D/g, ''));
-        } else if (call.totalOffered && !isNaN(Number(call.totalOffered))) {
-            totalNos = Number(call.totalOffered);
+        } else if (call.qtyOffered && !isNaN(Number(call.qtyOffered))) {
+            totalNos = Number(call.qtyOffered) + totalRejectedVal;
         } else {
-            totalNos = call.qtyOffered || '-';
+            let acceptedCount = Number(call.acceptedQty || call.acceptedCount || call.goodSleepersCount || 0);
+            let rejectedCount = Number(call.rejectedQty || call.rejectedCount || call.badSleepersCount || call.totalRejected || 0);
+            totalNos = (acceptedCount + rejectedCount > 0) ? (acceptedCount + rejectedCount) : '-';
         }
-        callQtyDisplay = totalNos !== '-' ? `${totalNos} ${effectiveUom}` : '-';
+
+        callQtyDisplay = (totalNos !== '-' && totalNos != null) ? `${totalNos} Nos.` : '-';
     }
 
     drawRow('Call Qty', callQtyDisplay, { rowH: 9 });
 
     // DP Dates
-    drawRow('Orignal DP Date', val(call.deliveryDate || call.originalDeliveryDate || call.origDp || call.dpDate), { rowH: 9 });
+    drawRow('Original DP Date', val(call.deliveryDate || call.originalDeliveryDate || call.origDp || call.dpDate), { rowH: 9 });
     drawRow('Ext DP Date', val(call.extendedDeliveryDate || call.extDp || call.extDpDate), { rowH: 9 });
     drawRow('Desired Date of Inspection', val(call.desiredInspectionDate || call.callDate || formattedDate), { rowH: 9 });
 
@@ -425,7 +457,14 @@ export const generateCallLetterPDF = (call, shouldDownload = true) => {
 
     // Raw Material & Accepted Qty
     drawRow('Raw Material Qty Already Passed for this PO Sr. No.', val(call.rawMaterialQtyPassed, 'N/A'), { rowH: 9 });
-    drawRow('Final Accepted Qty of this PO Sr. No.', formatQtyWithUom(call.finalAcceptedQty || call.acceptedTillNow || '0'), { rowH: 9 });
+    const resolvedFinalAccepted = (call.finalAcceptedQty && call.finalAcceptedQty !== '0 Nos.' && call.finalAcceptedQty !== '0')
+        ? call.finalAcceptedQty
+        : (call.acceptedQty != null
+            ? `${call.acceptedQty} ${effectiveUom}`
+            : (call.goodSleepersCount != null
+                ? `${call.goodSleepersCount} ${effectiveUom}`
+                : (call.finalAcceptedQty || '0 Nos.')));
+    drawRow('Final Accepted Qty of this PO Sr. No.', formatQtyWithUom(resolvedFinalAccepted), { rowH: 9 });
     drawRow('Total PO Quantity', formatQtyWithUom(call.totalPoQty || call.poQuantity || call.poQty), { rowH: 9 });
     drawRow('Total PO Value', val(call.totalPoValue || call.poValue), { rowH: 9 });
 
@@ -467,7 +506,8 @@ export const generateCallLetterPDF = (call, shouldDownload = true) => {
     drawFullRow('Thanking you,', { rowH: 7 });
     drawFullRow('Yours Faithfully,', { rowH: 7 });
 
-    drawRow('Name', val(call.contactPersonName || call.vendorName || call.vendor?.name), { rowH: 9 });
+    const cleanContactName = formatTildeStr(call.contactPersonName || call.vendorName || call.vendor?.name);
+    drawRow('Name', val(cleanContactName), { rowH: 9 });
     drawRow('Mobile', val(call.contactMobile || call.mobile || call.contactPhone), { rowH: 9 });
     drawRow('Vendor Email', val(call.contactEmail || call.email), { rowH: 9 });
 

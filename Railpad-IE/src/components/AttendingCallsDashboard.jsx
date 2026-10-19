@@ -210,7 +210,8 @@ const AttendingCallsDashboard = ({
         setCheckingCaseLetter(false);
       }
     } else {
-      setHasCaseLetter(false);
+      // Don't reset hasCaseLetter here — it is still needed by handleConfirmSendToIbs
+      // after selectedActionCall is cleared to open the IBS confirmation dialog.
       setCheckingCaseLetter(false);
     }
     return () => {

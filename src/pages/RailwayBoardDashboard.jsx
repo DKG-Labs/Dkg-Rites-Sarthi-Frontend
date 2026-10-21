@@ -11,6 +11,7 @@ import { Level1Row } from '../components/railway-board/LevelRows';
 import Pagination from '../components/Pagination';
 import DashboardGraph from '../components/railway-board/DashboardGraph';
 import ProfessionalCardSection from '../components/railway-board/ProfessionalCardSection';
+import UdmRejectionDashboard from '../components/railway-board/UdmRejectionDashboard';
 import { exportDashboardScreenToPdf } from '../utils/dashboardPdfExport';
 
 
@@ -593,7 +594,7 @@ const RailwayBoardDashboard = () => {
                     <div style={{ padding: '0 0 20px', flex: 1, overflowY: 'auto' }}>
                         {isRitesAdmin ? (
                             <>
-                                <div className={`nav-item ${['summary', 'quality', 'lifecycle', 'performance', 'reports', 'sqc', 'scada', 'feedback'].includes(activeMainCard) ? 'active' : ''}`} onClick={() => {
+                                <div className={`nav-item ${['summary', 'quality', 'lifecycle', 'performance', 'reports', 'sqc', 'scada', 'feedback', 'udm'].includes(activeMainCard) ? 'active' : ''}`} onClick={() => {
                                     setIsRailwayNavOpen(!isRailwayNavOpen);
                                     if (!isRailwayNavOpen) setIsCmDropdownOpen(false);
                                 }}>
@@ -653,6 +654,9 @@ const RailwayBoardDashboard = () => {
                                         </div>
                                         <div className={`report-link ${activeMainCard === 'feedback' ? 'active' : ''}`} onClick={() => handleSwitchTab('feedback')} style={{ fontSize: '15px' }}>
                                             <i className="fa-solid fa-comment-dots" style={{ marginRight: '8px' }}></i>Feedback
+                                        </div>
+                                        <div className={`report-link ${activeMainCard === 'udm' ? 'active' : ''}`} onClick={() => handleSwitchTab('udm')} style={{ fontSize: '15px' }}>
+                                            <i className="fa-solid fa-triangle-exclamation" style={{ marginRight: '8px' }}></i>UDM Rejections
                                         </div>
                                     </div>
                                 )}
@@ -776,6 +780,9 @@ const RailwayBoardDashboard = () => {
                                 <div className={`nav-item ${activeMainCard === 'feedback' ? 'active' : ''}`} onClick={() => handleSwitchTab('feedback')}>
                                     <i className="fa-solid fa-comment-dots"></i> {!isSidebarCollapsed && <span>Feedback</span>}
                                 </div>
+                                <div className={`nav-item ${activeMainCard === 'udm' ? 'active' : ''}`} onClick={() => handleSwitchTab('udm')}>
+                                    <i className="fa-solid fa-triangle-exclamation"></i> {!isSidebarCollapsed && <span>UDM Rejections</span>}
+                                </div>
                             </>
                         )}
 
@@ -790,7 +797,7 @@ const RailwayBoardDashboard = () => {
                 {/* MAIN */}
                 <div id="prof-main" style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                     {/* GLOBAL PRODUCT SELECTION - Above everything */}
-                    {activeMainCard !== 'cm-module' ? (
+                    {activeMainCard !== 'cm-module' && activeMainCard !== 'udm' ? (
                         <div className="sub-tabs" style={{ padding: '0 24px', marginTop: '24px', marginBottom: '4px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                             <div style={{ display: 'flex', gap: '8px' }}>
                                 <button className={`sub-tab-btn ${selectedProduct === 'ERC' ? 'active' : ''}`} onClick={() => setSelectedProduct('ERC')}>ERC</button>
@@ -878,7 +885,7 @@ const RailwayBoardDashboard = () => {
                     )}
 
                     {/* TOPBAR / FILTERS - Hidden on Dashboard (summary), Quality, Lifecycle, Feedback, Scada Monitor, SQC tabs, and ERC/Sleeper SWP Reports, and Lot Wise Closed Loop Reports, and IC Annexures */}
-                    {activeMainCard !== 'cm-module' && activeMainCard !== 'summary' && activeMainCard !== 'quality' && activeMainCard !== 'lifecycle' && activeMainCard !== 'feedback' && activeMainCard !== 'scada' && activeMainCard !== 'sqc' && activeMainCard !== 'sleeper-anomaly' && !(activeMainCard === 'reports' && activeReport === 'swp' && (selectedProduct === 'ERC' || selectedProduct === 'Sleeper')) && !(activeMainCard === 'reports' && activeReport === 'lwcl') && !(activeMainCard === 'reports' && activeReport === 'ic_annexures') && (
+                    {activeMainCard !== 'cm-module' && activeMainCard !== 'summary' && activeMainCard !== 'quality' && activeMainCard !== 'lifecycle' && activeMainCard !== 'feedback' && activeMainCard !== 'udm' && activeMainCard !== 'scada' && activeMainCard !== 'sqc' && activeMainCard !== 'sleeper-anomaly' && !(activeMainCard === 'reports' && activeReport === 'swp' && (selectedProduct === 'ERC' || selectedProduct === 'Sleeper')) && !(activeMainCard === 'reports' && activeReport === 'lwcl') && !(activeMainCard === 'reports' && activeReport === 'ic_annexures') && (
                         <div id="prof-topbar">
                             <label>From</label>
                             <input type="date" value={fromDate} onChange={(e) => setFromDate(e.target.value)} />
@@ -933,7 +940,9 @@ const RailwayBoardDashboard = () => {
                     {/* CONTENT AREA */}
                     <div id="dashboard-capture-area">
                         <div id="prof-content-area">
-                            {activeMainCard === 'cm-module' ? (
+                            {activeMainCard === 'udm' ? (
+                                <UdmRejectionDashboard />
+                            ) : activeMainCard === 'cm-module' ? (
                                 <CMDashboardPage isEmbedded={true} activeTabFromProps={cmActiveTab} activeCallFilterFromProps={cmActiveCallFilter} />
                             ) : (
                                 <ProfessionalCardSection

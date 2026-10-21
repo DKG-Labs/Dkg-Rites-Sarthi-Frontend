@@ -355,5 +355,6 @@ export const logoutUser = () => {
   localStorage.removeItem('shortName');
   localStorage.removeItem('rio');
   localStorage.removeItem('employeeCode');
+  localStorage.removeItem('udm_cache');
 };
 

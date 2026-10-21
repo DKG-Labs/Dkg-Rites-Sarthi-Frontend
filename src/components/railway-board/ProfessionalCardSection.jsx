@@ -14,6 +14,7 @@ import './ProfessionalCardSection.css';
 import './InspectionStackedCharts.css';
 import './PerformanceMatrixTheme.css';
 import FeedbackSection from './FeedbackSection';
+import UdmRejectionDashboard from './UdmRejectionDashboard';
 import SleeperSummary from './sleeper-board/SleeperSummary';
 import SleeperQuality from './sleeper-board/SleeperQuality';
 import SleeperLifecycle from './sleeper-board/SleeperLifecycle';
@@ -2490,6 +2491,8 @@ const ProfessionalCardSection = ({
                                 </div>
                             );
 
+                        case 'udm':
+                            return <UdmRejectionDashboard />;
                         case 'feedback':
                             return <FeedbackSection selectedProduct={selectedProduct} />;
                         case 'sqc':

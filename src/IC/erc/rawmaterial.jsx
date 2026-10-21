@@ -553,38 +553,66 @@ export default function RawMaterialCertificate({ call = {}, onBack }) {
   };
 
   const handleCancelChanges = async () => {
+    const isNewIc = (dataToPass?.icType === 'new' || editableData?.icType === 'new');
     setIsEditing(false);
+    setBookSetValidation({ isValid: null, message: null, isValidating: false });
+
+    // When RM IC is cancelled in New IC mode, clear Book No. and Set No. automatically
+    if (isNewIc) {
+      setEditableData(prev => ({
+        ...(prev || {}),
+        bookNo: '',
+        setNo: '',
+        icType: 'old'
+      }));
+    }
+
     let initialData = transformCallToIC(call, poDetails);
     const icNumber = initialData.certificateNo || call.icNo || call.call_no;
     if (icNumber) {
-      let savedEdit = await getRmIcSaveChanges(icNumber);
-      if (!savedEdit) {
-        savedEdit = await getRmIcEditData(icNumber);
-      }
-      if (savedEdit) {
-        initialData = {
-          ...initialData,
-          bookNo: savedEdit.bookNo || initialData.bookNo,
-          setNo: savedEdit.setNo || initialData.setNo,
-          offeredInstNo: savedEdit.offeredInstallmentNo || initialData.offeredInstNo,
-          passedInstNo: savedEdit.passedInstallmentNo || initialData.passedInstNo,
-          consigneeRailway: savedEdit.consigneeRailway || initialData.consigneeRailway,
-          consigneeManufacturer: savedEdit.consigneeManufacturer || initialData.consigneeManufacturer,
-          contractRef: savedEdit.contractRef || initialData.contractRef,
-          contractorPo: savedEdit.contractorPo || initialData.contractorPo,
-          maNumberAndDate: savedEdit.maNumberAndDate || initialData.maNumberAndDate,
-          billPayingOfficer: savedEdit.billPayingOfficer || initialData.billPayingOfficer,
-          purchasingAuthority: savedEdit.purchasingAuthority || initialData.purchasingAuthority,
-          description: savedEdit.description || initialData.description,
-          specNo: savedEdit.specNo || initialData.specNo,
-          qapNo: savedEdit.qapNo || initialData.qapNo,
-          chpClause: savedEdit.chpClause || initialData.chpClause,
-          visitsNo: savedEdit.visitsNo || initialData.visitsNo,
-          drgNo: savedEdit.drawingNo || initialData.drgNo,
-          manufacturer: savedEdit.manufacturer || initialData.manufacturer,
-        };
+      try {
+        let savedEdit = await getRmIcSaveChanges(icNumber);
+        if (!savedEdit) {
+          savedEdit = await getRmIcEditData(icNumber);
+        }
+        if (savedEdit) {
+          initialData = {
+            ...initialData,
+            bookNo: isNewIc ? '' : (savedEdit.bookNo || initialData.bookNo || ''),
+            setNo: isNewIc ? '' : (savedEdit.setNo || initialData.setNo || ''),
+            offeredInstNo: savedEdit.offeredInstallmentNo || initialData.offeredInstNo,
+            passedInstNo: savedEdit.passedInstallmentNo || initialData.passedInstNo,
+            consigneeRailway: savedEdit.consigneeRailway || initialData.consigneeRailway,
+            consigneeManufacturer: savedEdit.consigneeManufacturer || initialData.consigneeManufacturer,
+            contractRef: savedEdit.contractRef || initialData.contractRef,
+            contractorPo: savedEdit.contractorPo || initialData.contractorPo,
+            maNumberAndDate: savedEdit.maNumberAndDate || initialData.maNumberAndDate,
+            billPayingOfficer: savedEdit.billPayingOfficer || initialData.billPayingOfficer,
+            purchasingAuthority: savedEdit.purchasingAuthority || initialData.purchasingAuthority,
+            description: savedEdit.description || initialData.description,
+            specNo: savedEdit.specNo || initialData.specNo,
+            qapNo: savedEdit.qapNo || initialData.qapNo,
+            chpClause: savedEdit.chpClause || initialData.chpClause,
+            visitsNo: savedEdit.visitsNo || initialData.visitsNo,
+            drgNo: savedEdit.drawingNo || initialData.drgNo,
+            manufacturer: savedEdit.manufacturer || initialData.manufacturer,
+          };
+        }
+      } catch (err) {
+        console.error("Error fetching saved edits on cancel:", err);
       }
     }
+
+    if (isNewIc) {
+      initialData.bookNo = '';
+      initialData.setNo = '';
+      initialData.icType = 'old';
+    }
+
+    if (dataToPass?.region) {
+      initialData.region = dataToPass.region;
+    }
+
     setEditableData(initialData);
     setNotification({ open: true, message: "Edited changes cancelled.", severity: 'info' });
   };

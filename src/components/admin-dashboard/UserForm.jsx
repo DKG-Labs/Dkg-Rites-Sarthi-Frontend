@@ -794,8 +794,13 @@ export const UserForm = ({ user, roles = [], rolesLoading = false, existingUsers
                 }
                 seenPlantNames.add(cleanPlantName);
 
-                if (!cleanPin || cleanPin.length !== 6) {
+                if (cleanPin && cleanPin.length !== 6) {
                     showValidationToast(`Plant #${i + 1}: Valid 6-digit Pin Code is required.`);
+                    return;
+                }
+
+                if (!p.ibsVendorCode || !p.ibsVendorCode.trim()) {
+                    showValidationToast(`Plant #${i + 1}: IBS Vendor Code is required.`);
                     return;
                 }
 
@@ -805,11 +810,6 @@ export const UserForm = ({ user, roles = [], rolesLoading = false, existingUsers
                         return;
                     }
                     seenPlantIds.add(cleanPlantId);
-                }
-
-                if (!p.zonalRailway || !p.zonalRailway.trim()) {
-                    showValidationToast(`Plant #${i + 1}: Zonal Railway is required.`);
-                    return;
                 }
                 if (!p.rio || !p.rio.trim()) {
                     showValidationToast(`Plant #${i + 1}: RIO is required.`);
@@ -885,6 +885,11 @@ export const UserForm = ({ user, roles = [], rolesLoading = false, existingUsers
                     return;
                 }
 
+                if (!p.ibsVendorCode || !p.ibsVendorCode.trim()) {
+                    showValidationToast(`Plant #${i + 1}: IBS Vendor Code is required.`);
+                    return;
+                }
+
                 if (cleanPlantId) {
                     if (seenPlantIds.has(cleanPlantId)) {
                         showValidationToast(`Duplicate Plant ID "${p.plantId}" found in Plant #${i + 1}. Each plant must have a unique Plant ID.`);
@@ -955,6 +960,10 @@ export const UserForm = ({ user, roles = [], rolesLoading = false, existingUsers
                 }
                 if (!u.pinCode || !u.pinCode.trim()) {
                     showValidationToast(`Unit #${i + 1}: Pin Code is required.`);
+                    return;
+                }
+                if (!u.ibsVendorCode || !u.ibsVendorCode.trim()) {
+                    showValidationToast(`Unit #${i + 1}: IBS Vendor Code is required.`);
                     return;
                 }
                 if (u.contactPersonNumber && u.contactPersonNumber.trim() && !/^\d{10}$/.test(u.contactPersonNumber.trim())) {
@@ -1421,13 +1430,14 @@ export const UserForm = ({ user, roles = [], rolesLoading = false, existingUsers
                                                         />
                                                     </div>
                                                     <div className="form-group">
-                                                        <label className="form-label">IBS Vendor Code</label>
+                                                        <label className="form-label">IBS Vendor Code <span className="required-star">*</span></label>
                                                         <input
                                                             type="text"
                                                             className="form-control"
                                                             placeholder="e.g. 103066"
                                                             value={plant.ibsVendorCode || ''}
                                                             onChange={(e) => handleRailpadPlantChange(idx, 'ibsVendorCode', e.target.value)}
+                                                            required
                                                         />
                                                     </div>
                                                     <div className="form-group" style={{ gridColumn: 'span 2' }}>
@@ -1441,7 +1451,7 @@ export const UserForm = ({ user, roles = [], rolesLoading = false, existingUsers
                                                         />
                                                     </div>
                                                     <div className="form-group">
-                                                        <label className="form-label">Plant Pin Code <span className="required-star">*</span></label>
+                                                        <label className="form-label">Plant Pin Code</label>
                                                         <input
                                                             type="text"
                                                             className="form-control"
@@ -1449,11 +1459,10 @@ export const UserForm = ({ user, roles = [], rolesLoading = false, existingUsers
                                                             value={plant.pinCode || ''}
                                                             onChange={(e) => handleRailpadPlantPinChange(idx, e.target.value)}
                                                             maxLength={6}
-                                                            required
                                                         />
                                                     </div>
                                                     <div className="form-group">
-                                                        <label className="form-label">Zonal Railway <span className="required-star">*</span></label>
+                                                        <label className="form-label">Zonal Railway</label>
                                                         <Select
                                                             showSearch
                                                             placeholder="Select Zonal Railway"
@@ -1700,13 +1709,14 @@ export const UserForm = ({ user, roles = [], rolesLoading = false, existingUsers
                                                         />
                                                     </div>
                                                     <div className="form-group">
-                                                        <label className="form-label">IBS Vendor Code</label>
+                                                        <label className="form-label">IBS Vendor Code <span className="required-star">*</span></label>
                                                         <input
                                                             type="text"
                                                             className="form-control"
                                                             placeholder="e.g. 103066"
                                                             value={plant.ibsVendorCode || ''}
                                                             onChange={(e) => handlePlantChange(idx, 'ibsVendorCode', e.target.value)}
+                                                            required
                                                         />
                                                     </div>
                                                     <div className="form-group" style={{ gridColumn: 'span 2' }}>
@@ -1921,13 +1931,14 @@ export const UserForm = ({ user, roles = [], rolesLoading = false, existingUsers
                                             />
                                         </div>
                                         <div className="form-group">
-                                            <label className="form-label">IBS Vendor Code</label>
+                                            <label className="form-label">IBS Vendor Code <span className="required-star">*</span></label>
                                             <input
                                                 type="text"
                                                 className="form-control"
                                                 placeholder="e.g. 103066"
                                                 value={unit.ibsVendorCode || ''}
                                                 onChange={(e) => handleUnitChange(idx, 'ibsVendorCode', e.target.value)}
+                                                required
                                             />
                                         </div>
                                         <div className="form-group">

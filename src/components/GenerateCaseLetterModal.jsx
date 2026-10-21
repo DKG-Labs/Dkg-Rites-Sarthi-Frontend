@@ -181,9 +181,9 @@ const GenerateCaseLetterModal = ({
       if (upper.startsWith('SF') || upper.startsWith('SL') || upper.includes('SLEEPER')) return 'SF';
       if (upper === 'RPP' || upper.startsWith('RPP-') || upper.startsWith('RPP_') || upper.includes('/RPP-') || upper.includes('_RPP-')) return 'RPP';
       if (upper === 'RPF' || upper.startsWith('RPF-') || upper.startsWith('RPF_') || upper.includes('/RPF-') || upper.includes('_RPF-')) return 'RPF';
-      if (upper === 'ER' || upper.startsWith('ER-') || upper.startsWith('ER_') || upper.includes('/ER-') || upper.includes('_ER-')) return 'ER';
-      if (upper === 'EP' || upper.startsWith('EP-') || upper.startsWith('EP_') || upper.includes('/EP-') || upper.includes('_EP-')) return 'EP';
-      if (upper === 'EF' || upper.startsWith('EF-') || upper.startsWith('EF_') || upper.includes('/EF-') || upper.includes('_EF-')) return 'EF';
+      if (upper === 'ER' || upper.startsWith('ER-') || upper.startsWith('ER_') || upper.includes('/ER-') || upper.includes('_ER-') || upper.includes('RAW') || upper.includes('ERC-RAW')) return 'ER';
+      if (upper === 'EP' || upper.startsWith('EP-') || upper.startsWith('EP_') || upper.includes('/EP-') || upper.includes('_EP-') || upper.includes('PROCESS') || upper.includes('ERC-PROCESS')) return 'EP';
+      if (upper === 'EF' || upper.startsWith('EF-') || upper.startsWith('EF_') || upper.includes('/EF-') || upper.includes('_EF-') || upper.includes('FINAL') || upper.includes('ERC-FINAL')) return 'EF';
     }
 
     const rawType = (callObj?.product_type || callObj?.moduleType || callObj?.productType || '').toUpperCase();
@@ -193,6 +193,10 @@ const GenerateCaseLetterModal = ({
       if (stageStr.includes('PROCESS') || stageStr.includes('RPP')) return 'RPP';
       return 'RPF';
     }
+
+    const stageStr = String(callObj?.stage || callObj?.call_stage || callObj?.callType || callObj?.call_type || rawType).toUpperCase();
+    if (stageStr.includes('PROCESS') || stageStr.includes('EP')) return 'EP';
+    if (stageStr.includes('FINAL') || stageStr.includes('EF')) return 'EF';
 
     return 'ER';
   }, []);
@@ -214,17 +218,28 @@ const GenerateCaseLetterModal = ({
     }
 
     // ERC Stages
+    const upperStage = String(currentStage || '').toUpperCase();
     return MASTER_DOC_DEFINITIONS.filter(doc => {
-      if (currentStage === 'ER') {
+      if (upperStage === 'ER') {
         return doc.er;
       }
-      if (currentStage === 'EP') {
+      if (upperStage === 'EP') {
         return doc.ep;
       }
-      if (currentStage === 'EF') {
+      if (upperStage === 'EF') {
         return doc.ef;
       }
       return true;
+    }).map(doc => {
+      if (doc.key === 'ITP') {
+        const isProcess = upperStage === 'EP';
+        return {
+          ...doc,
+          isMandatory: !isProcess,
+          remarks: isProcess ? '' : 'Mandatory'
+        };
+      }
+      return doc;
     });
   }, []);
 

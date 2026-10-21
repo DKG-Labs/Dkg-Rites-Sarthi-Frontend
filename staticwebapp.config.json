@@ -6,6 +6,7 @@
       "/sleeper/*",
       "/railpad/*",
       "/version.json",
+      "/download/*",
       "*.{css,js,png,jpg,jpeg,gif,svg,ico,woff,woff2,ttf,json,pdf}"
     ]
   },
@@ -56,6 +57,7 @@
   "mimeTypes": {
     ".json": "application/json",
     ".js": "text/javascript",
-    ".css": "text/css"
+    ".css": "text/css",
+    ".apk": "application/vnd.android.package-archive"
   }
 }

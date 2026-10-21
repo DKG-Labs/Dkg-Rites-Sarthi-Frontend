@@ -38,4 +38,14 @@ module.exports = function (app) {
             }
         })
     );
+
+    // Proxy /sarthi-backend to the Spring Boot backend on port 8080
+    app.use(
+        '/sarthi-backend',
+        createProxyMiddleware({
+            target: 'http://localhost:8080',
+            changeOrigin: true,
+            secure: false
+        })
+    );
 };

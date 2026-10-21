@@ -310,32 +310,29 @@ export default function UdmRejectionDashboard() {
                         <table className="udm-table">
                             <thead>
                                 <tr>
-                                    <th>#</th>
-                                    <th>Rejection No.</th>
-                                    <th>Type</th>
-                                    <th>Item</th>
+                                    <th style={{whiteSpace:'normal',textAlign:'center',lineHeight:1.3}}>Sr<br/>No.</th>
+                                    <th>Rejection Details</th>
+                                    <th>Item / PL No.</th>
                                     <th>Firm</th>
-                                    <th>Consignee</th>
-                                    <th>Rej. Qty</th>
-                                    <th>Value</th>
-                                    <th>Date</th>
-                                    <th>IC No.</th>
-                                    <th>Reason</th>
-                                    <th></th>
+                                    <th>Qty / Value</th>
+                                    <th>IC No. / Date</th>
+                                    <th>Action</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 {visible.map((r, i) => (
                                     <tr key={r.rejectionNumber || i}>
                                         <td className="td-muted td-num">{i + 1}</td>
-                                        <td className="td-nowrap">
+                                        <td>
                                             <div className="td-main">{r.rejectionNumber || '—'}</div>
-                                            {r.poNumber && <div className="td-sub">PO: {r.poNumber}</div>}
-                                        </td>
-                                        <td className="td-nowrap">
-                                            {r.typeOfRejection
-                                                ? <span className={`tbadge ${r.typeOfRejection.toLowerCase()}`}>{r.typeOfRejection}</span>
-                                                : <span className="td-muted">—</span>}
+                                            {r.rejectionDate && <div className="td-sub">{fmtDate(r.rejectionDate)}</div>}
+                                            {(r.poNumber || r.poSerialNumber) && (
+                                                <div className="td-sub">
+                                                    {r.poNumber && <>PO: {r.poNumber}</>}
+                                                    {r.poNumber && r.poSerialNumber && <> &nbsp;·&nbsp; </>}
+                                                    {r.poSerialNumber && <>Sr: {r.poSerialNumber}</>}
+                                                </div>
+                                            )}
                                         </td>
                                         <td className="td-clamp">
                                             <div className="td-main td-truncate" title={r.itemDescription}>{r.itemDescription || '—'}</div>
@@ -345,25 +342,19 @@ export default function UdmRejectionDashboard() {
                                             <div className="td-truncate td-main" title={r.vendorName}>{r.vendorName || '—'}</div>
                                             {r.vendorCode && <div className="td-sub">{cleanVCode(r.vendorCode)}</div>}
                                         </td>
-                                        <td className="td-clamp">
-                                            <div className="td-truncate" title={r.consignee}>{r.consignee || '—'}</div>
-                                        </td>
                                         <td className="td-nowrap">
                                             {r.rejectedQty
-                                                ? <><strong>{Number(r.rejectedQty).toLocaleString('en-IN')}</strong> <span className="td-sub" style={{display:'inline'}}>{r.uom}</span></>
-                                                : <span className="td-muted">—</span>}
+                                                ? <div className="td-main">{Number(r.rejectedQty).toLocaleString('en-IN')} <span className="td-sub" style={{display:'inline'}}>{r.uom}</span></div>
+                                                : <div className="td-muted">—</div>}
+                                            {fmtVal(r.rejectionValue)
+                                                ? <div className="td-sub">{fmtVal(r.rejectionValue)}</div>
+                                                : null}
                                         </td>
                                         <td className="td-nowrap">
-                                            {fmtVal(r.rejectionValue) || <span className="td-muted">—</span>}
-                                        </td>
-                                        <td className="td-nowrap">
-                                            {fmtDate(r.rejectionDate) || <span className="td-muted">—</span>}
-                                        </td>
-                                        <td className="td-nowrap">{r.icNumber || <span className="td-muted">—</span>}</td>
-                                        <td className="td-clamp">
-                                            <div className="td-truncate" title={r.reasonForRejection}>
-                                                {r.reasonForRejection || <span className="td-muted">—</span>}
-                                            </div>
+                                            {r.icNumber
+                                                ? <div className="td-main">{r.icNumber}</div>
+                                                : <div className="td-muted">—</div>}
+                                            {r.icDate && <div className="td-sub">{fmtDate(r.icDate)}</div>}
                                         </td>
                                         <td className="td-nowrap">
                                             <button className="btn-view" onClick={() => setDetail(r)}>

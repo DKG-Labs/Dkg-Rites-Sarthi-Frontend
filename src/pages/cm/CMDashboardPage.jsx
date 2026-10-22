@@ -7,6 +7,8 @@ import ProfessionalCardSection from '../../components/railway-board/Professional
 import { Level1Row } from '../../components/railway-board/LevelRows';
 import Pagination from '../../components/Pagination';
 import { formatDate } from '../../utils/helpers';
+import CMDiversionApprovalsTab from './tabs/CMDiversionApprovalsTab';
+import SBUDiversionApprovalsTab from './tabs/SBUDiversionApprovalsTab';
 
 const REPORT_NAME_TO_SLUG = {
   'PO Wise Monthly Progress Report': 'mpr',
@@ -663,6 +665,7 @@ export const CMDashboardPage = ({ isEmbedded = false, activeTabFromProps = null,
 
   // Fetch IE Wise Call Status Data
   const cmEmpId = localStorage.getItem('employeeCode') || localStorage.getItem('loginId') || localStorage.getItem('userId') || '10431';
+  const cmDbUserId = localStorage.getItem('userId') || localStorage.getItem('loginId') || cmEmpId;
 
   // Accordion row togglers
   const togglePo = useCallback((poNo) => {
@@ -1898,6 +1901,23 @@ export const CMDashboardPage = ({ isEmbedded = false, activeTabFromProps = null,
                 </div>
               </div>
             )}
+          </div>
+
+          {/* Material Diversion (CM Approvals) */}
+          <div className="cm-menu-group">
+            <div
+              className={`cm-menu-item ${activeTab === 'Material Diversion (CM)' ? 'active' : ''}`}
+              onClick={() => {
+                setActiveTab('Material Diversion (CM)');
+                setCallMenuOpen(false);
+                setIeMenuOpen(false);
+                setVendorMenuOpen(false);
+                setReportsMenuOpen(false);
+              }}
+            >
+              <i className="cm-menu-item-icon fa-solid fa-shuffle"></i>
+              {!isSidebarCollapsed && <span>Diversion Queue (CM)</span>}
+            </div>
           </div>
 
           {/* Notification & Approval (Direct Item) */}
@@ -4367,7 +4387,17 @@ export const CMDashboardPage = ({ isEmbedded = false, activeTabFromProps = null,
           </>
         )}
 
-        {/* 11. Verification / Notification & Approval view */}
+        {/* 11. Material Diversion (CM Approvals) view */}
+        {activeTab === 'Material Diversion (CM)' && (
+          <CMDiversionApprovalsTab cmUserId={cmDbUserId} />
+        )}
+
+        {/* 12. Material Diversion (SBU Head Approvals) view */}
+        {activeTab === 'Material Diversion (SBU)' && (
+          <SBUDiversionApprovalsTab />
+        )}
+
+        {/* 13. Verification / Notification & Approval view */}
         {activeTab === 'Notification & Approval' && (
           <>
             <div className="cm-panel-header">

@@ -68,7 +68,11 @@ const SleeperProcessDuty = () => {
         handleDeleteContainer
     } = useShift();
 
-    const [activeTab, setActiveTab] = useState('Manual Checks');
+    const [activeTab, setActiveTab] = useState(() => localStorage.getItem('sleeperActiveTab') || 'Manual Checks');
+    const handleSetActiveTab = (tab) => {
+        localStorage.setItem('sleeperActiveTab', tab);
+        setActiveTab(tab);
+    };
     const [manualChecksAlert, setManualChecksAlert] = useState(true);
     const [moistureAlert, setMoistureAlert] = useState(true);
     const [viewMode, setViewMode] = useState('list');
@@ -152,7 +156,7 @@ const SleeperProcessDuty = () => {
                     <DutyTabs
                         tabs={tabs}
                         activeTab={activeTab}
-                        setActiveTab={setActiveTab}
+                        setActiveTab={handleSetActiveTab}
                         witnessedRecordsCount={witnessedRecords.length}
                         moistureRecordsCount={moistureRecords.length}
                     />
@@ -203,7 +207,7 @@ const SleeperProcessDuty = () => {
                                 activeContainer={activeContainer}
                                 showForm={showWireTensionForm}
                                 setShowForm={setShowWireTensionForm}
-                                loadShiftData={loadShiftData}
+                                loadShiftData={fetchWireTension}
                             />
                         </div>
                     )}
@@ -216,7 +220,7 @@ const SleeperProcessDuty = () => {
                                 onSave={() => {
                                     setMoistureAlert(false);
                                     setShowMoistureForm(false);
-                                    loadShiftData();
+                                    fetchMoisture();
                                 }}
                                 records={moistureRecords}
                                 setRecords={setMoistureRecords}

@@ -94,7 +94,7 @@ const MomentOfFailure = () => {
             const [samplesRes, testsRes, prodRes, mrRes] = await Promise.all([
                 apiService.getAllMFSamples().catch(() => ({ responseData: [] })),
                 apiService.getAllMFTests().catch(() => ({ responseData: [] })),
-                apiService.getAllProductionDeclarations().catch(() => ({ responseData: [] })),
+                apiService.getAllProductionDeclarations(activePlantId).catch(() => ({ responseData: [] })),
                 apiService.getAllMRTests().catch(() => ({ responseData: [] }))
             ]);
 
@@ -739,7 +739,7 @@ const MFSampleDeclarationModal = ({ sample, isModifying, onClose, onSave, saving
         if (productionDeclarations && productionDeclarations.length > 0) {
             setLocalDeclarations(productionDeclarations);
         } else {
-            apiService.getAllProductionDeclarations().then(res => {
+            apiService.getAllProductionDeclarations(localStorage.getItem('dutyUnit') || undefined).then(res => {
                 const data = res?.responseData || res?.data?.responseData || res?.data || (Array.isArray(res) ? res : []);
                 if (Array.isArray(data)) setLocalDeclarations(data);
             }).catch(err => console.error("Error fetching production declarations:", err));

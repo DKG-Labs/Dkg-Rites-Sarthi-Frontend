@@ -958,7 +958,7 @@ const SampleDeclarationModal = ({ sample, isModifying, onClose, onSave, onDelete
 
     // Fetch full production declarations for batch details autofetch (LBC time, Concrete grade)
     useEffect(() => {
-        apiService.getAllProductionDeclarations().then(res => {
+        apiService.getAllProductionDeclarations(localStorage.getItem('dutyUnit') || undefined).then(res => {
             const data = res?.responseData || res?.data?.responseData || res?.data || (Array.isArray(res) ? res : []);
             if (Array.isArray(data)) setProductionDeclarations(data);
         }).catch(err => console.error("Error fetching production declarations in steam cube:", err));

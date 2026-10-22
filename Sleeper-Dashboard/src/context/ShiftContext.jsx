@@ -124,6 +124,7 @@ export const ShiftProvider = ({ children }) => {
         localStorage.removeItem('companyName');
         localStorage.removeItem('vendorId');
         localStorage.removeItem('userId');
+        localStorage.removeItem('sleeperActiveTab');
     };
 
     // Persist basic shift state
@@ -246,7 +247,8 @@ export const ShiftProvider = ({ children }) => {
 
     // Granular fetch functions for better performance and targeted updates
     const fetchMoisture = useCallback(async () => {
-        const res = await apiService.getAllMoistureAnalysis();
+        const plantId = localStorage.getItem('dutyUnit') || '';
+        const res = await apiService.getAllMoistureAnalysis(plantId || undefined);
         if (res?.responseData) setMoistureRecords(res.responseData);
     }, []);
 

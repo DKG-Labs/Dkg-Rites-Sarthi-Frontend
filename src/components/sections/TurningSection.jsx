@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import './TurningSection.css';
-import { getToleranceStyle, checkTolerance } from '../../utils/toleranceValidation';
+import { getToleranceStyle, checkTolerance, getRejectionStyle } from '../../utils/toleranceValidation';
 
 const TurningSection = ({
   data,
@@ -22,6 +22,7 @@ const TurningSection = ({
       parallelLength: [],
       fullTurningLength: [],
       turningDia: [],
+      rejectedQty: ['0', '0', '0'],
       remarks: '',
       noProduction: true
     };
@@ -282,29 +283,41 @@ const TurningSection = ({
                     </td>
                     <td className="turning-td turning-td--rejected-input">
                       <input
-                        type="number"
+                        type="text"
+                        inputMode="numeric"
                         className="form-control turning-input turning-input--rejected"
-                        value={row.rejectedQty[0] ?? ''}
-                        onChange={e => updateData(idx, 'rejectedQty', e.target.value, 0)}
+                        value={!isRejectionEnabled(row, 'parallel') ? '0' : (row.rejectedQty[0] ?? '0')}
+                        onChange={e => updateData(idx, 'rejectedQty', e.target.value.replace(/[^0-9]/g, ''), 0)}
+                        onBlur={() => { if (!row.rejectedQty[0] && row.rejectedQty[0] !== 0) updateData(idx, 'rejectedQty', '0', 0); }}
                         disabled={!isRejectionEnabled(row, 'parallel')}
+                        style={getRejectionStyle(isRejectionEnabled(row, 'parallel'))}
+                        title={!isRejectionEnabled(row, 'parallel') ? "Reject enabled only if Parallel Length is out of tolerance" : ""}
                       />
                     </td>
                     <td className="turning-td turning-td--rejected-input">
                       <input
-                        type="number"
+                        type="text"
+                        inputMode="numeric"
                         className="form-control turning-input turning-input--rejected"
-                        value={row.rejectedQty[1] ?? ''}
-                        onChange={e => updateData(idx, 'rejectedQty', e.target.value, 1)}
+                        value={!isRejectionEnabled(row, 'full') ? '0' : (row.rejectedQty[1] ?? '0')}
+                        onChange={e => updateData(idx, 'rejectedQty', e.target.value.replace(/[^0-9]/g, ''), 1)}
+                        onBlur={() => { if (!row.rejectedQty[1] && row.rejectedQty[1] !== 0) updateData(idx, 'rejectedQty', '0', 1); }}
                         disabled={!isRejectionEnabled(row, 'full')}
+                        style={getRejectionStyle(isRejectionEnabled(row, 'full'))}
+                        title={!isRejectionEnabled(row, 'full') ? "Reject enabled only if Full Turning Length is out of tolerance" : ""}
                       />
                     </td>
                     <td className="turning-td turning-td--rejected-input">
                       <input
-                        type="number"
+                        type="text"
+                        inputMode="numeric"
                         className="form-control turning-input turning-input--rejected"
-                        value={row.rejectedQty[2] ?? ''}
-                        onChange={e => updateData(idx, 'rejectedQty', e.target.value, 2)}
+                        value={!isRejectionEnabled(row, 'dia') ? '0' : (row.rejectedQty[2] ?? '0')}
+                        onChange={e => updateData(idx, 'rejectedQty', e.target.value.replace(/[^0-9]/g, ''), 2)}
+                        onBlur={() => { if (!row.rejectedQty[2] && row.rejectedQty[2] !== 0) updateData(idx, 'rejectedQty', '0', 2); }}
                         disabled={!isRejectionEnabled(row, 'dia')}
+                        style={getRejectionStyle(isRejectionEnabled(row, 'dia'))}
+                        title={!isRejectionEnabled(row, 'dia') ? "Reject enabled only if Turning Dia is out of tolerance" : ""}
                       />
                     </td>
                   </tr>
@@ -367,6 +380,7 @@ const TurningSection = ({
                         onChange={e => updateData(idx, 'parallelLength', e.target.value, 0)}
                         disabled={row.noProduction || !row.lotNo}
                         placeholder="mm"
+                        style={getToleranceStyle('parallelLength', row.parallelLength[0], productType)}
                       />
                     </div>
                   </div>
@@ -380,6 +394,7 @@ const TurningSection = ({
                         onChange={e => updateData(idx, 'parallelLength', e.target.value, 1)}
                         disabled={row.noProduction || !row.lotNo}
                         placeholder="mm"
+                        style={getToleranceStyle('parallelLength', row.parallelLength[1], productType)}
                       />
                     </div>
                   </div>
@@ -393,6 +408,7 @@ const TurningSection = ({
                         onChange={e => updateData(idx, 'parallelLength', e.target.value, 2)}
                         disabled={row.noProduction || !row.lotNo}
                         placeholder="mm"
+                        style={getToleranceStyle('parallelLength', row.parallelLength[2], productType)}
                       />
                     </div>
                   </div>
@@ -406,6 +422,7 @@ const TurningSection = ({
                         onChange={e => updateData(idx, 'fullTurningLength', e.target.value, 0)}
                         disabled={row.noProduction}
                         placeholder="float"
+                        style={getToleranceStyle('fullLength', row.fullTurningLength[0], productType)}
                       />
                     </div>
                   </div>
@@ -419,6 +436,7 @@ const TurningSection = ({
                         onChange={e => updateData(idx, 'fullTurningLength', e.target.value, 1)}
                         disabled={row.noProduction || !row.lotNo}
                         placeholder="mm"
+                        style={getToleranceStyle('fullLength', row.fullTurningLength[1], productType)}
                       />
                     </div>
                   </div>
@@ -432,6 +450,7 @@ const TurningSection = ({
                         onChange={e => updateData(idx, 'fullTurningLength', e.target.value, 2)}
                         disabled={row.noProduction || !row.lotNo}
                         placeholder="mm"
+                        style={getToleranceStyle('fullLength', row.fullTurningLength[2], productType)}
                       />
                     </div>
                   </div>
@@ -445,6 +464,7 @@ const TurningSection = ({
                         onChange={e => updateData(idx, 'turningDia', e.target.value, 0)}
                         disabled={row.noProduction || !row.lotNo}
                         placeholder="mm"
+                        style={getToleranceStyle('turningDia', row.turningDia[0], productType)}
                       />
                     </div>
                   </div>
@@ -458,6 +478,7 @@ const TurningSection = ({
                         onChange={e => updateData(idx, 'turningDia', e.target.value, 1)}
                         disabled={row.noProduction || !row.lotNo}
                         placeholder="mm"
+                        style={getToleranceStyle('turningDia', row.turningDia[1], productType)}
                       />
                     </div>
                   </div>
@@ -471,6 +492,7 @@ const TurningSection = ({
                         onChange={e => updateData(idx, 'turningDia', e.target.value, 2)}
                         disabled={row.noProduction || !row.lotNo}
                         placeholder="mm"
+                        style={getToleranceStyle('turningDia', row.turningDia[2], productType)}
                       />
                     </div>
                   </div>
@@ -486,35 +508,44 @@ const TurningSection = ({
                     </div>
                   </div>
                   <div className="turning-mobile-field turning-mobile-field--rejected">
-                    <span className="turning-mobile-field__label">Rejected No. 1</span>
+                    <span className="turning-mobile-field__label">Rejected No. (Parallel)</span>
                     <div className="turning-mobile-field__value">
                       <input
-                        type="number"
-                        value={row.rejectedQty[0] ?? ''}
-                        onChange={e => updateData(idx, 'rejectedQty', e.target.value, 0)}
+                        type="text"
+                        inputMode="numeric"
+                        value={!isRejectionEnabled(row, 'parallel') ? '0' : (row.rejectedQty[0] ?? '0')}
+                        onChange={e => updateData(idx, 'rejectedQty', e.target.value.replace(/[^0-9]/g, ''), 0)}
+                        onBlur={() => { if (!row.rejectedQty[0] && row.rejectedQty[0] !== 0) updateData(idx, 'rejectedQty', '0', 0); }}
                         disabled={!isRejectionEnabled(row, 'parallel')}
+                        style={getRejectionStyle(isRejectionEnabled(row, 'parallel'))}
                       />
                     </div>
                   </div>
                   <div className="turning-mobile-field turning-mobile-field--rejected">
-                    <span className="turning-mobile-field__label">Rejected No. 2</span>
+                    <span className="turning-mobile-field__label">Rejected No. (Full Length)</span>
                     <div className="turning-mobile-field__value">
                       <input
-                        type="number"
-                        value={row.rejectedQty[1] ?? ''}
-                        onChange={e => updateData(idx, 'rejectedQty', e.target.value, 1)}
+                        type="text"
+                        inputMode="numeric"
+                        value={!isRejectionEnabled(row, 'full') ? '0' : (row.rejectedQty[1] ?? '0')}
+                        onChange={e => updateData(idx, 'rejectedQty', e.target.value.replace(/[^0-9]/g, ''), 1)}
+                        onBlur={() => { if (!row.rejectedQty[1] && row.rejectedQty[1] !== 0) updateData(idx, 'rejectedQty', '0', 1); }}
                         disabled={!isRejectionEnabled(row, 'full')}
+                        style={getRejectionStyle(isRejectionEnabled(row, 'full'))}
                       />
                     </div>
                   </div>
                   <div className="turning-mobile-field turning-mobile-field--rejected">
-                    <span className="turning-mobile-field__label">Rejected No. 3</span>
+                    <span className="turning-mobile-field__label">Rejected No. (Turning Dia)</span>
                     <div className="turning-mobile-field__value">
                       <input
-                        type="number"
-                        value={row.rejectedQty[2] ?? ''}
-                        onChange={e => updateData(idx, 'rejectedQty', e.target.value, 2)}
+                        type="text"
+                        inputMode="numeric"
+                        value={!isRejectionEnabled(row, 'dia') ? '0' : (row.rejectedQty[2] ?? '0')}
+                        onChange={e => updateData(idx, 'rejectedQty', e.target.value.replace(/[^0-9]/g, ''), 2)}
+                        onBlur={() => { if (!row.rejectedQty[2] && row.rejectedQty[2] !== 0) updateData(idx, 'rejectedQty', '0', 2); }}
                         disabled={!isRejectionEnabled(row, 'dia')}
+                        style={getRejectionStyle(isRejectionEnabled(row, 'dia'))}
                       />
                     </div>
                   </div>

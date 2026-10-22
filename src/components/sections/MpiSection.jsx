@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import './MpiSection.css';
+import { getRejectionStyle, getSelectToleranceStyle } from '../../utils/toleranceValidation';
 
 const MpiSection = ({
   data,
@@ -18,7 +19,7 @@ const MpiSection = ({
       ...base,
       lotNo: '',
       testResults: [],
-      rejectedQty: '',
+      rejectedQty: '0',
       remarks: '',
       noProduction: true
     };
@@ -63,7 +64,7 @@ const MpiSection = ({
   const isRejectionEnabled = (row) => {
     if (row.noProduction || !row.lotNo) return false;
     // Enable if any test result is 'NOT OK'
-    return row.testResults?.some(val => val === 'NOT OK');
+    return row.testResults?.some(val => String(val).trim().toUpperCase() === 'NOT OK');
   };
 
   // Check if all hours are marked as "No Production"
@@ -141,6 +142,7 @@ const MpiSection = ({
                         value={row.testResults[0] || ''}
                         onChange={e => updateData(idx, 'testResults', e.target.value, 0)}
                         disabled={row.noProduction || !row.lotNo}
+                        style={getSelectToleranceStyle(row.testResults[0])}
                       >
                         <option value="">Select</option>
                         <option value="OK">OK</option>
@@ -156,6 +158,7 @@ const MpiSection = ({
                         value={row.testResults[1] || ''}
                         onChange={e => updateData(idx, 'testResults', e.target.value, 1)}
                         disabled={row.noProduction || !row.lotNo}
+                        style={getSelectToleranceStyle(row.testResults[1])}
                       >
                         <option value="">Select</option>
                         <option value="OK">OK</option>
@@ -171,6 +174,7 @@ const MpiSection = ({
                         value={row.testResults[2] || ''}
                         onChange={e => updateData(idx, 'testResults', e.target.value, 2)}
                         disabled={row.noProduction || !row.lotNo}
+                        style={getSelectToleranceStyle(row.testResults[2])}
                       >
                         <option value="">Select</option>
                         <option value="OK">OK</option>
@@ -185,11 +189,15 @@ const MpiSection = ({
                     </td>
                     <td className="mpi-td mpi-td--rejected-input">
                       <input
-                        type="number"
+                        type="text"
+                        inputMode="numeric"
                         className="form-control mpi-input mpi-input--rejected"
-                        value={row.rejectedQty || ''}
-                        onChange={e => updateData(idx, 'rejectedQty', e.target.value)}
+                        value={!isRejectionEnabled(row) ? '0' : (row.rejectedQty ?? '0')}
+                        onChange={e => updateData(idx, 'rejectedQty', e.target.value.replace(/[^0-9]/g, ''))}
+                        onBlur={() => { if (!row.rejectedQty && row.rejectedQty !== 0) updateData(idx, 'rejectedQty', '0'); }}
                         disabled={!isRejectionEnabled(row)}
+                        style={getRejectionStyle(isRejectionEnabled(row))}
+                        title={!isRejectionEnabled(row) ? "Reject enabled only if MPI Result is NOT OK" : ""}
                       />
                     </td>
                   </tr>
@@ -250,6 +258,7 @@ const MpiSection = ({
                           value={row.testResults[sampleIdx] || ''}
                           onChange={e => updateData(idx, 'testResults', e.target.value, sampleIdx)}
                           disabled={row.noProduction}
+                          style={getSelectToleranceStyle(row.testResults[sampleIdx])}
                         >
                           <option value="">Select</option>
                           <option value="OK">OK</option>
@@ -273,10 +282,14 @@ const MpiSection = ({
                     <span className="mpi-mobile-field__label">Rejected No.</span>
                     <div className="mpi-mobile-field__value">
                       <input
-                        type="number"
-                        value={row.rejectedQty ?? ''}
-                        onChange={e => updateData(idx, 'rejectedQty', e.target.value)}
+                        type="text"
+                        inputMode="numeric"
+                        value={!isRejectionEnabled(row) ? '0' : (row.rejectedQty ?? '0')}
+                        onChange={e => updateData(idx, 'rejectedQty', e.target.value.replace(/[^0-9]/g, ''))}
+                        onBlur={() => { if (!row.rejectedQty && row.rejectedQty !== 0) updateData(idx, 'rejectedQty', '0'); }}
                         disabled={!isRejectionEnabled(row)}
+                        style={getRejectionStyle(isRejectionEnabled(row))}
+                        title={!isRejectionEnabled(row) ? "Reject enabled only if MPI Result is NOT OK" : ""}
                       />
                     </div>
                   </div>

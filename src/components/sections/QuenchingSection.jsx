@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import './QuenchingSection.css';
-import { getToleranceStyle } from '../../utils/toleranceValidation';
+import { getToleranceStyle, checkTolerance, getRejectionStyle, getSelectToleranceStyle } from '../../utils/toleranceValidation';
 
 const QuenchingSection = ({
   data,
@@ -24,13 +24,13 @@ const QuenchingSection = ({
       boxGauge: ['', ''],
       flatBearingArea: ['', ''],
       fallingGauge: ['', ''],
-      quenchingTemperatureRejected: '',
-      quenchingDurationRejected: '',
-      quenchingHardnessRejected: '',
-      boxGaugeRejected: '',
-      flatBearingAreaRejected: '',
-      fallingGaugeRejected: '',
-      rejectedQty: '',
+      quenchingTemperatureRejected: '0',
+      quenchingDurationRejected: '0',
+      quenchingHardnessRejected: '0',
+      boxGaugeRejected: '0',
+      flatBearingAreaRejected: '0',
+      fallingGaugeRejected: '0',
+      rejectedQty: '0',
       remarks: ''
     };
   };
@@ -54,13 +54,6 @@ const QuenchingSection = ({
       newData[idx][field] = fieldArray;
     } else {
       newData[idx][field] = value;
-      
-      // Default Quenching Hardness Rejection to 0 when Lot No is selected
-      if (field === 'lotNo' && value) {
-        if (newData[idx].quenchingHardnessRejected === '' || newData[idx].quenchingHardnessRejected === undefined || newData[idx].quenchingHardnessRejected === null) {
-          newData[idx].quenchingHardnessRejected = 0;
-        }
-      }
     }
     onDataChange(newData);
   };
@@ -85,17 +78,20 @@ const QuenchingSection = ({
     if (row.noProduction || !row.lotNo) return false;
 
     if (field === 'quenchingTemperature') {
-      // User requested to disable rejection for Quenching Temp
+      const v0 = row.quenchingTemperature?.[0];
+      const v1 = row.quenchingTemperature?.[1];
+      const r0 = checkTolerance('quenchingTemperature', v0, productType);
+      const r1 = checkTolerance('quenchingTemperature', v1, productType);
+      return (r0.isApplicable && !r0.isValid) || (r1.isApplicable && !r1.isValid);
+    }
+
+    if (field === 'quenchingDuration' || field === 'quenchingHardness') {
       return false;
     }
 
-    // For fields without validation rules
-    if (field === 'quenchingDuration') return false; // Disabled per user request
-    if (field === 'quenchingHardness') return true;  // Enabled per user request
-
     // For dropdowns (OK/NOT OK)
     // Fields: boxGauge, flatBearingArea, fallingGauge
-    return row[field]?.some(val => val === 'NOT OK');
+    return row[field]?.some(val => String(val || '').trim().toUpperCase() === 'NOT OK');
   };
 
 
@@ -208,6 +204,7 @@ const QuenchingSection = ({
                         value={row.boxGauge[0] || ''}
                         onChange={e => updateData(idx, 'boxGauge', e.target.value, 0)}
                         disabled={row.noProduction || !row.lotNo}
+                        style={getSelectToleranceStyle(row.boxGauge[0])}
                       >
                         <option value="">Select</option>
                         <option value="OK">OK</option>
@@ -220,6 +217,7 @@ const QuenchingSection = ({
                         value={row.flatBearingArea[0] || ''}
                         onChange={e => updateData(idx, 'flatBearingArea', e.target.value, 0)}
                         disabled={row.noProduction || !row.lotNo}
+                        style={getSelectToleranceStyle(row.flatBearingArea[0])}
                       >
                         <option value="">Select</option>
                         <option value="OK">OK</option>
@@ -232,6 +230,7 @@ const QuenchingSection = ({
                         value={row.fallingGauge[0] || ''}
                         onChange={e => updateData(idx, 'fallingGauge', e.target.value, 0)}
                         disabled={row.noProduction || !row.lotNo}
+                        style={getSelectToleranceStyle(row.fallingGauge[0])}
                       >
                         <option value="">Select</option>
                         <option value="OK">OK</option>
@@ -278,6 +277,7 @@ const QuenchingSection = ({
                         value={row.boxGauge[1] || ''}
                         onChange={e => updateData(idx, 'boxGauge', e.target.value, 1)}
                         disabled={row.noProduction || !row.lotNo}
+                        style={getSelectToleranceStyle(row.boxGauge[1])}
                       >
                         <option value="">Select</option>
                         <option value="OK">OK</option>
@@ -290,6 +290,7 @@ const QuenchingSection = ({
                         value={row.flatBearingArea[1] || ''}
                         onChange={e => updateData(idx, 'flatBearingArea', e.target.value, 1)}
                         disabled={row.noProduction || !row.lotNo}
+                        style={getSelectToleranceStyle(row.flatBearingArea[1])}
                       >
                         <option value="">Select</option>
                         <option value="OK">OK</option>
@@ -302,6 +303,7 @@ const QuenchingSection = ({
                         value={row.fallingGauge[1] || ''}
                         onChange={e => updateData(idx, 'fallingGauge', e.target.value, 1)}
                         disabled={row.noProduction || !row.lotNo}
+                        style={getSelectToleranceStyle(row.fallingGauge[1])}
                       >
                         <option value="">Select</option>
                         <option value="OK">OK</option>
@@ -315,22 +317,100 @@ const QuenchingSection = ({
                       <span className="quenching-rejected-label">Rejected No.</span>
                     </td>
                     <td className="quenching-td quenching-td--rejected-input">
-                      <input type="number" value={row.quenchingTemperatureRejected ?? ''} onChange={e => updateData(idx, 'quenchingTemperatureRejected', e.target.value)} disabled={!isRejectionEnabled(row, 'quenchingTemperature')} />
+                      <input
+                        type="text"
+                        inputMode="numeric"
+                        className="form-control quenching-input"
+                        value={!isRejectionEnabled(row, 'quenchingTemperature') ? '0' : (row.quenchingTemperatureRejected ?? '0')}
+                        onChange={e => updateData(idx, 'quenchingTemperatureRejected', e.target.value.replace(/[^0-9]/g, ''))}
+                        onBlur={() => {
+                          if (!row.quenchingTemperatureRejected && row.quenchingTemperatureRejected !== 0) {
+                            updateData(idx, 'quenchingTemperatureRejected', '0');
+                          }
+                        }}
+                        disabled={!isRejectionEnabled(row, 'quenchingTemperature')}
+                        style={getRejectionStyle(isRejectionEnabled(row, 'quenchingTemperature'))}
+                      />
                     </td>
                     <td className="quenching-td quenching-td--rejected-input">
-                      <input type="number" value={row.quenchingDurationRejected ?? ''} onChange={e => updateData(idx, 'quenchingDurationRejected', e.target.value)} disabled={!isRejectionEnabled(row, 'quenchingDuration')} />
+                      <input
+                        type="text"
+                        inputMode="numeric"
+                        className="form-control quenching-input"
+                        value={!isRejectionEnabled(row, 'quenchingDuration') ? '0' : (row.quenchingDurationRejected ?? '0')}
+                        onChange={e => updateData(idx, 'quenchingDurationRejected', e.target.value.replace(/[^0-9]/g, ''))}
+                        onBlur={() => {
+                          if (!row.quenchingDurationRejected && row.quenchingDurationRejected !== 0) {
+                            updateData(idx, 'quenchingDurationRejected', '0');
+                          }
+                        }}
+                        disabled={!isRejectionEnabled(row, 'quenchingDuration')}
+                        style={getRejectionStyle(isRejectionEnabled(row, 'quenchingDuration'))}
+                      />
                     </td>
                     <td className="quenching-td quenching-td--rejected-input">
-                      <input type="number" value={row.quenchingHardnessRejected ?? ''} onChange={e => updateData(idx, 'quenchingHardnessRejected', e.target.value)} disabled={!isRejectionEnabled(row, 'quenchingHardness')} />
+                      <input
+                        type="text"
+                        inputMode="numeric"
+                        className="form-control quenching-input"
+                        value={!isRejectionEnabled(row, 'quenchingHardness') ? '0' : (row.quenchingHardnessRejected ?? '0')}
+                        onChange={e => updateData(idx, 'quenchingHardnessRejected', e.target.value.replace(/[^0-9]/g, ''))}
+                        onBlur={() => {
+                          if (!row.quenchingHardnessRejected && row.quenchingHardnessRejected !== 0) {
+                            updateData(idx, 'quenchingHardnessRejected', '0');
+                          }
+                        }}
+                        disabled={!isRejectionEnabled(row, 'quenchingHardness')}
+                        style={getRejectionStyle(isRejectionEnabled(row, 'quenchingHardness'))}
+                      />
                     </td>
                     <td className="quenching-td quenching-td--rejected-input">
-                      <input type="number" value={row.boxGaugeRejected ?? ''} onChange={e => updateData(idx, 'boxGaugeRejected', e.target.value)} disabled={!isRejectionEnabled(row, 'boxGauge')} />
+                      <input
+                        type="text"
+                        inputMode="numeric"
+                        className="form-control quenching-input"
+                        value={!isRejectionEnabled(row, 'boxGauge') ? '0' : (row.boxGaugeRejected ?? '0')}
+                        onChange={e => updateData(idx, 'boxGaugeRejected', e.target.value.replace(/[^0-9]/g, ''))}
+                        onBlur={() => {
+                          if (!row.boxGaugeRejected && row.boxGaugeRejected !== 0) {
+                            updateData(idx, 'boxGaugeRejected', '0');
+                          }
+                        }}
+                        disabled={!isRejectionEnabled(row, 'boxGauge')}
+                        style={getRejectionStyle(isRejectionEnabled(row, 'boxGauge'))}
+                      />
                     </td>
                     <td className="quenching-td quenching-td--rejected-input">
-                      <input type="number" value={row.flatBearingAreaRejected ?? ''} onChange={e => updateData(idx, 'flatBearingAreaRejected', e.target.value)} disabled={!isRejectionEnabled(row, 'flatBearingArea')} />
+                      <input
+                        type="text"
+                        inputMode="numeric"
+                        className="form-control quenching-input"
+                        value={!isRejectionEnabled(row, 'flatBearingArea') ? '0' : (row.flatBearingAreaRejected ?? '0')}
+                        onChange={e => updateData(idx, 'flatBearingAreaRejected', e.target.value.replace(/[^0-9]/g, ''))}
+                        onBlur={() => {
+                          if (!row.flatBearingAreaRejected && row.flatBearingAreaRejected !== 0) {
+                            updateData(idx, 'flatBearingAreaRejected', '0');
+                          }
+                        }}
+                        disabled={!isRejectionEnabled(row, 'flatBearingArea')}
+                        style={getRejectionStyle(isRejectionEnabled(row, 'flatBearingArea'))}
+                      />
                     </td>
                     <td className="quenching-td quenching-td--rejected-input">
-                      <input type="number" value={row.fallingGaugeRejected ?? ''} onChange={e => updateData(idx, 'fallingGaugeRejected', e.target.value)} disabled={!isRejectionEnabled(row, 'fallingGauge')} />
+                      <input
+                        type="text"
+                        inputMode="numeric"
+                        className="form-control quenching-input"
+                        value={!isRejectionEnabled(row, 'fallingGauge') ? '0' : (row.fallingGaugeRejected ?? '0')}
+                        onChange={e => updateData(idx, 'fallingGaugeRejected', e.target.value.replace(/[^0-9]/g, ''))}
+                        onBlur={() => {
+                          if (!row.fallingGaugeRejected && row.fallingGaugeRejected !== 0) {
+                            updateData(idx, 'fallingGaugeRejected', '0');
+                          }
+                        }}
+                        disabled={!isRejectionEnabled(row, 'fallingGauge')}
+                        style={getRejectionStyle(isRejectionEnabled(row, 'fallingGauge'))}
+                      />
                     </td>
                   </tr>
                   {/* Row 4: Remarks */}
@@ -428,6 +508,7 @@ const QuenchingSection = ({
                             value={row.boxGauge[sampleIdx] || ''}
                             onChange={e => updateData(idx, 'boxGauge', e.target.value, sampleIdx)}
                             disabled={row.noProduction || !row.lotNo}
+                            style={getSelectToleranceStyle(row.boxGauge[sampleIdx])}
                           >
                             <option value="">Select</option>
                             <option value="OK">OK</option>
@@ -442,6 +523,7 @@ const QuenchingSection = ({
                             value={row.flatBearingArea[sampleIdx] || ''}
                             onChange={e => updateData(idx, 'flatBearingArea', e.target.value, sampleIdx)}
                             disabled={row.noProduction || !row.lotNo}
+                            style={getSelectToleranceStyle(row.flatBearingArea[sampleIdx])}
                           >
                             <option value="">Select</option>
                             <option value="OK">OK</option>
@@ -456,6 +538,7 @@ const QuenchingSection = ({
                             value={row.fallingGauge[sampleIdx] || ''}
                             onChange={e => updateData(idx, 'fallingGauge', e.target.value, sampleIdx)}
                             disabled={row.noProduction || !row.lotNo}
+                            style={getSelectToleranceStyle(row.fallingGauge[sampleIdx])}
                           >
                             <option value="">Select</option>
                             <option value="OK">OK</option>
@@ -466,13 +549,110 @@ const QuenchingSection = ({
                     </div>
                   ))}
                   <div className="quenching-mobile-field quenching-mobile-field--rejected">
-                    <span className="quenching-mobile-field__label">Rejected No.</span>
+                    <span className="quenching-mobile-field__label">Quenching Temp Rejected</span>
                     <div className="quenching-mobile-field__value">
                       <input
-                        type="number"
-                        value={row.rejectedQty || ''}
-                        onChange={e => updateData(idx, 'rejectedQty', e.target.value)}
-                        disabled={row.noProduction || !row.lotNo}
+                        type="text"
+                        inputMode="numeric"
+                        value={!isRejectionEnabled(row, 'quenchingTemperature') ? '0' : (row.quenchingTemperatureRejected ?? '0')}
+                        onChange={e => updateData(idx, 'quenchingTemperatureRejected', e.target.value.replace(/[^0-9]/g, ''))}
+                        onBlur={() => {
+                          if (!row.quenchingTemperatureRejected && row.quenchingTemperatureRejected !== 0) {
+                            updateData(idx, 'quenchingTemperatureRejected', '0');
+                          }
+                        }}
+                        disabled={!isRejectionEnabled(row, 'quenchingTemperature')}
+                        style={getRejectionStyle(isRejectionEnabled(row, 'quenchingTemperature'))}
+                      />
+                    </div>
+                  </div>
+                  <div className="quenching-mobile-field quenching-mobile-field--rejected">
+                    <span className="quenching-mobile-field__label">Quenching Duration Rejected</span>
+                    <div className="quenching-mobile-field__value">
+                      <input
+                        type="text"
+                        inputMode="numeric"
+                        value={!isRejectionEnabled(row, 'quenchingDuration') ? '0' : (row.quenchingDurationRejected ?? '0')}
+                        onChange={e => updateData(idx, 'quenchingDurationRejected', e.target.value.replace(/[^0-9]/g, ''))}
+                        onBlur={() => {
+                          if (!row.quenchingDurationRejected && row.quenchingDurationRejected !== 0) {
+                            updateData(idx, 'quenchingDurationRejected', '0');
+                          }
+                        }}
+                        disabled={!isRejectionEnabled(row, 'quenchingDuration')}
+                        style={getRejectionStyle(isRejectionEnabled(row, 'quenchingDuration'))}
+                      />
+                    </div>
+                  </div>
+                  <div className="quenching-mobile-field quenching-mobile-field--rejected">
+                    <span className="quenching-mobile-field__label">Quenching Hardness Rejected</span>
+                    <div className="quenching-mobile-field__value">
+                      <input
+                        type="text"
+                        inputMode="numeric"
+                        value={!isRejectionEnabled(row, 'quenchingHardness') ? '0' : (row.quenchingHardnessRejected ?? '0')}
+                        onChange={e => updateData(idx, 'quenchingHardnessRejected', e.target.value.replace(/[^0-9]/g, ''))}
+                        onBlur={() => {
+                          if (!row.quenchingHardnessRejected && row.quenchingHardnessRejected !== 0) {
+                            updateData(idx, 'quenchingHardnessRejected', '0');
+                          }
+                        }}
+                        disabled={!isRejectionEnabled(row, 'quenchingHardness')}
+                        style={getRejectionStyle(isRejectionEnabled(row, 'quenchingHardness'))}
+                      />
+                    </div>
+                  </div>
+                  <div className="quenching-mobile-field quenching-mobile-field--rejected">
+                    <span className="quenching-mobile-field__label">Box Gauge Rejected</span>
+                    <div className="quenching-mobile-field__value">
+                      <input
+                        type="text"
+                        inputMode="numeric"
+                        value={!isRejectionEnabled(row, 'boxGauge') ? '0' : (row.boxGaugeRejected ?? '0')}
+                        onChange={e => updateData(idx, 'boxGaugeRejected', e.target.value.replace(/[^0-9]/g, ''))}
+                        onBlur={() => {
+                          if (!row.boxGaugeRejected && row.boxGaugeRejected !== 0) {
+                            updateData(idx, 'boxGaugeRejected', '0');
+                          }
+                        }}
+                        disabled={!isRejectionEnabled(row, 'boxGauge')}
+                        style={getRejectionStyle(isRejectionEnabled(row, 'boxGauge'))}
+                      />
+                    </div>
+                  </div>
+                  <div className="quenching-mobile-field quenching-mobile-field--rejected">
+                    <span className="quenching-mobile-field__label">Flat Bearing Area Rejected</span>
+                    <div className="quenching-mobile-field__value">
+                      <input
+                        type="text"
+                        inputMode="numeric"
+                        value={!isRejectionEnabled(row, 'flatBearingArea') ? '0' : (row.flatBearingAreaRejected ?? '0')}
+                        onChange={e => updateData(idx, 'flatBearingAreaRejected', e.target.value.replace(/[^0-9]/g, ''))}
+                        onBlur={() => {
+                          if (!row.flatBearingAreaRejected && row.flatBearingAreaRejected !== 0) {
+                            updateData(idx, 'flatBearingAreaRejected', '0');
+                          }
+                        }}
+                        disabled={!isRejectionEnabled(row, 'flatBearingArea')}
+                        style={getRejectionStyle(isRejectionEnabled(row, 'flatBearingArea'))}
+                      />
+                    </div>
+                  </div>
+                  <div className="quenching-mobile-field quenching-mobile-field--rejected">
+                    <span className="quenching-mobile-field__label">Falling Gauge Rejected</span>
+                    <div className="quenching-mobile-field__value">
+                      <input
+                        type="text"
+                        inputMode="numeric"
+                        value={!isRejectionEnabled(row, 'fallingGauge') ? '0' : (row.fallingGaugeRejected ?? '0')}
+                        onChange={e => updateData(idx, 'fallingGaugeRejected', e.target.value.replace(/[^0-9]/g, ''))}
+                        onBlur={() => {
+                          if (!row.fallingGaugeRejected && row.fallingGaugeRejected !== 0) {
+                            updateData(idx, 'fallingGaugeRejected', '0');
+                          }
+                        }}
+                        disabled={!isRejectionEnabled(row, 'fallingGauge')}
+                        style={getRejectionStyle(isRejectionEnabled(row, 'fallingGauge'))}
                       />
                     </div>
                   </div>

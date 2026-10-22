@@ -121,11 +121,11 @@ export default function FinalProductDashboard({ onBack, onNavigateToSubModule })
             const aql = getDimensionWeightAQL(lot.lotSize || 0, customSampleSize);
 
             // Visual
-            const vR1 = data.visualR1 === '' ? 0 : parseInt(data.visualR1);
+            const vR1 = (data.visualR1 === '' || data.visualR1 === null || data.visualR1 === undefined) ? 0 : (parseInt(data.visualR1) || 0);
             if (vR1 >= aql.re1) {
               totalRejected += vR1;
             } else if (vR1 > aql.ac1 && !aql.useSingleSampling) {
-              const vR2 = data.visualR2 === '' ? 0 : parseInt(data.visualR2);
+              const vR2 = (data.visualR2 === '' || data.visualR2 === null || data.visualR2 === undefined) ? 0 : (parseInt(data.visualR2) || 0);
               totalRejected += vR1 + vR2;
             } else {
               totalRejected += vR1;
@@ -505,11 +505,12 @@ export default function FinalProductDashboard({ onBack, onNavigateToSubModule })
   // Validation function for visual & dimensional data
   const validateVisualDimensionalData = useCallback((lotData, lot) => {
     if (!lotData) return 'Pending';
+    const hasVal = (v) => v !== '' && v !== null && v !== undefined;
     // Check if any visual or dimensional data is filled
-    const hasVisualData = lotData.visualR1 !== '' || lotData.visualR2 !== '';
-    const hasDimData = lotData.dimMainGo1 !== '' || lotData.dimMainNoGo1 !== '' || 
-                       lotData.dimFallGo1 !== '' || lotData.dimFallNoGo1 !== '' ||
-                       lotData.dimFlatGo1 !== '' || lotData.dimFlatNoGo1 !== '';
+    const hasVisualData = hasVal(lotData.visualR1) || hasVal(lotData.visualR2);
+    const hasDimData = hasVal(lotData.dimMainGo1) || hasVal(lotData.dimMainNoGo1) || 
+                       hasVal(lotData.dimFallGo1) || hasVal(lotData.dimFallNoGo1) ||
+                       hasVal(lotData.dimFlatGo1) || hasVal(lotData.dimFlatNoGo1);
 
     if (!hasVisualData && !hasDimData) return 'Pending';
 
@@ -518,43 +519,43 @@ export default function FinalProductDashboard({ onBack, onNavigateToSubModule })
     const aql = getDimensionWeightAQL(lot?.lotSize || 0, customSampleSize);
 
     // Check Visual
-    const vR1 = lotData.visualR1 === '' ? null : parseInt(lotData.visualR1);
-    const vR2 = lotData.visualR2 === '' ? 0 : parseInt(lotData.visualR2);
+    const vR1 = hasVal(lotData.visualR1) ? parseInt(lotData.visualR1, 10) : null;
+    const vR2 = hasVal(lotData.visualR2) ? parseInt(lotData.visualR2, 10) : 0;
 
     if (vR1 !== null) {
       if (vR1 >= aql.re1) return 'NOT OK';
       if (vR1 > aql.ac1 && !aql.useSingleSampling) {
-        if (lotData.visualR2 === '') return 'Pending'; // 2nd sampling required
+        if (!hasVal(lotData.visualR2)) return 'Pending'; // 2nd sampling required
         if ((vR1 + vR2) >= aql.cummRej) return 'NOT OK';
       }
     }
 
     // Check Dimensional (Sum of Go/NoGo/Flat)
-    const hasDimR1 = lotData.dimMainGo1 !== '' && lotData.dimMainNoGo1 !== '' && 
-                     lotData.dimFallGo1 !== '' && lotData.dimFallNoGo1 !== '' &&
-                     lotData.dimFlatGo1 !== '' && lotData.dimFlatNoGo1 !== '';
+    const hasDimR1 = hasVal(lotData.dimMainGo1) && hasVal(lotData.dimMainNoGo1) && 
+                     hasVal(lotData.dimFallGo1) && hasVal(lotData.dimFallNoGo1) && 
+                     hasVal(lotData.dimFlatGo1) && hasVal(lotData.dimFlatNoGo1);
                      
-    const dR1 = (parseInt(lotData.dimMainGo1) || 0) + (parseInt(lotData.dimMainNoGo1) || 0) + 
-                (parseInt(lotData.dimFallGo1) || 0) + (parseInt(lotData.dimFallNoGo1) || 0) + 
-                (parseInt(lotData.dimFlatGo1) || 0) + (parseInt(lotData.dimFlatNoGo1) || 0);
+    const dR1 = (parseInt(lotData.dimMainGo1, 10) || 0) + (parseInt(lotData.dimMainNoGo1, 10) || 0) + 
+                (parseInt(lotData.dimFallGo1, 10) || 0) + (parseInt(lotData.dimFallNoGo1, 10) || 0) + 
+                (parseInt(lotData.dimFlatGo1, 10) || 0) + (parseInt(lotData.dimFlatNoGo1, 10) || 0);
                 
-    const dR2 = (parseInt(lotData.dimMainGo2) || 0) + (parseInt(lotData.dimMainNoGo2) || 0) + 
-                (parseInt(lotData.dimFallGo2) || 0) + (parseInt(lotData.dimFallNoGo2) || 0) + 
-                (parseInt(lotData.dimFlatGo2) || 0) + (parseInt(lotData.dimFlatNoGo2) || 0);
+    const dR2 = (parseInt(lotData.dimMainGo2, 10) || 0) + (parseInt(lotData.dimMainNoGo2, 10) || 0) + 
+                (parseInt(lotData.dimFallGo2, 10) || 0) + (parseInt(lotData.dimFallNoGo2, 10) || 0) + 
+                (parseInt(lotData.dimFlatGo2, 10) || 0) + (parseInt(lotData.dimFlatNoGo2, 10) || 0);
 
     if (hasDimData) {
       if (dR1 >= aql.re1) return 'NOT OK';
       if (dR1 > aql.ac1 && !aql.useSingleSampling) {
-        const hasDimR2 = lotData.dimMainGo2 !== '' && lotData.dimMainNoGo2 !== '' && 
-                         lotData.dimFallGo2 !== '' && lotData.dimFallNoGo2 !== '' &&
-                         lotData.dimFlatGo2 !== '' && lotData.dimFlatNoGo2 !== '';
+        const hasDimR2 = hasVal(lotData.dimMainGo2) && hasVal(lotData.dimMainNoGo2) && 
+                         hasVal(lotData.dimFallGo2) && hasVal(lotData.dimFallNoGo2) && 
+                         hasVal(lotData.dimFlatGo2) && hasVal(lotData.dimFlatNoGo2);
         if (!hasDimR2) return 'Pending'; // 2nd sampling required
         if ((dR1 + dR2) >= aql.cummRej) return 'NOT OK';
       }
     }
 
     // If we've made it here, check if all 1st samples are present for both sections
-    if (lotData.visualR1 === '' || !hasDimR1) return 'Pending';
+    if (!hasVal(lotData.visualR1) || !hasDimR1) return 'Pending';
 
     return 'OK';
   }, [customSampleSizes]);

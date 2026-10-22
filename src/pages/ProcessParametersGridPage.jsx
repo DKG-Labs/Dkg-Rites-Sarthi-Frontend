@@ -163,7 +163,7 @@ const ProcessParametersGridPage = ({ call, onBack, lotNumbers = [], shift = 'A',
       // 3 dropdowns for Cracked Edges (OK / Not OK)
       crackedEdges: ['', '', ''],
       // 4 inputs for Rejected Quantity (one below each column: Length, Quality, Sharp Edges, Cracked Edges)
-      rejectedQty: ['', '', '', ''],
+      rejectedQty: ['0', '0', '0', '0'],
       remarks: ''
     }))
   );
@@ -180,7 +180,7 @@ const ProcessParametersGridPage = ({ call, onBack, lotNumbers = [], shift = 'A',
       // 3 inputs for Turning Dia (float values)
       turningDia: ['', '', ''],
       // 3 inputs for Rejected Quantity (one below each column: Parallel Length, Full Turning Length, Turning Dia)
-      rejectedQty: ['', '', ''],
+      rejectedQty: ['0', '0', '0'],
       remarks: ''
     }))
   );
@@ -194,7 +194,7 @@ const ProcessParametersGridPage = ({ call, onBack, lotNumbers = [], shift = 'A',
       // 3 dropdowns for MPI Results (OK / Not OK)
       testResults: ['', '', ''],
       // 1 input for Rejected Quantity
-      rejectedQty: '',
+      rejectedQty: '0',
       remarks: ''
     }))
   );
@@ -216,11 +216,11 @@ const ProcessParametersGridPage = ({ call, onBack, lotNumbers = [], shift = 'A',
       // 2 dropdowns for Embossing Defect (OK / Not OK)
       embossingDefect: ['', ''],
       // 5 separate rejection fields
-      forgingTemperatureRejected: '',
-      forgingStabilisationRejected: '',
-      improperForgingRejected: '',
-      forgingDefectRejected: '',
-      embossingDefectRejected: '',
+      forgingTemperatureRejected: '0',
+      forgingStabilisationRejected: '0',
+      improperForgingRejected: '0',
+      forgingDefectRejected: '0',
+      embossingDefectRejected: '0',
       remarks: ''
     }))
   );
@@ -244,12 +244,12 @@ const ProcessParametersGridPage = ({ call, onBack, lotNumbers = [], shift = 'A',
       // 2 dropdowns for Falling Gauge (OK / Not OK)
       fallingGauge: ['', ''],
       // 6 separate rejection fields
-      quenchingTemperatureRejected: '',
-      quenchingDurationRejected: '',
-      quenchingHardnessRejected: '',
-      boxGaugeRejected: '',
-      flatBearingAreaRejected: '',
-      fallingGaugeRejected: '',
+      quenchingTemperatureRejected: '0',
+      quenchingDurationRejected: '0',
+      quenchingHardnessRejected: '0',
+      boxGaugeRejected: '0',
+      flatBearingAreaRejected: '0',
+      fallingGaugeRejected: '0',
       remarks: ''
     }))
   );
@@ -261,9 +261,9 @@ const ProcessParametersGridPage = ({ call, onBack, lotNumbers = [], shift = 'A',
       noProduction: false,
       lotNo: '',
       temperingTemperature: ['', ''],
-      temperingTemperatureRejected: '',
+      temperingTemperatureRejected: '0',
       temperingDuration: ['', ''],
-      temperingDurationRejected: '',
+      temperingDurationRejected: '0',
       remarks: ''
     }))
   );
@@ -289,13 +289,13 @@ const ProcessParametersGridPage = ({ call, onBack, lotNumbers = [], shift = 'A',
       // 2 integer inputs for Tempering Hardness
       temperingHardness: ['', ''],
       // Rejection inputs for each measurement
-      boxGaugeRejected: '',
-      flatBearingAreaRejected: '',
-      fallingGaugeRejected: '',
-      surfaceDefectRejected: '',
-      embossingDefectRejected: '',
-      markingRejected: '',
-      temperingHardnessRejected: '',
+      boxGaugeRejected: '0',
+      flatBearingAreaRejected: '0',
+      fallingGaugeRejected: '0',
+      surfaceDefectRejected: '0',
+      embossingDefectRejected: '0',
+      markingRejected: '0',
+      temperingHardnessRejected: '0',
       remarks: ''
     }))
   );
@@ -315,10 +315,10 @@ const ProcessParametersGridPage = ({ call, onBack, lotNumbers = [], shift = 'A',
       // 2 dropdowns for ERC Coating (Linseed Oil) (OK / not ok)
       ercCoating: ['', ''],
       // Rejection inputs for each measurement
-      toeLoadRejected: '',
-      weightRejected: '',
-      paintIdentificationRejected: '',
-      ercCoatingRejected: '',
+      toeLoadRejected: '0',
+      weightRejected: '0',
+      paintIdentificationRejected: '0',
+      ercCoatingRejected: '0',
       remarks: ''
     }))
   );
@@ -514,8 +514,8 @@ const ProcessParametersGridPage = ({ call, onBack, lotNumbers = [], shift = 'A',
         ['', '', ''], // New field
       // Convert old rejectedQty to 4-element array
       rejectedQty: Array.isArray(row.rejectedQty) ?
-        (row.rejectedQty.length === 4 ? row.rejectedQty : [...row.rejectedQty, '', '', ''].slice(0, 4)) :
-        ['', '', '', ''],
+        (row.rejectedQty.length === 4 ? row.rejectedQty.map(v => (v === '' || v === null || v === undefined) ? '0' : String(v)) : [...row.rejectedQty, '0', '0', '0'].slice(0, 4)) :
+        ['0', '0', '0', '0'],
       remarks: row.remarks || ''
     }));
   }, []);
@@ -538,11 +538,11 @@ const ProcessParametersGridPage = ({ call, onBack, lotNumbers = [], shift = 'A',
       forgingDefect: row.forgingDefect || ['', ''],
       embossingDefect: row.embossingDefect || ['', ''],
       // 5 separate rejection fields
-      forgingTemperatureRejected: row.forgingTemperatureRejected ?? '',
-      forgingStabilisationRejected: row.forgingStabilisationRejected ?? '',
-      improperForgingRejected: row.improperForgingRejected ?? '',
-      forgingDefectRejected: row.forgingDefectRejected ?? '',
-      embossingDefectRejected: row.embossingDefectRejected ?? '',
+      forgingTemperatureRejected: (row.forgingTemperatureRejected === '' || row.forgingTemperatureRejected === null || row.forgingTemperatureRejected === undefined) ? '0' : String(row.forgingTemperatureRejected),
+      forgingStabilisationRejected: (row.forgingStabilisationRejected === '' || row.forgingStabilisationRejected === null || row.forgingStabilisationRejected === undefined) ? '0' : String(row.forgingStabilisationRejected),
+      improperForgingRejected: (row.improperForgingRejected === '' || row.improperForgingRejected === null || row.improperForgingRejected === undefined) ? '0' : String(row.improperForgingRejected),
+      forgingDefectRejected: (row.forgingDefectRejected === '' || row.forgingDefectRejected === null || row.forgingDefectRejected === undefined) ? '0' : String(row.forgingDefectRejected),
+      embossingDefectRejected: (row.embossingDefectRejected === '' || row.embossingDefectRejected === null || row.embossingDefectRejected === undefined) ? '0' : String(row.embossingDefectRejected),
       remarks: row.remarks || ''
     }));
   }, []);
@@ -570,12 +570,12 @@ const ProcessParametersGridPage = ({ call, onBack, lotNumbers = [], shift = 'A',
       flatBearingArea: row.flatBearingArea || ['', ''],
       fallingGauge: row.fallingGauge || ['', ''],
       // 6 separate rejection fields
-      quenchingTemperatureRejected: row.quenchingTemperatureRejected ?? '',
-      quenchingDurationRejected: row.quenchingDurationRejected ?? '',
-      quenchingHardnessRejected: row.quenchingHardnessRejected ?? '',
-      boxGaugeRejected: row.boxGaugeRejected ?? '',
-      flatBearingAreaRejected: row.flatBearingAreaRejected ?? '',
-      fallingGaugeRejected: row.fallingGaugeRejected ?? '',
+      quenchingTemperatureRejected: (row.quenchingTemperatureRejected === '' || row.quenchingTemperatureRejected === null || row.quenchingTemperatureRejected === undefined) ? '0' : String(row.quenchingTemperatureRejected),
+      quenchingDurationRejected: (row.quenchingDurationRejected === '' || row.quenchingDurationRejected === null || row.quenchingDurationRejected === undefined) ? '0' : String(row.quenchingDurationRejected),
+      quenchingHardnessRejected: (row.quenchingHardnessRejected === '' || row.quenchingHardnessRejected === null || row.quenchingHardnessRejected === undefined) ? '0' : String(row.quenchingHardnessRejected),
+      boxGaugeRejected: (row.boxGaugeRejected === '' || row.boxGaugeRejected === null || row.boxGaugeRejected === undefined) ? '0' : String(row.boxGaugeRejected),
+      flatBearingAreaRejected: (row.flatBearingAreaRejected === '' || row.flatBearingAreaRejected === null || row.flatBearingAreaRejected === undefined) ? '0' : String(row.flatBearingAreaRejected),
+      fallingGaugeRejected: (row.fallingGaugeRejected === '' || row.fallingGaugeRejected === null || row.fallingGaugeRejected === undefined) ? '0' : String(row.fallingGaugeRejected),
       remarks: row.remarks || ''
     }));
   }, []);
@@ -592,11 +592,11 @@ const ProcessParametersGridPage = ({ call, onBack, lotNumbers = [], shift = 'A',
       temperingTemperature: (typeof row.temperingTemperature === 'string' || typeof row.temperingTemperature === 'number') ?
         [String(row.temperingTemperature), ''] :
         (Array.isArray(row.temperingTemperature) ? row.temperingTemperature : ['', '']),
-      temperingTemperatureRejected: row.temperingTemperatureRejected ?? '',
+      temperingTemperatureRejected: (row.temperingTemperatureRejected === '' || row.temperingTemperatureRejected === null || row.temperingTemperatureRejected === undefined) ? '0' : String(row.temperingTemperatureRejected),
       temperingDuration: (typeof row.temperingDuration === 'string' || typeof row.temperingDuration === 'number') ?
         [String(row.temperingDuration), ''] :
         (Array.isArray(row.temperingDuration) ? row.temperingDuration : ['', '']),
-      temperingDurationRejected: row.temperingDurationRejected ?? '',
+      temperingDurationRejected: (row.temperingDurationRejected === '' || row.temperingDurationRejected === null || row.temperingDurationRejected === undefined) ? '0' : String(row.temperingDurationRejected),
       remarks: row.remarks || ''
     }));
   }, []);
@@ -618,13 +618,13 @@ const ProcessParametersGridPage = ({ call, onBack, lotNumbers = [], shift = 'A',
       marking: row.marking || ['', ''],
       temperingHardness: row.temperingHardness || ['', ''],
       // Rejection inputs for each measurement
-      boxGaugeRejected: row.boxGaugeRejected ?? '',
-      flatBearingAreaRejected: row.flatBearingAreaRejected ?? '',
-      fallingGaugeRejected: row.fallingGaugeRejected ?? '',
-      surfaceDefectRejected: row.surfaceDefectRejected ?? '',
-      embossingDefectRejected: row.embossingDefectRejected ?? '',
-      markingRejected: row.markingRejected ?? '',
-      temperingHardnessRejected: row.temperingHardnessRejected ?? '',
+      boxGaugeRejected: (row.boxGaugeRejected === '' || row.boxGaugeRejected === null || row.boxGaugeRejected === undefined) ? '0' : String(row.boxGaugeRejected),
+      flatBearingAreaRejected: (row.flatBearingAreaRejected === '' || row.flatBearingAreaRejected === null || row.flatBearingAreaRejected === undefined) ? '0' : String(row.flatBearingAreaRejected),
+      fallingGaugeRejected: (row.fallingGaugeRejected === '' || row.fallingGaugeRejected === null || row.fallingGaugeRejected === undefined) ? '0' : String(row.fallingGaugeRejected),
+      surfaceDefectRejected: (row.surfaceDefectRejected === '' || row.surfaceDefectRejected === null || row.surfaceDefectRejected === undefined) ? '0' : String(row.surfaceDefectRejected),
+      embossingDefectRejected: (row.embossingDefectRejected === '' || row.embossingDefectRejected === null || row.embossingDefectRejected === undefined) ? '0' : String(row.embossingDefectRejected),
+      markingRejected: (row.markingRejected === '' || row.markingRejected === null || row.markingRejected === undefined) ? '0' : String(row.markingRejected),
+      temperingHardnessRejected: (row.temperingHardnessRejected === '' || row.temperingHardnessRejected === null || row.temperingHardnessRejected === undefined) ? '0' : String(row.temperingHardnessRejected),
       remarks: row.remarks || ''
     }));
   }, []);
@@ -643,10 +643,10 @@ const ProcessParametersGridPage = ({ call, onBack, lotNumbers = [], shift = 'A',
       paintIdentification: row.paintIdentification || ['', ''],
       ercCoating: row.ercCoating || ['', ''],
       // 4 separate rejection fields
-      toeLoadRejected: row.toeLoadRejected ?? '',
-      weightRejected: row.weightRejected ?? '',
-      paintIdentificationRejected: row.paintIdentificationRejected ?? '',
-      ercCoatingRejected: row.ercCoatingRejected ?? '',
+      toeLoadRejected: (row.toeLoadRejected === '' || row.toeLoadRejected === null || row.toeLoadRejected === undefined) ? '0' : String(row.toeLoadRejected),
+      weightRejected: (row.weightRejected === '' || row.weightRejected === null || row.weightRejected === undefined) ? '0' : String(row.weightRejected),
+      paintIdentificationRejected: (row.paintIdentificationRejected === '' || row.paintIdentificationRejected === null || row.paintIdentificationRejected === undefined) ? '0' : String(row.paintIdentificationRejected),
+      ercCoatingRejected: (row.ercCoatingRejected === '' || row.ercCoatingRejected === null || row.ercCoatingRejected === undefined) ? '0' : String(row.ercCoatingRejected),
       remarks: row.remarks || ''
     }));
   }, []);
@@ -656,20 +656,20 @@ const ProcessParametersGridPage = ({ call, onBack, lotNumbers = [], shift = 'A',
     Array(8).fill(null).map((_, i) => ({
       hour: i + 1, noProduction: false, lotNo: '',
       lengthCutBar: ['', '', ''], qualityDia: ['', '', ''], sharpEdges: ['', '', ''],
-      crackedEdges: ['', '', ''], rejectedQty: ['', '', '', ''], remarks: ''
+      crackedEdges: ['', '', ''], rejectedQty: ['0', '0', '0', '0'], remarks: ''
     })), []);
 
   const getDefaultTurningData = useCallback(() =>
     Array(8).fill(null).map((_, i) => ({
       hour: i + 1, noProduction: false, lotNo: '',
       parallelLength: ['', '', ''], fullTurningLength: ['', '', ''],
-      turningDia: ['', '', ''], rejectedQty: ['', '', ''], remarks: ''
+      turningDia: ['', '', ''], rejectedQty: ['0', '0', '0'], remarks: ''
     })), []);
 
   const getDefaultMpiData = useCallback(() =>
     Array(8).fill(null).map((_, i) => ({
       hour: i + 1, noProduction: false, lotNo: '',
-      testResults: ['', '', ''], rejectedQty: '', remarks: ''
+      testResults: ['', '', ''], rejectedQty: '0', remarks: ''
     })), []);
 
   const getDefaultForgingData = useCallback(() =>
@@ -678,11 +678,11 @@ const ProcessParametersGridPage = ({ call, onBack, lotNumbers = [], shift = 'A',
       forgingTemperature: ['', ''], forgingStabilisation: ['', ''], improperForging: ['', ''],
       forgingDefect: ['', ''], embossingDefect: ['', ''],
       // 5 separate rejection fields
-      forgingTemperatureRejected: '',
-      forgingStabilisationRejected: '',
-      improperForgingRejected: '',
-      forgingDefectRejected: '',
-      embossingDefectRejected: '',
+      forgingTemperatureRejected: '0',
+      forgingStabilisationRejected: '0',
+      improperForgingRejected: '0',
+      forgingDefectRejected: '0',
+      embossingDefectRejected: '0',
       remarks: ''
     })), []);
 
@@ -693,20 +693,20 @@ const ProcessParametersGridPage = ({ call, onBack, lotNumbers = [], shift = 'A',
       quenchingHardness: ['', ''], boxGauge: ['', ''], flatBearingArea: ['', ''],
       fallingGauge: ['', ''],
       // 6 separate rejection fields
-      quenchingTemperatureRejected: '',
-      quenchingDurationRejected: '',
-      quenchingHardnessRejected: '',
-      boxGaugeRejected: '',
-      flatBearingAreaRejected: '',
-      fallingGaugeRejected: '',
+      quenchingTemperatureRejected: '0',
+      quenchingDurationRejected: '0',
+      quenchingHardnessRejected: '0',
+      boxGaugeRejected: '0',
+      flatBearingAreaRejected: '0',
+      fallingGaugeRejected: '0',
       remarks: ''
     })), []);
 
   const getDefaultTemperingData = useCallback(() =>
     Array(8).fill(null).map((_, i) => ({
       hour: i + 1, noProduction: false, lotNo: '',
-      temperingTemperature: ['', ''], temperingTemperatureRejected: '',
-      temperingDuration: ['', ''], temperingDurationRejected: '',
+      temperingTemperature: ['', ''], temperingTemperatureRejected: '0',
+      temperingDuration: ['', ''], temperingDurationRejected: '0',
       remarks: ''
     })), []);
 
@@ -716,9 +716,9 @@ const ProcessParametersGridPage = ({ call, onBack, lotNumbers = [], shift = 'A',
       boxGauge: ['', ''], flatBearingArea: ['', ''], fallingGauge: ['', ''],
       surfaceDefect: ['', ''], embossingDefect: ['', ''], marking: ['', ''],
       temperingHardness: ['', ''],
-      boxGaugeRejected: '', flatBearingAreaRejected: '', fallingGaugeRejected: '',
-      surfaceDefectRejected: '', embossingDefectRejected: '', markingRejected: '',
-      temperingHardnessRejected: '', remarks: ''
+      boxGaugeRejected: '0', flatBearingAreaRejected: '0', fallingGaugeRejected: '0',
+      surfaceDefectRejected: '0', embossingDefectRejected: '0', markingRejected: '0',
+      temperingHardnessRejected: '0', remarks: ''
     })), []);
 
   const getDefaultTestingFinishingData = useCallback(() =>
@@ -727,10 +727,10 @@ const ProcessParametersGridPage = ({ call, onBack, lotNumbers = [], shift = 'A',
       toeLoad: ['', ''], weight: ['', ''], paintIdentification: ['', ''],
       ercCoating: ['', ''],
       // 4 separate rejection fields
-      toeLoadRejected: '',
-      weightRejected: '',
-      paintIdentificationRejected: '',
-      ercCoatingRejected: '',
+      toeLoadRejected: '0',
+      weightRejected: '0',
+      paintIdentificationRejected: '0',
+      ercCoatingRejected: '0',
       remarks: ''
     })), []);
 
@@ -793,13 +793,23 @@ const ProcessParametersGridPage = ({ call, onBack, lotNumbers = [], shift = 'A',
 
     if (hasTurning) {
       console.log('Setting turning data from localStorage:', storedData.turning);
-      setTurningData(storedData.turning);
+      const migratedData = (storedData.turning || []).map(row => ({
+        ...row,
+        rejectedQty: Array.isArray(row.rejectedQty)
+          ? row.rejectedQty.map(v => (v === '' || v === null || v === undefined) ? '0' : String(v))
+          : ['0', '0', '0']
+      }));
+      setTurningData(migratedData);
     } else {
       setTurningData(getDefaultTurningData());
     }
 
     if (hasMpi) {
-      setMpiData(storedData.mpi);
+      const migratedData = (storedData.mpi || []).map(row => ({
+        ...row,
+        rejectedQty: (row.rejectedQty === '' || row.rejectedQty === null || row.rejectedQty === undefined) ? '0' : String(row.rejectedQty)
+      }));
+      setMpiData(migratedData);
     } else {
       setMpiData(getDefaultMpiData());
     }
@@ -1015,50 +1025,50 @@ const ProcessParametersGridPage = ({ call, onBack, lotNumbers = [], shift = 'A',
     // Update all sections with their specific reset logic
     updateAllHours(shearingData, setShearingData, (i) => ({
       hour: i + 1, lotNo: '', lengthCutBar: ['', '', ''], qualityDia: ['', '', ''],
-      sharpEdges: ['', '', ''], crackedEdges: ['', '', ''], rejectedQty: ['', '', '', ''], remarks: ''
+      sharpEdges: ['', '', ''], crackedEdges: ['', '', ''], rejectedQty: ['0', '0', '0', '0'], remarks: ''
     }));
 
     updateAllHours(turningData, setTurningData, (i) => ({
       hour: i + 1, lotNo: '', parallelLength: ['', '', ''], fullTurningLength: ['', '', ''],
-      turningDia: ['', '', ''], rejectedQty: ['', '', ''], remarks: ''
+      turningDia: ['', '', ''], rejectedQty: ['0', '0', '0'], remarks: ''
     }));
 
     updateAllHours(mpiData, setMpiData, (i) => ({
-      hour: i + 1, lotNo: '', testResults: ['', '', ''], rejectedQty: '', remarks: ''
+      hour: i + 1, lotNo: '', testResults: ['', '', ''], rejectedQty: '0', remarks: ''
     }));
 
     updateAllHours(forgingData, setForgingData, (i) => ({
       hour: i + 1, lotNo: '', forgingTemperature: ['', ''], forgingStabilisation: ['', ''],
       improperForging: ['', ''], forgingDefect: ['', ''], embossingDefect: ['', ''],
-      forgingTemperatureRejected: '', forgingStabilisationRejected: '', improperForgingRejected: '',
-      forgingDefectRejected: '', embossingDefectRejected: '', remarks: ''
+      forgingTemperatureRejected: '0', forgingStabilisationRejected: '0', improperForgingRejected: '0',
+      forgingDefectRejected: '0', embossingDefectRejected: '0', remarks: ''
     }));
 
     updateAllHours(quenchingData, setQuenchingData, (i) => ({
       hour: i + 1, lotNo: '', quenchingTemperature: ['', ''], quenchingDuration: ['', ''],
       quenchingHardness: ['', ''], boxGauge: ['', ''], flatBearingArea: ['', ''],
-      fallingGauge: ['', ''], quenchingTemperatureRejected: '', quenchingDurationRejected: '',
-      quenchingHardnessRejected: '', boxGaugeRejected: '', flatBearingAreaRejected: '',
-      fallingGaugeRejected: '', remarks: ''
+      fallingGauge: ['', ''], quenchingTemperatureRejected: '0', quenchingDurationRejected: '0',
+      quenchingHardnessRejected: '0', boxGaugeRejected: '0', flatBearingAreaRejected: '0',
+      fallingGaugeRejected: '0', remarks: ''
     }));
 
     updateAllHours(temperingData, setTemperingData, (i) => ({
-      hour: i + 1, lotNo: '', temperingTemperature: ['', ''], temperingTemperatureRejected: '',
-      temperingDuration: ['', ''], temperingDurationRejected: '', remarks: ''
+      hour: i + 1, lotNo: '', temperingTemperature: ['', ''], temperingTemperatureRejected: '0',
+      temperingDuration: ['', ''], temperingDurationRejected: '0', remarks: ''
     }));
 
     updateAllHours(finalCheckData, setFinalCheckData, (i) => ({
       hour: i + 1, lotNo: '', boxGauge: ['', ''], flatBearingArea: ['', ''],
       fallingGauge: ['', ''], surfaceDefect: ['', ''], embossingDefect: ['', ''],
-      marking: ['', ''], temperingHardness: ['', ''], boxGaugeRejected: '',
-      flatBearingAreaRejected: '', fallingGaugeRejected: '', surfaceDefectRejected: '',
-      embossingDefectRejected: '', markingRejected: '', temperingHardnessRejected: '', remarks: ''
+      marking: ['', ''], temperingHardness: ['', ''], boxGaugeRejected: '0',
+      flatBearingAreaRejected: '0', fallingGaugeRejected: '0', surfaceDefectRejected: '0',
+      embossingDefectRejected: '0', markingRejected: '0', temperingHardnessRejected: '0', remarks: ''
     }));
 
     updateAllHours(testingFinishingData, setTestingFinishingData, (i) => ({
       hour: i + 1, lotNo: '', toeLoad: ['', ''], weight: ['', ''],
-      paintIdentification: ['', ''], ercCoating: ['', ''], toeLoadRejected: '',
-      weightRejected: '', paintIdentificationRejected: '', ercCoatingRejected: '', remarks: ''
+      paintIdentification: ['', ''], ercCoating: ['', ''], toeLoadRejected: '0',
+      weightRejected: '0', paintIdentificationRejected: '0', ercCoatingRejected: '0', remarks: ''
     }));
   }, [shearingData, turningData, mpiData, forgingData, quenchingData, temperingData, finalCheckData, testingFinishingData]);
 

@@ -183,10 +183,22 @@ const LoginPage = () => {
   /**
    * Handle selection from multiple roles
    */
+  const PROCESS_ROLES = new Set(['Process IE', 'Sleeper Process IE', 'Rail Process IE']);
+
+  const isProcessRole = (roleToStore) =>
+    String(roleToStore || '').split(',').some(r => PROCESS_ROLES.has(r.trim()));
+
   const handleSelectRole = (selectedOption) => {
     if (!pendingUserData) return;
     const finalUserData = { ...pendingUserData, roleName: selectedOption.roleToStore };
-    handleRoleRedirection(finalUserData);
+    setShowRoleSelection(false);
+    if (isProcessRole(selectedOption.roleToStore)) {
+      setPendingUserData(finalUserData);
+      setShowQrScreen(true);
+      startQrSession(finalUserData);
+    } else {
+      handleRoleRedirection(finalUserData);
+    }
   };
 
   const handleForgotPasswordSubmit = async (e) => {
@@ -345,9 +357,15 @@ const LoginPage = () => {
       setPendingUserData(userData);
       setShowRoleSelection(true);
     } else if (options.length === 1) {
-      // Single option - route directly
+      // Single option - check if process role needs authenticator
       userData.roleName = options[0].roleToStore;
-      handleRoleRedirection(userData);
+      if (isProcessRole(options[0].roleToStore)) {
+        setPendingUserData(userData);
+        setShowQrScreen(true);
+        startQrSession(userData);
+      } else {
+        handleRoleRedirection(userData);
+      }
     } else {
       // No roles found or fallback for existing behavior if list is empty
       handleRoleRedirection(userData);
@@ -502,16 +520,7 @@ const LoginPage = () => {
       userData.loginId = userId;
       setShowOtpScreen(false);
       setPendingUserData(userData);
-      const _roles = Array.isArray(userData.roleName) ? userData.roleName : [userData.roleName];
-      const _needsAuthenticator = _roles.some(r =>
-        r === 'Process IE' || r === 'Sleeper Process IE' || r === 'Rail Process IE'
-      );
-      if (_needsAuthenticator) {
-        setShowQrScreen(true);
-        startQrSession(userData);
-      } else {
-        processLoginSuccess(userData);
-      }
+      processLoginSuccess(userData);
     } catch (err) {
       setError(err.message || 'Invalid or expired OTP. Please try again.');
     } finally {

@@ -1212,3 +1212,80 @@
   font-size: 0.85rem !important;
   margin-top: 0.2rem !important;
 }
+
+/* ── Authenticator QR Screen ── */
+.login-redesign-wrapper .dashboard-panel:has(.authenticator-qr-container) {
+  max-width: 420px;
+  width: 100%;
+  max-height: min(calc(100dvh - 120px), 700px);
+  overflow-y: auto;
+  padding: 1.2rem 1.2rem 1rem;
+}
+
+/* Hide branding — QR panel has its own header */
+.login-redesign-wrapper .dashboard-panel:has(.authenticator-qr-container) .branding-section,
+.login-redesign-wrapper .dashboard-panel:has(.authenticator-qr-container) .dashboard-login-chip {
+  display: none;
+}
+
+.login-redesign-wrapper .authenticator-qr-container {
+  width: 100%;
+  box-sizing: border-box;
+  margin-top: 0 !important;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+.login-redesign-wrapper .authenticator-qr-container .form-header {
+  text-align: center;
+  width: 100%;
+}
+.login-redesign-wrapper .authenticator-qr-container .form-header h2,
+.login-redesign-wrapper .authenticator-qr-container .form-header p {
+  text-align: center;
+}
+.login-redesign-wrapper .authenticator-qr-container .qr-box {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 14px;
+  box-sizing: border-box;
+  margin: 0 auto 0.75rem;
+  /* don't stretch — wrap tightly around the QR image */
+}
+.login-redesign-wrapper .authenticator-qr-container .qr-status-pill {
+  width: 100%;
+  max-width: 360px;
+  box-sizing: border-box;
+  text-align: center;
+}
+.login-redesign-wrapper .authenticator-qr-container .qr-instruction-box {
+  width: 100%;
+  max-width: 360px;
+  box-sizing: border-box;
+  text-align: left;
+}
+.login-redesign-wrapper .authenticator-qr-container .qr-mode-switcher {
+  display: flex;
+  width: 100%;
+  justify-content: center;
+}
+
+@media (max-width: 768px) {
+  .login-redesign-wrapper .dashboard-panel:has(.authenticator-qr-container) {
+    max-height: min(calc(100dvh - 90px), 600px);
+    padding: 1rem;
+  }
+}
+@media (max-width: 480px) {
+  .login-redesign-wrapper .dashboard-panel:has(.authenticator-qr-container) {
+    max-height: calc(100dvh - 80px);
+    padding: 0.85rem 0.85rem 0.75rem;
+  }
+  .login-redesign-wrapper .authenticator-qr-container .qr-mode-switcher button {
+    padding: 5px 10px;
+    font-size: 0.7rem;
+  }
+}

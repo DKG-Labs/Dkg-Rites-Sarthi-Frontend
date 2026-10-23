@@ -502,8 +502,16 @@ const LoginPage = () => {
       userData.loginId = userId;
       setShowOtpScreen(false);
       setPendingUserData(userData);
-      setShowQrScreen(true);
-      startQrSession(userData);
+      const _roles = Array.isArray(userData.roleName) ? userData.roleName : [userData.roleName];
+      const _needsAuthenticator = _roles.some(r =>
+        r === 'Process IE' || r === 'Sleeper Process IE' || r === 'Rail Process IE'
+      );
+      if (_needsAuthenticator) {
+        setShowQrScreen(true);
+        startQrSession(userData);
+      } else {
+        processLoginSuccess(userData);
+      }
     } catch (err) {
       setError(err.message || 'Invalid or expired OTP. Please try again.');
     } finally {
@@ -669,7 +677,7 @@ const LoginPage = () => {
                     </button>
                   </div>
                 ) : showQrScreen ? (
-                  <div className="dashboard-form authenticator-qr-container" style={{ marginTop: '0.2rem', textAlign: 'center' }}>
+                  <div className="dashboard-form authenticator-qr-container" style={{ marginTop: '0.2rem', textAlign: 'center', width: '100%' }}>
                     <div className="form-header" style={{ marginBottom: '0.75rem' }}>
                       <div style={{
                         width: '40px',
@@ -702,7 +710,7 @@ const LoginPage = () => {
                     {error && <div className="error-banner" style={{ padding: '6px 10px', fontSize: '0.78rem', marginBottom: '0.65rem' }}>{error}</div>}
 
                     {/* Mode Switcher: Login QR vs Download App QR */}
-                    <div style={{
+                    <div className="qr-mode-switcher" style={{
                       display: 'inline-flex',
                       background: '#f1f5f9',
                       padding: '3px',
@@ -750,24 +758,17 @@ const LoginPage = () => {
                     </div>
 
                     {/* QR Code Container */}
-                    <div style={{
-                      display: 'inline-flex',
-                      flexDirection: 'column',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      padding: '14px',
+                    <div className="qr-box" style={{
                       background: '#ffffff',
                       borderRadius: '16px',
                       border: qrMode === 'DOWNLOAD' ? '2px solid #3b82f6' : authStatus === 'AUTHENTICATED' ? '2px solid #22c55e' : '1.5px solid #e2e8f0',
                       boxShadow: '0 8px 24px rgba(15, 34, 70, 0.08)',
-                      margin: '0 auto 0.75rem',
-                      position: 'relative'
                     }}>
                       {qrMode === 'DOWNLOAD' ? (
                         <>
                           <QRCode
                             value={apkDownloadUrl}
-                            size={160}
+                            size={180}
                             bordered={false}
                           />
                           <span style={{ fontSize: '0.7rem', fontWeight: '700', color: '#2563eb', marginTop: '6px' }}>
@@ -775,7 +776,7 @@ const LoginPage = () => {
                           </span>
                         </>
                       ) : authStatus === 'AUTHENTICATED' ? (
-                        <div style={{ width: '160px', height: '160px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+                        <div style={{ width: '180px', height: '180px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
                           <div style={{
                             width: '56px',
                             height: '56px',
@@ -797,7 +798,7 @@ const LoginPage = () => {
                       ) : (
                         <QRCode
                           value={qrPayload || 'https://ritesqasarthi.com'}
-                          size={160}
+                          size={180}
                           bordered={false}
                           status={authStatus === 'EXPIRED' ? 'expired' : (isQrLoading ? 'loading' : 'active')}
                           onRefresh={handleRefreshQr}
@@ -806,7 +807,7 @@ const LoginPage = () => {
                     </div>
 
                     {/* Status Pill */}
-                    <div style={{
+                    <div className="qr-status-pill" style={{
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
@@ -862,7 +863,7 @@ const LoginPage = () => {
 
                     {/* Instruction Box */}
                     {qrMode === 'DOWNLOAD' ? (
-                      <div style={{
+                      <div className="qr-instruction-box" style={{
                         textAlign: 'left',
                         padding: '8px 12px',
                         background: 'rgba(239, 246, 255, 0.85)',
@@ -898,7 +899,7 @@ const LoginPage = () => {
                         </div>
                       </div>
                     ) : (
-                      <div style={{
+                      <div className="qr-instruction-box" style={{
                         textAlign: 'left',
                         padding: '8px 12px',
                         background: 'rgba(248, 250, 252, 0.85)',

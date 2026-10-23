@@ -41,8 +41,9 @@ export const diversionService = {
   },
 
   // 2. SBU Head Actions
-  getPendingSbuRequests: async () => {
-    const response = await fetch(`${BASE_URL}/sbu/pending-requests`, {
+  getPendingSbuRequests: async (rioId) => {
+    const params = rioId ? `?rioId=${encodeURIComponent(rioId)}` : '';
+    const response = await fetch(`${BASE_URL}/sbu/pending-requests${params}`, {
       method: 'GET',
       headers: getAuthHeaders()
     });

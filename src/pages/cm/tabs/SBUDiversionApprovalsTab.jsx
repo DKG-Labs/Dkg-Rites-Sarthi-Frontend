@@ -4,7 +4,8 @@ import { formatDate } from '../../../utils/helpers';
 import DataTable from '../../../components/DataTable';
 import Modal from '../../../components/Modal';
 
-const SBUDiversionApprovalsTab = () => {
+const SBUDiversionApprovalsTab = ({ rioId: propRioId }) => {
+  const rioId = propRioId || localStorage.getItem('rioId') || localStorage.getItem('userId') || '';
   const [requests, setRequests] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -32,7 +33,7 @@ const SBUDiversionApprovalsTab = () => {
     setLoading(true);
     setError(null);
     try {
-      const response = await diversionService.getPendingSbuRequests();
+      const response = await diversionService.getPendingSbuRequests(rioId);
       if (response && response.data) {
         setRequests(response.data);
       } else {
@@ -45,7 +46,7 @@ const SBUDiversionApprovalsTab = () => {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [rioId]);
 
   useEffect(() => {
     fetchPendingRequests();

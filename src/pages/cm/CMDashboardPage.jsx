@@ -490,21 +490,44 @@ const MANDAY_UNITS = {
 };
 
 export const CMDashboardPage = ({ isEmbedded = false, activeTabFromProps = null, activeCallFilterFromProps = null, activeReportTabFromProps = null }) => {
-  // Navigation tabs state matching SRS options exactly
-  const [activeTab, setActiveTab] = useState('Dashboard');
-  
+  // Navigation tabs state — persisted across refreshes
+  const [activeTab, setActiveTab] = useState(() => {
+    if (isEmbedded && activeTabFromProps) return activeTabFromProps;
+    try { return localStorage.getItem('cm_activeTab') || 'Dashboard'; } catch { return 'Dashboard'; }
+  });
+
   useEffect(() => {
-    if (isEmbedded && activeTabFromProps) {
-      setActiveTab(activeTabFromProps);
-    }
+    if (isEmbedded && activeTabFromProps) setActiveTab(activeTabFromProps);
   }, [isEmbedded, activeTabFromProps]);
 
-  const [activeCallFilter, setActiveCallFilter] = useState(null); // Clicked KPI filter: all, pending, under_inspection, ic_pending, completed, overdue
+  useEffect(() => {
+    if (!isEmbedded) {
+      try { localStorage.setItem('cm_activeTab', activeTab); } catch {}
+    }
+  }, [activeTab, isEmbedded]);
+
+  const [activeCallFilter, setActiveCallFilter] = useState(() => {
+    try { return localStorage.getItem('cm_activeCallFilter') || null; } catch { return null; }
+  });
+
+  useEffect(() => {
+    try {
+      if (activeCallFilter) localStorage.setItem('cm_activeCallFilter', activeCallFilter);
+      else localStorage.removeItem('cm_activeCallFilter');
+    } catch {}
+  }, [activeCallFilter]);
+
   const [callMenuOpen, setCallMenuOpen] = useState(false); // Call Monitoring submenu toggle
   const [ieMenuOpen, setIeMenuOpen] = useState(false); // IE Monitoring submenu toggle
   const [vendorMenuOpen, setVendorMenuOpen] = useState(false); // Vendor Quality Monitoring submenu toggle
   const [reportsMenuOpen, setReportsMenuOpen] = useState(false); // Reports submenu toggle
-  const [activeReportTab, setActiveReportTab] = useState('PO Wise Monthly Progress Report'); // Active sub-report
+  const [activeReportTab, setActiveReportTab] = useState(() => {
+    try { return localStorage.getItem('cm_activeReportTab') || 'PO Wise Monthly Progress Report'; } catch { return 'PO Wise Monthly Progress Report'; }
+  }); // Active sub-report
+
+  useEffect(() => {
+    try { localStorage.setItem('cm_activeReportTab', activeReportTab); } catch {}
+  }, [activeReportTab]);
   const [callPopupData, setCallPopupData] = useState(null); // Drill-down popup data for calls: { ieName, type, calls }
 
   useEffect(() => {

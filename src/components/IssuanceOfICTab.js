@@ -245,7 +245,7 @@ const IssuanceOfICTab = ({ calls, setSelectedCall, setCurrentPage, isLoaded }) =
 
       // Call the appropriate certificate generation API based on IC number prefix or stage
       let certificateData;
-      if (coreIcNumber?.toUpperCase().startsWith('FINAL-IC-') || row.stage?.toLowerCase().includes('final')) {
+      if (coreIcNumber?.toUpperCase().startsWith('FINAL-IC-') || coreIcNumber?.toUpperCase().startsWith('EF-') || row.stage?.toLowerCase().includes('final')) {
         console.log('📋 Generating Final Material certificate for FINAL-IC/final call...');
         certificateData = await generateFinalCertificate(coreIcNumber);
       } else if (coreIcNumber?.toUpperCase().startsWith('FP-') || row.stage?.toLowerCase().includes('final')) {

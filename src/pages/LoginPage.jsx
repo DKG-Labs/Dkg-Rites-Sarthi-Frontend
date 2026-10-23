@@ -188,11 +188,13 @@ const LoginPage = () => {
   const isProcessRole = (roleToStore) =>
     String(roleToStore || '').split(',').some(r => PROCESS_ROLES.has(r.trim()));
 
-  const handleSelectRole = (selectedOption) => {
+  const isLocalhost = ['localhost', '127.0.0.1'].includes(window.location.hostname);
+
+  const handleSelectRole = (selectedOption, alreadyAuthenticated = false) => {
     if (!pendingUserData) return;
     const finalUserData = { ...pendingUserData, roleName: selectedOption.roleToStore };
     setShowRoleSelection(false);
-    if (isProcessRole(selectedOption.roleToStore)) {
+    if (!isLocalhost && !alreadyAuthenticated && isProcessRole(selectedOption.roleToStore)) {
       setPendingUserData(finalUserData);
       setShowQrScreen(true);
       startQrSession(finalUserData);
@@ -235,8 +237,9 @@ const LoginPage = () => {
 
   /**
    * Process successful authentication (Direct or post-OTP verification)
+   * @param {boolean} alreadyAuthenticated - true when called after QR/OTP auth; skips re-triggering QR
    */
-  const processLoginSuccess = (userData) => {
+  const processLoginSuccess = (userData, alreadyAuthenticated = false) => {
     // Handle the new list based roleName response
     const roles = Array.isArray(userData.roleName) ? userData.roleName : [userData.roleName];
 
@@ -357,9 +360,9 @@ const LoginPage = () => {
       setPendingUserData(userData);
       setShowRoleSelection(true);
     } else if (options.length === 1) {
-      // Single option - check if process role needs authenticator
+      // Single option - check if process role needs authenticator (skip on localhost or post-QR)
       userData.roleName = options[0].roleToStore;
-      if (isProcessRole(options[0].roleToStore)) {
+      if (!isLocalhost && !alreadyAuthenticated && isProcessRole(options[0].roleToStore)) {
         setPendingUserData(userData);
         setShowQrScreen(true);
         startQrSession(userData);
@@ -476,7 +479,7 @@ const LoginPage = () => {
             setAuthSuccessData(statusRes);
             setTimeout(() => {
               setShowQrScreen(false);
-              processLoginSuccess(userData);
+              processLoginSuccess(userData, true);
             }, 1200);
           } else if (statusRes.status === 'SCANNED') {
             setAuthStatus('SCANNED');
@@ -520,7 +523,7 @@ const LoginPage = () => {
       userData.loginId = userId;
       setShowOtpScreen(false);
       setPendingUserData(userData);
-      processLoginSuccess(userData);
+      processLoginSuccess(userData, true);
     } catch (err) {
       setError(err.message || 'Invalid or expired OTP. Please try again.');
     } finally {
@@ -685,7 +688,7 @@ const LoginPage = () => {
                       ← Back to Login
                     </button>
                   </div>
-                ) : showQrScreen ? (
+                ) : (showQrScreen && !isLocalhost) ? (
                   <div className="dashboard-form authenticator-qr-container" style={{ marginTop: '0.2rem', textAlign: 'center', width: '100%' }}>
                     <div className="form-header" style={{ marginBottom: '0.75rem' }}>
                       <div style={{

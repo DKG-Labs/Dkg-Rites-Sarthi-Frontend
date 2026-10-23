@@ -274,13 +274,15 @@ const LoginPage = () => {
     }
 
     // Consolidate "IE" and "Process IE" into one "IE Dashboard" option
+    // Prefer "Process IE" over "IE" so QR auth triggers correctly when both roles exist
     if (roles.some(r => r === 'IE' || r === 'Process IE')) {
+      const ieRole = roles.includes('Process IE') ? 'Process IE' : 'IE';
       options.push({
         id: 'ie_option',
         label: 'IE Dashboard',
         description: 'Access IE and Process IE modules',
         icon: '🛠️',
-        roleToStore: roles.find(r => r === 'IE' || r === 'Process IE') // Use the first matching role
+        roleToStore: ieRole
       });
       seenConsolidated.add('IE');
       seenConsolidated.add('Process IE');

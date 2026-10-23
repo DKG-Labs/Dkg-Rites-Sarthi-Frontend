@@ -171,12 +171,11 @@ const MomentOfResistance = () => {
             const params = getCommonParams();
 
             // 1. Fetch all data in parallel
-            const activePlantId = localStorage.getItem('dutyUnit') || undefined;
             const [vResponse, allProdResponse, waterTestsResponse, mrResponse, testResponse] = await Promise.all([
                 apiService.getAllVerifedWaterBatchs(params).catch(() => []),
-                apiService.getAllProductionDeclarations(activePlantId).catch(() => []),
-                apiService.getAllWaterCubeTests(activePlantId).catch(() => []),
-                apiService.getAllMRRecords(activePlantId).catch(() => []),
+                apiService.getAllProductionDeclarations().catch(() => []),
+                apiService.getAllWaterCubeTests().catch(() => []),
+                apiService.getAllMRRecords().catch(() => []),
                 apiService.getAllMRTests().catch(() => [])
             ]);
 

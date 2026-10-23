@@ -63,7 +63,7 @@ api.interceptors.response.use(
 
 export const apiService = {
     // ================= Moisture Analysis =================
-    getAllMoistureAnalysis: (plantId) => getWithCache(`/MoistureAnalysis/all${plantId ? `?plantId=${encodeURIComponent(plantId)}` : ''}`),
+    getAllMoistureAnalysis: () => getWithCache('/MoistureAnalysis/all'),
     getMoistureAnalysisById: (id) => api.get(`/MoistureAnalysis/${id}`),
     getLastFiveMoisture: () => getWithCache('/MoistureAnalysis/lastFiveMoisture'),
     createMoistureAnalysis: (payload) => api.post('/MoistureAnalysis/create', payload),
@@ -105,9 +105,9 @@ export const apiService = {
         getByUser: (userId) => api.get(`/water-cube-sample/getByUser/${userId}`),
         saveTestResult: (data) => api.post('/water-cube-sample/save-test-result', data),
         getTestResultsByUser: (userId) => api.get(`/water-cube-sample/test-results/user/${userId}`),
-        getAllTests: (plantId) => getWithCache(`/water-cube-sample/getAllTests${plantId ? `?plantId=${encodeURIComponent(plantId)}` : ''}`)
+        getAllTests: () => getWithCache('/water-cube-sample/getAllTests')
     },
-    getAllWaterCubeTests: (plantId) => getWithCache(`/water-cube-sample/getAllTests${plantId ? `?plantId=${encodeURIComponent(plantId)}` : ''}`),
+    getAllWaterCubeTests: () => getWithCache('/water-cube-sample/getAllTests'),
 
     // ================= Water Quality Testing =================
     waterQuality: {
@@ -306,7 +306,7 @@ export const apiService = {
     getDowelRecordById: (id) => api.get(`/dowel/${id}`),
 
     getProductionDeclarationRecordById: (id) => api.get(`/production-declaration/${id}`),
-    getAllProductionDeclarations: (plantId) => getWithCache(`/production-declaration/getAll${plantId ? `?plantId=${encodeURIComponent(plantId)}` : ''}`),
+    getAllProductionDeclarations: () => getWithCache('/production-declaration/getAll'),
     getVerifiedProductionDeclarations: () => getWithCache('/production-declaration/verified-declarations'),
     getAllVerifedWaterBatchs: (params = {}) => getWithCache('/production-declaration/getAllVerifedWaterBatchs', { params }),
     getAllProductionBatches: (vendorId, castingDate, plantId, productionUnit) =>
@@ -360,7 +360,7 @@ export const apiService = {
     updateMRRecord: (id, payload) => api.put(`/moment-of-resistance/update/${id}`, payload),
     getMRRecordById: (id) => api.get(`/moment-of-resistance/${id}`),
     getMRTodayRecords: (params) => api.get('/moment-of-resistance/mrTodayRecord', { params }),
-    getAllMRRecords: (plantId) => getWithCache(`/moment-of-resistance/all${plantId ? `?plantId=${encodeURIComponent(plantId)}` : ''}`),
+    getAllMRRecords: () => getWithCache('/moment-of-resistance/all'),
     deleteMRRecord: (id) => api.delete(`/moment-of-resistance/delete/${id}`),
 
     // ================= Moment of Resistance Testing (MR Testing) =================

@@ -144,7 +144,7 @@ const WaterCubeTesting = () => {
             const [prodData, sampleData, testData] = await Promise.all([
                 getProductionDeclarations().catch(() => []),
                 getWaterCubeSamples().catch(() => []),
-                getAllWaterCubeTests(currentPlant || undefined).catch(() => [])
+                getAllWaterCubeTests().catch(() => [])
             ]);
 
             // Filter strictly by current plant (normalizing colons and preventing null plantId from leaking to all plants)

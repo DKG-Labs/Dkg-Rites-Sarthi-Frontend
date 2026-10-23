@@ -82,8 +82,7 @@ const MoistureAnalysis = ({ onBack, onSave, initialView = 'list', records = [], 
     const fetchRecords = async () => {
         setLoading(true);
         try {
-            const plantId = localStorage.getItem('dutyUnit') || undefined;
-            const data = await apiService.getAllMoistureAnalysis(plantId);
+            const data = await apiService.getAllMoistureAnalysis();
             if (data && data.responseData && Array.isArray(data.responseData)) {
                 setLocalRecords(data.responseData);
             } else if (Array.isArray(data)) {
@@ -96,20 +95,11 @@ const MoistureAnalysis = ({ onBack, onSave, initialView = 'list', records = [], 
         }
     };
 
-    // On mount: fetch locally only if ShiftContext hasn't supplied records yet
     React.useEffect(() => {
-        if (records.length === 0) {
+        if (records.length === 0 || refreshTrigger > 0) {
             fetchRecords();
         }
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, []);
-
-    // Re-fetch after an explicit delete
-    React.useEffect(() => {
-        if (refreshTrigger > 0) {
-            fetchRecords();
-        }
-    }, [refreshTrigger]);
+    }, [records.length, refreshTrigger]);
 
     // Group records by batch number and date to show unified rows in UI
     // Note: New API returns unified objects, but we keep grouping logic for compatibility 

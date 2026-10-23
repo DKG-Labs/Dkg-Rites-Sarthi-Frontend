@@ -936,24 +936,19 @@ export const getWaterCubeTestResultsByUser = async (userId) => {
   }
 };
 
-const allWaterCubeTestsPromises = {};
+let allWaterCubeTestsPromise = null;
 
 /**
  * Get all Water Cube Test Results
- * @param {string} [plantId] - optional plant filter
- * @returns {Promise<Array>} List of records
+ * @returns {Promise<Array>} List of all records
  */
-export const getAllWaterCubeTests = async (plantId) => {
-  const key = plantId || '__all__';
-  if (allWaterCubeTestsPromises[key]) return allWaterCubeTestsPromises[key];
+export const getAllWaterCubeTests = async () => {
+  if (allWaterCubeTestsPromise) return allWaterCubeTestsPromise;
 
-  allWaterCubeTestsPromises[key] = (async () => {
+  allWaterCubeTestsPromise = (async () => {
     try {
-      const token = localStorage.getItem('authToken') || localStorage.getItem('token');
-      const url = plantId
-        ? `${API_BASE_URL}/water-cube-sample/getAllTests?plantId=${encodeURIComponent(plantId)}`
-        : `${API_BASE_URL}/water-cube-sample/getAllTests`;
-      const response = await fetch(url, {
+      const token = localStorage.getItem('authToken');
+      const response = await fetch(`${API_BASE_URL}/water-cube-sample/getAllTests`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
@@ -971,11 +966,11 @@ export const getAllWaterCubeTests = async (plantId) => {
       console.error('Error fetching all Water Cube tests:', error);
       return [];
     } finally {
-      delete allWaterCubeTestsPromises[key];
+      allWaterCubeTestsPromise = null;
     }
   })();
 
-  return allWaterCubeTestsPromises[key];
+  return allWaterCubeTestsPromise;
 };
 
 /**

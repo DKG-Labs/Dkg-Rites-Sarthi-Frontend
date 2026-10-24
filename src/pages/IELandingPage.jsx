@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { formatDate } from '../utils/helpers';
 import { MOCK_INSPECTION_CALLS } from '../data/mockData';
 import Tabs from '../components/Tabs';
@@ -124,9 +124,6 @@ const IELandingPage = ({ onStartInspection, onStartMultipleInspections, setSelec
     }
   }, [setCompletedCallsCache]);
 
-  // Only fetch pending data on mount. Fetch completed calls only when the
-  // 'Issuance of IC' tab becomes active, and only once per session.
-  const hasFetchedCompletedRef = useRef(false);
 
   // Fetch pending data only when the Pending tab is active.
   // This prevents triggering the pending-workflow API when the page loads

@@ -365,7 +365,13 @@ export const generateICNumber = (rio, requestId) => {
   try {
     // Extract RIO short name (first letter)
     // NRIO -> N, ERIO -> E
-    const rioShortName = rio ? rio.charAt(0).toUpperCase() : '';
+    const effectiveRio = rio || localStorage.getItem('rio') || localStorage.getItem('rioId') || '';
+    let rioShortName = effectiveRio ? effectiveRio.charAt(0).toUpperCase() : '';
+
+    // If still missing, fallback to 'E' (Eastern Region / ERIO) as default
+    if (!rioShortName) {
+      rioShortName = 'E';
+    }
 
     // Get IE short name from localStorage
     const ieShortName = localStorage.getItem('shortName') || '';
@@ -374,7 +380,7 @@ export const generateICNumber = (rio, requestId) => {
     const icNumber = `${rioShortName}/${requestId}/${ieShortName}`;
 
     console.log('📋 Generated IC Number:', icNumber);
-    console.log('  - RIO:', rio, '→', rioShortName);
+    console.log('  - RIO:', rio || effectiveRio, '→', rioShortName);
     console.log('  - Request ID:', requestId);
     console.log('  - IE Short Name:', ieShortName);
 

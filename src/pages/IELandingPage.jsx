@@ -155,16 +155,10 @@ const IELandingPage = ({ onStartInspection, onStartMultipleInspections, setSelec
 
   useEffect(() => {
     if (activeTab === 'certificates') {
-      if (completedCallsCache !== null) {
-        setCompletedCalls(completedCallsCache);
-        hasFetchedCompletedRef.current = true;
-      } else if (!hasFetchedCompletedRef.current) {
-        // Fetch completed calls only when user opens Issuance tab
-        fetchCompletedCalls();
-        hasFetchedCompletedRef.current = true;
-      }
+      // Always fetch fresh on tab open so newly approved diversion calls appear immediately
+      fetchCompletedCalls();
     }
-  }, [activeTab, completedCallsCache, fetchCompletedCalls]);
+  }, [activeTab, fetchCompletedCalls]);
 
   // Fetch signed & closed calls count silently on mount for the tab badge
   const fetchSignedCount = useCallback(async () => {
@@ -199,7 +193,8 @@ const IELandingPage = ({ onStartInspection, onStartMultipleInspections, setSelec
   useEffect(() => {
     fetchSignedCount();
     fetchClosedCount();
-  }, [fetchSignedCount, fetchClosedCount]);
+    fetchCompletedCalls();
+  }, [fetchSignedCount, fetchClosedCount, fetchCompletedCalls]);
 
   // Use pending calls directly from API (includes Raw Material, Process, and Final)
   // No need to combine with mock data anymore

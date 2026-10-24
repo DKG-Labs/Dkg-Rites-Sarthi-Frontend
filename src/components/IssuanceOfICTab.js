@@ -44,6 +44,13 @@ const IssuanceOfICTab = ({ calls, setSelectedCall, setCurrentPage, isLoaded }) =
     }, 5000);
   };
 
+  // Sync with parent whenever the calls prop is updated (e.g. after fresh fetch on tab open).
+  useEffect(() => {
+    if (Array.isArray(calls)) {
+      setCompletedCalls(calls);
+    }
+  }, [calls]);
+
   // Fetch completed calls from API on component mount only if parent didn't provide them.
   const hasFetchedRef = useRef(false);
   useEffect(() => {

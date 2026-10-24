@@ -95,28 +95,53 @@ export const fetchCompletedCallsForIC = async (userId, forceRefresh = false) => 
         
         const latestCalls = Array.from(latestCallsMap.values());
 
-        const completedCalls = latestCalls.filter(call => {
-            const reqId = String(call.requestId || '');
-            const prodType = String(call.productType || '').toLowerCase();
-            const isProcessCall = reqId.startsWith('EP') || prodType.includes('process');
+        const storedRole = (() => {
+          try {
+            const r = localStorage.getItem('roleName') || '';
+            if (r) return r.toLowerCase();
+            const u = JSON.parse(localStorage.getItem('user') || '{}');
+            return String(u.roleName || (Array.isArray(u.roles) ? u.roles[0] : '')).toLowerCase();
+          } catch (e) {
+            return '';
+          }
+        })();
+        const isProcessUser = storedRole.includes('process');
+        const isRegularIeUser = storedRole === 'ie' || storedRole.includes('railpad ie') || (storedRole.includes('ie') && !isProcessUser);
 
-            if (isProcessCall) {
-                // Strictly based on POI Process IE mapping
-                const isProcessIe = Array.isArray(call.processIes) && call.processIes.includes(Number(userId));
+        const completedCalls = latestCalls.filter(call => {
+            const reqId = String(call.requestId || '').toUpperCase();
+            const prodType = String(call.productType || '').toLowerCase();
+            const stage = String(call.stage || '').toLowerCase();
+            const isProcessCall = reqId.startsWith('EP') || prodType.includes('process') || stage === 'process';
+
+            // Common access checks
+            const isDirectAssignedProcess = Number(call.processIeUserId) === Number(userId) ||
+                                           (isProcessCall && (Number(call.assignedToUser) === Number(userId) || Number(call.modifiedBy) === Number(userId)));
+            const isProcessIe = (Array.isArray(call.processIes) && call.processIes.includes(Number(userId))) || isDirectAssignedProcess;
+
+            const isAssigned = String(call.assignedToUser) === String(userId);
+            const isFinalIe = Array.isArray(call.finalIes) && call.finalIes.includes(Number(userId));
+            const isCreator = String(call.createdBy) === String(userId);
+            const isModified = String(call.modifiedBy) === String(userId);
+            const hasAccessNonProcess = isAssigned || isModified || ((!call.assignedToUser) && (isFinalIe || isCreator));
+
+            // 1. Process IE dashboard: ONLY show EP (Process) calls
+            if (isProcessUser) {
+                if (!isProcessCall) return false;
                 return isProcessIe && call.status !== 'DSC_SIGN_IC';
             }
 
-            // Non-process calls (Raw Material & Final) remain completely untouched
-            const isAssigned = String(call.assignedToUser) === String(userId);
-            const isFinalIe = call.finalIes && call.finalIes.includes(Number(userId));
-            const isCreator = String(call.createdBy) === String(userId);
-            const isModified = String(call.modifiedBy) === String(userId);
-            
-            // If assignedToUser is null, fallback to checking if they are in the IEs array or creator.
-            // Also display if the current user modified this transition.
-            const hasAccess = isAssigned || isModified || ((!call.assignedToUser) && (isFinalIe || isCreator));
-            
-            return hasAccess && call.status !== 'DSC_SIGN_IC';
+            // 2. Regular IE dashboard: ONLY show ER (Raw Material) and EF (Final) calls, NOT EP
+            if (isRegularIeUser) {
+                if (isProcessCall) return false;
+                return hasAccessNonProcess && call.status !== 'DSC_SIGN_IC';
+            }
+
+            // 3. Fallback for generic/unspecified roles (keeps existing behavior intact)
+            if (isProcessCall) {
+                return isProcessIe && call.status !== 'DSC_SIGN_IC';
+            }
+            return hasAccessNonProcess && call.status !== 'DSC_SIGN_IC';
         });
         
         console.log(`📊 Found ${allCompletedCalls.length} total calls, ${latestCalls.length} unique, ${completedCalls.length} pending IC for user ${userId}`);

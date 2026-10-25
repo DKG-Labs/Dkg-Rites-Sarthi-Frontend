@@ -13,16 +13,11 @@ const SCADA_UNITS = [
     { label: 'Pahtri', value: 'Pahtri', code: 'PAT' },
     { label: 'Hubli', value: 'Hubli', code: 'HUB' },
     { label: 'Sholaka', value: 'Sholaka', code: 'SHO' },
-    { label: 'Anara-1', value: 'Anara-1', code: 'ANR' },
-    { label: 'Anara-2', value: 'Anara-2', code: 'ANR' },
-    { label: 'Mirza-1', value: 'Mirza-1', code: 'MRZ' },
-    { label: 'Mirza-2', value: 'Mirza-2', code: 'MRZ' },
-    { label: 'Gaya-1', value: 'Gaya-1', code: 'GYA' },
-    { label: 'Gaya-2', value: 'Gaya-2', code: 'GYA' },
-    { label: 'Kaipadar-1', value: 'Kaipadar-1', code: 'KPR' },
-    { label: 'Kaipadar-2', value: 'Kaipadar-2', code: 'KPR' },
-    { label: 'Kargi LL', value: 'Kargi LL', code: 'KAR' },
-    { label: 'Kargi CL', value: 'Kargi CL', code: 'KAR' },
+    { label: 'Anara', value: 'Anara', code: 'ANR' },
+    { label: 'Mirza', value: 'Mirza', code: 'MRZ' },
+    { label: 'Gaya', value: 'Gaya', code: 'GYA' },
+    { label: 'Kaipadar', value: 'Kaipadar', code: 'KPR' },
+    { label: 'Kargi', value: 'Kargi', code: 'KAR' },
     { label: 'ACPL', value: 'ACPL', code: 'BUW' }
 ];
 

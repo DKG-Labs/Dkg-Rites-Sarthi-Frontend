@@ -183,10 +183,18 @@ const LoginPage = () => {
   /**
    * Handle selection from multiple roles
    */
-  const PROCESS_ROLES = new Set(['Process IE', 'Sleeper Process IE', 'Rail Process IE']);
+  const PROCESS_ROLES = new Set([
+    'process ie',
+    'sleeper process ie',
+    'rail process ie',
+    'railpad process ie',
+    'erc process ie'
+  ]);
 
   const isProcessRole = (roleToStore) =>
-    String(roleToStore || '').split(',').some(r => PROCESS_ROLES.has(r.trim()));
+    String(roleToStore || '')
+      .split(',')
+      .some(r => PROCESS_ROLES.has(r.trim().toLowerCase()));
 
   const isLocalhost = ['localhost', '127.0.0.1'].includes(window.location.hostname);
 
@@ -194,7 +202,7 @@ const LoginPage = () => {
     if (!pendingUserData) return;
     const finalUserData = { ...pendingUserData, roleName: selectedOption.roleToStore };
     setShowRoleSelection(false);
-    if (!isLocalhost && !alreadyAuthenticated && isProcessRole(selectedOption.roleToStore)) {
+    if (!alreadyAuthenticated && isProcessRole(selectedOption.roleToStore)) {
       setPendingUserData(finalUserData);
       setShowQrScreen(true);
       startQrSession(finalUserData);
@@ -362,9 +370,9 @@ const LoginPage = () => {
       setPendingUserData(userData);
       setShowRoleSelection(true);
     } else if (options.length === 1) {
-      // Single option - check if process role needs authenticator (skip on localhost or post-QR)
+      // Single option - check if process role needs authenticator (skip if already post-QR)
       userData.roleName = options[0].roleToStore;
-      if (!isLocalhost && !alreadyAuthenticated && isProcessRole(options[0].roleToStore)) {
+      if (!alreadyAuthenticated && isProcessRole(options[0].roleToStore)) {
         setPendingUserData(userData);
         setShowQrScreen(true);
         startQrSession(userData);
@@ -525,7 +533,7 @@ const LoginPage = () => {
       userData.loginId = userId;
       setShowOtpScreen(false);
       setPendingUserData(userData);
-      processLoginSuccess(userData, true);
+      processLoginSuccess(userData, false);
     } catch (err) {
       setError(err.message || 'Invalid or expired OTP. Please try again.');
     } finally {
@@ -690,7 +698,7 @@ const LoginPage = () => {
                       ← Back to Login
                     </button>
                   </div>
-                ) : (showQrScreen && !isLocalhost) ? (
+                ) : showQrScreen ? (
                   <div className="dashboard-form authenticator-qr-container" style={{ marginTop: '0.2rem', textAlign: 'center', width: '100%' }}>
                     <div className="form-header" style={{ marginBottom: '0.75rem' }}>
                       <div style={{
@@ -991,6 +999,28 @@ const LoginPage = () => {
                           }}
                         >
                           🔄 Refresh QR
+                        </button>
+                      )}
+                      {isLocalhost && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setShowQrScreen(false);
+                            processLoginSuccess(pendingUserData, true);
+                          }}
+                          style={{
+                            background: '#fef3c7',
+                            border: '1px solid #fcd34d',
+                            borderRadius: '8px',
+                            padding: '6px 12px',
+                            fontSize: '0.76rem',
+                            fontWeight: '700',
+                            color: '#92400e',
+                            cursor: 'pointer'
+                          }}
+                          title="Skip authenticator (available on localhost only)"
+                        >
+                          ⚡ Skip (Dev Mode)
                         </button>
                       )}
                       <button

@@ -12,6 +12,7 @@ import Pagination from '../components/Pagination';
 import DashboardGraph from '../components/railway-board/DashboardGraph';
 import ProfessionalCardSection from '../components/railway-board/ProfessionalCardSection';
 import UdmRejectionDashboard from '../components/railway-board/UdmRejectionDashboard';
+import ActiveLoginDashboard from '../components/railway-board/ActiveLoginDashboard';
 import { exportDashboardScreenToPdf } from '../utils/dashboardPdfExport';
 
 
@@ -594,7 +595,7 @@ const RailwayBoardDashboard = () => {
                     <div style={{ padding: '0 0 20px', flex: 1, overflowY: 'auto' }}>
                         {isRitesAdmin ? (
                             <>
-                                <div className={`nav-item ${['summary', 'quality', 'lifecycle', 'performance', 'reports', 'sqc', 'scada', 'feedback', 'udm'].includes(activeMainCard) ? 'active' : ''}`} onClick={() => {
+                                <div className={`nav-item ${['summary', 'quality', 'lifecycle', 'performance', 'reports', 'sqc', 'scada', 'feedback', 'udm', 'active-login'].includes(activeMainCard) ? 'active' : ''}`} onClick={() => {
                                     setIsRailwayNavOpen(!isRailwayNavOpen);
                                     if (!isRailwayNavOpen) setIsCmDropdownOpen(false);
                                 }}>
@@ -657,6 +658,9 @@ const RailwayBoardDashboard = () => {
                                         </div>
                                         <div className={`report-link ${activeMainCard === 'udm' ? 'active' : ''}`} onClick={() => handleSwitchTab('udm')} style={{ fontSize: '15px' }}>
                                             <i className="fa-solid fa-triangle-exclamation" style={{ marginRight: '8px' }}></i>UDM Rejections
+                                        </div>
+                                        <div className={`report-link ${activeMainCard === 'active-login' ? 'active' : ''}`} onClick={() => handleSwitchTab('active-login')} style={{ fontSize: '15px' }}>
+                                            <i className="fa-solid fa-id-card" style={{ marginRight: '8px' }}></i>Active Login
                                         </div>
                                     </div>
                                 )}
@@ -783,6 +787,9 @@ const RailwayBoardDashboard = () => {
                                 <div className={`nav-item ${activeMainCard === 'udm' ? 'active' : ''}`} onClick={() => handleSwitchTab('udm')}>
                                     <i className="fa-solid fa-triangle-exclamation"></i> {!isSidebarCollapsed && <span>UDM Rejections</span>}
                                 </div>
+                                <div className={`nav-item ${activeMainCard === 'active-login' ? 'active' : ''}`} onClick={() => handleSwitchTab('active-login')}>
+                                    <i className="fa-solid fa-id-card"></i> {!isSidebarCollapsed && <span>Active Login</span>}
+                                </div>
                             </>
                         )}
 
@@ -797,7 +804,7 @@ const RailwayBoardDashboard = () => {
                 {/* MAIN */}
                 <div id="prof-main" style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                     {/* GLOBAL PRODUCT SELECTION - Above everything */}
-                    {activeMainCard !== 'cm-module' && activeMainCard !== 'udm' ? (
+                    {activeMainCard !== 'cm-module' && activeMainCard !== 'udm' && activeMainCard !== 'active-login' ? (
                         <div className="sub-tabs" style={{ padding: '0 24px', marginTop: '24px', marginBottom: '4px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                             <div style={{ display: 'flex', gap: '8px' }}>
                                 <button className={`sub-tab-btn ${selectedProduct === 'ERC' ? 'active' : ''}`} onClick={() => setSelectedProduct('ERC')}>ERC</button>
@@ -942,6 +949,8 @@ const RailwayBoardDashboard = () => {
                         <div id="prof-content-area">
                             {activeMainCard === 'udm' ? (
                                 <UdmRejectionDashboard />
+                            ) : activeMainCard === 'active-login' ? (
+                                <ActiveLoginDashboard />
                             ) : activeMainCard === 'cm-module' ? (
                                 <CMDashboardPage isEmbedded={true} activeTabFromProps={cmActiveTab} activeCallFilterFromProps={cmActiveCallFilter} />
                             ) : (

@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { formatDate } from '../utils/helpers';
 import { MOCK_INSPECTION_CALLS } from '../data/mockData';
 import Tabs from '../components/Tabs';
@@ -124,9 +124,6 @@ const IELandingPage = ({ onStartInspection, onStartMultipleInspections, setSelec
     }
   }, [setCompletedCallsCache]);
 
-  // Only fetch pending data on mount. Fetch completed calls only when the
-  // 'Issuance of IC' tab becomes active, and only once per session.
-  const hasFetchedCompletedRef = useRef(false);
 
   // Fetch pending data only when the Pending tab is active.
   // This prevents triggering the pending-workflow API when the page loads
@@ -155,16 +152,10 @@ const IELandingPage = ({ onStartInspection, onStartMultipleInspections, setSelec
 
   useEffect(() => {
     if (activeTab === 'certificates') {
-      if (completedCallsCache !== null) {
-        setCompletedCalls(completedCallsCache);
-        hasFetchedCompletedRef.current = true;
-      } else if (!hasFetchedCompletedRef.current) {
-        // Fetch completed calls only when user opens Issuance tab
-        fetchCompletedCalls();
-        hasFetchedCompletedRef.current = true;
-      }
+      // Always fetch fresh on tab open so newly approved diversion calls appear immediately
+      fetchCompletedCalls();
     }
-  }, [activeTab, completedCallsCache, fetchCompletedCalls]);
+  }, [activeTab, fetchCompletedCalls]);
 
   // Fetch signed & closed calls count silently on mount for the tab badge
   const fetchSignedCount = useCallback(async () => {
@@ -199,7 +190,8 @@ const IELandingPage = ({ onStartInspection, onStartMultipleInspections, setSelec
   useEffect(() => {
     fetchSignedCount();
     fetchClosedCount();
-  }, [fetchSignedCount, fetchClosedCount]);
+    fetchCompletedCalls();
+  }, [fetchSignedCount, fetchClosedCount, fetchCompletedCalls]);
 
   // Use pending calls directly from API (includes Raw Material, Process, and Final)
   // No need to combine with mock data anymore

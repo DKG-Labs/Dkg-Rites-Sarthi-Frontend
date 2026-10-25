@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import './admin.css';
+import { API_BASE_URL, getAuthHeaders } from '../../services/apiConfig';
 
 /**
  * SearchableDropdown Component
@@ -40,10 +41,10 @@ const SearchableSelect = ({ options, value, onChange, placeholder, disabled, dis
 
     const getDisplayText = (val) => {
         if (!val) return placeholder;
-        if (displayKey && valueKey) {
-            const found = options.find(o => 
-                String(o[valueKey]) === String(val) || 
-                String(o[valueKey]) === `:${val}` || 
+        if (valueKey) {
+            const found = options.find(o =>
+                String(o[valueKey]) === String(val) ||
+                String(o[valueKey]) === `:${val}` ||
                 `:${o[valueKey]}` === String(val)
             );
             if (found) {
@@ -101,7 +102,119 @@ const SearchableSelect = ({ options, value, onChange, placeholder, disabled, dis
     );
 };
 
-export const IEFieldsForm = ({ 
+const IeMultiSelect = ({ options, selected, onToggle, onClear }) => {
+    const [open, setOpen] = useState(false);
+    const [search, setSearch] = useState('');
+    const ref = useRef(null);
+
+    useEffect(() => {
+        const handler = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
+        document.addEventListener('mousedown', handler);
+        return () => document.removeEventListener('mousedown', handler);
+    }, []);
+
+    const filtered = options.filter(ie =>
+        `${ie.fullName} ${ie.employeeCode}`.toLowerCase().includes(search.toLowerCase())
+    );
+
+    return (
+        <div ref={ref} style={{ position: 'relative' }}>
+            {/* Trigger */}
+            <div
+                onClick={() => setOpen(o => !o)}
+                style={{
+                    display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 6,
+                    minHeight: 42, padding: '6px 36px 6px 10px', border: '1.5px solid #e2e8f0',
+                    borderRadius: 8, background: '#fff', cursor: 'pointer', position: 'relative',
+                    fontSize: 13, color: '#334155'
+                }}
+            >
+                {selected.length === 0 ? (
+                    <span style={{ color: '#94a3b8' }}>-- Select IEs --</span>
+                ) : (
+                    selected.map(ie => (
+                        <span key={ie.userId} style={{
+                            display: 'inline-flex', alignItems: 'center', gap: 4,
+                            background: '#fff7ed', border: '1px solid #fed7aa', borderRadius: 12,
+                            padding: '2px 8px', fontSize: 12, color: '#ea580c', fontWeight: 500
+                        }}>
+                            {ie.fullName}
+                            <span
+                                onClick={(e) => { e.stopPropagation(); onToggle(ie); }}
+                                style={{ cursor: 'pointer', fontWeight: 700, fontSize: 13, lineHeight: 1 }}
+                            >×</span>
+                        </span>
+                    ))
+                )}
+                <span style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', color: '#94a3b8', fontSize: 12 }}>▼</span>
+            </div>
+
+            {/* Dropdown */}
+            {open && (
+                <div style={{
+                    position: 'absolute', top: 'calc(100% + 4px)', left: 0, right: 0, zIndex: 999,
+                    background: '#fff', border: '1.5px solid #e2e8f0', borderRadius: 8,
+                    boxShadow: '0 8px 24px rgba(0,0,0,0.12)', overflow: 'hidden'
+                }}>
+                    <div style={{ padding: '8px 10px', borderBottom: '1px solid #f1f5f9' }}>
+                        <input
+                            autoFocus
+                            type="text"
+                            value={search}
+                            onChange={e => setSearch(e.target.value)}
+                            onClick={e => e.stopPropagation()}
+                            placeholder="Type to search..."
+                            style={{
+                                width: '100%', border: '1px solid #e2e8f0', borderRadius: 6,
+                                padding: '6px 10px', fontSize: 13, outline: 'none', boxSizing: 'border-box'
+                            }}
+                        />
+                    </div>
+                    <div style={{ maxHeight: 220, overflowY: 'auto' }}>
+                        {filtered.length === 0 ? (
+                            <div style={{ padding: '12px 14px', color: '#94a3b8', fontSize: 13 }}>No IEs found</div>
+                        ) : filtered.map(ie => {
+                            const isSelected = selected.some(x => x.userId === ie.userId);
+                            return (
+                                <div
+                                    key={ie.userId}
+                                    onClick={() => onToggle(ie)}
+                                    style={{
+                                        display: 'flex', alignItems: 'center', gap: 10,
+                                        padding: '9px 14px', cursor: 'pointer', fontSize: 13,
+                                        background: isSelected ? '#fff7ed' : 'transparent',
+                                        color: isSelected ? '#ea580c' : '#334155',
+                                        borderBottom: '1px solid #f8fafc',
+                                        fontWeight: isSelected ? 600 : 400,
+                                        transition: 'background 0.1s'
+                                    }}
+                                >
+                                    <span style={{
+                                        width: 16, height: 16, borderRadius: 4, flexShrink: 0,
+                                        border: `2px solid ${isSelected ? '#ea580c' : '#cbd5e1'}`,
+                                        background: isSelected ? '#ea580c' : '#fff',
+                                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                        fontSize: 10, color: '#fff'
+                                    }}>{isSelected ? '✓' : ''}</span>
+                                    {ie.fullName}
+                                    <span style={{ marginLeft: 'auto', fontSize: 11, opacity: 0.55 }}>({ie.employeeCode})</span>
+                                </div>
+                            );
+                        })}
+                    </div>
+                    {selected.length > 0 && (
+                        <div style={{ padding: '8px 14px', borderTop: '1px solid #f1f5f9', display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 12, color: '#64748b' }}>
+                            <span>{selected.length} selected</span>
+                            <span onClick={() => { onClear(); }} style={{ color: '#ea580c', cursor: 'pointer', fontWeight: 500 }}>Clear all</span>
+                        </div>
+                    )}
+                </div>
+            )}
+        </div>
+    );
+};
+
+export const IEFieldsForm = ({
     onSubmit, 
     onCancel, 
     getUsersByRole, 
@@ -161,6 +274,15 @@ export const IEFieldsForm = ({
     const [loading, setLoading] = useState(false);
     const [validating, setValidating] = useState(false);
 
+    // Controlling Manager mapping state
+    const [cmList, setCmList] = useState([]);
+    const [selectedCm, setSelectedCm] = useState(null);
+    const [linkedIes, setLinkedIes] = useState([]);
+    const [availableIes, setAvailableIes] = useState([]);
+    const [selectedNewIes, setSelectedNewIes] = useState([]);
+    const [cmLoading, setCmLoading] = useState(false);
+    const [cmSaving, setCmSaving] = useState(false);
+
     const [formData, setFormData] = useState({
         userId: '',
         userName: '',
@@ -200,7 +322,7 @@ export const IEFieldsForm = ({
         }
     });
 
-    const PRODUCT_TYPES = ['ERC', 'SLEEPER', 'RAILPAD'];
+    const PRODUCT_TYPES = ['ERC', 'SLEEPER', 'RAILPAD', 'CONTROLLING MANAGER'];
     const MAPPING_TYPES = [
         { label: 'Employee Wise', value: 'employee wise' },
         { label: 'Company Wise', value: 'company wise' }
@@ -296,6 +418,76 @@ export const IEFieldsForm = ({
             isActive = false;
         };
     }, [selectedRole, productType, getUsersByRole, getCompanies, getSleeperEmployeesByRole, getSleeperCompanies, getRailpadCompanies, ROLES]);
+
+    // Load CM list when product type is CONTROLLING MANAGER
+    useEffect(() => {
+        if (productType !== 'CONTROLLING MANAGER') return;
+        const fetchCms = async () => {
+            setCmLoading(true);
+            try {
+                const res = await fetch(`${API_BASE_URL}/api/auth/api/controlling-managers`, { headers: getAuthHeaders() });
+                const data = await res.json();
+                setCmList(data.responseData || []);
+            } catch (e) { console.error(e); }
+            finally { setCmLoading(false); }
+        };
+        fetchCms();
+    }, [productType]);
+
+    // Load linked IEs and available IEs when a CM is selected
+    useEffect(() => {
+        if (!selectedCm) { setLinkedIes([]); setAvailableIes([]); return; }
+        const fetchIes = async () => {
+            setCmLoading(true);
+            try {
+                const [linkedRes, availRes] = await Promise.all([
+                    fetch(`${API_BASE_URL}/api/auth/api/ies-by-cm/${selectedCm.userId}`, { headers: getAuthHeaders() }),
+                    fetch(`${API_BASE_URL}/api/auth/api/ies-by-rio?rio=${encodeURIComponent(selectedCm.rio || '')}`, { headers: getAuthHeaders() })
+                ]);
+                const [linkedData, availData] = await Promise.all([linkedRes.json(), availRes.json()]);
+                setLinkedIes(linkedData.responseData || []);
+                setAvailableIes(availData.responseData || []);
+                setSelectedNewIes([]);
+            } catch (e) { console.error(e); }
+            finally { setCmLoading(false); }
+        };
+        fetchIes();
+    }, [selectedCm]);
+
+    const handleCmIeSave = async () => {
+        if (!selectedCm || selectedNewIes.length === 0) return;
+        setCmSaving(true);
+        try {
+            const res = await fetch(`${API_BASE_URL}/api/mapping/cm-ie`, {
+                method: 'POST',
+                headers: { ...getAuthHeaders(), 'Content-Type': 'application/json' },
+                body: JSON.stringify({ cmUserId: selectedCm.userId, ieUserIds: selectedNewIes.map(ie => ie.userId) })
+            });
+            if (res.ok) {
+                // Refresh linked IEs
+                const linkedRes = await fetch(`${API_BASE_URL}/api/auth/api/ies-by-cm/${selectedCm.userId}`, { headers: getAuthHeaders() });
+                const linkedData = await linkedRes.json();
+                setLinkedIes(linkedData.responseData || []);
+                setSelectedNewIes([]);
+            }
+        } catch (e) { console.error(e); }
+        finally { setCmSaving(false); }
+    };
+
+    const handleCmIeRemove = async (ieUserId) => {
+        try {
+            await fetch(`${API_BASE_URL}/api/mapping/cm-ie/${ieUserId}`, { method: 'DELETE', headers: getAuthHeaders() });
+            setLinkedIes(prev => prev.filter(ie => ie.userId !== ieUserId));
+        } catch (e) { console.error(e); }
+    };
+
+    const toggleNewIeSelection = (ie) => {
+        setSelectedNewIes(prev =>
+            prev.some(x => x.userId === ie.userId)
+                ? prev.filter(x => x.userId !== ie.userId)
+                : [...prev, ie]
+        );
+    };
 
     // Pre-fill form when editing
     useEffect(() => {
@@ -946,6 +1138,139 @@ export const IEFieldsForm = ({
         (u.userId && u.userId.toString().includes(multiSearchTerm))
     );
 
+    if (productType === 'CONTROLLING MANAGER') {
+        const unlinkedAvailableIes = availableIes.filter(
+            ie => !linkedIes.some(l => l.userId === ie.userId)
+        );
+        return (
+            <div className="user-form-professional">
+                <div className="form-section">
+                    <h3 className="form-section-title">Controlling Manager — IE Mapping</h3>
+                    <div className="form-grid">
+                        <div className="form-group">
+                            <label className="form-label">Product Type</label>
+                            <select className="form-control" value={productType} onChange={(e) => { setProductType(e.target.value); setSelectedCm(null); }}>
+                                {PRODUCT_TYPES.map(p => <option key={p} value={p}>{p}</option>)}
+                            </select>
+                        </div>
+                        <div className="form-group">
+                            <label className="form-label">Select Controlling Manager <span style={{ color: 'red' }}>*</span></label>
+                            {cmLoading && !selectedCm ? (
+                                <div className="form-control" style={{ color: '#888' }}>Loading...</div>
+                            ) : (
+                                <SearchableSelect
+                                    options={cmList.map(cm => ({ ...cm, name: `${cm.fullName || cm.username || ''} (${cm.employeeCode || ''})` }))}
+                                    value={selectedCm ? selectedCm.userId : ''}
+                                    onChange={(cm) => setSelectedCm(cm || null)}
+                                    placeholder="-- Select CM --"
+                                    valueKey="userId"
+                                />
+                            )}
+                        </div>
+                        {selectedCm && (
+                            <div className="form-group">
+                                <label className="form-label">RIO</label>
+                                <div className="form-control" style={{ background: '#f8fafc', color: '#334155', fontWeight: 600 }}>
+                                    {selectedCm.rio || '—'}
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                </div>
+
+                {selectedCm && (
+                    <>
+                        {/* Currently linked IEs */}
+                        <div className="form-section">
+                            <h3 className="form-section-title" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                Linked IEs
+                                {cmLoading && <span style={{ fontSize: 12, color: '#94a3b8', fontWeight: 400 }}>Loading...</span>}
+                                <span style={{ marginLeft: 'auto', fontSize: 13, fontWeight: 400, color: '#64748b' }}>
+                                    {linkedIes.length} IE{linkedIes.length !== 1 ? 's' : ''} assigned
+                                </span>
+                            </h3>
+                            {linkedIes.length === 0 ? (
+                                <div style={{ color: '#94a3b8', padding: '16px 0', fontSize: 13 }}>No IEs linked to this CM yet.</div>
+                            ) : (
+                                <table className="data-table" style={{ width: '100%' }}>
+                                    <thead>
+                                        <tr>
+                                            <th>Name</th>
+                                            <th>Employee Code</th>
+                                            <th>RIO</th>
+                                            <th>Role</th>
+                                            <th>Action</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {linkedIes.map(ie => (
+                                            <tr key={ie.userId}>
+                                                <td>{ie.fullName}</td>
+                                                <td>{ie.employeeCode}</td>
+                                                <td>{ie.rio}</td>
+                                                <td>{ie.roleName}</td>
+                                                <td>
+                                                    <button
+                                                        type="button"
+                                                        className="btn btn-sm"
+                                                        style={{ background: '#fee2e2', color: '#dc2626', border: 'none', borderRadius: 6, padding: '4px 12px', cursor: 'pointer' }}
+                                                        onClick={() => handleCmIeRemove(ie.userId)}
+                                                    >
+                                                        Remove
+                                                    </button>
+                                                </td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            )}
+                        </div>
+
+                        {/* Add new IEs */}
+                        <div className="form-section">
+                            <h3 className="form-section-title">
+                                Add IEs from RIO: <span style={{ color: '#ea580c' }}>{selectedCm.rio}</span>
+                            </h3>
+                            {unlinkedAvailableIes.length === 0 ? (
+                                <div style={{ color: '#94a3b8', padding: '16px 0', fontSize: 13 }}>
+                                    {cmLoading ? 'Loading...' : 'All IEs in this RIO are already linked.'}
+                                </div>
+                            ) : (
+                                <>
+                                    <IeMultiSelect
+                                        options={unlinkedAvailableIes}
+                                        selected={selectedNewIes}
+                                        onToggle={toggleNewIeSelection}
+                                        onClear={() => setSelectedNewIes([])}
+                                    />
+                                    <div style={{ display: 'flex', gap: 12, marginTop: 14 }}>
+                                        <button
+                                            type="button"
+                                            className="btn btn-primary"
+                                            disabled={selectedNewIes.length === 0 || cmSaving}
+                                            onClick={handleCmIeSave}
+                                        >
+                                            {cmSaving ? 'Saving...' : `Assign ${selectedNewIes.length > 0 ? `(${selectedNewIes.length}) ` : ''}IE${selectedNewIes.length !== 1 ? 's' : ''}`}
+                                        </button>
+                                        {selectedNewIes.length > 0 && (
+                                            <button type="button" className="btn btn-secondary" onClick={() => setSelectedNewIes([])}>
+                                                Clear
+                                            </button>
+                                        )}
+                                    </div>
+                                </>
+                            )}
+                        </div>
+                    </>
+                )}
+
+                <div className="form-actions" style={{ marginTop: 24, display: 'flex', justifyContent: 'flex-end' }}>
+                    <button type="button" className="btn btn-secondary" onClick={onCancel}>Close</button>
+                </div>
+            </div>
+        );
+    }
+
     if (selectedRole === 'Secondary IE' && productType !== 'SLEEPER') {
         return (
             <div className="user-form-professional">
@@ -999,6 +1324,9 @@ export const IEFieldsForm = ({
                                         setSelectedRole('Main IE');
                                     } else if (val === 'RAILPAD') {
                                         setSelectedRole('Railpad Main IE (main IE)');
+                                    } else if (val === 'CONTROLLING MANAGER') {
+                                        setSelectedCm(null);
+                                        setSelectedRole('IE');
                                     } else {
                                         setSelectedRole('IE');
                                     }

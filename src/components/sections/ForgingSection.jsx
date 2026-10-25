@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import './ForgingSection.css';
-import { getToleranceStyle, checkTolerance } from '../../utils/toleranceValidation';
+import { getToleranceStyle, checkTolerance, getRejectionStyle, getSelectToleranceStyle } from '../../utils/toleranceValidation';
 
 const ForgingSection = ({
   data,
@@ -24,11 +24,11 @@ const ForgingSection = ({
       improperForging: [],
       forgingDefect: [],
       embossingDefect: [],
-      forgingTemperatureRejected: '',
-      forgingStabilisationRejected: '',
-      improperForgingRejected: '',
-      forgingDefectRejected: '',
-      embossingDefectRejected: '',
+      forgingTemperatureRejected: '0',
+      forgingStabilisationRejected: '0',
+      improperForgingRejected: '0',
+      forgingDefectRejected: '0',
+      embossingDefectRejected: '0',
       remarks: '',
       noProduction: true
     };
@@ -47,7 +47,7 @@ const ForgingSection = ({
 
     // For dropdowns (OK/NOT OK)
     // Fields: forgingStabilisation, improperForging, forgingDefect, embossingDefect
-    return row[field]?.some(val => val === 'NOT OK');
+    return row[field]?.some(val => String(val).trim().toUpperCase() === 'NOT OK');
   };
 
   const autoClearRejections = (row) => {
@@ -196,6 +196,7 @@ const ForgingSection = ({
                         value={row.forgingStabilisation[0] || ''}
                         onChange={e => updateData(idx, 'forgingStabilisation', e.target.value, 0)}
                         disabled={row.noProduction || !row.lotNo}
+                        style={getSelectToleranceStyle(row.forgingStabilisation[0])}
                       >
                         <option value="">Select</option>
                         <option value="OK">OK</option>
@@ -208,6 +209,7 @@ const ForgingSection = ({
                         value={row.improperForging[0] || ''}
                         onChange={e => updateData(idx, 'improperForging', e.target.value, 0)}
                         disabled={row.noProduction || !row.lotNo}
+                        style={getSelectToleranceStyle(row.improperForging[0])}
                       >
                         <option value="">Select</option>
                         <option value="OK">OK</option>
@@ -220,6 +222,7 @@ const ForgingSection = ({
                         value={row.forgingDefect[0] || ''}
                         onChange={e => updateData(idx, 'forgingDefect', e.target.value, 0)}
                         disabled={row.noProduction || !row.lotNo}
+                        style={getSelectToleranceStyle(row.forgingDefect[0])}
                       >
                         <option value="">Select</option>
                         <option value="OK">OK</option>
@@ -232,6 +235,7 @@ const ForgingSection = ({
                         value={row.embossingDefect[0] || ''}
                         onChange={e => updateData(idx, 'embossingDefect', e.target.value, 0)}
                         disabled={row.noProduction || !row.lotNo}
+                        style={getSelectToleranceStyle(row.embossingDefect[0])}
                       >
                         <option value="">Select</option>
                         <option value="OK">OK</option>
@@ -258,6 +262,7 @@ const ForgingSection = ({
                         value={row.forgingStabilisation[1] || ''}
                         onChange={e => updateData(idx, 'forgingStabilisation', e.target.value, 1)}
                         disabled={row.noProduction || !row.lotNo}
+                        style={getSelectToleranceStyle(row.forgingStabilisation[1])}
                       >
                         <option value="">Select</option>
                         <option value="OK">OK</option>
@@ -270,6 +275,7 @@ const ForgingSection = ({
                         value={row.improperForging[1] || ''}
                         onChange={e => updateData(idx, 'improperForging', e.target.value, 1)}
                         disabled={row.noProduction || !row.lotNo}
+                        style={getSelectToleranceStyle(row.improperForging[1])}
                       >
                         <option value="">Select</option>
                         <option value="OK">OK</option>
@@ -282,6 +288,7 @@ const ForgingSection = ({
                         value={row.forgingDefect[1] || ''}
                         onChange={e => updateData(idx, 'forgingDefect', e.target.value, 1)}
                         disabled={row.noProduction || !row.lotNo}
+                        style={getSelectToleranceStyle(row.forgingDefect[1])}
                       >
                         <option value="">Select</option>
                         <option value="OK">OK</option>
@@ -294,6 +301,7 @@ const ForgingSection = ({
                         value={row.embossingDefect[1] || ''}
                         onChange={e => updateData(idx, 'embossingDefect', e.target.value, 1)}
                         disabled={row.noProduction || !row.lotNo}
+                        style={getSelectToleranceStyle(row.embossingDefect[1])}
                       >
                         <option value="">Select</option>
                         <option value="OK">OK</option>
@@ -307,19 +315,84 @@ const ForgingSection = ({
                       <span className="forging-rejected-label">Rejected No.</span>
                     </td>
                     <td className="forging-td forging-td--rejected-input">
-                      <input type="number" value={row.forgingTemperatureRejected ?? ''} onChange={e => updateData(idx, 'forgingTemperatureRejected', e.target.value)} disabled={!isRejectionEnabled(row, 'forgingTemperature')} />
+                      <input
+                        type="text"
+                        inputMode="numeric"
+                        className="form-control forging-input"
+                        value={!isRejectionEnabled(row, 'forgingTemperature') ? '0' : (row.forgingTemperatureRejected ?? '0')}
+                        onChange={e => updateData(idx, 'forgingTemperatureRejected', e.target.value.replace(/[^0-9]/g, ''))}
+                        onBlur={() => {
+                          if (!row.forgingTemperatureRejected && row.forgingTemperatureRejected !== 0) {
+                            updateData(idx, 'forgingTemperatureRejected', '0');
+                          }
+                        }}
+                        disabled={!isRejectionEnabled(row, 'forgingTemperature')}
+                        style={getRejectionStyle(isRejectionEnabled(row, 'forgingTemperature'))}
+                      />
                     </td>
                     <td className="forging-td forging-td--rejected-input">
-                      <input type="number" value={row.forgingStabilisationRejected ?? ''} onChange={e => updateData(idx, 'forgingStabilisationRejected', e.target.value)} disabled={!isRejectionEnabled(row, 'forgingStabilisation')} />
+                      <input
+                        type="text"
+                        inputMode="numeric"
+                        className="form-control forging-input"
+                        value={!isRejectionEnabled(row, 'forgingStabilisation') ? '0' : (row.forgingStabilisationRejected ?? '0')}
+                        onChange={e => updateData(idx, 'forgingStabilisationRejected', e.target.value.replace(/[^0-9]/g, ''))}
+                        onBlur={() => {
+                          if (!row.forgingStabilisationRejected && row.forgingStabilisationRejected !== 0) {
+                            updateData(idx, 'forgingStabilisationRejected', '0');
+                          }
+                        }}
+                        disabled={!isRejectionEnabled(row, 'forgingStabilisation')}
+                        style={getRejectionStyle(isRejectionEnabled(row, 'forgingStabilisation'))}
+                      />
                     </td>
                     <td className="forging-td forging-td--rejected-input">
-                      <input type="number" value={row.improperForgingRejected ?? ''} onChange={e => updateData(idx, 'improperForgingRejected', e.target.value)} disabled={!isRejectionEnabled(row, 'improperForging')} />
+                      <input
+                        type="text"
+                        inputMode="numeric"
+                        className="form-control forging-input"
+                        value={!isRejectionEnabled(row, 'improperForging') ? '0' : (row.improperForgingRejected ?? '0')}
+                        onChange={e => updateData(idx, 'improperForgingRejected', e.target.value.replace(/[^0-9]/g, ''))}
+                        onBlur={() => {
+                          if (!row.improperForgingRejected && row.improperForgingRejected !== 0) {
+                            updateData(idx, 'improperForgingRejected', '0');
+                          }
+                        }}
+                        disabled={!isRejectionEnabled(row, 'improperForging')}
+                        style={getRejectionStyle(isRejectionEnabled(row, 'improperForging'))}
+                      />
                     </td>
                     <td className="forging-td forging-td--rejected-input">
-                      <input type="number" value={row.forgingDefectRejected ?? ''} onChange={e => updateData(idx, 'forgingDefectRejected', e.target.value)} disabled={!isRejectionEnabled(row, 'forgingDefect')} />
+                      <input
+                        type="text"
+                        inputMode="numeric"
+                        className="form-control forging-input"
+                        value={!isRejectionEnabled(row, 'forgingDefect') ? '0' : (row.forgingDefectRejected ?? '0')}
+                        onChange={e => updateData(idx, 'forgingDefectRejected', e.target.value.replace(/[^0-9]/g, ''))}
+                        onBlur={() => {
+                          if (!row.forgingDefectRejected && row.forgingDefectRejected !== 0) {
+                            updateData(idx, 'forgingDefectRejected', '0');
+                          }
+                        }}
+                        disabled={!isRejectionEnabled(row, 'forgingDefect')}
+                        style={getRejectionStyle(isRejectionEnabled(row, 'forgingDefect'))}
+                      />
                     </td>
                     <td className="forging-td forging-td--rejected-input">
-                      <input type="number" value={row.embossingDefectRejected ?? ''} onChange={e => updateData(idx, 'embossingDefectRejected', e.target.value)} disabled={!isRejectionEnabled(row, 'embossingDefect')} />
+                      <input
+                        type="text"
+                        inputMode="numeric"
+                        className="form-control forging-input"
+                        value={!isRejectionEnabled(row, 'embossingDefect') ? '0' : (row.embossingDefectRejected ?? '0')}
+                        onChange={e => updateData(idx, 'embossingDefectRejected', e.target.value.replace(/[^0-9]/g, ''))}
+                        onBlur={() => {
+                          if (!row.embossingDefectRejected && row.embossingDefectRejected !== 0) {
+                            updateData(idx, 'embossingDefectRejected', '0');
+                          }
+                        }}
+                        disabled={!isRejectionEnabled(row, 'embossingDefect')}
+                        style={getRejectionStyle(isRejectionEnabled(row, 'embossingDefect'))}
+                      />
                     </td>
                   </tr>
                   {/* Row 4: Remarks */}
@@ -394,6 +467,7 @@ const ForgingSection = ({
                             value={row.forgingStabilisation[sampleIdx] || ''}
                             onChange={e => updateData(idx, 'forgingStabilisation', e.target.value, sampleIdx)}
                             disabled={row.noProduction || !row.lotNo}
+                            style={getSelectToleranceStyle(row.forgingStabilisation[sampleIdx])}
                           >
                             <option value="">Select</option>
                             <option value="OK">OK</option>
@@ -408,6 +482,7 @@ const ForgingSection = ({
                             value={row.improperForging[sampleIdx] || ''}
                             onChange={e => updateData(idx, 'improperForging', e.target.value, sampleIdx)}
                             disabled={row.noProduction || !row.lotNo}
+                            style={getSelectToleranceStyle(row.improperForging[sampleIdx])}
                           >
                             <option value="">Select</option>
                             <option value="OK">OK</option>
@@ -422,6 +497,7 @@ const ForgingSection = ({
                             value={row.forgingDefect[sampleIdx] || ''}
                             onChange={e => updateData(idx, 'forgingDefect', e.target.value, sampleIdx)}
                             disabled={row.noProduction || !row.lotNo}
+                            style={getSelectToleranceStyle(row.forgingDefect[sampleIdx])}
                           >
                             <option value="">Select</option>
                             <option value="OK">OK</option>
@@ -436,6 +512,7 @@ const ForgingSection = ({
                             value={row.embossingDefect[sampleIdx] || ''}
                             onChange={e => updateData(idx, 'embossingDefect', e.target.value, sampleIdx)}
                             disabled={row.noProduction || !row.lotNo}
+                            style={getSelectToleranceStyle(row.embossingDefect[sampleIdx])}
                           >
                             <option value="">Select</option>
                             <option value="OK">OK</option>
@@ -448,31 +525,91 @@ const ForgingSection = ({
                   <div className="forging-mobile-field forging-mobile-field--rejected">
                     <span className="forging-mobile-field__label">Forging Temp Rejected</span>
                     <div className="forging-mobile-field__value">
-                      <input type="number" value={row.forgingTemperatureRejected ?? ''} onChange={e => updateData(idx, 'forgingTemperatureRejected', e.target.value)} disabled={!isRejectionEnabled(row, 'forgingTemperature')} />
+                      <input
+                        type="text"
+                        inputMode="numeric"
+                        value={!isRejectionEnabled(row, 'forgingTemperature') ? '0' : (row.forgingTemperatureRejected ?? '0')}
+                        onChange={e => updateData(idx, 'forgingTemperatureRejected', e.target.value.replace(/[^0-9]/g, ''))}
+                        onBlur={() => {
+                          if (!row.forgingTemperatureRejected && row.forgingTemperatureRejected !== 0) {
+                            updateData(idx, 'forgingTemperatureRejected', '0');
+                          }
+                        }}
+                        disabled={!isRejectionEnabled(row, 'forgingTemperature')}
+                        style={getRejectionStyle(isRejectionEnabled(row, 'forgingTemperature'))}
+                      />
                     </div>
                   </div>
                   <div className="forging-mobile-field forging-mobile-field--rejected">
                     <span className="forging-mobile-field__label">Forging Stabilisation Rejected</span>
                     <div className="forging-mobile-field__value">
-                      <input type="number" value={row.forgingStabilisationRejected ?? ''} onChange={e => updateData(idx, 'forgingStabilisationRejected', e.target.value)} disabled={!isRejectionEnabled(row, 'forgingStabilisation')} />
+                      <input
+                        type="text"
+                        inputMode="numeric"
+                        value={!isRejectionEnabled(row, 'forgingStabilisation') ? '0' : (row.forgingStabilisationRejected ?? '0')}
+                        onChange={e => updateData(idx, 'forgingStabilisationRejected', e.target.value.replace(/[^0-9]/g, ''))}
+                        onBlur={() => {
+                          if (!row.forgingStabilisationRejected && row.forgingStabilisationRejected !== 0) {
+                            updateData(idx, 'forgingStabilisationRejected', '0');
+                          }
+                        }}
+                        disabled={!isRejectionEnabled(row, 'forgingStabilisation')}
+                        style={getRejectionStyle(isRejectionEnabled(row, 'forgingStabilisation'))}
+                      />
                     </div>
                   </div>
                   <div className="forging-mobile-field forging-mobile-field--rejected">
                     <span className="forging-mobile-field__label">Improper Forging Rejected</span>
                     <div className="forging-mobile-field__value">
-                      <input type="number" value={row.improperForgingRejected ?? ''} onChange={e => updateData(idx, 'improperForgingRejected', e.target.value)} disabled={!isRejectionEnabled(row, 'improperForging')} />
+                      <input
+                        type="text"
+                        inputMode="numeric"
+                        value={!isRejectionEnabled(row, 'improperForging') ? '0' : (row.improperForgingRejected ?? '0')}
+                        onChange={e => updateData(idx, 'improperForgingRejected', e.target.value.replace(/[^0-9]/g, ''))}
+                        onBlur={() => {
+                          if (!row.improperForgingRejected && row.improperForgingRejected !== 0) {
+                            updateData(idx, 'improperForgingRejected', '0');
+                          }
+                        }}
+                        disabled={!isRejectionEnabled(row, 'improperForging')}
+                        style={getRejectionStyle(isRejectionEnabled(row, 'improperForging'))}
+                      />
                     </div>
                   </div>
                   <div className="forging-mobile-field forging-mobile-field--rejected">
                     <span className="forging-mobile-field__label">Forging Defect Rejected</span>
                     <div className="forging-mobile-field__value">
-                      <input type="number" value={row.forgingDefectRejected ?? ''} onChange={e => updateData(idx, 'forgingDefectRejected', e.target.value)} disabled={!isRejectionEnabled(row, 'forgingDefect')} />
+                      <input
+                        type="text"
+                        inputMode="numeric"
+                        value={!isRejectionEnabled(row, 'forgingDefect') ? '0' : (row.forgingDefectRejected ?? '0')}
+                        onChange={e => updateData(idx, 'forgingDefectRejected', e.target.value.replace(/[^0-9]/g, ''))}
+                        onBlur={() => {
+                          if (!row.forgingDefectRejected && row.forgingDefectRejected !== 0) {
+                            updateData(idx, 'forgingDefectRejected', '0');
+                          }
+                        }}
+                        disabled={!isRejectionEnabled(row, 'forgingDefect')}
+                        style={getRejectionStyle(isRejectionEnabled(row, 'forgingDefect'))}
+                      />
                     </div>
                   </div>
                   <div className="forging-mobile-field forging-mobile-field--rejected">
                     <span className="forging-mobile-field__label">Embossing Defect Rejected</span>
                     <div className="forging-mobile-field__value">
-                      <input type="number" value={row.embossingDefectRejected ?? ''} onChange={e => updateData(idx, 'embossingDefectRejected', e.target.value)} disabled={!isRejectionEnabled(row, 'embossingDefect')} />
+                      <input
+                        type="text"
+                        inputMode="numeric"
+                        value={!isRejectionEnabled(row, 'embossingDefect') ? '0' : (row.embossingDefectRejected ?? '0')}
+                        onChange={e => updateData(idx, 'embossingDefectRejected', e.target.value.replace(/[^0-9]/g, ''))}
+                        onBlur={() => {
+                          if (!row.embossingDefectRejected && row.embossingDefectRejected !== 0) {
+                            updateData(idx, 'embossingDefectRejected', '0');
+                          }
+                        }}
+                        disabled={!isRejectionEnabled(row, 'embossingDefect')}
+                        style={getRejectionStyle(isRejectionEnabled(row, 'embossingDefect'))}
+                      />
                     </div>
                   </div>
                   <div className="forging-mobile-field">

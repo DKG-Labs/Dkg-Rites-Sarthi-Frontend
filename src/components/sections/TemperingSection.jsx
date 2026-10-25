@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import './TemperingSection.css';
-import { getToleranceStyle, checkTolerance } from '../../utils/toleranceValidation';
+import { getToleranceStyle, checkTolerance, getRejectionStyle } from '../../utils/toleranceValidation';
 
 const TemperingSection = ({
   data,
@@ -64,8 +64,8 @@ const TemperingSection = ({
       lotNo: '',
       temperingTemperature: [],
       temperingDuration: [],
-      temperingTemperatureRejected: '',
-      temperingDurationRejected: '',
+      temperingTemperatureRejected: '0',
+      temperingDurationRejected: '0',
       remarks: '',
       noProduction: true
     };
@@ -280,20 +280,34 @@ const TemperingSection = ({
                       </td>
                       <td className="tempering-td tempering-td--rejected-input">
                         <input
-                          type="number"
+                          type="text"
+                          inputMode="numeric"
                           className="form-control tempering-input"
-                          value={row.temperingTemperatureRejected ?? ''}
-                          onChange={e => updateData(idx, 'temperingTemperatureRejected', e.target.value)}
+                          value={!isRejectionEnabled(row, 'temperingTemperature') ? '0' : (row.temperingTemperatureRejected ?? '0')}
+                          onChange={e => updateData(idx, 'temperingTemperatureRejected', e.target.value.replace(/[^0-9]/g, ''))}
+                          onBlur={() => {
+                            if (!row.temperingTemperatureRejected && row.temperingTemperatureRejected !== 0) {
+                              updateData(idx, 'temperingTemperatureRejected', '0');
+                            }
+                          }}
                           disabled={!isRejectionEnabled(row, 'temperingTemperature')}
+                          style={getRejectionStyle(isRejectionEnabled(row, 'temperingTemperature'))}
                         />
                       </td>
                       <td className="tempering-td tempering-td--rejected-input">
                         <input
-                          type="number"
+                          type="text"
+                          inputMode="numeric"
                           className="form-control tempering-input"
-                          value={row.temperingDurationRejected ?? ''}
-                          onChange={e => updateData(idx, 'temperingDurationRejected', e.target.value)}
+                          value={!isRejectionEnabled(row, 'temperingDuration') ? '0' : (row.temperingDurationRejected ?? '0')}
+                          onChange={e => updateData(idx, 'temperingDurationRejected', e.target.value.replace(/[^0-9]/g, ''))}
+                          onBlur={() => {
+                            if (!row.temperingDurationRejected && row.temperingDurationRejected !== 0) {
+                              updateData(idx, 'temperingDurationRejected', '0');
+                            }
+                          }}
                           disabled={!isRejectionEnabled(row, 'temperingDuration')}
+                          style={getRejectionStyle(isRejectionEnabled(row, 'temperingDuration'))}
                         />
                       </td>
                     </tr>
@@ -391,10 +405,17 @@ const TemperingSection = ({
                       <span className="tempering-mobile-field__label">Rejected No. (Temp)</span>
                       <div className="tempering-mobile-field__value">
                         <input
-                          type="number"
-                          value={row.temperingTemperatureRejected ?? ''}
-                          onChange={e => updateData(idx, 'temperingTemperatureRejected', e.target.value)}
+                          type="text"
+                          inputMode="numeric"
+                          value={!isRejectionEnabled(row, 'temperingTemperature') ? '0' : (row.temperingTemperatureRejected ?? '0')}
+                          onChange={e => updateData(idx, 'temperingTemperatureRejected', e.target.value.replace(/[^0-9]/g, ''))}
+                          onBlur={() => {
+                            if (!row.temperingTemperatureRejected && row.temperingTemperatureRejected !== 0) {
+                              updateData(idx, 'temperingTemperatureRejected', '0');
+                            }
+                          }}
                           disabled={!isRejectionEnabled(row, 'temperingTemperature')}
+                          style={getRejectionStyle(isRejectionEnabled(row, 'temperingTemperature'))}
                         />
                       </div>
                     </div>
@@ -402,10 +423,17 @@ const TemperingSection = ({
                       <span className="tempering-mobile-field__label">Rejected No. (Duration)</span>
                       <div className="tempering-mobile-field__value">
                         <input
-                          type="number"
-                          value={row.temperingDurationRejected ?? ''}
-                          onChange={e => updateData(idx, 'temperingDurationRejected', e.target.value)}
+                          type="text"
+                          inputMode="numeric"
+                          value={!isRejectionEnabled(row, 'temperingDuration') ? '0' : (row.temperingDurationRejected ?? '0')}
+                          onChange={e => updateData(idx, 'temperingDurationRejected', e.target.value.replace(/[^0-9]/g, ''))}
+                          onBlur={() => {
+                            if (!row.temperingDurationRejected && row.temperingDurationRejected !== 0) {
+                              updateData(idx, 'temperingDurationRejected', '0');
+                            }
+                          }}
                           disabled={!isRejectionEnabled(row, 'temperingDuration')}
+                          style={getRejectionStyle(isRejectionEnabled(row, 'temperingDuration'))}
                         />
                       </div>
                     </div>

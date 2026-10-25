@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import './ShearingSection.css';
-import { getToleranceStyle, checkTolerance } from '../../utils/toleranceValidation';
+import { getToleranceStyle, checkTolerance, getRejectionStyle, getSelectToleranceStyle } from '../../utils/toleranceValidation';
 
 const ShearingSection = ({
   data,
@@ -23,7 +23,7 @@ const ShearingSection = ({
       qualityDia: [],
       sharpEdges: [],
       crackedEdges: [],
-      rejectedQty: [],
+      rejectedQty: ['0', '0', '0', '0'],
       remarks: '',
       noProduction: true
     };
@@ -40,11 +40,11 @@ const ShearingSection = ({
           return isApplicable && !isValid;
         });
       case 'quality': // Column 2: Quality / Improper Dia
-        return row.qualityDia?.some(val => val === 'NOT OK');
+        return row.qualityDia?.some(val => String(val).trim().toUpperCase() === 'NOT OK');
       case 'sharpEdges': // Column 3: Sharp Edges
-        return row.sharpEdges?.some(val => val === 'NOT OK');
+        return row.sharpEdges?.some(val => String(val).trim().toUpperCase() === 'NOT OK');
       case 'crackedEdges': // Column 4: Cracked Edges
-        return row.crackedEdges?.some(val => val === 'NOT OK');
+        return row.crackedEdges?.some(val => String(val).trim().toUpperCase() === 'NOT OK');
       default:
         return false;
     }
@@ -202,6 +202,7 @@ const ShearingSection = ({
                         value={row.qualityDia[0] || ''}
                         onChange={e => updateData(idx, 'qualityDia', e.target.value, 0)}
                         disabled={row.noProduction || !row.lotNo}
+                        style={getSelectToleranceStyle(row.qualityDia[0])}
                       >
                         <option value="">Select</option>
                         <option value="OK">OK</option>
@@ -214,6 +215,7 @@ const ShearingSection = ({
                         value={row.sharpEdges[0] || ''}
                         onChange={e => updateData(idx, 'sharpEdges', e.target.value, 0)}
                         disabled={row.noProduction || !row.lotNo}
+                        style={getSelectToleranceStyle(row.sharpEdges[0])}
                       >
                         <option value="">Select</option>
                         <option value="OK">OK</option>
@@ -226,6 +228,7 @@ const ShearingSection = ({
                         value={row.crackedEdges[0] || ''}
                         onChange={e => updateData(idx, 'crackedEdges', e.target.value, 0)}
                         disabled={row.noProduction || !row.lotNo}
+                        style={getSelectToleranceStyle(row.crackedEdges[0])}
                       >
                         <option value="">Select</option>
                         <option value="OK">OK</option>
@@ -254,6 +257,7 @@ const ShearingSection = ({
                         value={row.qualityDia[1] || ''}
                         onChange={e => updateData(idx, 'qualityDia', e.target.value, 1)}
                         disabled={row.noProduction || !row.lotNo}
+                        style={getSelectToleranceStyle(row.qualityDia[1])}
                       >
                         <option value="">Select</option>
                         <option value="OK">OK</option>
@@ -266,6 +270,7 @@ const ShearingSection = ({
                         value={row.sharpEdges[1] || ''}
                         onChange={e => updateData(idx, 'sharpEdges', e.target.value, 1)}
                         disabled={row.noProduction || !row.lotNo}
+                        style={getSelectToleranceStyle(row.sharpEdges[1])}
                       >
                         <option value="">Select</option>
                         <option value="OK">OK</option>
@@ -278,6 +283,7 @@ const ShearingSection = ({
                         value={row.crackedEdges[1] || ''}
                         onChange={e => updateData(idx, 'crackedEdges', e.target.value, 1)}
                         disabled={row.noProduction || !row.lotNo}
+                        style={getSelectToleranceStyle(row.crackedEdges[1])}
                       >
                         <option value="">Select</option>
                         <option value="OK">OK</option>
@@ -305,6 +311,7 @@ const ShearingSection = ({
                         value={row.qualityDia[2] || ''}
                         onChange={e => updateData(idx, 'qualityDia', e.target.value, 2)}
                         disabled={row.noProduction || !row.lotNo}
+                        style={getSelectToleranceStyle(row.qualityDia[2])}
                       >
                         <option value="">Select</option>
                         <option value="OK">OK</option>
@@ -317,6 +324,7 @@ const ShearingSection = ({
                         value={row.sharpEdges[2] || ''}
                         onChange={e => updateData(idx, 'sharpEdges', e.target.value, 2)}
                         disabled={row.noProduction || !row.lotNo}
+                        style={getSelectToleranceStyle(row.sharpEdges[2])}
                       >
                         <option value="">Select</option>
                         <option value="OK">OK</option>
@@ -329,6 +337,7 @@ const ShearingSection = ({
                         value={row.crackedEdges[2] || ''}
                         onChange={e => updateData(idx, 'crackedEdges', e.target.value, 2)}
                         disabled={row.noProduction || !row.lotNo}
+                        style={getSelectToleranceStyle(row.crackedEdges[2])}
                       >
                         <option value="">Select</option>
                         <option value="OK">OK</option>
@@ -343,41 +352,53 @@ const ShearingSection = ({
                     </td>
                     <td className="shearing-td shearing-td--rejected-input">
                       <input
-                        type="number"
+                        type="text"
+                        inputMode="numeric"
                         className="form-control shearing-input shearing-input--rejected"
-                        value={row.rejectedQty[0] ?? ''}
-                        onChange={e => updateData(idx, 'rejectedQty', e.target.value, 0)}
+                        value={!isRejectionEnabled(row, 'length') ? '0' : (row.rejectedQty[0] ?? '0')}
+                        onChange={e => updateData(idx, 'rejectedQty', e.target.value.replace(/[^0-9]/g, ''), 0)}
+                        onBlur={() => { if (!row.rejectedQty[0] && row.rejectedQty[0] !== 0) updateData(idx, 'rejectedQty', '0', 0); }}
                         disabled={!isRejectionEnabled(row, 'length')}
+                        style={getRejectionStyle(isRejectionEnabled(row, 'length'))}
                         title={!isRejectionEnabled(row, 'length') ? "Reject enabled only if Length is out of tolerance" : ""}
                       />
                     </td>
                     <td className="shearing-td shearing-td--rejected-input">
                       <input
-                        type="number"
+                        type="text"
+                        inputMode="numeric"
                         className="form-control shearing-input shearing-input--rejected"
-                        value={row.rejectedQty[1] ?? ''}
-                        onChange={e => updateData(idx, 'rejectedQty', e.target.value, 1)}
+                        value={!isRejectionEnabled(row, 'quality') ? '0' : (row.rejectedQty[1] ?? '0')}
+                        onChange={e => updateData(idx, 'rejectedQty', e.target.value.replace(/[^0-9]/g, ''), 1)}
+                        onBlur={() => { if (!row.rejectedQty[1] && row.rejectedQty[1] !== 0) updateData(idx, 'rejectedQty', '0', 1); }}
                         disabled={!isRejectionEnabled(row, 'quality')}
+                        style={getRejectionStyle(isRejectionEnabled(row, 'quality'))}
                         title={!isRejectionEnabled(row, 'quality') ? "Reject enabled only if Quality is NOT OK" : ""}
                       />
                     </td>
                     <td className="shearing-td shearing-td--rejected-input">
                       <input
-                        type="number"
+                        type="text"
+                        inputMode="numeric"
                         className="form-control shearing-input shearing-input--rejected"
-                        value={row.rejectedQty[2] ?? ''}
-                        onChange={e => updateData(idx, 'rejectedQty', e.target.value, 2)}
+                        value={!isRejectionEnabled(row, 'sharpEdges') ? '0' : (row.rejectedQty[2] ?? '0')}
+                        onChange={e => updateData(idx, 'rejectedQty', e.target.value.replace(/[^0-9]/g, ''), 2)}
+                        onBlur={() => { if (!row.rejectedQty[2] && row.rejectedQty[2] !== 0) updateData(idx, 'rejectedQty', '0', 2); }}
                         disabled={!isRejectionEnabled(row, 'sharpEdges')}
+                        style={getRejectionStyle(isRejectionEnabled(row, 'sharpEdges'))}
                         title={!isRejectionEnabled(row, 'sharpEdges') ? "Reject enabled only if Sharp Edge is NOT OK" : ""}
                       />
                     </td>
                     <td className="shearing-td shearing-td--rejected-input">
                       <input
-                        type="number"
+                        type="text"
+                        inputMode="numeric"
                         className="form-control shearing-input shearing-input--rejected"
-                        value={row.rejectedQty[3] ?? ''}
-                        onChange={e => updateData(idx, 'rejectedQty', e.target.value, 3)}
+                        value={!isRejectionEnabled(row, 'crackedEdges') ? '0' : (row.rejectedQty[3] ?? '0')}
+                        onChange={e => updateData(idx, 'rejectedQty', e.target.value.replace(/[^0-9]/g, ''), 3)}
+                        onBlur={() => { if (!row.rejectedQty[3] && row.rejectedQty[3] !== 0) updateData(idx, 'rejectedQty', '0', 3); }}
                         disabled={!isRejectionEnabled(row, 'crackedEdges')}
+                        style={getRejectionStyle(isRejectionEnabled(row, 'crackedEdges'))}
                         title={!isRejectionEnabled(row, 'crackedEdges') ? "Reject enabled only if Cracked Edge is NOT OK" : ""}
                       />
                     </td>
@@ -437,19 +458,30 @@ const ShearingSection = ({
                     <div className="shearing-mobile-field__label">Rejected No.</div>
                     <div className="shearing-mobile-field__value shearing-mobile-field__value--rejected">
                       <div className="shearing-mobile-rejected-inputs">
-                        {[0, 1].map(sampleIdx => (
-                          <div key={sampleIdx} className="shearing-mobile-rejected-item">
-                            <input
-                              type="number"
-                              className="form-control"
-                              value={row.rejectedQty[sampleIdx] || ''}
-                              onChange={e => updateData(idx, 'rejectedQty', e.target.value, sampleIdx)}
-                              disabled={!isRejectionEnabled(row, sampleIdx === 0 ? 'length' : 'quality')}
-                              placeholder={`Qty ${sampleIdx + 1}`}
-                              title={!isRejectionEnabled(row, sampleIdx === 0 ? 'length' : 'quality') ? "Reject enabled only if out of tolerance/NOT OK" : ""}
-                            />
-                          </div>
-                        ))}
+                        {[
+                          { key: 'length', sIdx: 0, label: 'Length' },
+                          { key: 'quality', sIdx: 1, label: 'Quality' },
+                          { key: 'sharpEdges', sIdx: 2, label: 'Sharp' },
+                          { key: 'crackedEdges', sIdx: 3, label: 'Cracked' }
+                        ].map(({ key, sIdx, label }) => {
+                          const active = isRejectionEnabled(row, key);
+                          return (
+                            <div key={sIdx} className="shearing-mobile-rejected-item">
+                              <span style={{ fontSize: '10px', color: '#666', display: 'block' }}>{label}</span>
+                              <input
+                                type="text"
+                                inputMode="numeric"
+                                className="form-control"
+                                value={!active ? '0' : (row.rejectedQty[sIdx] ?? '0')}
+                                onChange={e => updateData(idx, 'rejectedQty', e.target.value.replace(/[^0-9]/g, ''), sIdx)}
+                                onBlur={() => { if (!row.rejectedQty[sIdx] && row.rejectedQty[sIdx] !== 0) updateData(idx, 'rejectedQty', '0', sIdx); }}
+                                disabled={!active}
+                                style={getRejectionStyle(active)}
+                                title={!active ? "Reject enabled only if out of tolerance/NOT OK" : ""}
+                              />
+                            </div>
+                          );
+                        })}
                       </div>
                     </div>
                   </div>
@@ -466,6 +498,7 @@ const ShearingSection = ({
                               onChange={e => updateData(idx, 'lengthCutBar', e.target.value, sampleIdx)}
                               disabled={row.noProduction || !row.lotNo}
                               placeholder={`S${sampleIdx + 1}`}
+                              style={getToleranceStyle('lengthCutBar', row.lengthCutBar[sampleIdx], productType)}
                             />
                           </div>
                         ))}

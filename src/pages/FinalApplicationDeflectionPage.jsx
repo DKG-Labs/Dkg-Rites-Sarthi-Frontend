@@ -56,7 +56,7 @@ const FinalApplicationDeflectionPage = ({ onBack, onNavigateSubmodule }) => {
       try {
         const saved = localStorage.getItem(`fpCustomSampleSizes_${callNo}`);
         if (saved) customSizes = JSON.parse(saved);
-      } catch (e) {}
+      } catch (e) { }
     }
 
     return lotsFromVendor.map(lot => {
@@ -369,12 +369,12 @@ const FinalApplicationDeflectionPage = ({ onBack, onNavigateSubmodule }) => {
     const r1 = safe(state.dimGo1) + safe(state.dimNoGo1) + safe(state.dimFlat1);
     const r2 = safe(state.dimGo2) + safe(state.dimNoGo2) + safe(state.dimFlat2);
     const total = r1 + r2;
-    const isFullR1 = state.dimGo1 !== '' && state.dimGo1 != null && 
-                     state.dimNoGo1 !== '' && state.dimNoGo1 != null && 
-                     state.dimFlat1 !== '' && state.dimFlat1 != null;
-    const isFullR2 = state.dimGo2 !== '' && state.dimGo2 != null && 
-                     state.dimNoGo2 !== '' && state.dimNoGo2 != null && 
-                     state.dimFlat2 !== '' && state.dimFlat2 != null;
+    const isFullR1 = state.dimGo1 !== '' && state.dimGo1 != null &&
+      state.dimNoGo1 !== '' && state.dimNoGo1 != null &&
+      state.dimFlat1 !== '' && state.dimFlat1 != null;
+    const isFullR2 = state.dimGo2 !== '' && state.dimGo2 != null &&
+      state.dimNoGo2 !== '' && state.dimNoGo2 != null &&
+      state.dimFlat2 !== '' && state.dimFlat2 != null;
 
     /* Show 2nd sampling based on visibility map */
     const showSecond = showSubsamplingMap[lot.lotNo]?.dim || false;

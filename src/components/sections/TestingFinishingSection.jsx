@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import './TestingFinishingSection.css';
-import { getToleranceStyle, checkTolerance } from '../../utils/toleranceValidation';
+import { getToleranceStyle, checkTolerance, getRejectionStyle, getSelectToleranceStyle } from '../../utils/toleranceValidation';
 
 const TestingFinishingSection = ({
   data,
@@ -22,10 +22,10 @@ const TestingFinishingSection = ({
       weight: ['', ''],
       paintIdentification: ['', ''],
       ercCoating: ['', ''],
-      toeLoadRejected: '',
-      weightRejected: '',
-      paintIdentificationRejected: '',
-      ercCoatingRejected: '',
+      toeLoadRejected: '0',
+      weightRejected: '0',
+      paintIdentificationRejected: '0',
+      ercCoatingRejected: '0',
       remarks: ''
     };
   };
@@ -49,7 +49,7 @@ const TestingFinishingSection = ({
 
     // For dropdowns (OK/not ok)
     // Fields: paintIdentification, ercCoating
-    return row[field]?.some(val => val === 'not ok' || val === 'NOT OK');
+    return row[field]?.some(val => String(val || '').trim().toUpperCase() === 'NOT OK');
   };
 
   const autoClearRejections = (row) => {
@@ -207,6 +207,7 @@ const TestingFinishingSection = ({
                         value={row.paintIdentification[0] || ''}
                         onChange={e => updateData(idx, 'paintIdentification', e.target.value, 0)}
                         disabled={row.noProduction || !row.lotNo}
+                        style={getSelectToleranceStyle(row.paintIdentification[0])}
                       >
                         <option value="">Select</option>
                         <option value="OK">OK</option>
@@ -220,6 +221,7 @@ const TestingFinishingSection = ({
                         value={row.ercCoating[0] || ''}
                         onChange={e => updateData(idx, 'ercCoating', e.target.value, 0)}
                         disabled={row.noProduction || !row.lotNo}
+                        style={getSelectToleranceStyle(row.ercCoating[0])}
                       >
                         <option value="">Select</option>
                         <option value="OK">OK</option>
@@ -261,6 +263,7 @@ const TestingFinishingSection = ({
                         value={row.paintIdentification[1] || ''}
                         onChange={e => updateData(idx, 'paintIdentification', e.target.value, 1)}
                         disabled={row.noProduction || !row.lotNo}
+                        style={getSelectToleranceStyle(row.paintIdentification[1])}
                       >
                         <option value="">Select</option>
                         <option value="OK">OK</option>
@@ -274,6 +277,7 @@ const TestingFinishingSection = ({
                         value={row.ercCoating[1] || ''}
                         onChange={e => updateData(idx, 'ercCoating', e.target.value, 1)}
                         disabled={row.noProduction || !row.lotNo}
+                        style={getSelectToleranceStyle(row.ercCoating[1])}
                       >
                         <option value="">Select</option>
                         <option value="OK">OK</option>
@@ -287,16 +291,68 @@ const TestingFinishingSection = ({
                       <span className="testing-finishing-rejected-label">Rejected No.</span>
                     </td>
                     <td className="testing-finishing-td testing-finishing-td--rejected-input">
-                      <input type="number" value={row.toeLoadRejected ?? ''} onChange={e => updateData(idx, 'toeLoadRejected', e.target.value)} disabled={!isRejectionEnabled(row, 'toeLoad')} />
+                      <input
+                        type="text"
+                        inputMode="numeric"
+                        className="form-control testing-finishing-input"
+                        value={!isRejectionEnabled(row, 'toeLoad') ? '0' : (row.toeLoadRejected ?? '0')}
+                        onChange={e => updateData(idx, 'toeLoadRejected', e.target.value.replace(/[^0-9]/g, ''))}
+                        onBlur={() => {
+                          if (!row.toeLoadRejected && row.toeLoadRejected !== 0) {
+                            updateData(idx, 'toeLoadRejected', '0');
+                          }
+                        }}
+                        disabled={!isRejectionEnabled(row, 'toeLoad')}
+                        style={getRejectionStyle(isRejectionEnabled(row, 'toeLoad'))}
+                      />
                     </td>
                     <td className="testing-finishing-td testing-finishing-td--rejected-input">
-                      <input type="number" value={row.weightRejected ?? ''} onChange={e => updateData(idx, 'weightRejected', e.target.value)} disabled={!isRejectionEnabled(row, 'weight')} />
+                      <input
+                        type="text"
+                        inputMode="numeric"
+                        className="form-control testing-finishing-input"
+                        value={!isRejectionEnabled(row, 'weight') ? '0' : (row.weightRejected ?? '0')}
+                        onChange={e => updateData(idx, 'weightRejected', e.target.value.replace(/[^0-9]/g, ''))}
+                        onBlur={() => {
+                          if (!row.weightRejected && row.weightRejected !== 0) {
+                            updateData(idx, 'weightRejected', '0');
+                          }
+                        }}
+                        disabled={!isRejectionEnabled(row, 'weight')}
+                        style={getRejectionStyle(isRejectionEnabled(row, 'weight'))}
+                      />
                     </td>
                     <td className="testing-finishing-td testing-finishing-td--rejected-input">
-                      <input type="number" value={row.paintIdentificationRejected ?? ''} onChange={e => updateData(idx, 'paintIdentificationRejected', e.target.value)} disabled={!isRejectionEnabled(row, 'paintIdentification')} />
+                      <input
+                        type="text"
+                        inputMode="numeric"
+                        className="form-control testing-finishing-input"
+                        value={!isRejectionEnabled(row, 'paintIdentification') ? '0' : (row.paintIdentificationRejected ?? '0')}
+                        onChange={e => updateData(idx, 'paintIdentificationRejected', e.target.value.replace(/[^0-9]/g, ''))}
+                        onBlur={() => {
+                          if (!row.paintIdentificationRejected && row.paintIdentificationRejected !== 0) {
+                            updateData(idx, 'paintIdentificationRejected', '0');
+                          }
+                        }}
+                        disabled={!isRejectionEnabled(row, 'paintIdentification')}
+                        style={getRejectionStyle(isRejectionEnabled(row, 'paintIdentification'))}
+                      />
                     </td>
                     <td className="testing-finishing-td testing-finishing-td--rejected-input">
-                      <input type="number" value={row.ercCoatingRejected ?? ''} onChange={e => updateData(idx, 'ercCoatingRejected', e.target.value)} disabled={!isRejectionEnabled(row, 'ercCoating')} />
+                      <input
+                        type="text"
+                        inputMode="numeric"
+                        className="form-control testing-finishing-input"
+                        value={!isRejectionEnabled(row, 'ercCoating') ? '0' : (row.ercCoatingRejected ?? '0')}
+                        onChange={e => updateData(idx, 'ercCoatingRejected', e.target.value.replace(/[^0-9]/g, ''))}
+                        onBlur={() => {
+                          if (!row.ercCoatingRejected && row.ercCoatingRejected !== 0) {
+                            updateData(idx, 'ercCoatingRejected', '0');
+                          }
+                        }}
+                        disabled={!isRejectionEnabled(row, 'ercCoating')}
+                        style={getRejectionStyle(isRejectionEnabled(row, 'ercCoating'))}
+                      />
                     </td>
                   </tr>
 
@@ -397,6 +453,7 @@ const TestingFinishingSection = ({
                           value={row.paintIdentification[sampleIdx] || ''}
                           onChange={e => updateData(idx, 'paintIdentification', e.target.value, sampleIdx)}
                           disabled={row.noProduction || !row.lotNo}
+                          style={getSelectToleranceStyle(row.paintIdentification[sampleIdx])}
                         >
                           <option value="">S{sampleIdx + 1}</option>
                           <option value="OK">OK</option>
@@ -415,6 +472,7 @@ const TestingFinishingSection = ({
                           value={row.ercCoating[sampleIdx] || ''}
                           onChange={e => updateData(idx, 'ercCoating', e.target.value, sampleIdx)}
                           disabled={row.noProduction || !row.lotNo}
+                          style={getSelectToleranceStyle(row.ercCoating[sampleIdx])}
                         >
                           <option value="">S{sampleIdx + 1}</option>
                           <option value="OK">OK</option>
@@ -428,10 +486,17 @@ const TestingFinishingSection = ({
                     <span className="testing-finishing-mobile-field__label">Rejected No. (Toe Load)</span>
                     <div className="testing-finishing-mobile-field__value">
                       <input
-                        type="number"
-                        value={row.toeLoadRejected ?? ''}
-                        onChange={e => updateData(idx, 'toeLoadRejected', e.target.value)}
+                        type="text"
+                        inputMode="numeric"
+                        value={!isRejectionEnabled(row, 'toeLoad') ? '0' : (row.toeLoadRejected ?? '0')}
+                        onChange={e => updateData(idx, 'toeLoadRejected', e.target.value.replace(/[^0-9]/g, ''))}
+                        onBlur={() => {
+                          if (!row.toeLoadRejected && row.toeLoadRejected !== 0) {
+                            updateData(idx, 'toeLoadRejected', '0');
+                          }
+                        }}
                         disabled={!isRejectionEnabled(row, 'toeLoad')}
+                        style={getRejectionStyle(isRejectionEnabled(row, 'toeLoad'))}
                       />
                     </div>
                   </div>
@@ -440,10 +505,17 @@ const TestingFinishingSection = ({
                     <span className="testing-finishing-mobile-field__label">Rejected No. (Weight)</span>
                     <div className="testing-finishing-mobile-field__value">
                       <input
-                        type="number"
-                        value={row.weightRejected ?? ''}
-                        onChange={e => updateData(idx, 'weightRejected', e.target.value)}
+                        type="text"
+                        inputMode="numeric"
+                        value={!isRejectionEnabled(row, 'weight') ? '0' : (row.weightRejected ?? '0')}
+                        onChange={e => updateData(idx, 'weightRejected', e.target.value.replace(/[^0-9]/g, ''))}
+                        onBlur={() => {
+                          if (!row.weightRejected && row.weightRejected !== 0) {
+                            updateData(idx, 'weightRejected', '0');
+                          }
+                        }}
                         disabled={!isRejectionEnabled(row, 'weight')}
+                        style={getRejectionStyle(isRejectionEnabled(row, 'weight'))}
                       />
                     </div>
                   </div>
@@ -452,10 +524,17 @@ const TestingFinishingSection = ({
                     <span className="testing-finishing-mobile-field__label">Rejected No. (Paint ID)</span>
                     <div className="testing-finishing-mobile-field__value">
                       <input
-                        type="number"
-                        value={row.paintIdentificationRejected ?? ''}
-                        onChange={e => updateData(idx, 'paintIdentificationRejected', e.target.value)}
+                        type="text"
+                        inputMode="numeric"
+                        value={!isRejectionEnabled(row, 'paintIdentification') ? '0' : (row.paintIdentificationRejected ?? '0')}
+                        onChange={e => updateData(idx, 'paintIdentificationRejected', e.target.value.replace(/[^0-9]/g, ''))}
+                        onBlur={() => {
+                          if (!row.paintIdentificationRejected && row.paintIdentificationRejected !== 0) {
+                            updateData(idx, 'paintIdentificationRejected', '0');
+                          }
+                        }}
                         disabled={!isRejectionEnabled(row, 'paintIdentification')}
+                        style={getRejectionStyle(isRejectionEnabled(row, 'paintIdentification'))}
                       />
                     </div>
                   </div>
@@ -464,10 +543,17 @@ const TestingFinishingSection = ({
                     <span className="testing-finishing-mobile-field__label">Rejected No. (ERC Coating)</span>
                     <div className="testing-finishing-mobile-field__value">
                       <input
-                        type="number"
-                        value={row.ercCoatingRejected ?? ''}
-                        onChange={e => updateData(idx, 'ercCoatingRejected', e.target.value)}
+                        type="text"
+                        inputMode="numeric"
+                        value={!isRejectionEnabled(row, 'ercCoating') ? '0' : (row.ercCoatingRejected ?? '0')}
+                        onChange={e => updateData(idx, 'ercCoatingRejected', e.target.value.replace(/[^0-9]/g, ''))}
+                        onBlur={() => {
+                          if (!row.ercCoatingRejected && row.ercCoatingRejected !== 0) {
+                            updateData(idx, 'ercCoatingRejected', '0');
+                          }
+                        }}
                         disabled={!isRejectionEnabled(row, 'ercCoating')}
+                        style={getRejectionStyle(isRejectionEnabled(row, 'ercCoating'))}
                       />
                     </div>
                   </div>

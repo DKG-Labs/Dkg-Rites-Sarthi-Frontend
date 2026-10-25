@@ -1,6 +1,8 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { loginUser, verifyOtp, storeAuthData, isAuthenticated, getStoredUser, resetPassword, logoutUser } from '../services/authService';
+import { QRCode } from 'antd';
+import { loginUser, verifyOtp, initiateAuthenticatorSession, checkAuthenticatorStatus, storeAuthData, isAuthenticated, getStoredUser, resetPassword, logoutUser } from '../services/authService';
+import { API_BASE_URL } from '../services/apiConfig';
 import { ROUTES, ROLE_LANDING_ROUTE } from '../routes';
 import './LoginPage.css';
 
@@ -32,6 +34,23 @@ const LoginPage = () => {
   const [otpInfoMessage, setOtpInfoMessage] = useState('');
   const [resendCountdown, setResendCountdown] = useState(0);
   const [isVerifyingOtp, setIsVerifyingOtp] = useState(false);
+
+  // QR Authenticator (Biometric & Location verification) state
+  const [showQrScreen, setShowQrScreen] = useState(false);
+  const [qrPayload, setQrPayload] = useState('');
+  // eslint-disable-next-line no-unused-vars
+  const [authSessionId, setAuthSessionId] = useState('');
+  const [authStatus, setAuthStatus] = useState('PENDING'); // PENDING, SCANNED, AUTHENTICATED, EXPIRED, FAILED
+  const [qrCountdown, setQrCountdown] = useState(180);
+  const [isQrLoading, setIsQrLoading] = useState(false);
+  // eslint-disable-next-line no-unused-vars
+  const [authSuccessData, setAuthSuccessData] = useState(null);
+  const [qrMode, setQrMode] = useState('AUTH'); // 'AUTH' | 'DOWNLOAD'
+  const apkDownloadUrl = (typeof window !== 'undefined' && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1')
+    ? `${window.location.origin}/download/sarthi-authenticator.apk`
+    : 'https://expo.dev/artifacts/eas/d23ebQfQAg6N6zgKwUUmTkxvLMQlyErwWSF70KnGop8.apk';
+  const qrPollingRef = useRef(null);
+  const qrTimerRef = useRef(null);
 
   // Forgot password state
   const [showForgotPassword, setShowForgotPassword] = useState(false);
@@ -164,10 +183,24 @@ const LoginPage = () => {
   /**
    * Handle selection from multiple roles
    */
-  const handleSelectRole = (selectedOption) => {
+  const PROCESS_ROLES = new Set(['Process IE', 'Sleeper Process IE', 'Rail Process IE']);
+
+  const isProcessRole = (roleToStore) =>
+    String(roleToStore || '').split(',').some(r => PROCESS_ROLES.has(r.trim()));
+
+  const isLocalhost = ['localhost', '127.0.0.1'].includes(window.location.hostname);
+
+  const handleSelectRole = (selectedOption, alreadyAuthenticated = false) => {
     if (!pendingUserData) return;
     const finalUserData = { ...pendingUserData, roleName: selectedOption.roleToStore };
-    handleRoleRedirection(finalUserData);
+    setShowRoleSelection(false);
+    if (!isLocalhost && !alreadyAuthenticated && isProcessRole(selectedOption.roleToStore)) {
+      setPendingUserData(finalUserData);
+      setShowQrScreen(true);
+      startQrSession(finalUserData);
+    } else {
+      handleRoleRedirection(finalUserData);
+    }
   };
 
   const handleForgotPasswordSubmit = async (e) => {
@@ -204,8 +237,9 @@ const LoginPage = () => {
 
   /**
    * Process successful authentication (Direct or post-OTP verification)
+   * @param {boolean} alreadyAuthenticated - true when called after QR/OTP auth; skips re-triggering QR
    */
-  const processLoginSuccess = (userData) => {
+  const processLoginSuccess = (userData, alreadyAuthenticated = false) => {
     // Handle the new list based roleName response
     const roles = Array.isArray(userData.roleName) ? userData.roleName : [userData.roleName];
 
@@ -240,13 +274,15 @@ const LoginPage = () => {
     }
 
     // Consolidate "IE" and "Process IE" into one "IE Dashboard" option
+    // Prefer "Process IE" over "IE" so QR auth triggers correctly when both roles exist
     if (roles.some(r => r === 'IE' || r === 'Process IE')) {
+      const ieRole = roles.includes('Process IE') ? 'Process IE' : 'IE';
       options.push({
         id: 'ie_option',
         label: 'IE Dashboard',
         description: 'Access IE and Process IE modules',
         icon: '🛠️',
-        roleToStore: roles.find(r => r === 'IE' || r === 'Process IE') // Use the first matching role
+        roleToStore: ieRole
       });
       seenConsolidated.add('IE');
       seenConsolidated.add('Process IE');
@@ -326,9 +362,15 @@ const LoginPage = () => {
       setPendingUserData(userData);
       setShowRoleSelection(true);
     } else if (options.length === 1) {
-      // Single option - route directly
+      // Single option - check if process role needs authenticator (skip on localhost or post-QR)
       userData.roleName = options[0].roleToStore;
-      handleRoleRedirection(userData);
+      if (!isLocalhost && !alreadyAuthenticated && isProcessRole(options[0].roleToStore)) {
+        setPendingUserData(userData);
+        setShowQrScreen(true);
+        startQrSession(userData);
+      } else {
+        handleRoleRedirection(userData);
+      }
     } else {
       // No roles found or fallback for existing behavior if list is empty
       handleRoleRedirection(userData);
@@ -373,6 +415,100 @@ const LoginPage = () => {
     }
   };
 
+  // Cleanup QR polling & timers on unmount
+  useEffect(() => {
+    return () => {
+      if (qrPollingRef.current) clearInterval(qrPollingRef.current);
+      if (qrTimerRef.current) clearInterval(qrTimerRef.current);
+    };
+  }, []);
+
+  const startQrSession = async (userData) => {
+    setIsQrLoading(true);
+    setError('');
+    setAuthStatus('PENDING');
+    setAuthSuccessData(null);
+    try {
+      const res = await initiateAuthenticatorSession(
+        userData.userId || userId,
+        userData.userName || '',
+        mfaTransactionId || ''
+      );
+      setAuthSessionId(res.sessionId);
+      let payloadToUse = res.qrData;
+      try {
+        const parsed = JSON.parse(res.qrData);
+        // Inject serverUrl into QR payload so the mobile app knows where to send verification.
+        // When running locally, use the localtunnel public URL (bypasses Windows Firewall on LAN).
+        if (!parsed.serverUrl) {
+          if (API_BASE_URL && !API_BASE_URL.includes('localhost') && !API_BASE_URL.includes('127.0.0.1')) {
+            // Production/Azure: use API_BASE_URL directly
+            parsed.serverUrl = API_BASE_URL;
+          } else {
+            // Local dev: use localtunnel so phone can reach the PC backend
+            parsed.serverUrl = 'https://sarthi-auth.loca.lt/sarthi-backend';
+          }
+          payloadToUse = JSON.stringify(parsed);
+        }
+      } catch (e) {
+        // use raw qrData
+      }
+      setQrPayload(payloadToUse);
+      setQrCountdown(res.expiresInSeconds || 180);
+
+      // Start countdown
+      if (qrTimerRef.current) clearInterval(qrTimerRef.current);
+      qrTimerRef.current = setInterval(() => {
+        setQrCountdown((prev) => {
+          if (prev <= 1) {
+            clearInterval(qrTimerRef.current);
+            setAuthStatus('EXPIRED');
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+
+      // Start polling status
+      if (qrPollingRef.current) clearInterval(qrPollingRef.current);
+      qrPollingRef.current = setInterval(async () => {
+        try {
+          const statusRes = await checkAuthenticatorStatus(res.sessionId);
+          if (statusRes.status === 'AUTHENTICATED') {
+            clearInterval(qrPollingRef.current);
+            clearInterval(qrTimerRef.current);
+            setAuthStatus('AUTHENTICATED');
+            setAuthSuccessData(statusRes);
+            setTimeout(() => {
+              setShowQrScreen(false);
+              processLoginSuccess(userData, true);
+            }, 1200);
+          } else if (statusRes.status === 'SCANNED') {
+            setAuthStatus('SCANNED');
+          } else if (statusRes.status === 'EXPIRED') {
+            clearInterval(qrPollingRef.current);
+            clearInterval(qrTimerRef.current);
+            setAuthStatus('EXPIRED');
+          }
+        } catch (pollErr) {
+          console.warn('Authenticator poll error:', pollErr);
+        }
+      }, 2000);
+
+    } catch (err) {
+      setError(err.message || 'Failed to start authenticator session');
+      setAuthStatus('FAILED');
+    } finally {
+      setIsQrLoading(false);
+    }
+  };
+
+  const handleRefreshQr = () => {
+    if (pendingUserData) {
+      startQrSession(pendingUserData);
+    }
+  };
+
   const handleOtpSubmit = async (e) => {
     e.preventDefault();
     setError('');
@@ -388,7 +524,8 @@ const LoginPage = () => {
       const userData = await verifyOtp(mfaTransactionId, otpValue);
       userData.loginId = userId;
       setShowOtpScreen(false);
-      processLoginSuccess(userData);
+      setPendingUserData(userData);
+      processLoginSuccess(userData, true);
     } catch (err) {
       setError(err.message || 'Invalid or expired OTP. Please try again.');
     } finally {
@@ -416,7 +553,10 @@ const LoginPage = () => {
   };
 
   const handleBackToLogin = () => {
+    if (qrPollingRef.current) clearInterval(qrPollingRef.current);
+    if (qrTimerRef.current) clearInterval(qrTimerRef.current);
     setShowOtpScreen(false);
+    setShowQrScreen(false);
     setOtpValue('');
     setError('');
     setResetSuccess('');
@@ -521,7 +661,7 @@ const LoginPage = () => {
                 </header>
 
                 <div className="dashboard-login-chip">
-                  {showRoleSelection ? 'SELECT ROLE' : showOtpScreen ? 'VERIFY OTP' : 'LOGIN'}
+                  {showRoleSelection ? 'SELECT ROLE' : showQrScreen ? 'AUTHENTICATOR' : showOtpScreen ? 'VERIFY OTP' : 'LOGIN'}
                 </div>
 
                 {showRoleSelection ? (
@@ -549,6 +689,325 @@ const LoginPage = () => {
                     >
                       ← Back to Login
                     </button>
+                  </div>
+                ) : (showQrScreen && !isLocalhost) ? (
+                  <div className="dashboard-form authenticator-qr-container" style={{ marginTop: '0.2rem', textAlign: 'center', width: '100%' }}>
+                    <div className="form-header" style={{ marginBottom: '0.75rem' }}>
+                      <div style={{
+                        width: '40px',
+                        height: '40px',
+                        borderRadius: '50%',
+                        background: 'linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%)',
+                        border: '1.5px solid #bfdbfe',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        margin: '0 auto 6px',
+                        boxShadow: '0 3px 10px rgba(37, 99, 235, 0.15)'
+                      }}>
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#2563eb" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
+                          <circle cx="12" cy="11" r="3"></circle>
+                          <path d="M12 14v3"></path>
+                        </svg>
+                      </div>
+                      <h2 style={{ fontSize: '1.18rem', fontWeight: 800, color: '#0f2246', margin: '0 0 4px', letterSpacing: '-0.01em' }}>
+                        SARTHI Authenticator
+                      </h2>
+                      <p style={{ fontSize: '0.78rem', color: '#64748b', margin: '0 auto', maxWidth: '300px', lineHeight: '1.4' }}>
+                        {qrMode === 'DOWNLOAD'
+                          ? 'Scan with your Phone Camera to download and install the app.'
+                          : 'Scan with SARTHI Authenticator App to verify your live GPS location and selfie.'}
+                      </p>
+                    </div>
+
+                    {error && <div className="error-banner" style={{ padding: '6px 10px', fontSize: '0.78rem', marginBottom: '0.65rem' }}>{error}</div>}
+
+                    {/* Mode Switcher: Login QR vs Download App QR */}
+                    <div className="qr-mode-switcher" style={{
+                      display: 'inline-flex',
+                      background: '#f1f5f9',
+                      padding: '3px',
+                      borderRadius: '24px',
+                      border: '1px solid #cbd5e1',
+                      margin: '0 auto 0.75rem',
+                      boxShadow: 'inset 0 1px 3px rgba(0,0,0,0.05)'
+                    }}>
+                      <button
+                        type="button"
+                        onClick={() => setQrMode('AUTH')}
+                        style={{
+                          padding: '5px 14px',
+                          fontSize: '0.74rem',
+                          fontWeight: '700',
+                          borderRadius: '20px',
+                          border: 'none',
+                          cursor: 'pointer',
+                          background: qrMode === 'AUTH' ? '#ffffff' : 'transparent',
+                          color: qrMode === 'AUTH' ? '#0f2246' : '#64748b',
+                          boxShadow: qrMode === 'AUTH' ? '0 2px 6px rgba(0,0,0,0.1)' : 'none',
+                          transition: 'all 0.2s ease'
+                        }}
+                      >
+                        🔐 Scan to Login
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setQrMode('DOWNLOAD')}
+                        style={{
+                          padding: '5px 14px',
+                          fontSize: '0.74rem',
+                          fontWeight: '700',
+                          borderRadius: '20px',
+                          border: 'none',
+                          cursor: 'pointer',
+                          background: qrMode === 'DOWNLOAD' ? '#2563eb' : 'transparent',
+                          color: qrMode === 'DOWNLOAD' ? '#ffffff' : '#64748b',
+                          boxShadow: qrMode === 'DOWNLOAD' ? '0 2px 6px rgba(37,99,235,0.25)' : 'none',
+                          transition: 'all 0.2s ease'
+                        }}
+                      >
+                        📲 Scan to Download App
+                      </button>
+                    </div>
+
+                    {/* QR Code Container */}
+                    <div className="qr-box" style={{
+                      background: '#ffffff',
+                      borderRadius: '16px',
+                      border: qrMode === 'DOWNLOAD' ? '2px solid #3b82f6' : authStatus === 'AUTHENTICATED' ? '2px solid #22c55e' : '1.5px solid #e2e8f0',
+                      boxShadow: '0 8px 24px rgba(15, 34, 70, 0.08)',
+                    }}>
+                      {qrMode === 'DOWNLOAD' ? (
+                        <>
+                          <QRCode
+                            value={apkDownloadUrl}
+                            size={180}
+                            bordered={false}
+                          />
+                          <span style={{ fontSize: '0.7rem', fontWeight: '700', color: '#2563eb', marginTop: '6px' }}>
+                            📥 Scan with Phone Camera
+                          </span>
+                        </>
+                      ) : authStatus === 'AUTHENTICATED' ? (
+                        <div style={{ width: '180px', height: '180px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+                          <div style={{
+                            width: '56px',
+                            height: '56px',
+                            borderRadius: '50%',
+                            background: '#dcfce7',
+                            border: '2px solid #22c55e',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            marginBottom: '8px'
+                          }}>
+                            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#16a34a" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                              <polyline points="20 6 9 17 4 12"></polyline>
+                            </svg>
+                          </div>
+                          <span style={{ fontSize: '0.85rem', fontWeight: 800, color: '#16a34a' }}>Authenticated!</span>
+                          <span style={{ fontSize: '0.72rem', color: '#64748b', marginTop: '2px' }}>Unlocking dashboard...</span>
+                        </div>
+                      ) : (
+                        <QRCode
+                          value={qrPayload || 'https://ritesqasarthi.com'}
+                          size={180}
+                          bordered={false}
+                          status={authStatus === 'EXPIRED' ? 'expired' : (isQrLoading ? 'loading' : 'active')}
+                          onRefresh={handleRefreshQr}
+                        />
+                      )}
+                    </div>
+
+                    {/* Status Pill */}
+                    <div className="qr-status-pill" style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '8px',
+                      padding: '7px 12px',
+                      background: qrMode === 'DOWNLOAD'
+                        ? 'linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%)'
+                        : authStatus === 'AUTHENTICATED'
+                        ? 'linear-gradient(135deg, #dcfce7 0%, #bbf7d0 100%)'
+                        : authStatus === 'SCANNED'
+                        ? 'linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%)'
+                        : authStatus === 'EXPIRED'
+                        ? 'linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%)'
+                        : 'linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%)',
+                      border: qrMode === 'DOWNLOAD'
+                        ? '1px solid #93c5fd'
+                        : authStatus === 'AUTHENTICATED'
+                        ? '1px solid #86efac'
+                        : authStatus === 'SCANNED'
+                        ? '1px solid #93c5fd'
+                        : authStatus === 'EXPIRED'
+                        ? '1px solid #fca5a5'
+                        : '1px solid #e2e8f0',
+                      borderRadius: '10px',
+                      fontSize: '0.78rem',
+                      fontWeight: '700',
+                      color: qrMode === 'DOWNLOAD'
+                        ? '#1d4ed8'
+                        : authStatus === 'AUTHENTICATED'
+                        ? '#15803d'
+                        : authStatus === 'SCANNED'
+                        ? '#1d4ed8'
+                        : authStatus === 'EXPIRED'
+                        ? '#b91c1c'
+                        : '#475569',
+                      marginBottom: '0.75rem'
+                    }}>
+                      {qrMode === 'DOWNLOAD' ? (
+                        <span>📲 Open Camera or Google Lens to download APK</span>
+                      ) : authStatus === 'AUTHENTICATED' ? (
+                        <span>Verified! Proceeding to Dashboard...</span>
+                      ) : authStatus === 'SCANNED' ? (
+                        <span>Mobile connected! Submitting location & selfie...</span>
+                      ) : authStatus === 'EXPIRED' ? (
+                        <span>QR Expired. Click to refresh.</span>
+                      ) : (
+                        <span>
+                          <span style={{ display: 'inline-block', width: '8px', height: '8px', borderRadius: '50%', background: '#2563eb', marginRight: '6px', animation: 'pulse 1.5s infinite' }}></span>
+                          Waiting for scan... (Expires in <strong>{`${Math.floor(qrCountdown / 60)}:${qrCountdown % 60 < 10 ? '0' : ''}${qrCountdown % 60}`}</strong>)
+                        </span>
+                      )}
+                    </div>
+
+                    {/* Instruction Box */}
+                    {qrMode === 'DOWNLOAD' ? (
+                      <div className="qr-instruction-box" style={{
+                        textAlign: 'left',
+                        padding: '8px 12px',
+                        background: 'rgba(239, 246, 255, 0.85)',
+                        borderRadius: '10px',
+                        border: '1px solid #bfdbfe',
+                        fontSize: '0.72rem',
+                        color: '#1e3a8a',
+                        marginBottom: '0.85rem'
+                      }}>
+                        <div style={{ fontWeight: 800, color: '#1e40af', marginBottom: '4px' }}>How to Install:</div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '2px' }}>
+                          <span style={{ color: '#2563eb', fontWeight: '800' }}>1.</span> Open normal <strong>Phone Camera</strong> or <strong>Google Lens</strong>
+                        </div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '2px' }}>
+                          <span style={{ color: '#2563eb', fontWeight: '800' }}>2.</span> Point at QR code & tap the download prompt
+                        </div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                          <span style={{ color: '#2563eb', fontWeight: '800' }}>3.</span> Tap "Install", then click <strong>"Scan to Login"</strong> above
+                        </div>
+                        <div style={{ marginTop: '8px', paddingTop: '6px', borderTop: '1px dashed #93c5fd', textAlign: 'center' }}>
+                          <a
+                            href="/download/sarthi-authenticator.apk"
+                            download="sarthi-authenticator.apk"
+                            style={{
+                              color: '#1d4ed8',
+                              fontWeight: '700',
+                              textDecoration: 'none',
+                              fontSize: '0.72rem'
+                            }}
+                          >
+                            💻 Or click here to download APK file directly on PC
+                          </a>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="qr-instruction-box" style={{
+                        textAlign: 'left',
+                        padding: '8px 12px',
+                        background: 'rgba(248, 250, 252, 0.85)',
+                        borderRadius: '10px',
+                        border: '1px solid #e2e8f0',
+                        fontSize: '0.72rem',
+                        color: '#475569',
+                        marginBottom: '0.85rem'
+                      }}>
+                        <div style={{ fontWeight: 800, color: '#0f2246', marginBottom: '4px' }}>Steps to Authenticate:</div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '2px' }}>
+                          <span style={{ color: '#2563eb', fontWeight: '800' }}>1.</span> Open <strong>SARTHI Authenticator</strong> app on phone
+                        </div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '2px' }}>
+                          <span style={{ color: '#2563eb', fontWeight: '800' }}>2.</span> Scan the QR code displayed above
+                        </div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                          <span style={{ color: '#2563eb', fontWeight: '800' }}>3.</span> Allow GPS location & take a live selfie
+                        </div>
+                        <div style={{ marginTop: '8px', paddingTop: '6px', borderTop: '1px dashed #cbd5e1', textAlign: 'center' }}>
+                          <button
+                            type="button"
+                            onClick={() => setQrMode('DOWNLOAD')}
+                            style={{
+                              background: 'transparent',
+                              border: 'none',
+                              color: '#2563eb',
+                              fontWeight: '700',
+                              cursor: 'pointer',
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '4px',
+                              fontSize: '0.72rem',
+                              padding: 0
+                            }}
+                          >
+                            📲 <u>Don't have the app? Scan Download QR</u>
+                          </button>
+                        </div>
+                      </div>
+                    )}
+
+                    <div style={{ display: 'flex', justifyContent: 'center', gap: '16px' }}>
+                      {qrMode === 'DOWNLOAD' ? (
+                        <button
+                          type="button"
+                          onClick={() => setQrMode('AUTH')}
+                          style={{
+                            background: '#2563eb',
+                            border: 'none',
+                            borderRadius: '8px',
+                            padding: '6px 14px',
+                            fontSize: '0.76rem',
+                            fontWeight: '700',
+                            color: '#ffffff',
+                            cursor: 'pointer',
+                            boxShadow: '0 2px 6px rgba(37,99,235,0.25)'
+                          }}
+                        >
+                          🔐 Switch to Login QR
+                        </button>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={handleRefreshQr}
+                          style={{
+                            background: '#f1f5f9',
+                            border: '1px solid #cbd5e1',
+                            borderRadius: '8px',
+                            padding: '6px 12px',
+                            fontSize: '0.76rem',
+                            fontWeight: '700',
+                            color: '#334155',
+                            cursor: 'pointer'
+                          }}
+                        >
+                          🔄 Refresh QR
+                        </button>
+                      )}
+                      <button
+                        type="button"
+                        onClick={handleBackToLogin}
+                        style={{
+                          background: 'transparent',
+                          border: 'none',
+                          color: '#64748b',
+                          fontSize: '0.76rem',
+                          fontWeight: '600',
+                          cursor: 'pointer'
+                        }}
+                      >
+                        ← Back to Login
+                      </button>
+                    </div>
                   </div>
                 ) : showOtpScreen ? (
                   <form className="dashboard-form otp-verification-form" onSubmit={handleOtpSubmit} style={{ marginTop: '0.25rem' }}>

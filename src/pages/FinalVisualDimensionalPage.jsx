@@ -170,20 +170,33 @@ const FinalVisualDimensionalPage = ({ onBack, onNavigateSubmodule }) => {
 
       const loadData = async () => {
         try {
-          // Try to load persisted draft data first (highest priority)
+          // Try to load persisted draft data first (highest priority if it contains filled values)
           const persistedData = localStorage.getItem(`visualDimensionalData_${callNo}`);
+          let hasPersistedFilledData = false;
           if (persistedData) {
             try {
               const parsedData = JSON.parse(persistedData);
-              setLotData(parsedData);
-              console.log('✅ Loaded draft data from localStorage');
-              return;
+              const hasVal = (v) => v !== "" && v !== null && v !== undefined;
+              hasPersistedFilledData = Object.values(parsedData).some(lot => 
+                hasVal(lot.visualR1) || hasVal(lot.visualR2) || Boolean(lot.visualRemark) ||
+                hasVal(lot.dimMainGo1) || hasVal(lot.dimMainNoGo1) || hasVal(lot.dimFallGo1) ||
+                hasVal(lot.dimFallNoGo1) || hasVal(lot.dimFlatGo1) || hasVal(lot.dimFlatNoGo1) ||
+                hasVal(lot.dimMainGo2) || hasVal(lot.dimMainNoGo2) || hasVal(lot.dimFallGo2) ||
+                hasVal(lot.dimFallNoGo2) || hasVal(lot.dimFlatGo2) || hasVal(lot.dimFlatNoGo2) ||
+                Boolean(lot.dimRemark)
+              );
+
+              if (hasPersistedFilledData) {
+                setLotData(parsedData);
+                console.log('✅ Loaded draft data with filled values from localStorage');
+                return;
+              }
             } catch (e) {
               console.error('Error parsing persisted data:', e);
             }
           }
 
-          // If no draft data, fetch from database
+          // If no draft data or draft data only had empty defaults, fetch from database
           console.log('📥 Fetching data from database for call:', callNo);
           const [visualResponse, dimensionalResponse] = await Promise.all([
             getVisualInspectionByCallNo(callNo),
@@ -224,8 +237,24 @@ const FinalVisualDimensionalPage = ({ onBack, onNavigateSubmodule }) => {
           // Merge visual inspection data
           visualData.forEach(record => {
             if (mergedData[record.lotNo]) {
-              mergedData[record.lotNo].visualR1 = record.firstSampleRejected > 0 ? String(record.firstSampleRejected) : "";
-              mergedData[record.lotNo].visualR2 = record.secondSampleRejected > 0 ? String(record.secondSampleRejected) : "";
+              const lot = availableLots.find(l => String(l.lotNo) === String(record.lotNo));
+              // ✅ CRITICAL FIX: If record exists in DB, firstSampleRejected (including 0) must be loaded as "0"
+              if (record.firstSampleRejected != null) {
+                mergedData[record.lotNo].visualR1 = String(record.firstSampleRejected);
+              }
+
+              // Check if 2nd sampling was required
+              const r1 = record.firstSampleRejected != null ? Number(record.firstSampleRejected) : null;
+              const is2ndReq = (lot && r1 !== null) ? (r1 > lot.accpNo && r1 < lot.rejNo) : false;
+
+              if (is2ndReq && record.secondSampleRejected != null) {
+                mergedData[record.lotNo].visualR2 = String(record.secondSampleRejected);
+              } else if (record.secondSampleRejected > 0) {
+                mergedData[record.lotNo].visualR2 = String(record.secondSampleRejected);
+              } else {
+                mergedData[record.lotNo].visualR2 = "";
+              }
+
               mergedData[record.lotNo].visualRemark = record.remarks || "";
               console.log(`✅ Merged visual data for lot ${record.lotNo}:`, mergedData[record.lotNo]);
             }
@@ -234,21 +263,42 @@ const FinalVisualDimensionalPage = ({ onBack, onNavigateSubmodule }) => {
           // Merge dimensional inspection data (FLAT STRUCTURE)
           dimensionalData.forEach(record => {
             if (mergedData[record.lotNo]) {
-              // 1st Sampling - map flat fields
-              mergedData[record.lotNo].dimMainGo1 = record.firstSampleMainBoxGo > 0 ? String(record.firstSampleMainBoxGo) : "";
-              mergedData[record.lotNo].dimMainNoGo1 = record.firstSampleMainBoxNoGo > 0 ? String(record.firstSampleMainBoxNoGo) : "";
-              mergedData[record.lotNo].dimFallGo1 = record.firstSampleFallingGo > 0 ? String(record.firstSampleFallingGo) : "";
-              mergedData[record.lotNo].dimFallNoGo1 = record.firstSampleFallingNoGo > 0 ? String(record.firstSampleFallingNoGo) : "";
-              mergedData[record.lotNo].dimFlatGo1 = record.firstSampleFlatBearingGo > 0 ? String(record.firstSampleFlatBearingGo) : "";
-              mergedData[record.lotNo].dimFlatNoGo1 = record.firstSampleFlatBearingNoGo > 0 ? String(record.firstSampleFlatBearingNoGo) : "";
+              // 1st Sampling - map flat fields (preserve 0)
+              mergedData[record.lotNo].dimMainGo1 = record.firstSampleMainBoxGo != null ? String(record.firstSampleMainBoxGo) : 
+                (record.firstSampleGoGaugeFail != null ? String(record.firstSampleGoGaugeFail) : "");
+              mergedData[record.lotNo].dimMainNoGo1 = record.firstSampleMainBoxNoGo != null ? String(record.firstSampleMainBoxNoGo) : 
+                (record.firstSampleNoGoFail != null ? String(record.firstSampleNoGoFail) : "");
+              mergedData[record.lotNo].dimFallGo1 = record.firstSampleFallingGo != null ? String(record.firstSampleFallingGo) : "";
+              mergedData[record.lotNo].dimFallNoGo1 = record.firstSampleFallingNoGo != null ? String(record.firstSampleFallingNoGo) : "";
+              mergedData[record.lotNo].dimFlatGo1 = record.firstSampleFlatBearingGo != null ? String(record.firstSampleFlatBearingGo) : 
+                (record.firstSampleFlatBearingFail != null ? String(record.firstSampleFlatBearingFail) : "");
+              mergedData[record.lotNo].dimFlatNoGo1 = record.firstSampleFlatBearingNoGo != null ? String(record.firstSampleFlatBearingNoGo) : "";
 
               // 2nd Sampling - map flat fields
-              mergedData[record.lotNo].dimMainGo2 = record.secondSampleMainBoxGo > 0 ? String(record.secondSampleMainBoxGo) : "";
-              mergedData[record.lotNo].dimMainNoGo2 = record.secondSampleMainBoxNoGo > 0 ? String(record.secondSampleMainBoxNoGo) : "";
-              mergedData[record.lotNo].dimFallGo2 = record.secondSampleFallingGo > 0 ? String(record.secondSampleFallingGo) : "";
-              mergedData[record.lotNo].dimFallNoGo2 = record.secondSampleFallingNoGo > 0 ? String(record.secondSampleFallingNoGo) : "";
-              mergedData[record.lotNo].dimFlatGo2 = record.secondSampleFlatBearingGo > 0 ? String(record.secondSampleFlatBearingGo) : "";
-              mergedData[record.lotNo].dimFlatNoGo2 = record.secondSampleFlatBearingNoGo > 0 ? String(record.secondSampleFlatBearingNoGo) : "";
+              const lot = availableLots.find(l => String(l.lotNo) === String(record.lotNo));
+              const r1 = safe(mergedData[record.lotNo].dimMainGo1) + safe(mergedData[record.lotNo].dimMainNoGo1) +
+                         safe(mergedData[record.lotNo].dimFallGo1) + safe(mergedData[record.lotNo].dimFallNoGo1) +
+                         safe(mergedData[record.lotNo].dimFlatGo1) + safe(mergedData[record.lotNo].dimFlatNoGo1);
+              const is2ndReq = lot ? (r1 > lot.accpNo && r1 < lot.rejNo) : false;
+
+              if (is2ndReq) {
+                mergedData[record.lotNo].dimMainGo2 = record.secondSampleMainBoxGo != null ? String(record.secondSampleMainBoxGo) : 
+                  (record.secondSampleGoGaugeFail != null ? String(record.secondSampleGoGaugeFail) : "");
+                mergedData[record.lotNo].dimMainNoGo2 = record.secondSampleMainBoxNoGo != null ? String(record.secondSampleMainBoxNoGo) : 
+                  (record.secondSampleNoGoFail != null ? String(record.secondSampleNoGoFail) : "");
+                mergedData[record.lotNo].dimFallGo2 = record.secondSampleFallingGo != null ? String(record.secondSampleFallingGo) : "";
+                mergedData[record.lotNo].dimFallNoGo2 = record.secondSampleFallingNoGo != null ? String(record.secondSampleFallingNoGo) : "";
+                mergedData[record.lotNo].dimFlatGo2 = record.secondSampleFlatBearingGo != null ? String(record.secondSampleFlatBearingGo) : 
+                  (record.secondSampleFlatBearingFail != null ? String(record.secondSampleFlatBearingFail) : "");
+                mergedData[record.lotNo].dimFlatNoGo2 = record.secondSampleFlatBearingNoGo != null ? String(record.secondSampleFlatBearingNoGo) : "";
+              } else {
+                mergedData[record.lotNo].dimMainGo2 = record.secondSampleMainBoxGo > 0 ? String(record.secondSampleMainBoxGo) : "";
+                mergedData[record.lotNo].dimMainNoGo2 = record.secondSampleMainBoxNoGo > 0 ? String(record.secondSampleMainBoxNoGo) : "";
+                mergedData[record.lotNo].dimFallGo2 = record.secondSampleFallingGo > 0 ? String(record.secondSampleFallingGo) : "";
+                mergedData[record.lotNo].dimFallNoGo2 = record.secondSampleFallingNoGo > 0 ? String(record.secondSampleFallingNoGo) : "";
+                mergedData[record.lotNo].dimFlatGo2 = record.secondSampleFlatBearingGo > 0 ? String(record.secondSampleFlatBearingGo) : "";
+                mergedData[record.lotNo].dimFlatNoGo2 = record.secondSampleFlatBearingNoGo > 0 ? String(record.secondSampleFlatBearingNoGo) : "";
+              }
 
               mergedData[record.lotNo].dimRemark = record.remarks || "";
               console.log(`✅ Merged dimensional data for lot ${record.lotNo}:`, mergedData[record.lotNo]);
@@ -276,7 +326,7 @@ const FinalVisualDimensionalPage = ({ onBack, onNavigateSubmodule }) => {
     const timeoutId = setTimeout(() => {
       localStorage.setItem(`visualDimensionalData_${callNo}`, JSON.stringify(lotData));
       console.log('💾 Persisted visual dimensional data to localStorage (debounced)');
-    }, 1000);
+    }, 500);
 
     return () => clearTimeout(timeoutId);
   }, [lotData, callNo]);
@@ -286,16 +336,22 @@ const FinalVisualDimensionalPage = ({ onBack, onNavigateSubmodule }) => {
     // Numeric fields: all others - convert to number
     const isTextField = field === "visualRemark" || field === "dimRemark";
 
-    setLotData(prev => ({
-      ...prev,
-      [lotNo]: {
-        ...prev[lotNo],
-        [field]: isTextField ? value : (value === "" ? "" : Number(value))
+    setLotData(prev => {
+      const updated = {
+        ...prev,
+        [lotNo]: {
+          ...(prev[lotNo] || {}),
+          [field]: isTextField ? value : (value === "" ? "" : Number(value))
+        }
+      };
+      if (callNo) {
+        localStorage.setItem(`visualDimensionalData_${callNo}`, JSON.stringify(updated));
       }
-    }));
+      return updated;
+    });
   };
 
-  const safe = val => (val === "" || isNaN(val) ? 0 : Number(val));
+  const safe = val => (val === "" || val === null || val === undefined || isNaN(val) ? 0 : Number(val));
 
   /* ------------------------------
      VISUAL 2ND SAMPLING LOGIC
@@ -741,23 +797,24 @@ const FinalVisualDimensionalPage = ({ onBack, onNavigateSubmodule }) => {
           <div className="section-content">
             {availableLots.map((lot, idx) => {
               if (activeLotTab !== idx) return null;
-              const d = lotData[lot.lotNo];
+              const d = lotData[lot.lotNo] || {};
               const r1 = safe(d.visualR1);
               const r2 = safe(d.visualR2);
               const show2nd = !!showVisual2ndMap[lot.lotNo];
               const totalRejected = r1 + (show2nd ? r2 : 0);
 
-              // Check if any data has been filled
-              // Check if any data has been filled
+              const hasVal = (v) => v !== "" && v !== null && v !== undefined;
+              const hasVisualR1 = hasVal(d.visualR1);
+              const hasVisualR2 = hasVal(d.visualR2);
 
               /* Final status: OK if r1 <= AccpNo and filled, NOT OK if rejected criteria met, PENDING otherwise */
               const status =
                 r1 >= lot.rejNo
                   ? { text: "NOT OK", color: "#ef4444" }
-                  : (r1 <= lot.accpNo && d.visualR1 !== "")
+                  : (r1 <= lot.accpNo && hasVisualR1)
                     ? { text: "OK", color: "#22c55e" }
                     : show2nd
-                      ? (d.visualR2 !== ""
+                      ? (hasVisualR2
                         ? (r1 + safe(d.visualR2)) >= lot.cummRejNo
                           ? { text: "NOT OK", color: "#ef4444" }
                           : { text: "OK", color: "#22c55e" }
@@ -801,7 +858,7 @@ const FinalVisualDimensionalPage = ({ onBack, onNavigateSubmodule }) => {
                         type="number"
                         min="0"
                         className="input"
-                        value={d.visualR1}
+                        value={d?.visualR1 !== undefined && d?.visualR1 !== null ? d.visualR1 : ""}
                         onChange={e => handleChange(lot.lotNo, "visualR1", e.target.value)}
                         placeholder="Enter count"
                       />
@@ -814,7 +871,7 @@ const FinalVisualDimensionalPage = ({ onBack, onNavigateSubmodule }) => {
                           type="number"
                           min="0"
                           className="input"
-                          value={d.visualR2}
+                          value={d?.visualR2 !== undefined && d?.visualR2 !== null ? d.visualR2 : ""}
                           onChange={e => handleChange(lot.lotNo, "visualR2", e.target.value)}
                           placeholder="Enter count"
                         />
@@ -867,7 +924,7 @@ const FinalVisualDimensionalPage = ({ onBack, onNavigateSubmodule }) => {
           <div className="section-content">
             {availableLots.map((lot, idx) => {
               if (activeLotTab !== idx) return null;
-              const d = lotData[lot.lotNo];
+              const d = lotData[lot.lotNo] || {};
               const r1 = safe(d.dimMainGo1) + safe(d.dimMainNoGo1) + 
                          safe(d.dimFallGo1) + safe(d.dimFallNoGo1) + 
                          safe(d.dimFlatGo1) + safe(d.dimFlatNoGo1);
@@ -877,14 +934,15 @@ const FinalVisualDimensionalPage = ({ onBack, onNavigateSubmodule }) => {
               const show2nd = !!showDim2ndMap[lot.lotNo];
               const totalRejected = r1 + (show2nd ? r2 : 0);
 
+              const hasVal = (v) => v !== "" && v !== null && v !== undefined;
 
               /* Final status logic strictly following IS 2500 Double Sampling rules */
-              const isFullR1 = d.dimMainGo1 !== "" && d.dimMainNoGo1 !== "" && 
-                               d.dimFallGo1 !== "" && d.dimFallNoGo1 !== "" && 
-                               d.dimFlatGo1 !== "" && d.dimFlatNoGo1 !== "";
-              const isFullR2 = d.dimMainGo2 !== "" && d.dimMainNoGo2 !== "" && 
-                               d.dimFallGo2 !== "" && d.dimFallNoGo2 !== "" && 
-                               d.dimFlatGo2 !== "" && d.dimFlatNoGo2 !== "";
+              const isFullR1 = hasVal(d.dimMainGo1) && hasVal(d.dimMainNoGo1) && 
+                               hasVal(d.dimFallGo1) && hasVal(d.dimFallNoGo1) && 
+                               hasVal(d.dimFlatGo1) && hasVal(d.dimFlatNoGo1);
+              const isFullR2 = hasVal(d.dimMainGo2) && hasVal(d.dimMainNoGo2) && 
+                               hasVal(d.dimFallGo2) && hasVal(d.dimFallNoGo2) && 
+                               hasVal(d.dimFlatGo2) && hasVal(d.dimFlatNoGo2);
 
               const status =
                 r1 >= lot.rejNo
@@ -930,37 +988,37 @@ const FinalVisualDimensionalPage = ({ onBack, onNavigateSubmodule }) => {
                   <div className="dimensional-grid">
                     <div className="field">
                       <label className="label">Main gauge (Go)</label>
-                      <input className="input" type="number" min="0" value={d.dimMainGo1}
+                      <input className="input" type="number" min="0" value={d?.dimMainGo1 !== undefined && d?.dimMainGo1 !== null ? d.dimMainGo1 : ""}
                         onChange={e => handleChange(lot.lotNo, "dimMainGo1", e.target.value)}
                         placeholder="0" />
                     </div>
                     <div className="field">
                       <label className="label">Main gauge (No-Go)</label>
-                      <input className="input" type="number" min="0" value={d.dimMainNoGo1}
+                      <input className="input" type="number" min="0" value={d?.dimMainNoGo1 !== undefined && d?.dimMainNoGo1 !== null ? d.dimMainNoGo1 : ""}
                         onChange={e => handleChange(lot.lotNo, "dimMainNoGo1", e.target.value)}
                         placeholder="0" />
                     </div>
                     <div className="field">
                       <label className="label">Falling in Gauges (Go)</label>
-                      <input className="input" type="number" min="0" value={d.dimFallGo1}
+                      <input className="input" type="number" min="0" value={d?.dimFallGo1 !== undefined && d?.dimFallGo1 !== null ? d.dimFallGo1 : ""}
                         onChange={e => handleChange(lot.lotNo, "dimFallGo1", e.target.value)}
                         placeholder="0" />
                     </div>
                     <div className="field">
                       <label className="label">Falling in Gauges (No-Go)</label>
-                      <input className="input" type="number" min="0" value={d.dimFallNoGo1}
+                      <input className="input" type="number" min="0" value={d?.dimFallNoGo1 !== undefined && d?.dimFallNoGo1 !== null ? d.dimFallNoGo1 : ""}
                         onChange={e => handleChange(lot.lotNo, "dimFallNoGo1", e.target.value)}
                         placeholder="0" />
                     </div>
                     <div className="field">
                       <label className="label">Flat bearing length (Go)</label>
-                      <input className="input" type="number" min="0" value={d.dimFlatGo1}
+                      <input className="input" type="number" min="0" value={d?.dimFlatGo1 !== undefined && d?.dimFlatGo1 !== null ? d.dimFlatGo1 : ""}
                         onChange={e => handleChange(lot.lotNo, "dimFlatGo1", e.target.value)}
                         placeholder="0" />
                     </div>
                     <div className="field">
                       <label className="label">Flat bearing length (No-Go)</label>
-                      <input className="input" type="number" min="0" value={d.dimFlatNoGo1}
+                      <input className="input" type="number" min="0" value={d?.dimFlatNoGo1 !== undefined && d?.dimFlatNoGo1 !== null ? d.dimFlatNoGo1 : ""}
                         onChange={e => handleChange(lot.lotNo, "dimFlatNoGo1", e.target.value)}
                         placeholder="0" />
                     </div>
@@ -973,37 +1031,37 @@ const FinalVisualDimensionalPage = ({ onBack, onNavigateSubmodule }) => {
                       <div className="dimensional-grid">
                         <div className="field">
                           <label className="label">Main gauge (Go) (2nd)</label>
-                          <input className="input" type="number" min="0" value={d.dimMainGo2}
+                          <input className="input" type="number" min="0" value={d?.dimMainGo2 !== undefined && d?.dimMainGo2 !== null ? d.dimMainGo2 : ""}
                             onChange={e => handleChange(lot.lotNo, "dimMainGo2", e.target.value)}
                             placeholder="0" />
                         </div>
                         <div className="field">
                           <label className="label">Main gauge (No-Go) (2nd)</label>
-                          <input className="input" type="number" min="0" value={d.dimMainNoGo2}
+                          <input className="input" type="number" min="0" value={d?.dimMainNoGo2 !== undefined && d?.dimMainNoGo2 !== null ? d.dimMainNoGo2 : ""}
                             onChange={e => handleChange(lot.lotNo, "dimMainNoGo2", e.target.value)}
                             placeholder="0" />
                         </div>
                         <div className="field">
                           <label className="label">Falling (Go) (2nd)</label>
-                          <input className="input" type="number" min="0" value={d.dimFallGo2}
+                          <input className="input" type="number" min="0" value={d?.dimFallGo2 !== undefined && d?.dimFallGo2 !== null ? d.dimFallGo2 : ""}
                             onChange={e => handleChange(lot.lotNo, "dimFallGo2", e.target.value)}
                             placeholder="0" />
                         </div>
                         <div className="field">
                           <label className="label">Falling (No-Go) (2nd)</label>
-                          <input className="input" type="number" min="0" value={d.dimFallNoGo2}
+                          <input className="input" type="number" min="0" value={d?.dimFallNoGo2 !== undefined && d?.dimFallNoGo2 !== null ? d.dimFallNoGo2 : ""}
                             onChange={e => handleChange(lot.lotNo, "dimFallNoGo2", e.target.value)}
                             placeholder="0" />
                         </div>
                         <div className="field">
                           <label className="label">Flat bearing (Go) (2nd)</label>
-                          <input className="input" type="number" min="0" value={d.dimFlatGo2}
+                          <input className="input" type="number" min="0" value={d?.dimFlatGo2 !== undefined && d?.dimFlatGo2 !== null ? d.dimFlatGo2 : ""}
                             onChange={e => handleChange(lot.lotNo, "dimFlatGo2", e.target.value)}
                             placeholder="0" />
                         </div>
                         <div className="field">
                           <label className="label">Flat bearing (No-Go) (2nd)</label>
-                          <input className="input" type="number" min="0" value={d.dimFlatNoGo2}
+                          <input className="input" type="number" min="0" value={d?.dimFlatNoGo2 !== undefined && d?.dimFlatNoGo2 !== null ? d.dimFlatNoGo2 : ""}
                             onChange={e => handleChange(lot.lotNo, "dimFlatNoGo2", e.target.value)}
                             placeholder="0" />
                         </div>

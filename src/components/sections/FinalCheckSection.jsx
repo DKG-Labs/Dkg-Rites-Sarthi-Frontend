@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import './FinalCheckSection.css';
-import { getToleranceStyle, checkTolerance } from '../../utils/toleranceValidation';
+import { getToleranceStyle, checkTolerance, getRejectionStyle, getSelectToleranceStyle } from '../../utils/toleranceValidation';
 
 const FinalCheckSection = ({
   data,
@@ -27,7 +27,7 @@ const FinalCheckSection = ({
 
     // For dropdowns (OK/NOT OK)
     // Fields: boxGauge, flatBearingArea, fallingGauge, surfaceDefect, embossingDefect, marking
-    return row[field]?.some(val => val === 'NOT OK' || val === 'Not OK');
+    return row[field]?.some(val => String(val || '').trim().toUpperCase() === 'NOT OK');
   };
 
   const autoClearRejections = (row) => {
@@ -72,13 +72,13 @@ const FinalCheckSection = ({
       embossingDefect: [],
       marking: [],
       temperingHardness: [],
-      boxGaugeRejected: '',
-      flatBearingAreaRejected: '',
-      fallingGaugeRejected: '',
-      surfaceDefectRejected: '',
-      embossingDefectRejected: '',
-      markingRejected: '',
-      temperingHardnessRejected: '',
+      boxGaugeRejected: '0',
+      flatBearingAreaRejected: '0',
+      fallingGaugeRejected: '0',
+      surfaceDefectRejected: '0',
+      embossingDefectRejected: '0',
+      markingRejected: '0',
+      temperingHardnessRejected: '0',
       remarks: '',
       noProduction: true
     };
@@ -207,6 +207,7 @@ const FinalCheckSection = ({
                         value={row.boxGauge[0] || ''}
                         onChange={e => wrappedUpdateData(idx, 'boxGauge', e.target.value, 0)}
                         disabled={row.noProduction || !row.lotNo}
+                        style={getSelectToleranceStyle(row.boxGauge[0])}
                       >
                         <option value="">Select</option>
                         <option value="OK">OK</option>
@@ -219,6 +220,7 @@ const FinalCheckSection = ({
                         value={row.flatBearingArea[0] || ''}
                         onChange={e => wrappedUpdateData(idx, 'flatBearingArea', e.target.value, 0)}
                         disabled={row.noProduction || !row.lotNo}
+                        style={getSelectToleranceStyle(row.flatBearingArea[0])}
                       >
                         <option value="">Select</option>
                         <option value="OK">OK</option>
@@ -231,6 +233,7 @@ const FinalCheckSection = ({
                         value={row.fallingGauge[0] || ''}
                         onChange={e => wrappedUpdateData(idx, 'fallingGauge', e.target.value, 0)}
                         disabled={row.noProduction || !row.lotNo}
+                        style={getSelectToleranceStyle(row.fallingGauge[0])}
                       >
                         <option value="">Select</option>
                         <option value="OK">OK</option>
@@ -243,6 +246,7 @@ const FinalCheckSection = ({
                         value={row.surfaceDefect[0] || ''}
                         onChange={e => wrappedUpdateData(idx, 'surfaceDefect', e.target.value, 0)}
                         disabled={row.noProduction || !row.lotNo}
+                        style={getSelectToleranceStyle(row.surfaceDefect[0])}
                       >
                         <option value="">Select</option>
                         <option value="OK">OK</option>
@@ -255,6 +259,7 @@ const FinalCheckSection = ({
                         value={row.embossingDefect[0] || ''}
                         onChange={e => wrappedUpdateData(idx, 'embossingDefect', e.target.value, 0)}
                         disabled={row.noProduction || !row.lotNo}
+                        style={getSelectToleranceStyle(row.embossingDefect[0])}
                       >
                         <option value="">Select</option>
                         <option value="OK">OK</option>
@@ -267,6 +272,7 @@ const FinalCheckSection = ({
                         value={row.marking[0] || ''}
                         onChange={e => wrappedUpdateData(idx, 'marking', e.target.value, 0)}
                         disabled={row.noProduction || !row.lotNo}
+                        style={getSelectToleranceStyle(row.marking[0])}
                       >
                         <option value="">Select</option>
                         <option value="OK">OK</option>
@@ -293,6 +299,7 @@ const FinalCheckSection = ({
                         value={row.boxGauge[1] || ''}
                         onChange={e => wrappedUpdateData(idx, 'boxGauge', e.target.value, 1)}
                         disabled={row.noProduction || !row.lotNo}
+                        style={getSelectToleranceStyle(row.boxGauge[1])}
                       >
                         <option value="">Select</option>
                         <option value="OK">OK</option>
@@ -305,6 +312,7 @@ const FinalCheckSection = ({
                         value={row.flatBearingArea[1] || ''}
                         onChange={e => wrappedUpdateData(idx, 'flatBearingArea', e.target.value, 1)}
                         disabled={row.noProduction || !row.lotNo}
+                        style={getSelectToleranceStyle(row.flatBearingArea[1])}
                       >
                         <option value="">Select</option>
                         <option value="OK">OK</option>
@@ -317,6 +325,7 @@ const FinalCheckSection = ({
                         value={row.fallingGauge[1] || ''}
                         onChange={e => wrappedUpdateData(idx, 'fallingGauge', e.target.value, 1)}
                         disabled={row.noProduction || !row.lotNo}
+                        style={getSelectToleranceStyle(row.fallingGauge[1])}
                       >
                         <option value="">Select</option>
                         <option value="OK">OK</option>
@@ -329,6 +338,7 @@ const FinalCheckSection = ({
                         value={row.surfaceDefect[1] || ''}
                         onChange={e => wrappedUpdateData(idx, 'surfaceDefect', e.target.value, 1)}
                         disabled={row.noProduction || !row.lotNo}
+                        style={getSelectToleranceStyle(row.surfaceDefect[1])}
                       >
                         <option value="">Select</option>
                         <option value="OK">OK</option>
@@ -341,6 +351,7 @@ const FinalCheckSection = ({
                         value={row.embossingDefect[1] || ''}
                         onChange={e => wrappedUpdateData(idx, 'embossingDefect', e.target.value, 1)}
                         disabled={row.noProduction || !row.lotNo}
+                        style={getSelectToleranceStyle(row.embossingDefect[1])}
                       >
                         <option value="">Select</option>
                         <option value="OK">OK</option>
@@ -353,6 +364,7 @@ const FinalCheckSection = ({
                         value={row.marking[1] || ''}
                         onChange={e => wrappedUpdateData(idx, 'marking', e.target.value, 1)}
                         disabled={row.noProduction || !row.lotNo}
+                        style={getSelectToleranceStyle(row.marking[1])}
                       >
                         <option value="">Select</option>
                         <option value="OK">OK</option>
@@ -378,65 +390,114 @@ const FinalCheckSection = ({
                     </td>
                     <td className="final-check-td final-check-td--rejected-input">
                       <input
-                        type="number"
+                        type="text"
+                        inputMode="numeric"
                         className="form-control final-check-input"
-                        value={row.boxGaugeRejected ?? ''}
-                        onChange={e => wrappedUpdateData(idx, 'boxGaugeRejected', e.target.value)}
+                        value={!isRejectionEnabled(row, 'boxGauge') ? '0' : (row.boxGaugeRejected ?? '0')}
+                        onChange={e => wrappedUpdateData(idx, 'boxGaugeRejected', e.target.value.replace(/[^0-9]/g, ''))}
+                        onBlur={() => {
+                          if (!row.boxGaugeRejected && row.boxGaugeRejected !== 0) {
+                            wrappedUpdateData(idx, 'boxGaugeRejected', '0');
+                          }
+                        }}
                         disabled={!isRejectionEnabled(row, 'boxGauge')}
+                        style={getRejectionStyle(isRejectionEnabled(row, 'boxGauge'))}
                       />
                     </td>
                     <td className="final-check-td final-check-td--rejected-input">
                       <input
-                        type="number"
+                        type="text"
+                        inputMode="numeric"
                         className="form-control final-check-input"
-                        value={row.flatBearingAreaRejected ?? ''}
-                        onChange={e => updateData(idx, 'flatBearingAreaRejected', e.target.value)}
+                        value={!isRejectionEnabled(row, 'flatBearingArea') ? '0' : (row.flatBearingAreaRejected ?? '0')}
+                        onChange={e => updateData(idx, 'flatBearingAreaRejected', e.target.value.replace(/[^0-9]/g, ''))}
+                        onBlur={() => {
+                          if (!row.flatBearingAreaRejected && row.flatBearingAreaRejected !== 0) {
+                            updateData(idx, 'flatBearingAreaRejected', '0');
+                          }
+                        }}
                         disabled={!isRejectionEnabled(row, 'flatBearingArea')}
+                        style={getRejectionStyle(isRejectionEnabled(row, 'flatBearingArea'))}
                       />
                     </td>
                     <td className="final-check-td final-check-td--rejected-input">
                       <input
-                        type="number"
+                        type="text"
+                        inputMode="numeric"
                         className="form-control final-check-input"
-                        value={row.fallingGaugeRejected ?? ''}
-                        onChange={e => updateData(idx, 'fallingGaugeRejected', e.target.value)}
+                        value={!isRejectionEnabled(row, 'fallingGauge') ? '0' : (row.fallingGaugeRejected ?? '0')}
+                        onChange={e => updateData(idx, 'fallingGaugeRejected', e.target.value.replace(/[^0-9]/g, ''))}
+                        onBlur={() => {
+                          if (!row.fallingGaugeRejected && row.fallingGaugeRejected !== 0) {
+                            updateData(idx, 'fallingGaugeRejected', '0');
+                          }
+                        }}
                         disabled={!isRejectionEnabled(row, 'fallingGauge')}
+                        style={getRejectionStyle(isRejectionEnabled(row, 'fallingGauge'))}
                       />
                     </td>
                     <td className="final-check-td final-check-td--rejected-input">
                       <input
-                        type="number"
+                        type="text"
+                        inputMode="numeric"
                         className="form-control final-check-input"
-                        value={row.surfaceDefectRejected ?? ''}
-                        onChange={e => updateData(idx, 'surfaceDefectRejected', e.target.value)}
+                        value={!isRejectionEnabled(row, 'surfaceDefect') ? '0' : (row.surfaceDefectRejected ?? '0')}
+                        onChange={e => updateData(idx, 'surfaceDefectRejected', e.target.value.replace(/[^0-9]/g, ''))}
+                        onBlur={() => {
+                          if (!row.surfaceDefectRejected && row.surfaceDefectRejected !== 0) {
+                            updateData(idx, 'surfaceDefectRejected', '0');
+                          }
+                        }}
                         disabled={!isRejectionEnabled(row, 'surfaceDefect')}
+                        style={getRejectionStyle(isRejectionEnabled(row, 'surfaceDefect'))}
                       />
                     </td>
                     <td className="final-check-td final-check-td--rejected-input">
                       <input
-                        type="number"
+                        type="text"
+                        inputMode="numeric"
                         className="form-control final-check-input"
-                        value={row.embossingDefectRejected ?? ''}
-                        onChange={e => updateData(idx, 'embossingDefectRejected', e.target.value)}
+                        value={!isRejectionEnabled(row, 'embossingDefect') ? '0' : (row.embossingDefectRejected ?? '0')}
+                        onChange={e => updateData(idx, 'embossingDefectRejected', e.target.value.replace(/[^0-9]/g, ''))}
+                        onBlur={() => {
+                          if (!row.embossingDefectRejected && row.embossingDefectRejected !== 0) {
+                            updateData(idx, 'embossingDefectRejected', '0');
+                          }
+                        }}
                         disabled={!isRejectionEnabled(row, 'embossingDefect')}
+                        style={getRejectionStyle(isRejectionEnabled(row, 'embossingDefect'))}
                       />
                     </td>
                     <td className="final-check-td final-check-td--rejected-input">
                       <input
-                        type="number"
+                        type="text"
+                        inputMode="numeric"
                         className="form-control final-check-input"
-                        value={row.markingRejected ?? ''}
-                        onChange={e => updateData(idx, 'markingRejected', e.target.value)}
+                        value={!isRejectionEnabled(row, 'marking') ? '0' : (row.markingRejected ?? '0')}
+                        onChange={e => updateData(idx, 'markingRejected', e.target.value.replace(/[^0-9]/g, ''))}
+                        onBlur={() => {
+                          if (!row.markingRejected && row.markingRejected !== 0) {
+                            updateData(idx, 'markingRejected', '0');
+                          }
+                        }}
                         disabled={!isRejectionEnabled(row, 'marking')}
+                        style={getRejectionStyle(isRejectionEnabled(row, 'marking'))}
                       />
                     </td>
                     <td className="final-check-td final-check-td--rejected-input">
                       <input
-                        type="number"
+                        type="text"
+                        inputMode="numeric"
                         className="form-control final-check-input"
-                        value={row.temperingHardnessRejected ?? ''}
-                        onChange={e => updateData(idx, 'temperingHardnessRejected', e.target.value)}
+                        value={!isRejectionEnabled(row, 'temperingHardness') ? '0' : (row.temperingHardnessRejected ?? '0')}
+                        onChange={e => updateData(idx, 'temperingHardnessRejected', e.target.value.replace(/[^0-9]/g, ''))}
+                        onBlur={() => {
+                          if (!row.temperingHardnessRejected && row.temperingHardnessRejected !== 0) {
+                            updateData(idx, 'temperingHardnessRejected', '0');
+                          }
+                        }}
                         disabled={!isRejectionEnabled(row, 'temperingHardness')}
+                        style={getRejectionStyle(isRejectionEnabled(row, 'temperingHardness'))}
                       />
                     </td>
                   </tr>
@@ -501,6 +562,7 @@ const FinalCheckSection = ({
                           value={row.boxGauge[sampleIdx] || ''}
                           onChange={e => updateData(idx, 'boxGauge', e.target.value, sampleIdx)}
                           disabled={row.noProduction || !row.lotNo}
+                          style={getSelectToleranceStyle(row.boxGauge[sampleIdx])}
                         >
                           <option value="">S{sampleIdx + 1}</option>
                           <option value="OK">OK</option>
@@ -518,6 +580,7 @@ const FinalCheckSection = ({
                           value={row.flatBearingArea[sampleIdx] || ''}
                           onChange={e => updateData(idx, 'flatBearingArea', e.target.value, sampleIdx)}
                           disabled={row.noProduction || !row.lotNo}
+                          style={getSelectToleranceStyle(row.flatBearingArea[sampleIdx])}
                         >
                           <option value="">S{sampleIdx + 1}</option>
                           <option value="OK">OK</option>
@@ -535,6 +598,7 @@ const FinalCheckSection = ({
                           value={row.fallingGauge[sampleIdx] || ''}
                           onChange={e => updateData(idx, 'fallingGauge', e.target.value, sampleIdx)}
                           disabled={row.noProduction || !row.lotNo}
+                          style={getSelectToleranceStyle(row.fallingGauge[sampleIdx])}
                         >
                           <option value="">S{sampleIdx + 1}</option>
                           <option value="OK">OK</option>
@@ -552,6 +616,7 @@ const FinalCheckSection = ({
                           value={row.surfaceDefect[sampleIdx] || ''}
                           onChange={e => updateData(idx, 'surfaceDefect', e.target.value, sampleIdx)}
                           disabled={row.noProduction || !row.lotNo}
+                          style={getSelectToleranceStyle(row.surfaceDefect[sampleIdx])}
                         >
                           <option value="">S{sampleIdx + 1}</option>
                           <option value="OK">OK</option>
@@ -569,6 +634,7 @@ const FinalCheckSection = ({
                           value={row.embossingDefect[sampleIdx] || ''}
                           onChange={e => updateData(idx, 'embossingDefect', e.target.value, sampleIdx)}
                           disabled={row.noProduction || !row.lotNo}
+                          style={getSelectToleranceStyle(row.embossingDefect[sampleIdx])}
                         >
                           <option value="">S{sampleIdx + 1}</option>
                           <option value="OK">OK</option>
@@ -586,6 +652,7 @@ const FinalCheckSection = ({
                           value={row.marking[sampleIdx] || ''}
                           onChange={e => updateData(idx, 'marking', e.target.value, sampleIdx)}
                           disabled={row.noProduction || !row.lotNo}
+                          style={getSelectToleranceStyle(row.marking[sampleIdx])}
                         >
                           <option value="">S{sampleIdx + 1}</option>
                           <option value="OK">OK</option>
@@ -614,10 +681,17 @@ const FinalCheckSection = ({
                     <span className="final-check-mobile-field__label">Rejected No. (Box Gauge)</span>
                     <div className="final-check-mobile-field__value">
                       <input
-                        type="number"
-                        value={row.boxGaugeRejected ?? ''}
-                        onChange={e => updateData(idx, 'boxGaugeRejected', e.target.value)}
+                        type="text"
+                        inputMode="numeric"
+                        value={!isRejectionEnabled(row, 'boxGauge') ? '0' : (row.boxGaugeRejected ?? '0')}
+                        onChange={e => updateData(idx, 'boxGaugeRejected', e.target.value.replace(/[^0-9]/g, ''))}
+                        onBlur={() => {
+                          if (!row.boxGaugeRejected && row.boxGaugeRejected !== 0) {
+                            updateData(idx, 'boxGaugeRejected', '0');
+                          }
+                        }}
                         disabled={!isRejectionEnabled(row, 'boxGauge')}
+                        style={getRejectionStyle(isRejectionEnabled(row, 'boxGauge'))}
                       />
                     </div>
                   </div>
@@ -625,10 +699,17 @@ const FinalCheckSection = ({
                     <span className="final-check-mobile-field__label">Rejected No. (Flat Bearing)</span>
                     <div className="final-check-mobile-field__value">
                       <input
-                        type="number"
-                        value={row.flatBearingAreaRejected ?? ''}
-                        onChange={e => updateData(idx, 'flatBearingAreaRejected', e.target.value)}
+                        type="text"
+                        inputMode="numeric"
+                        value={!isRejectionEnabled(row, 'flatBearingArea') ? '0' : (row.flatBearingAreaRejected ?? '0')}
+                        onChange={e => updateData(idx, 'flatBearingAreaRejected', e.target.value.replace(/[^0-9]/g, ''))}
+                        onBlur={() => {
+                          if (!row.flatBearingAreaRejected && row.flatBearingAreaRejected !== 0) {
+                            updateData(idx, 'flatBearingAreaRejected', '0');
+                          }
+                        }}
                         disabled={!isRejectionEnabled(row, 'flatBearingArea')}
+                        style={getRejectionStyle(isRejectionEnabled(row, 'flatBearingArea'))}
                       />
                     </div>
                   </div>
@@ -636,10 +717,17 @@ const FinalCheckSection = ({
                     <span className="final-check-mobile-field__label">Rejected No. (Falling Gauge)</span>
                     <div className="final-check-mobile-field__value">
                       <input
-                        type="number"
-                        value={row.fallingGaugeRejected ?? ''}
-                        onChange={e => updateData(idx, 'fallingGaugeRejected', e.target.value)}
+                        type="text"
+                        inputMode="numeric"
+                        value={!isRejectionEnabled(row, 'fallingGauge') ? '0' : (row.fallingGaugeRejected ?? '0')}
+                        onChange={e => updateData(idx, 'fallingGaugeRejected', e.target.value.replace(/[^0-9]/g, ''))}
+                        onBlur={() => {
+                          if (!row.fallingGaugeRejected && row.fallingGaugeRejected !== 0) {
+                            updateData(idx, 'fallingGaugeRejected', '0');
+                          }
+                        }}
                         disabled={!isRejectionEnabled(row, 'fallingGauge')}
+                        style={getRejectionStyle(isRejectionEnabled(row, 'fallingGauge'))}
                       />
                     </div>
                   </div>
@@ -647,10 +735,17 @@ const FinalCheckSection = ({
                     <span className="final-check-mobile-field__label">Rejected No. (Surface Defect)</span>
                     <div className="final-check-mobile-field__value">
                       <input
-                        type="number"
-                        value={row.surfaceDefectRejected ?? ''}
-                        onChange={e => updateData(idx, 'surfaceDefectRejected', e.target.value)}
+                        type="text"
+                        inputMode="numeric"
+                        value={!isRejectionEnabled(row, 'surfaceDefect') ? '0' : (row.surfaceDefectRejected ?? '0')}
+                        onChange={e => updateData(idx, 'surfaceDefectRejected', e.target.value.replace(/[^0-9]/g, ''))}
+                        onBlur={() => {
+                          if (!row.surfaceDefectRejected && row.surfaceDefectRejected !== 0) {
+                            updateData(idx, 'surfaceDefectRejected', '0');
+                          }
+                        }}
                         disabled={!isRejectionEnabled(row, 'surfaceDefect')}
+                        style={getRejectionStyle(isRejectionEnabled(row, 'surfaceDefect'))}
                       />
                     </div>
                   </div>
@@ -658,10 +753,17 @@ const FinalCheckSection = ({
                     <span className="final-check-mobile-field__label">Rejected No. (Embossing Defect)</span>
                     <div className="final-check-mobile-field__value">
                       <input
-                        type="number"
-                        value={row.embossingDefectRejected ?? ''}
-                        onChange={e => updateData(idx, 'embossingDefectRejected', e.target.value)}
+                        type="text"
+                        inputMode="numeric"
+                        value={!isRejectionEnabled(row, 'embossingDefect') ? '0' : (row.embossingDefectRejected ?? '0')}
+                        onChange={e => updateData(idx, 'embossingDefectRejected', e.target.value.replace(/[^0-9]/g, ''))}
+                        onBlur={() => {
+                          if (!row.embossingDefectRejected && row.embossingDefectRejected !== 0) {
+                            updateData(idx, 'embossingDefectRejected', '0');
+                          }
+                        }}
                         disabled={!isRejectionEnabled(row, 'embossingDefect')}
+                        style={getRejectionStyle(isRejectionEnabled(row, 'embossingDefect'))}
                       />
                     </div>
                   </div>
@@ -669,10 +771,17 @@ const FinalCheckSection = ({
                     <span className="final-check-mobile-field__label">Rejected No. (Marking)</span>
                     <div className="final-check-mobile-field__value">
                       <input
-                        type="number"
-                        value={row.markingRejected ?? ''}
-                        onChange={e => updateData(idx, 'markingRejected', e.target.value)}
+                        type="text"
+                        inputMode="numeric"
+                        value={!isRejectionEnabled(row, 'marking') ? '0' : (row.markingRejected ?? '0')}
+                        onChange={e => updateData(idx, 'markingRejected', e.target.value.replace(/[^0-9]/g, ''))}
+                        onBlur={() => {
+                          if (!row.markingRejected && row.markingRejected !== 0) {
+                            updateData(idx, 'markingRejected', '0');
+                          }
+                        }}
                         disabled={!isRejectionEnabled(row, 'marking')}
+                        style={getRejectionStyle(isRejectionEnabled(row, 'marking'))}
                       />
                     </div>
                   </div>
@@ -680,10 +789,17 @@ const FinalCheckSection = ({
                     <span className="final-check-mobile-field__label">Rejected No. (Tempering Hardness)</span>
                     <div className="final-check-mobile-field__value">
                       <input
-                        type="number"
-                        value={row.temperingHardnessRejected ?? ''}
-                        onChange={e => updateData(idx, 'temperingHardnessRejected', e.target.value)}
+                        type="text"
+                        inputMode="numeric"
+                        value={!isRejectionEnabled(row, 'temperingHardness') ? '0' : (row.temperingHardnessRejected ?? '0')}
+                        onChange={e => updateData(idx, 'temperingHardnessRejected', e.target.value.replace(/[^0-9]/g, ''))}
+                        onBlur={() => {
+                          if (!row.temperingHardnessRejected && row.temperingHardnessRejected !== 0) {
+                            updateData(idx, 'temperingHardnessRejected', '0');
+                          }
+                        }}
                         disabled={!isRejectionEnabled(row, 'temperingHardness')}
+                        style={getRejectionStyle(isRejectionEnabled(row, 'temperingHardness'))}
                       />
                     </div>
                   </div>

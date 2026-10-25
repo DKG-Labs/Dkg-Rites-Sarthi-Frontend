@@ -21,6 +21,8 @@ const SCADA_UNITS = [
     { label: 'Gaya-2', value: 'Gaya-2', code: 'GYA' },
     { label: 'Kaipadar-1', value: 'Kaipadar-1', code: 'KPR' },
     { label: 'Kaipadar-2', value: 'Kaipadar-2', code: 'KPR' },
+    { label: 'Kargi LL', value: 'Kargi LL', code: 'KAR' },
+    { label: 'Kargi CL', value: 'Kargi CL', code: 'KAR' },
     { label: 'ACPL', value: 'ACPL', code: 'BUW' }
 ];
 

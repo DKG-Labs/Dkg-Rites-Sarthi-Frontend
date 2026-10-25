@@ -63,3 +63,32 @@ export const getToleranceStyle = (field, value, productType) => {
     if (!isApplicable) return {};
     return isValid ? { backgroundColor: '#dcfce7' } : { backgroundColor: '#fee2e2' };
 };
+
+export const getRejectionStyle = (isEnabled) => {
+    if (isEnabled) {
+        return {
+            backgroundColor: '#fee2e2',
+            color: '#b91c1c',
+            borderColor: '#ef4444',
+            fontWeight: '600'
+        };
+    }
+    return {
+        backgroundColor: '#f3f4f6',
+        color: '#6b7280',
+        borderColor: '#e5e7eb',
+        cursor: 'not-allowed'
+    };
+};
+
+export const getSelectToleranceStyle = (value) => {
+    if (!value || value === '') return {};
+    const upper = String(value).trim().toUpperCase();
+    if (upper === 'NOT OK') {
+        return { backgroundColor: '#fee2e2', color: '#b91c1c', borderColor: '#ef4444', fontWeight: '600' };
+    }
+    if (upper === 'OK') {
+        return { backgroundColor: '#dcfce7', color: '#166534', borderColor: '#86efac' };
+    }
+    return {};
+};

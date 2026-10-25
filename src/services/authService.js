@@ -153,6 +153,65 @@ export const verifyOtp = async (transactionId, otp) => {
   }
 };
 
+/**
+ * Initiate an Authenticator QR Session
+ * @param {string} userId
+ * @param {string} userName
+ * @param {string} loginTransactionId
+ * @returns {Promise<Object>} session details including sessionId and qrData
+ */
+export const initiateAuthenticatorSession = async (userId, userName, loginTransactionId) => {
+  try {
+    const response = await fetch(`${API_BASE_URL}/api/auth/authenticator/session/initiate`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        userId: String(userId || ''),
+        userName: String(userName || ''),
+        loginTransactionId: String(loginTransactionId || ''),
+      }),
+    });
+
+    const data = await response.json();
+
+    if (!response.ok || data.responseStatus?.statusCode !== 0) {
+      throw new Error(data.responseStatus?.message || 'Failed to initiate authenticator session');
+    }
+
+    return data.responseData;
+  } catch (error) {
+    throw error;
+  }
+};
+
+/**
+ * Check Status of an Authenticator Session (Polling)
+ * @param {string} sessionId
+ * @returns {Promise<Object>} session status (PENDING, AUTHENTICATED, EXPIRED, etc.)
+ */
+export const checkAuthenticatorStatus = async (sessionId) => {
+  try {
+    const response = await fetch(`${API_BASE_URL}/api/auth/authenticator/session/${sessionId}/status`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
+
+    const data = await response.json();
+
+    if (!response.ok || data.responseStatus?.statusCode !== 0) {
+      throw new Error(data.responseStatus?.message || 'Failed to check authenticator status');
+    }
+
+    return data.responseData;
+  } catch (error) {
+    throw error;
+  }
+};
+
 export const resetPassword = async (identifier, newPassword) => {
   try {
     const response = await fetch(`${API_BASE_URL}/api/auth/forgot-password`, {

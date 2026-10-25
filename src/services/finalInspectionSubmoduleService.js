@@ -536,10 +536,14 @@ export const finishInspection = async (callNo) => {
         for (const [lotNo, lotData] of Object.entries(data)) {
           const heatNo = lotDetailsMap[lotNo]?.heatNo || "";
 
-          // Only save if there's actual visual data
-          if (lotData.visualR1 !== "" || lotData.visualR2 !== "" || lotData.visualRemark !== "") {
-            const r1 = parseInt(lotData.visualR1) || 0;
-            const r2 = parseInt(lotData.visualR2) || 0;
+          const hasR1 = lotData.visualR1 !== "" && lotData.visualR1 !== null && lotData.visualR1 !== undefined;
+          const hasR2 = lotData.visualR2 !== "" && lotData.visualR2 !== null && lotData.visualR2 !== undefined;
+          const hasRemark = Boolean(lotData.visualRemark);
+
+          // Only save if there's actual visual data (including 0!)
+          if (hasR1 || hasR2 || hasRemark) {
+            const r1 = hasR1 ? (parseInt(lotData.visualR1, 10) || 0) : 0;
+            const r2 = hasR2 ? (parseInt(lotData.visualR2, 10) || 0) : 0;
             const totalRejected = r1 + r2;
 
             const visualPayload = {
@@ -555,7 +559,7 @@ export const finishInspection = async (callNo) => {
 
             promises.push(
               saveVisualInspection(visualPayload).then(() => {
-                console.log(`✅ Visual Inspection saved for lot ${lotNo}`);
+                console.log(`✅ Visual Inspection saved for lot ${lotNo}:`, visualPayload);
               })
             );
           }
@@ -984,30 +988,66 @@ export const finishInspection = async (callNo) => {
         for (const [lotNo, lotData] of Object.entries(data)) {
           const heatNo = lotDetailsMap[lotNo]?.heatNo || "";
 
-          // Only save if there's actual dimensional data
-          if (lotData.dimGo1 !== "" || lotData.dimNoGo1 !== "" || lotData.dimFlat1 !== "" ||
-            lotData.dimGo2 !== "" || lotData.dimNoGo2 !== "" || lotData.dimFlat2 !== "" ||
-            lotData.dimRemark !== "") {
-              const totalRejected = (lotData.dimGo1 || 0) + (lotData.dimNoGo1 || 0) + (lotData.dimFlat1 || 0) +
-                (lotData.dimGo2 || 0) + (lotData.dimNoGo2 || 0) + (lotData.dimFlat2 || 0);
+          const hasVal = (v) => v !== "" && v !== null && v !== undefined && !isNaN(v);
 
-              const dimensionalFlatPayload = {
-                inspectionCallNo: callNo,
-                lotNo: lotNo,
-                heatNo: heatNo,
-                firstSampleGoGaugeFail: lotData.dimGo1 || 0,
-                firstSampleNoGoFail: lotData.dimNoGo1 || 0,
-                firstSampleFlatBearingFail: lotData.dimFlat1 || 0,
-                secondSampleGoGaugeFail: lotData.dimGo2 || 0,
-                secondSampleNoGoFail: lotData.dimNoGo2 || 0,
-                secondSampleFlatBearingFail: lotData.dimFlat2 || 0,
-                totalRejected: totalRejected,
-                remarks: lotData.dimRemark || "",
-                status: totalRejected > 0 ? "NOT OK" : "OK"
-              };
+          // 1st Sampling
+          const mainGo1 = hasVal(lotData.dimMainGo1) ? parseInt(lotData.dimMainGo1, 10) : (hasVal(lotData.dimGo1) ? parseInt(lotData.dimGo1, 10) : null);
+          const mainNoGo1 = hasVal(lotData.dimMainNoGo1) ? parseInt(lotData.dimMainNoGo1, 10) : (hasVal(lotData.dimNoGo1) ? parseInt(lotData.dimNoGo1, 10) : null);
+          const fallGo1 = hasVal(lotData.dimFallGo1) ? parseInt(lotData.dimFallGo1, 10) : null;
+          const fallNoGo1 = hasVal(lotData.dimFallNoGo1) ? parseInt(lotData.dimFallNoGo1, 10) : null;
+          const flatGo1 = hasVal(lotData.dimFlatGo1) ? parseInt(lotData.dimFlatGo1, 10) : (hasVal(lotData.dimFlat1) ? parseInt(lotData.dimFlat1, 10) : null);
+          const flatNoGo1 = hasVal(lotData.dimFlatNoGo1) ? parseInt(lotData.dimFlatNoGo1, 10) : null;
+
+          // 2nd Sampling
+          const mainGo2 = hasVal(lotData.dimMainGo2) ? parseInt(lotData.dimMainGo2, 10) : (hasVal(lotData.dimGo2) ? parseInt(lotData.dimGo2, 10) : null);
+          const mainNoGo2 = hasVal(lotData.dimMainNoGo2) ? parseInt(lotData.dimMainNoGo2, 10) : (hasVal(lotData.dimNoGo2) ? parseInt(lotData.dimNoGo2, 10) : null);
+          const fallGo2 = hasVal(lotData.dimFallGo2) ? parseInt(lotData.dimFallGo2, 10) : null;
+          const fallNoGo2 = hasVal(lotData.dimFallNoGo2) ? parseInt(lotData.dimFallNoGo2, 10) : null;
+          const flatGo2 = hasVal(lotData.dimFlatGo2) ? parseInt(lotData.dimFlatGo2, 10) : (hasVal(lotData.dimFlat2) ? parseInt(lotData.dimFlat2, 10) : null);
+          const flatNoGo2 = hasVal(lotData.dimFlatNoGo2) ? parseInt(lotData.dimFlatNoGo2, 10) : null;
+
+          const anyFieldFilled = [mainGo1, mainNoGo1, fallGo1, fallNoGo1, flatGo1, flatNoGo1,
+                                  mainGo2, mainNoGo2, fallGo2, fallNoGo2, flatGo2, flatNoGo2].some(v => v !== null) ||
+                                 Boolean(lotData.dimRemark);
+
+          if (anyFieldFilled) {
+            const num = (v) => v !== null ? v : 0;
+            const totalRejected = num(mainGo1) + num(mainNoGo1) + num(fallGo1) + num(fallNoGo1) + num(flatGo1) + num(flatNoGo1) +
+                                  num(mainGo2) + num(mainNoGo2) + num(fallGo2) + num(fallNoGo2) + num(flatGo2) + num(flatNoGo2);
+
+            const dimensionalFlatPayload = {
+              inspectionCallNo: callNo,
+              lotNo: lotNo,
+              heatNo: heatNo,
+              // Summary fields (for backward compatibility)
+              firstSampleGoGaugeFail: num(mainGo1) + num(fallGo1),
+              firstSampleNoGoFail: num(mainNoGo1) + num(fallNoGo1),
+              firstSampleFlatBearingFail: num(flatGo1) + num(flatNoGo1),
+              secondSampleGoGaugeFail: num(mainGo2) + num(fallGo2),
+              secondSampleNoGoFail: num(mainNoGo2) + num(fallNoGo2),
+              secondSampleFlatBearingFail: num(flatGo2) + num(flatNoGo2),
+              // Detailed fields - 1st Sampling
+              firstSampleMainBoxGo: num(mainGo1),
+              firstSampleMainBoxNoGo: num(mainNoGo1),
+              firstSampleFallingGo: num(fallGo1),
+              firstSampleFallingNoGo: num(fallNoGo1),
+              firstSampleFlatBearingGo: num(flatGo1),
+              firstSampleFlatBearingNoGo: num(flatNoGo1),
+              // Detailed fields - 2nd Sampling
+              secondSampleMainBoxGo: num(mainGo2),
+              secondSampleMainBoxNoGo: num(mainNoGo2),
+              secondSampleFallingGo: num(fallGo2),
+              secondSampleFallingNoGo: num(fallNoGo2),
+              secondSampleFlatBearingGo: num(flatGo2),
+              secondSampleFlatBearingNoGo: num(flatNoGo2),
+              totalRejected: totalRejected,
+              remarks: lotData.dimRemark || "",
+              status: totalRejected > 0 ? "NOT OK" : "OK"
+            };
+
             promises.push(
               saveDimensionalInspectionFlat(dimensionalFlatPayload).then(() => {
-                console.log(`✅ Dimensional Inspection (Flat) saved for lot ${lotNo}`);
+                console.log(`✅ Dimensional Inspection (Flat) saved for lot ${lotNo}:`, dimensionalFlatPayload);
               })
             );
           }

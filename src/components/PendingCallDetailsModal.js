@@ -229,6 +229,29 @@ const PendingCallDetailsModal = ({
             </div>
           </div>
 
+          {/* Diverted Material Lineage Banner */}
+          {(call.is_diverted_material || call.isDivertedMaterial || call.source_ic_no || call.sourceIcNo) && (
+            <div style={{
+              background: 'linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%)',
+              border: '1px solid #93c5fd',
+              borderRadius: '12px',
+              padding: '16px 20px',
+              marginBottom: '24px',
+              borderLeft: '5px solid #2563eb'
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
+                <span style={{ fontSize: '18px' }}>🔀</span>
+                <strong style={{ fontSize: '15px', color: '#1e40af' }}>Diverted &amp; Passed Material Call</strong>
+                <span style={{ marginLeft: 'auto', fontSize: '11px', background: '#2563eb', color: '#fff', padding: '3px 8px', borderRadius: '12px', fontWeight: 'bold' }}>LINEAGE VERIFIED</span>
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '12px', fontSize: '13px', color: '#1e3a8a' }}>
+                <div><strong>Source IC No:</strong> {call.source_ic_no || call.sourceIcNo || 'N/A'}</div>
+                <div><strong>Diversion Ref No:</strong> {call.diversion_request_no || call.diversionRequestNo || 'N/A'}</div>
+                <div><strong>Testing Exemption:</strong> <span style={{ color: '#059669', fontWeight: '600' }}>Physical &amp; Chemical Tests Inherited (No Retesting)</span></div>
+              </div>
+            </div>
+          )}
+
           <h3 style={{ fontSize: '18px', fontWeight: '700', marginBottom: '20px', color: '#0f172a', display: 'flex', alignItems: 'center', gap: '8px' }}>
             <span style={{ color: '#3b82f6' }}>⚡</span> Actions & Documents
           </h3>

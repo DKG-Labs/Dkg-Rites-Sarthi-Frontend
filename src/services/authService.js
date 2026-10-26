@@ -212,6 +212,23 @@ export const checkAuthenticatorStatus = async (sessionId) => {
   }
 };
 
+/**
+ * True if the user already has a verified authenticator login that has not expired,
+ * so the QR step can be skipped. Any failure returns false so the QR is shown.
+ */
+export const hasActiveAuthenticatorLogin = async (userId) => {
+  try {
+    const response = await fetch(`${API_BASE_URL}/api/auth/authenticator/active?userId=${encodeURIComponent(userId || '')}`, {
+      method: 'GET',
+      headers: { 'Content-Type': 'application/json' },
+    });
+    const data = await response.json();
+    return response.ok && data.responseStatus?.statusCode === 0 && data.responseData?.active === true;
+  } catch (error) {
+    return false;
+  }
+};
+
 export const resetPassword = async (identifier, newPassword) => {
   try {
     const response = await fetch(`${API_BASE_URL}/api/auth/forgot-password`, {

@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { QRCode } from 'antd';
-import { loginUser, verifyOtp, initiateAuthenticatorSession, checkAuthenticatorStatus, storeAuthData, isAuthenticated, getStoredUser, resetPassword, logoutUser } from '../services/authService';
+import { loginUser, verifyOtp, initiateAuthenticatorSession, checkAuthenticatorStatus, hasActiveAuthenticatorLogin, storeAuthData, isAuthenticated, getStoredUser, resetPassword, logoutUser } from '../services/authService';
 import { API_BASE_URL } from '../services/apiConfig';
 import { ROUTES, ROLE_LANDING_ROUTE } from '../routes';
 import './LoginPage.css';
@@ -204,8 +204,7 @@ const LoginPage = () => {
     setShowRoleSelection(false);
     if (!alreadyAuthenticated && isProcessRole(selectedOption.roleToStore)) {
       setPendingUserData(finalUserData);
-      setShowQrScreen(true);
-      startQrSession(finalUserData);
+      startQrOrSkip(finalUserData);
     } else {
       handleRoleRedirection(finalUserData);
     }
@@ -374,8 +373,7 @@ const LoginPage = () => {
       userData.roleName = options[0].roleToStore;
       if (!alreadyAuthenticated && isProcessRole(options[0].roleToStore)) {
         setPendingUserData(userData);
-        setShowQrScreen(true);
-        startQrSession(userData);
+        startQrOrSkip(userData);
       } else {
         handleRoleRedirection(userData);
       }
@@ -430,6 +428,18 @@ const LoginPage = () => {
       if (qrTimerRef.current) clearInterval(qrTimerRef.current);
     };
   }, []);
+
+  // Skip the QR if this user already has a verified login that hasn't expired
+  const startQrOrSkip = async (userData) => {
+    const active = await hasActiveAuthenticatorLogin(userData.userId || userId);
+    if (active) {
+      setShowQrScreen(false);
+      handleRoleRedirection(userData);
+    } else {
+      setShowQrScreen(true);
+      startQrSession(userData);
+    }
+  };
 
   const startQrSession = async (userData) => {
     setIsQrLoading(true);

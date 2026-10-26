@@ -10,23 +10,40 @@ const fmtDateTime = str => {
 const th = { padding: '10px 12px', textAlign: 'left', fontSize: '13px', fontWeight: 600, background: '#166534', color: '#fff', whiteSpace: 'nowrap' };
 const td = { padding: '10px 12px', fontSize: '13px', borderBottom: '1px solid #e5e7eb', verticalAlign: 'top' };
 
+const PAGE_SIZES = [5, 10, 20, 25];
+
 export default function ActiveLoginDashboard() {
     const [rows, setRows] = useState([]);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
     const [search, setSearch] = useState('');
+    const [query, setQuery] = useState('');
+    const [page, setPage] = useState(0);
+    const [size, setSize] = useState(10);
+    const [total, setTotal] = useState(0);
+    const [totalPages, setTotalPages] = useState(0);
     const [selfie, setSelfie] = useState(null);
 
     const load = useCallback(() => {
         setLoading(true);
         setError(null);
-        getActiveLogins()
-            .then(data => setRows(Array.isArray(data) ? data : []))
+        getActiveLogins({ page, size, search: query })
+            .then(data => {
+                setRows(data.content || []);
+                setTotal(data.totalElements || 0);
+                setTotalPages(data.totalPages || 0);
+            })
             .catch(e => setError(e.message || 'Failed to load active logins'))
             .finally(() => setLoading(false));
-    }, []);
+    }, [page, size, query]);
 
     useEffect(() => { load(); }, [load]);
+
+    // Debounce the name search so each keystroke doesn't hit the server
+    useEffect(() => {
+        const t = setTimeout(() => { setQuery(search.trim()); setPage(0); }, 400);
+        return () => clearTimeout(t);
+    }, [search]);
 
     const openSelfie = id => {
         setSelfie({ id, loading: true });
@@ -35,18 +52,15 @@ export default function ActiveLoginDashboard() {
             .catch(() => setSelfie({ id, src: null }));
     };
 
-    const q = search.trim().toLowerCase();
-    const filtered = q
-        ? rows.filter(r => [r.userName]
-            .some(v => v && String(v).toLowerCase().includes(q)))
-        : rows;
+    const from = total === 0 ? 0 : page * size + 1;
+    const to = Math.min((page + 1) * size, total);
 
     return (
         <div style={{ padding: '24px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', gap: '12px', flexWrap: 'wrap' }}>
                 <h2 style={{ margin: 0, fontSize: '20px' }}>
                     <i className="fa-solid fa-id-card" style={{ marginRight: '8px' }}></i>
-                    Active Login ({filtered.length})
+                    Active Login ({total})
                 </h2>
                 <div style={{ display: 'flex', gap: '8px' }}>
                     <input
@@ -72,10 +86,10 @@ export default function ActiveLoginDashboard() {
                     </thead>
                     <tbody>
                         {loading && <tr><td style={td} colSpan={8}>Loading…</td></tr>}
-                        {!loading && filtered.length === 0 && <tr><td style={td} colSpan={8}>No active logins found</td></tr>}
-                        {!loading && filtered.map((r, i) => (
+                        {!loading && rows.length === 0 && <tr><td style={td} colSpan={8}>No active logins found</td></tr>}
+                        {!loading && rows.map((r, i) => (
                             <tr key={r.id}>
-                                <td style={td}>{i + 1}</td>
+                                <td style={td}>{page * size + i + 1}</td>
                                 <td style={{ ...td, fontWeight: 600 }}>{r.userName || '—'}</td>
                                 <td style={td}>
                                     <span style={{ background: '#dcfce7', color: '#166534', padding: '2px 8px', borderRadius: '999px', fontSize: '12px', fontWeight: 600 }}>{r.status}</span>
@@ -93,6 +107,21 @@ export default function ActiveLoginDashboard() {
                         ))}
                     </tbody>
                 </table>
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '12px', gap: '12px', flexWrap: 'wrap', fontSize: '13px' }}>
+                <span>Showing {from}–{to} of {total}</span>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <label>
+                        Rows per page{' '}
+                        <select value={size} onChange={e => { setSize(Number(e.target.value)); setPage(0); }} style={{ padding: '4px 8px', borderRadius: '6px', border: '1px solid #d1d5db' }}>
+                            {PAGE_SIZES.map(n => <option key={n} value={n}>{n}</option>)}
+                        </select>
+                    </label>
+                    <button className="sub-tab-btn" disabled={page === 0 || loading} onClick={() => setPage(p => p - 1)}>Previous</button>
+                    <span>Page {totalPages === 0 ? 0 : page + 1} of {totalPages}</span>
+                    <button className="sub-tab-btn" disabled={page + 1 >= totalPages || loading} onClick={() => setPage(p => p + 1)}>Next</button>
+                </div>
             </div>
 
             {selfie && (

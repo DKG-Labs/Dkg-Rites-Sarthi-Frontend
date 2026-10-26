@@ -24,7 +24,8 @@ import { finalOzoneTestService } from '../../services/finalOzoneTestService';
 import { finalPeriodicTgaService } from '../../services/finalPeriodicTgaService';
 import { finalPeriodicDurabilityService } from '../../services/finalPeriodicDurabilityService';
 import { finalPeriodicAbrasionService } from '../../services/finalPeriodicAbrasionService';
-import { performTransitionAction } from '../../services/workflowService';
+import { performTransitionAction, isPlantIdMatching } from '../../services/workflowService';
+import { approvedAshSGService } from '../../services/plantDeclarationService';
 import { getStoredUser } from '../../services/authService';
 import { fetchCallImages, saveCallImages } from '../../services/imageService';
 import { getImages, saveImages } from '../../utils/imageStorage';
@@ -777,40 +778,187 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
     return { min: 0.4, max: 0.6 };
   };
 
+  // State for Approved Ash & S.G. Baselines (Module 5)
+  const [approvedBaselines, setApprovedBaselines] = useState([]);
+  const [approvedBaselineLoading, setApprovedBaselineLoading] = useState(false);
+
+  useEffect(() => {
+    let isMounted = true;
+    const fetchBaselines = async () => {
+      const pId = call?.plantId || call?.plant_id || '';
+      const vCode = call?.vendorCode || call?.vendor_code || '';
+      if (!pId && !vCode) return;
+
+      setApprovedBaselineLoading(true);
+      try {
+        const cleanPId = String(pId).trim().replace(/^:/, '');
+        const colonPId = cleanPId ? `:${cleanPId}` : '';
+
+        const promises = [];
+        if (cleanPId) promises.push(approvedAshSGService.getByPlantId(cleanPId).catch(() => []));
+        if (colonPId && colonPId !== cleanPId) promises.push(approvedAshSGService.getByPlantId(colonPId).catch(() => []));
+        if (cleanPId.includes('/')) {
+          const basePId = cleanPId.split('/')[0].trim();
+          promises.push(approvedAshSGService.getByPlantId(basePId).catch(() => []));
+        }
+        if (vCode) {
+          promises.push(approvedAshSGService.getByVendor(vCode).catch(() => []));
+        }
+
+        const results = await Promise.all(promises);
+        if (!isMounted) return;
+        const combined = results.flat().filter(Boolean);
+        const unique = Array.from(new Map(combined.map(item => [item.id, item])).values());
+        setApprovedBaselines(unique);
+      } catch (err) {
+        console.warn('Error fetching approved ash & SG baselines:', err);
+      } finally {
+        if (isMounted) setApprovedBaselineLoading(false);
+      }
+    };
+
+    fetchBaselines();
+    return () => { isMounted = false; };
+  }, [call?.plantId, call?.plant_id, call?.vendorCode, call?.vendor_code]);
+
+  const isPadTypeMatching = (typeA, typeB) => {
+    if (!typeA || !typeB) return false;
+    const cleanA = String(typeA).toLowerCase().replace(/[^a-z0-9]/g, '');
+    const cleanB = String(typeB).toLowerCase().replace(/[^a-z0-9]/g, '');
+    if (cleanA === cleanB) return true;
+
+    const norm = (str) => {
+      return String(str).toLowerCase()
+        .replace(/6\.20\s*mm|6\.2\s*mm/g, '62')
+        .replace(/10\.00\s*mm|10\.0\s*mm|10\s*mm/g, '100')
+        .replace(/6\.00\s*mm|6\.0\s*mm|6\s*mm/g, '60')
+        .replace(/[^a-z0-9]/g, '');
+    };
+    if (norm(typeA) === norm(typeB)) return true;
+
+    const aLower = String(typeA).toLowerCase();
+    const bLower = String(typeB).toLowerCase();
+    const hasSamePadType = 
+      (aLower.includes('cgrsp') && bLower.includes('cgrsp')) ||
+      (aLower.includes('ncrgrsp') && bLower.includes('ncrgrsp')) ||
+      (!aLower.includes('cgrsp') && !aLower.includes('ncrgrsp') && aLower.includes('grsp') && !bLower.includes('cgrsp') && !bLower.includes('ncrgrsp') && bLower.includes('grsp'));
+
+    if (hasSamePadType) {
+      if ((aLower.includes('6.2') && bLower.includes('6.2')) ||
+          (aLower.includes('10') && bLower.includes('10')) ||
+          ((aLower.includes('6mm') || aLower.includes('6.0') || aLower.includes('6.00')) && (bLower.includes('6mm') || bLower.includes('6.0') || bLower.includes('6.00')))) {
+        return true;
+      }
+    }
+    return false;
+  };
+
+  const matchedApprovedRecord = React.useMemo(() => {
+    if (!approvedBaselines || approvedBaselines.length === 0) return null;
+    const currentPId = call?.plantId || call?.plant_id || '';
+
+    const matchingPlants = approvedBaselines.filter(b => {
+      if (!currentPId) return true;
+      return isPlantIdMatching(b.plantId, currentPId) || isPlantIdMatching(currentPId, b.plantId);
+    });
+
+    const candidates = (matchingPlants.length > 0 ? matchingPlants : approvedBaselines).filter(b => {
+      const statusStr = String(b.status || '').toUpperCase().trim();
+      const isApproved = statusStr === 'COMPLETED' || statusStr === 'APPROVED' || statusStr === 'VERIFIED';
+      return isApproved && isPadTypeMatching(b.padType, activeRailpadType);
+    });
+
+    if (candidates.length > 0) {
+      return candidates.sort((a, b) => (b.id || 0) - (a.id || 0))[0];
+    }
+    return null;
+  }, [approvedBaselines, call?.plantId, call?.plant_id, activeRailpadType]);
+
+  const hasApprovedSG = Boolean(
+    matchedApprovedRecord &&
+    matchedApprovedRecord.specificGravityA !== null &&
+    matchedApprovedRecord.specificGravityA !== undefined &&
+    !isNaN(Number(matchedApprovedRecord.specificGravityA)) &&
+    Number(matchedApprovedRecord.specificGravityA) > 0
+  );
+
+  const hasApprovedAsh = Boolean(
+    matchedApprovedRecord &&
+    matchedApprovedRecord.ashContentA !== null &&
+    matchedApprovedRecord.ashContentA !== undefined &&
+    !isNaN(Number(matchedApprovedRecord.ashContentA)) &&
+    Number(matchedApprovedRecord.ashContentA) >= 0
+  );
+
   const getSGTolerance = (lotId) => {
     const lot = lots.find(l => l.id === lotId) || { railpadType: '' };
     const rawType = (lot.railpadType || activeRailpadType || '').toLowerCase().trim();
 
-    // 1. CGRSP (6.2mm & 10mm: Compound A < 1.27, Compound B < 1.17, ASG ± 0.03)
+    if (hasApprovedSG && matchedApprovedRecord) {
+      const apprSgA = Number(matchedApprovedRecord.specificGravityA);
+      const apprSgB = (matchedApprovedRecord.specificGravityB !== null && matchedApprovedRecord.specificGravityB !== undefined && !isNaN(Number(matchedApprovedRecord.specificGravityB)))
+        ? Number(matchedApprovedRecord.specificGravityB)
+        : null;
+
+      // Specific gravity % Approved value ± 0.03, For Compound ‘A’ 1.27 (max), For Compound ‘B’ 1.17 (Max)
+      const minA = parseFloat((apprSgA - 0.03).toFixed(3));
+      const maxA = parseFloat(Math.min(apprSgA + 0.03, 1.27).toFixed(3));
+
+      const minB = apprSgB != null ? parseFloat((apprSgB - 0.03).toFixed(3)) : parseFloat((apprSgA - 0.03).toFixed(3));
+      const maxB = apprSgB != null ? parseFloat(Math.min(apprSgB + 0.03, 1.17).toFixed(3)) : 1.17;
+
+      return {
+        hasApproved: true,
+        approvedA: apprSgA,
+        approvedB: apprSgB,
+        a: maxA,
+        b: maxB,
+        minA,
+        maxA,
+        minB,
+        maxB,
+        asgVariation: 0.03,
+        variation: 0.02
+      };
+    }
+
     if (rawType.includes('cgrsp') || rawType.includes('composite')) {
-      return { a: 1.27, b: 1.17, asgVariation: 0.03, variation: 0.02 };
+      return { hasApproved: false, a: 1.27, b: 1.17, minA: 0, maxA: 1.27, minB: 0, maxB: 1.17, asgVariation: 0.03, variation: 0.02 };
     }
-
-    // 2. NCRGRSP (6mm & 10mm: Product < 1.27, Test Slab < 1.27, ASG ± 0.03, Variation <= 0.02)
-    if (rawType.includes('ncr') || rawType.includes('ncrgrsp') || rawType.includes('ncrnrsgp')) {
-      return { a: 1.27, b: 1.27, asgVariation: 0.03, variation: 0.02 };
-    }
-
-    // 3. Plain GRSP (6mm & 10mm: < 1.27, ASG ± 0.03)
-    return { a: 1.27, b: 1.27, asgVariation: 0.03, variation: 0.02 };
+    return { hasApproved: false, a: 1.27, b: 1.27, minA: 0, maxA: 1.27, minB: 0, maxB: 1.27, asgVariation: 0.03, variation: 0.02 };
   };
 
   const getAshTolerance = (lotId) => {
     const lot = lots.find(l => l.id === lotId) || { railpadType: '' };
     const rawType = (lot.railpadType || activeRailpadType || '').toLowerCase().trim();
 
-    // 1. CGRSP (6.2mm & 10mm: Compound A <= 27%, Compound B <= 20%, AAC ± 5%)
+    if (hasApprovedAsh && matchedApprovedRecord) {
+      const apprAshA = Number(matchedApprovedRecord.ashContentA);
+      const apprAshB = (matchedApprovedRecord.ashContentB !== null && matchedApprovedRecord.ashContentB !== undefined && !isNaN(Number(matchedApprovedRecord.ashContentB)))
+        ? Number(matchedApprovedRecord.ashContentB)
+        : null;
+
+      // Ash content - Approved value + 5, For Compound ‘A’ 27% (Max), For Compound ‘B’ 20% (Max)
+      const maxA = parseFloat(Math.min(apprAshA + 5, 27).toFixed(2));
+      const maxB = apprAshB != null ? parseFloat(Math.min(apprAshB + 5, 20).toFixed(2)) : 20;
+
+      return {
+        hasApproved: true,
+        approvedA: apprAshA,
+        approvedB: apprAshB,
+        a: maxA,
+        b: maxB,
+        maxA,
+        maxB,
+        aacVariation: 5,
+        variation: 5
+      };
+    }
+
     if (rawType.includes('cgrsp') || rawType.includes('composite')) {
-      return { a: 27, b: 20, aacVariation: 5, variation: 5 };
+      return { hasApproved: false, a: 27, b: 20, maxA: 27, maxB: 20, aacVariation: 5, variation: 5 };
     }
-
-    // 2. NCRGRSP (6mm & 10mm: Product <= 27%, Test Slab <= 27%, AAC ± 5%, Variation <= 5%)
-    if (rawType.includes('ncr') || rawType.includes('ncrgrsp') || rawType.includes('ncrnrsgp')) {
-      return { a: 27, b: 27, aacVariation: 5, variation: 5 };
-    }
-
-    // 3. Plain GRSP (6mm & 10mm: <= 27%, AAC ± 5%)
-    return { a: 27, b: 27, aacVariation: 5, variation: 5 };
+    return { hasApproved: false, a: 27, b: 27, maxA: 27, maxB: 27, aacVariation: 5, variation: 5 };
   };
 
   const getSecantTolerance = (lotId) => {
@@ -5670,7 +5818,9 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
           const waterA = parseFloat(rA.water);
           if (isNaN(airA) || isNaN(waterA) || airA === waterA) return { filled: false, out: false };
           const sgA = airA / (airA - waterA);
-          let out = sgA > specs.a;
+          let out = specs.hasApproved
+            ? (sgA < specs.minA || sgA > specs.maxA)
+            : (sgA > specs.a);
 
           if (isCGRSP || isNCRGRSP) {
             if (!rB || rB.air === '' || rB.water === '') return { filled: false, out: false };
@@ -5678,10 +5828,14 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
             const waterB = parseFloat(rB.water);
             if (isNaN(airB) || isNaN(waterB) || airB === waterB) return { filled: false, out: false };
             const sgB = airB / (airB - waterB);
+            const outB = specs.hasApproved
+              ? (sgB < specs.minB || sgB > specs.maxB)
+              : (sgB > (specs.b || specs.a));
+
             if (isNCRGRSP) {
-              out = out || sgB > (specs.b || specs.a) || Math.abs(sgA - sgB) > specs.variation;
+              out = out || outB || Math.abs(sgA - sgB) > specs.variation;
             } else {
-              out = out || sgB > (specs.b || specs.a);
+              out = out || outB;
             }
           }
           return { filled: true, out };
@@ -5713,7 +5867,7 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
           const aA = parseFloat(rA.ash);
           if (isNaN(cA) || isNaN(sA) || isNaN(aA) || sA === cA) return { filled: false, out: false };
           const ashA = ((aA - cA) / (sA - cA)) * 100;
-          let out = ashA > specs.a;
+          let out = ashA > (specs.maxA || specs.a);
 
           if (isCGRSP || isNCRGRSP) {
             if (!rB || rB.crucible === '' || rB.sample === '' || rB.ash === '') return { filled: false, out: false };
@@ -5722,10 +5876,11 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
             const aB = parseFloat(rB.ash);
             if (isNaN(cB) || isNaN(sB) || isNaN(aB) || sB === cB) return { filled: false, out: false };
             const ashB = ((aB - cB) / (sB - cB)) * 100;
+            const outB = ashB > (specs.maxB || specs.b || specs.a);
             if (isNCRGRSP) {
-              out = out || ashB > (specs.b || specs.a) || Math.abs(ashA - ashB) > specs.variation;
+              out = out || outB || Math.abs(ashA - ashB) > specs.variation;
             } else {
-              out = out || ashB > (specs.b || specs.a);
+              out = out || outB;
             }
           }
           return { filled: true, out };
@@ -7962,7 +8117,7 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
                   </div>
 
                   {/* Specific Gravity */}
-                  <div style={{ background: 'white', borderRadius: '20px', border: '1px solid #e2e8f0', overflow: 'hidden', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05)' }}>
+                  <div style={{ background: 'white', borderRadius: '20px', border: '1px solid #e2e8f0', overflow: 'hidden', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05)', opacity: !hasApprovedSG ? 0.95 : 1 }}>
                     <div style={{ padding: '16px 20px', background: '#f8fafc', borderBottom: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                       <div>
                         <h3 style={{ margin: 0, fontSize: '16px', fontWeight: '800', color: '#0f172a' }}>Specific Gravity</h3>
@@ -7971,9 +8126,27 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
                         <div style={{ fontSize: '12px', color: '#64748b', fontWeight: '600' }}>
                           No. of Samples out of Tolerance: <span style={{ color: totalSGOut > 0 ? '#ef4444' : '#059669', fontWeight: '800' }}>{String(totalSGOut).padStart(2, '0')}</span>
                         </div>
-                        <span style={{ padding: '4px 12px', borderRadius: '6px', fontSize: '11px', fontWeight: '800', background: elecResults.sg === 'PASS' ? '#dcfce7' : (elecResults.sg === 'FAIL' || elecResults.sg === 'MARGINAL') ? '#fef3c7' : '#fee2e2', color: elecResults.sg === 'PASS' ? '#166534' : (elecResults.sg === 'FAIL' || elecResults.sg === 'MARGINAL') ? '#b45309' : '#991b1b' }}>{(elecResults.sg === 'FAIL' || elecResults.sg === 'MARGINAL') ? 'MARGINAL' : elecResults.sg}</span>
+                        {!hasApprovedSG ? (
+                          <span style={{ padding: '4px 12px', borderRadius: '6px', fontSize: '11px', fontWeight: '800', background: '#fee2e2', color: '#991b1b' }}>NOT APPROVED</span>
+                        ) : (
+                          <span style={{ padding: '4px 12px', borderRadius: '6px', fontSize: '11px', fontWeight: '800', background: elecResults.sg === 'PASS' ? '#dcfce7' : (elecResults.sg === 'FAIL' || elecResults.sg === 'MARGINAL') ? '#fef3c7' : '#fee2e2', color: elecResults.sg === 'PASS' ? '#166534' : (elecResults.sg === 'FAIL' || elecResults.sg === 'MARGINAL') ? '#b45309' : '#991b1b' }}>{(elecResults.sg === 'FAIL' || elecResults.sg === 'MARGINAL') ? 'MARGINAL' : elecResults.sg}</span>
+                        )}
                       </div>
                     </div>
+                    {!hasApprovedSG && !approvedBaselineLoading && (
+                      <div style={{ margin: '14px 20px', padding: '12px 16px', background: '#fffbeb', borderRadius: '10px', border: '1.5px solid #fde68a', display: 'flex', alignItems: 'center', gap: '12px', color: '#92400e' }}>
+                        <span style={{ fontSize: '18px' }}>⚠️</span>
+                        <span style={{ fontSize: '13px', fontWeight: '700' }}>
+                          Kindly approve the specific gravity of that railpad type ({activeRailpadType}) for plant ({call?.plantId || 'N/A'}).
+                        </span>
+                      </div>
+                    )}
+                    {hasApprovedSG && (
+                      <div style={{ padding: '8px 20px', background: '#f0fdf4', borderBottom: '1px solid #dcfce7', display: 'flex', gap: '24px', fontSize: '11px', fontWeight: '700', color: '#166534' }}>
+                        <span>✓ Approved Baseline S.G.: {isCGRSP ? `Compound A: ${currentSGSpecs.approvedA} | Compound B: ${currentSGSpecs.approvedB ?? '—'}` : `Product: ${currentSGSpecs.approvedA}`}</span>
+                        <span>Tolerance: {isCGRSP ? `Compound A: ${currentSGSpecs.minA} - ${currentSGSpecs.maxA} (Max 1.27) | Compound B: ${currentSGSpecs.minB} - ${currentSGSpecs.maxB} (Max 1.17)` : `${currentSGSpecs.minA} - ${currentSGSpecs.maxA} (Max 1.27)`}</span>
+                      </div>
+                    )}
                     <div style={{ padding: '20px' }}>
                       <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                         <thead>
@@ -7999,27 +8172,29 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
                             const sgA = (rA.air && rA.water) ? (parseFloat(rA.air) / (parseFloat(rA.air) - parseFloat(rA.water))).toFixed(3) : '-';
                             const sgB = (rB.air && rB.water) ? (parseFloat(rB.air) / (parseFloat(rB.air) - parseFloat(rB.water))).toFixed(3) : '-';
                             const variation = (sgA !== '-' && sgB !== '-') ? (parseFloat(sgA) - parseFloat(sgB)).toFixed(3) : '-';
+                            const isSgAOut = sgA !== '-' && (currentSGSpecs.hasApproved ? (parseFloat(sgA) < currentSGSpecs.minA || parseFloat(sgA) > currentSGSpecs.maxA) : parseFloat(sgA) > currentSGSpecs.a);
+                            const isSgBOut = sgB !== '-' && (currentSGSpecs.hasApproved ? (parseFloat(sgB) < currentSGSpecs.minB || parseFloat(sgB) > currentSGSpecs.maxB) : parseFloat(sgB) > (currentSGSpecs.b || currentSGSpecs.a));
 
                             return (
                               <tr key={idx}>
                                 <td style={{ padding: '10px', border: '1px solid #e2e8f0', textAlign: 'center', fontWeight: '700', color: '#64748b' }}>S{idx + 1}</td>
                                 <td style={{ padding: '4px', border: '1px solid #e2e8f0' }}>
-                                  <input type="number" value={rA.air} onChange={(e) => setElecData(prev => ({ ...prev, sg: { ...prev.sg, compoundA: prev.sg.compoundA.map((r, i) => i === idx ? { ...r, air: e.target.value } : r) } }))} style={{ width: '100%', padding: '8px', border: 'none', textAlign: 'center', fontWeight: '800', fontSize: '13px' }} />
+                                  <input type="number" disabled={!hasApprovedSG} value={rA.air} onChange={(e) => setElecData(prev => ({ ...prev, sg: { ...prev.sg, compoundA: prev.sg.compoundA.map((r, i) => i === idx ? { ...r, air: e.target.value } : r) } }))} style={{ width: '100%', padding: '8px', border: 'none', textAlign: 'center', fontWeight: '800', fontSize: '13px', background: !hasApprovedSG ? '#f8fafc' : 'transparent', cursor: !hasApprovedSG ? 'not-allowed' : 'text' }} />
                                 </td>
                                 <td style={{ padding: '4px', border: '1px solid #e2e8f0' }}>
-                                  <input type="number" value={rA.water} onChange={(e) => setElecData(prev => ({ ...prev, sg: { ...prev.sg, compoundA: prev.sg.compoundA.map((r, i) => i === idx ? { ...r, water: e.target.value } : r) } }))} style={{ width: '100%', padding: '8px', border: 'none', textAlign: 'center', fontWeight: '800', fontSize: '13px' }} />
+                                  <input type="number" disabled={!hasApprovedSG} value={rA.water} onChange={(e) => setElecData(prev => ({ ...prev, sg: { ...prev.sg, compoundA: prev.sg.compoundA.map((r, i) => i === idx ? { ...r, water: e.target.value } : r) } }))} style={{ width: '100%', padding: '8px', border: 'none', textAlign: 'center', fontWeight: '800', fontSize: '13px', background: !hasApprovedSG ? '#f8fafc' : 'transparent', cursor: !hasApprovedSG ? 'not-allowed' : 'text' }} />
                                 </td>
-                                <td style={{ padding: '10px', border: '1px solid #e2e8f0', textAlign: 'center', fontWeight: '900', color: sgA !== '-' && parseFloat(sgA) > currentSGSpecs.a ? '#ef4444' : '#21808d', background: '#f8fafc' }}>{sgA}</td>
+                                <td style={{ padding: '10px', border: '1px solid #e2e8f0', textAlign: 'center', fontWeight: '900', color: isSgAOut ? '#ef4444' : '#21808d', background: '#f8fafc' }}>{sgA}</td>
 
                                 {(isCGRSP || isNCRGRSP) && (
                                   <>
                                     <td style={{ padding: '4px', border: '1px solid #e2e8f0' }}>
-                                      <input type="number" value={rB.air} onChange={(e) => setElecData(prev => ({ ...prev, sg: { ...prev.sg, compoundB: prev.sg.compoundB.map((r, i) => i === idx ? { ...r, air: e.target.value } : r) } }))} style={{ width: '100%', padding: '8px', border: 'none', textAlign: 'center', fontWeight: '800', fontSize: '13px' }} />
+                                      <input type="number" disabled={!hasApprovedSG} value={rB.air} onChange={(e) => setElecData(prev => ({ ...prev, sg: { ...prev.sg, compoundB: prev.sg.compoundB.map((r, i) => i === idx ? { ...r, air: e.target.value } : r) } }))} style={{ width: '100%', padding: '8px', border: 'none', textAlign: 'center', fontWeight: '800', fontSize: '13px', background: !hasApprovedSG ? '#f8fafc' : 'transparent', cursor: !hasApprovedSG ? 'not-allowed' : 'text' }} />
                                     </td>
                                     <td style={{ padding: '4px', border: '1px solid #e2e8f0' }}>
-                                      <input type="number" value={rB.water} onChange={(e) => setElecData(prev => ({ ...prev, sg: { ...prev.sg, compoundB: prev.sg.compoundB.map((r, i) => i === idx ? { ...r, water: e.target.value } : r) } }))} style={{ width: '100%', padding: '8px', border: 'none', textAlign: 'center', fontWeight: '800', fontSize: '13px' }} />
+                                      <input type="number" disabled={!hasApprovedSG} value={rB.water} onChange={(e) => setElecData(prev => ({ ...prev, sg: { ...prev.sg, compoundB: prev.sg.compoundB.map((r, i) => i === idx ? { ...r, water: e.target.value } : r) } }))} style={{ width: '100%', padding: '8px', border: 'none', textAlign: 'center', fontWeight: '800', fontSize: '13px', background: !hasApprovedSG ? '#f8fafc' : 'transparent', cursor: !hasApprovedSG ? 'not-allowed' : 'text' }} />
                                     </td>
-                                    <td style={{ padding: '10px', border: '1px solid #e2e8f0', textAlign: 'center', fontWeight: '900', color: sgB !== '-' && parseFloat(sgB) > (currentSGSpecs.b || currentSGSpecs.a) ? '#ef4444' : '#21808d', background: '#f8fafc' }}>{sgB}</td>
+                                    <td style={{ padding: '10px', border: '1px solid #e2e8f0', textAlign: 'center', fontWeight: '900', color: isSgBOut ? '#ef4444' : '#21808d', background: '#f8fafc' }}>{sgB}</td>
                                     {isNCRGRSP && (
                                       <td style={{ padding: '10px', border: '1px solid #e2e8f0', textAlign: 'center', fontWeight: '900', color: variation !== '-' && Math.abs(parseFloat(variation)) > currentSGSpecs.variation ? '#ef4444' : '#64748b', background: '#f8fafc' }}>{variation}</td>
                                     )}
@@ -8034,7 +8209,7 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
                   </div>
 
                   {/* Ash Content */}
-                  <div style={{ background: 'white', borderRadius: '20px', border: '1px solid #e2e8f0', overflow: 'hidden', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05)' }}>
+                  <div style={{ background: 'white', borderRadius: '20px', border: '1px solid #e2e8f0', overflow: 'hidden', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05)', opacity: !hasApprovedAsh ? 0.95 : 1 }}>
                     <div style={{ padding: '16px 20px', background: '#f8fafc', borderBottom: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                       <div>
                         <h3 style={{ margin: 0, fontSize: '16px', fontWeight: '800', color: '#0f172a' }}>Ash Content</h3>
@@ -8043,16 +8218,34 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
                         <div style={{ fontSize: '12px', color: '#64748b', fontWeight: '600' }}>
                           No. of Samples out of Tolerance: <span style={{ color: totalAshOut > 0 ? '#ef4444' : '#059669', fontWeight: '800' }}>{String(totalAshOut).padStart(2, '0')}</span>
                         </div>
-                        <span style={{ padding: '4px 12px', borderRadius: '6px', fontSize: '11px', fontWeight: '800', background: elecResults.ash === 'PASS' ? '#dcfce7' : (elecResults.ash === 'FAIL' || elecResults.ash === 'MARGINAL') ? '#fef3c7' : '#fee2e2', color: elecResults.ash === 'PASS' ? '#166534' : (elecResults.ash === 'FAIL' || elecResults.ash === 'MARGINAL') ? '#b45309' : '#991b1b' }}>{(elecResults.ash === 'FAIL' || elecResults.ash === 'MARGINAL') ? 'MARGINAL' : elecResults.ash}</span>
+                        {!hasApprovedAsh ? (
+                          <span style={{ padding: '4px 12px', borderRadius: '6px', fontSize: '11px', fontWeight: '800', background: '#fee2e2', color: '#991b1b' }}>NOT APPROVED</span>
+                        ) : (
+                          <span style={{ padding: '4px 12px', borderRadius: '6px', fontSize: '11px', fontWeight: '800', background: elecResults.ash === 'PASS' ? '#dcfce7' : (elecResults.ash === 'FAIL' || elecResults.ash === 'MARGINAL') ? '#fef3c7' : '#fee2e2', color: elecResults.ash === 'PASS' ? '#166534' : (elecResults.ash === 'FAIL' || elecResults.ash === 'MARGINAL') ? '#b45309' : '#991b1b' }}>{(elecResults.ash === 'FAIL' || elecResults.ash === 'MARGINAL') ? 'MARGINAL' : elecResults.ash}</span>
+                        )}
                       </div>
                     </div>
+                    {!hasApprovedAsh && !approvedBaselineLoading && (
+                      <div style={{ margin: '14px 20px', padding: '12px 16px', background: '#fffbeb', borderRadius: '10px', border: '1.5px solid #fde68a', display: 'flex', alignItems: 'center', gap: '12px', color: '#92400e' }}>
+                        <span style={{ fontSize: '18px' }}>⚠️</span>
+                        <span style={{ fontSize: '13px', fontWeight: '700' }}>
+                          Kindly approve the ash content of that railpad type ({activeRailpadType}) for plant ({call?.plantId || 'N/A'}).
+                        </span>
+                      </div>
+                    )}
+                    {hasApprovedAsh && (
+                      <div style={{ padding: '8px 20px', background: '#f0fdf4', borderBottom: '1px solid #dcfce7', display: 'flex', gap: '24px', fontSize: '11px', fontWeight: '700', color: '#166534' }}>
+                        <span>✓ Approved Baseline Ash (%): {isCGRSP ? `Compound A: ${currentAshSpecs.approvedA}% | Compound B: ${currentAshSpecs.approvedB != null ? `${currentAshSpecs.approvedB}%` : '—'}` : `Product: ${currentAshSpecs.approvedA}%`}</span>
+                        <span>Tolerance Limit: {isCGRSP ? `Compound A: ≤ ${currentAshSpecs.maxA}% (Max 27%) | Compound B: ≤ ${currentAshSpecs.maxB}% (Max 20%)` : `≤ ${currentAshSpecs.maxA}% (Max 27%)`}</span>
+                      </div>
+                    )}
                     <div style={{ padding: '20px' }}>
                       <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                         <thead>
                           <tr>
                             <th rowSpan="2" style={{ padding: '10px', border: '1px solid #e2e8f0', background: '#f8fafc', fontSize: '11px', color: '#64748b' }}>Sample</th>
-                            <th colSpan="4" style={{ padding: '10px', border: '1px solid #e2e8f0', background: '#f1f5f9', fontSize: '12px', color: '#475569', fontWeight: '800' }}>{isNCRGRSP ? 'Product' : 'Product A'}</th>
-                            {(isCGRSP || isNCRGRSP) && <th colSpan="4" style={{ padding: '10px', border: '1px solid #e2e8f0', background: '#f1f5f9', fontSize: '12px', color: '#475569', fontWeight: '800' }}>{isNCRGRSP ? 'Test Slab' : 'Product B'}</th>}
+                            <th colSpan="4" style={{ padding: '10px', border: '1px solid #e2e8f0', background: '#f1f5f9', fontSize: '12px', color: '#475569', fontWeight: '800' }}>{isNCRGRSP ? 'Product' : 'Compound A'}</th>
+                            {(isCGRSP || isNCRGRSP) && <th colSpan="4" style={{ padding: '10px', border: '1px solid #e2e8f0', background: '#f1f5f9', fontSize: '12px', color: '#475569', fontWeight: '800' }}>{isNCRGRSP ? 'Test Slab' : 'Compound B'}</th>}
                             {isNCRGRSP && <th rowSpan="2" style={{ padding: '10px', border: '1px solid #e2e8f0', background: '#f8fafc', fontSize: '11px', color: '#64748b' }}>Variation</th>}
                           </tr>
                           <tr>
@@ -8077,33 +8270,35 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
                             const ashA = (rA.crucible && rA.sample && rA.ash) ? (((parseFloat(rA.ash) - parseFloat(rA.crucible)) / (parseFloat(rA.sample) - parseFloat(rA.crucible))) * 100).toFixed(2) : '-';
                             const ashB = (rB.crucible && rB.sample && rB.ash) ? (((parseFloat(rB.ash) - parseFloat(rB.crucible)) / (parseFloat(rB.sample) - parseFloat(rB.crucible))) * 100).toFixed(2) : '-';
                             const variation = (ashA !== '-' && ashB !== '-') ? (parseFloat(ashA) - parseFloat(ashB)).toFixed(2) : '-';
+                            const isAshAOut = ashA !== '-' && parseFloat(ashA) > (currentAshSpecs.maxA || currentAshSpecs.a);
+                            const isAshBOut = ashB !== '-' && parseFloat(ashB) > (currentAshSpecs.maxB || currentAshSpecs.b || currentAshSpecs.a);
 
                             return (
                               <tr key={idx}>
                                 <td style={{ padding: '10px', border: '1px solid #e2e8f0', textAlign: 'center', fontWeight: '700', color: '#64748b' }}>S{idx + 1}</td>
                                 <td style={{ padding: '4px', border: '1px solid #e2e8f0' }}>
-                                  <input type="number" value={rA.crucible} onChange={(e) => setElecData(prev => ({ ...prev, ash: { ...prev.ash, compoundA: prev.ash.compoundA.map((r, i) => i === idx ? { ...r, crucible: e.target.value } : r) } }))} style={{ width: '100%', padding: '8px', border: 'none', textAlign: 'center', fontWeight: '800', fontSize: '13px' }} />
+                                  <input type="number" disabled={!hasApprovedAsh} value={rA.crucible} onChange={(e) => setElecData(prev => ({ ...prev, ash: { ...prev.ash, compoundA: prev.ash.compoundA.map((r, i) => i === idx ? { ...r, crucible: e.target.value } : r) } }))} style={{ width: '100%', padding: '8px', border: 'none', textAlign: 'center', fontWeight: '800', fontSize: '13px', background: !hasApprovedAsh ? '#f8fafc' : 'transparent', cursor: !hasApprovedAsh ? 'not-allowed' : 'text' }} />
                                 </td>
                                 <td style={{ padding: '4px', border: '1px solid #e2e8f0' }}>
-                                  <input type="number" value={rA.sample} onChange={(e) => setElecData(prev => ({ ...prev, ash: { ...prev.ash, compoundA: prev.ash.compoundA.map((r, i) => i === idx ? { ...r, sample: e.target.value } : r) } }))} style={{ width: '100%', padding: '8px', border: 'none', textAlign: 'center', fontWeight: '800', fontSize: '13px' }} />
+                                  <input type="number" disabled={!hasApprovedAsh} value={rA.sample} onChange={(e) => setElecData(prev => ({ ...prev, ash: { ...prev.ash, compoundA: prev.ash.compoundA.map((r, i) => i === idx ? { ...r, sample: e.target.value } : r) } }))} style={{ width: '100%', padding: '8px', border: 'none', textAlign: 'center', fontWeight: '800', fontSize: '13px', background: !hasApprovedAsh ? '#f8fafc' : 'transparent', cursor: !hasApprovedAsh ? 'not-allowed' : 'text' }} />
                                 </td>
                                 <td style={{ padding: '4px', border: '1px solid #e2e8f0' }}>
-                                  <input type="number" value={rA.ash} onChange={(e) => setElecData(prev => ({ ...prev, ash: { ...prev.ash, compoundA: prev.ash.compoundA.map((r, i) => i === idx ? { ...r, ash: e.target.value } : r) } }))} style={{ width: '100%', padding: '8px', border: 'none', textAlign: 'center', fontWeight: '800', fontSize: '13px' }} />
+                                  <input type="number" disabled={!hasApprovedAsh} value={rA.ash} onChange={(e) => setElecData(prev => ({ ...prev, ash: { ...prev.ash, compoundA: prev.ash.compoundA.map((r, i) => i === idx ? { ...r, ash: e.target.value } : r) } }))} style={{ width: '100%', padding: '8px', border: 'none', textAlign: 'center', fontWeight: '800', fontSize: '13px', background: !hasApprovedAsh ? '#f8fafc' : 'transparent', cursor: !hasApprovedAsh ? 'not-allowed' : 'text' }} />
                                 </td>
-                                <td style={{ padding: '10px', border: '1px solid #e2e8f0', textAlign: 'center', fontWeight: '900', color: ashA !== '-' && parseFloat(ashA) > currentAshSpecs.a ? '#ef4444' : '#21808d', background: '#f8fafc' }}>{ashA}%</td>
+                                <td style={{ padding: '10px', border: '1px solid #e2e8f0', textAlign: 'center', fontWeight: '900', color: isAshAOut ? '#ef4444' : '#21808d', background: '#f8fafc' }}>{ashA}%</td>
 
                                 {(isCGRSP || isNCRGRSP) && (
                                   <>
                                     <td style={{ padding: '4px', border: '1px solid #e2e8f0' }}>
-                                      <input type="number" value={rB.crucible} onChange={(e) => setElecData(prev => ({ ...prev, ash: { ...prev.ash, compoundB: prev.ash.compoundB.map((r, i) => i === idx ? { ...r, crucible: e.target.value } : r) } }))} style={{ width: '100%', padding: '8px', border: 'none', textAlign: 'center', fontWeight: '800', fontSize: '13px' }} />
+                                      <input type="number" disabled={!hasApprovedAsh} value={rB.crucible} onChange={(e) => setElecData(prev => ({ ...prev, ash: { ...prev.ash, compoundB: prev.ash.compoundB.map((r, i) => i === idx ? { ...r, crucible: e.target.value } : r) } }))} style={{ width: '100%', padding: '8px', border: 'none', textAlign: 'center', fontWeight: '800', fontSize: '13px', background: !hasApprovedAsh ? '#f8fafc' : 'transparent', cursor: !hasApprovedAsh ? 'not-allowed' : 'text' }} />
                                     </td>
                                     <td style={{ padding: '4px', border: '1px solid #e2e8f0' }}>
-                                      <input type="number" value={rB.sample} onChange={(e) => setElecData(prev => ({ ...prev, ash: { ...prev.ash, compoundB: prev.ash.compoundB.map((r, i) => i === idx ? { ...r, sample: e.target.value } : r) } }))} style={{ width: '100%', padding: '8px', border: 'none', textAlign: 'center', fontWeight: '800', fontSize: '13px' }} />
+                                      <input type="number" disabled={!hasApprovedAsh} value={rB.sample} onChange={(e) => setElecData(prev => ({ ...prev, ash: { ...prev.ash, compoundB: prev.ash.compoundB.map((r, i) => i === idx ? { ...r, sample: e.target.value } : r) } }))} style={{ width: '100%', padding: '8px', border: 'none', textAlign: 'center', fontWeight: '800', fontSize: '13px', background: !hasApprovedAsh ? '#f8fafc' : 'transparent', cursor: !hasApprovedAsh ? 'not-allowed' : 'text' }} />
                                     </td>
                                     <td style={{ padding: '4px', border: '1px solid #e2e8f0' }}>
-                                      <input type="number" value={rB.ash} onChange={(e) => setElecData(prev => ({ ...prev, ash: { ...prev.ash, compoundB: prev.ash.compoundB.map((r, i) => i === idx ? { ...r, ash: e.target.value } : r) } }))} style={{ width: '100%', padding: '8px', border: 'none', textAlign: 'center', fontWeight: '800', fontSize: '13px' }} />
+                                      <input type="number" disabled={!hasApprovedAsh} value={rB.ash} onChange={(e) => setElecData(prev => ({ ...prev, ash: { ...prev.ash, compoundB: prev.ash.compoundB.map((r, i) => i === idx ? { ...r, ash: e.target.value } : r) } }))} style={{ width: '100%', padding: '8px', border: 'none', textAlign: 'center', fontWeight: '800', fontSize: '13px', background: !hasApprovedAsh ? '#f8fafc' : 'transparent', cursor: !hasApprovedAsh ? 'not-allowed' : 'text' }} />
                                     </td>
-                                    <td style={{ padding: '10px', border: '1px solid #e2e8f0', textAlign: 'center', fontWeight: '900', color: ashB !== '-' && parseFloat(ashB) > (currentAshSpecs.b || currentAshSpecs.a) ? '#ef4444' : '#21808d', background: '#f8fafc' }}>{ashB}%</td>
+                                    <td style={{ padding: '10px', border: '1px solid #e2e8f0', textAlign: 'center', fontWeight: '900', color: isAshBOut ? '#ef4444' : '#21808d', background: '#f8fafc' }}>{ashB}%</td>
                                     {isNCRGRSP && (
                                       <td style={{ padding: '10px', border: '1px solid #e2e8f0', textAlign: 'center', fontWeight: '900', color: variation !== '-' && Math.abs(parseFloat(variation)) > currentAshSpecs.variation ? '#ef4444' : '#64748b', background: '#f8fafc' }}>{variation}</td>
                                     )}
@@ -9232,7 +9427,7 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
                         const doubleOutCount = rep ? rep.doubleOutCount : 0;
                         const status = getSectionStatus('sg');
                         return (
-                          <div style={{ background: 'white', borderRadius: '20px', border: '1px solid #e2e8f0', overflow: 'hidden' }}>
+                          <div style={{ background: 'white', borderRadius: '20px', border: '1px solid #e2e8f0', overflow: 'hidden', opacity: !hasApprovedSG ? 0.95 : 1 }}>
                             <div style={{ padding: '16px 20px', background: '#f8fafc', borderBottom: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                               <div>
                                 <h3 style={{ margin: 0, fontSize: '16px', fontWeight: '800', color: '#0f172a' }}>{config.name} (Double Sampling)</h3>
@@ -9241,9 +9436,27 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
                                 <div style={{ fontSize: '12px', color: '#64748b', fontWeight: '600' }}>
                                   Double Sample out of Tolerance: <span style={{ color: doubleOutCount > 0 ? '#ef4444' : '#059669', fontWeight: '800' }}>{String(doubleOutCount).padStart(2, '0')}</span>
                                 </div>
-                                <span style={{ padding: '4px 12px', borderRadius: '6px', fontSize: '11px', fontWeight: '800', background: status === 'PASS' ? '#dcfce7' : status === 'FAIL' ? '#fee2e2' : '#fff7ed', color: status === 'PASS' ? '#166534' : status === 'FAIL' ? '#991b1b' : '#c2410c', textTransform: 'uppercase' }}>{status}</span>
+                                {!hasApprovedSG ? (
+                                  <span style={{ padding: '4px 12px', borderRadius: '6px', fontSize: '11px', fontWeight: '800', background: '#fee2e2', color: '#991b1b' }}>NOT APPROVED</span>
+                                ) : (
+                                  <span style={{ padding: '4px 12px', borderRadius: '6px', fontSize: '11px', fontWeight: '800', background: status === 'PASS' ? '#dcfce7' : status === 'FAIL' ? '#fee2e2' : '#fff7ed', color: status === 'PASS' ? '#166534' : status === 'FAIL' ? '#991b1b' : '#c2410c', textTransform: 'uppercase' }}>{status}</span>
+                                )}
                               </div>
                             </div>
+                            {!hasApprovedSG && !approvedBaselineLoading && (
+                              <div style={{ margin: '14px 20px', padding: '12px 16px', background: '#fffbeb', borderRadius: '10px', border: '1.5px solid #fde68a', display: 'flex', alignItems: 'center', gap: '12px', color: '#92400e' }}>
+                                <span style={{ fontSize: '18px' }}>⚠️</span>
+                                <span style={{ fontSize: '13px', fontWeight: '700' }}>
+                                  Kindly approve the specific gravity of that railpad type ({activeRailpadType}) for plant ({call?.plantId || 'N/A'}).
+                                </span>
+                              </div>
+                            )}
+                            {hasApprovedSG && (
+                              <div style={{ padding: '8px 20px', background: '#f0fdf4', borderBottom: '1px solid #dcfce7', display: 'flex', gap: '24px', fontSize: '11px', fontWeight: '700', color: '#166534' }}>
+                                <span>✓ Approved Baseline S.G.: {isCGRSP ? `Compound A: ${specs.approvedA} | Compound B: ${specs.approvedB ?? '—'}` : `Product: ${specs.approvedA}`}</span>
+                                <span>Tolerance: {isCGRSP ? `Compound A: ${specs.minA} - ${specs.maxA} (Max 1.27) | Compound B: ${specs.minB} - ${specs.maxB} (Max 1.17)` : `${specs.minA} - ${specs.maxA} (Max 1.27)`}</span>
+                              </div>
+                            )}
                             <div style={{ padding: '20px' }}>
                               <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                                 <thead>
@@ -9270,27 +9483,29 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
                                     const sgA = (rA.air && rA.water) ? (parseFloat(rA.air) / (parseFloat(rA.air) - parseFloat(rA.water))).toFixed(3) : '-';
                                     const sgB = (rB.air && rB.water) ? (parseFloat(rB.air) / (parseFloat(rB.air) - parseFloat(rB.water))).toFixed(3) : '-';
                                     const variation = (sgA !== '-' && sgB !== '-') ? (parseFloat(sgA) - parseFloat(sgB)).toFixed(3) : '-';
+                                    const isSgAOut = sgA !== '-' && (parseFloat(sgA) > (specs.maxA || specs.a) || parseFloat(sgA) < (specs.minA || 0));
+                                    const isSgBOut = sgB !== '-' && (parseFloat(sgB) > (specs.maxB || specs.b || specs.a) || parseFloat(sgB) < (specs.minB || 0));
 
                                     return (
                                       <tr key={sn}>
                                         <td style={{ padding: '10px', border: '1px solid #e2e8f0', textAlign: 'center', fontWeight: '700', color: '#64748b' }}>S{sn}</td>
                                         <td style={{ padding: '4px', border: '1px solid #e2e8f0' }}>
-                                          <input type="number" value={rA.air || ''} onChange={(e) => setElecData(prev => ({ ...prev, sg: { ...prev.sg, compoundA: prev.sg.compoundA.map((r, i) => i === realIdx ? { ...r, air: e.target.value } : r) } }))} style={{ width: '100%', padding: '8px', border: 'none', textAlign: 'center', fontWeight: '800', fontSize: '13px' }} />
+                                          <input type="number" disabled={!hasApprovedSG} value={rA.air || ''} onChange={(e) => setElecData(prev => ({ ...prev, sg: { ...prev.sg, compoundA: prev.sg.compoundA.map((r, i) => i === realIdx ? { ...r, air: e.target.value } : r) } }))} style={{ width: '100%', padding: '8px', border: 'none', textAlign: 'center', fontWeight: '800', fontSize: '13px', background: !hasApprovedSG ? '#f8fafc' : 'transparent', cursor: !hasApprovedSG ? 'not-allowed' : 'text' }} />
                                         </td>
                                         <td style={{ padding: '4px', border: '1px solid #e2e8f0' }}>
-                                          <input type="number" value={rA.water || ''} onChange={(e) => setElecData(prev => ({ ...prev, sg: { ...prev.sg, compoundA: prev.sg.compoundA.map((r, i) => i === realIdx ? { ...r, water: e.target.value } : r) } }))} style={{ width: '100%', padding: '8px', border: 'none', textAlign: 'center', fontWeight: '800', fontSize: '13px' }} />
+                                          <input type="number" disabled={!hasApprovedSG} value={rA.water || ''} onChange={(e) => setElecData(prev => ({ ...prev, sg: { ...prev.sg, compoundA: prev.sg.compoundA.map((r, i) => i === realIdx ? { ...r, water: e.target.value } : r) } }))} style={{ width: '100%', padding: '8px', border: 'none', textAlign: 'center', fontWeight: '800', fontSize: '13px', background: !hasApprovedSG ? '#f8fafc' : 'transparent', cursor: !hasApprovedSG ? 'not-allowed' : 'text' }} />
                                         </td>
-                                        <td style={{ padding: '10px', border: '1px solid #e2e8f0', textAlign: 'center', fontWeight: '900', color: sgA !== '-' && parseFloat(sgA) > specs.a ? '#ef4444' : '#21808d', background: '#f8fafc' }}>{sgA}</td>
+                                        <td style={{ padding: '10px', border: '1px solid #e2e8f0', textAlign: 'center', fontWeight: '900', color: isSgAOut ? '#ef4444' : '#21808d', background: '#f8fafc' }}>{sgA}</td>
 
                                         {(isCGRSP || isNCRGRSP) && (
                                           <>
                                             <td style={{ padding: '4px', border: '1px solid #e2e8f0' }}>
-                                              <input type="number" value={rB.air || ''} onChange={(e) => setElecData(prev => ({ ...prev, sg: { ...prev.sg, compoundB: prev.sg.compoundB.map((r, i) => i === realIdx ? { ...r, air: e.target.value } : r) } }))} style={{ width: '100%', padding: '8px', border: 'none', textAlign: 'center', fontWeight: '800', fontSize: '13px' }} />
+                                              <input type="number" disabled={!hasApprovedSG} value={rB.air || ''} onChange={(e) => setElecData(prev => ({ ...prev, sg: { ...prev.sg, compoundB: prev.sg.compoundB.map((r, i) => i === realIdx ? { ...r, air: e.target.value } : r) } }))} style={{ width: '100%', padding: '8px', border: 'none', textAlign: 'center', fontWeight: '800', fontSize: '13px', background: !hasApprovedSG ? '#f8fafc' : 'transparent', cursor: !hasApprovedSG ? 'not-allowed' : 'text' }} />
                                             </td>
                                             <td style={{ padding: '4px', border: '1px solid #e2e8f0' }}>
-                                              <input type="number" value={rB.water || ''} onChange={(e) => setElecData(prev => ({ ...prev, sg: { ...prev.sg, compoundB: prev.sg.compoundB.map((r, i) => i === realIdx ? { ...r, water: e.target.value } : r) } }))} style={{ width: '100%', padding: '8px', border: 'none', textAlign: 'center', fontWeight: '800', fontSize: '13px' }} />
+                                              <input type="number" disabled={!hasApprovedSG} value={rB.water || ''} onChange={(e) => setElecData(prev => ({ ...prev, sg: { ...prev.sg, compoundB: prev.sg.compoundB.map((r, i) => i === realIdx ? { ...r, water: e.target.value } : r) } }))} style={{ width: '100%', padding: '8px', border: 'none', textAlign: 'center', fontWeight: '800', fontSize: '13px', background: !hasApprovedSG ? '#f8fafc' : 'transparent', cursor: !hasApprovedSG ? 'not-allowed' : 'text' }} />
                                             </td>
-                                            <td style={{ padding: '10px', border: '1px solid #e2e8f0', textAlign: 'center', fontWeight: '900', color: sgB !== '-' && parseFloat(sgB) > (specs.b || specs.a) ? '#ef4444' : '#21808d', background: '#f8fafc' }}>{sgB}</td>
+                                            <td style={{ padding: '10px', border: '1px solid #e2e8f0', textAlign: 'center', fontWeight: '900', color: isSgBOut ? '#ef4444' : '#21808d', background: '#f8fafc' }}>{sgB}</td>
                                             {isNCRGRSP && (
                                               <td style={{ padding: '10px', border: '1px solid #e2e8f0', textAlign: 'center', fontWeight: '900', color: variation !== '-' && Math.abs(parseFloat(variation)) > specs.variation ? '#ef4444' : '#64748b', background: '#f8fafc' }}>{variation}</td>
                                             )}
@@ -9312,7 +9527,7 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
                         const doubleOutCount = rep ? rep.doubleOutCount : 0;
                         const status = getSectionStatus('ash');
                         return (
-                          <div style={{ background: 'white', borderRadius: '20px', border: '1px solid #e2e8f0', overflow: 'hidden' }}>
+                          <div style={{ background: 'white', borderRadius: '20px', border: '1px solid #e2e8f0', overflow: 'hidden', opacity: !hasApprovedAsh ? 0.95 : 1 }}>
                             <div style={{ padding: '16px 20px', background: '#f8fafc', borderBottom: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                               <div>
                                 <h3 style={{ margin: 0, fontSize: '16px', fontWeight: '800', color: '#0f172a' }}>{config.name} (Double Sampling)</h3>
@@ -9321,16 +9536,34 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
                                 <div style={{ fontSize: '12px', color: '#64748b', fontWeight: '600' }}>
                                   Double Sample out of Tolerance: <span style={{ color: doubleOutCount > 0 ? '#ef4444' : '#059669', fontWeight: '800' }}>{String(doubleOutCount).padStart(2, '0')}</span>
                                 </div>
-                                <span style={{ padding: '4px 12px', borderRadius: '6px', fontSize: '11px', fontWeight: '800', background: status === 'PASS' ? '#dcfce7' : status === 'FAIL' ? '#fee2e2' : '#fff7ed', color: status === 'PASS' ? '#166534' : status === 'FAIL' ? '#991b1b' : '#c2410c', textTransform: 'uppercase' }}>{status}</span>
+                                {!hasApprovedAsh ? (
+                                  <span style={{ padding: '4px 12px', borderRadius: '6px', fontSize: '11px', fontWeight: '800', background: '#fee2e2', color: '#991b1b' }}>NOT APPROVED</span>
+                                ) : (
+                                  <span style={{ padding: '4px 12px', borderRadius: '6px', fontSize: '11px', fontWeight: '800', background: status === 'PASS' ? '#dcfce7' : status === 'FAIL' ? '#fee2e2' : '#fff7ed', color: status === 'PASS' ? '#166534' : status === 'FAIL' ? '#991b1b' : '#c2410c', textTransform: 'uppercase' }}>{status}</span>
+                                )}
                               </div>
                             </div>
+                            {!hasApprovedAsh && !approvedBaselineLoading && (
+                              <div style={{ margin: '14px 20px', padding: '12px 16px', background: '#fffbeb', borderRadius: '10px', border: '1.5px solid #fde68a', display: 'flex', alignItems: 'center', gap: '12px', color: '#92400e' }}>
+                                <span style={{ fontSize: '18px' }}>⚠️</span>
+                                <span style={{ fontSize: '13px', fontWeight: '700' }}>
+                                  Kindly approve the ash content of that railpad type ({activeRailpadType}) for plant ({call?.plantId || 'N/A'}).
+                                </span>
+                              </div>
+                            )}
+                            {hasApprovedAsh && (
+                              <div style={{ padding: '8px 20px', background: '#f0fdf4', borderBottom: '1px solid #dcfce7', display: 'flex', gap: '24px', fontSize: '11px', fontWeight: '700', color: '#166534' }}>
+                                <span>✓ Approved Baseline Ash: {isCGRSP ? `Compound A: ${specs.approvedA}% | Compound B: ${specs.approvedB ?? '—'}%` : `Product: ${specs.approvedA}%`}</span>
+                                <span>Tolerance: {isCGRSP ? `Compound A: ≤ ${specs.maxA}% (Max 27%) | Compound B: ≤ ${specs.maxB}% (Max 20%)` : `≤ ${specs.maxA}% (Max 27%)`}</span>
+                              </div>
+                            )}
                             <div style={{ padding: '20px' }}>
                               <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                                 <thead>
                                   <tr>
                                     <th rowSpan="2" style={{ padding: '10px', border: '1px solid #e2e8f0', background: '#f8fafc', fontSize: '11px', color: '#64748b' }}>Sample</th>
-                                    <th colSpan="4" style={{ padding: '10px', border: '1px solid #e2e8f0', background: '#f1f5f9', fontSize: '12px', color: '#475569', fontWeight: '800' }}>{isNCRGRSP ? 'Product' : 'Product A'}</th>
-                                    {(isCGRSP || isNCRGRSP) && <th colSpan="4" style={{ padding: '10px', border: '1px solid #e2e8f0', background: '#f1f5f9', fontSize: '12px', color: '#475569', fontWeight: '800' }}>{isNCRGRSP ? 'Test Slab' : 'Product B'}</th>}
+                                    <th colSpan="4" style={{ padding: '10px', border: '1px solid #e2e8f0', background: '#f1f5f9', fontSize: '12px', color: '#475569', fontWeight: '800' }}>{isNCRGRSP ? 'Product' : 'Compound A'}</th>
+                                    {(isCGRSP || isNCRGRSP) && <th colSpan="4" style={{ padding: '10px', border: '1px solid #e2e8f0', background: '#f1f5f9', fontSize: '12px', color: '#475569', fontWeight: '800' }}>{isNCRGRSP ? 'Test Slab' : 'Compound B'}</th>}
                                     {isNCRGRSP && <th rowSpan="2" style={{ padding: '10px', border: '1px solid #e2e8f0', background: '#f8fafc', fontSize: '11px', color: '#64748b' }}>Variation</th>}
                                   </tr>
                                   <tr>
@@ -9356,33 +9589,35 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
                                     const ashA = (rA.crucible && rA.sample && rA.ash) ? (((parseFloat(rA.ash) - parseFloat(rA.crucible)) / (parseFloat(rA.sample) - parseFloat(rA.crucible))) * 100).toFixed(2) : '-';
                                     const ashB = (rB.crucible && rB.sample && rB.ash) ? (((parseFloat(rB.ash) - parseFloat(rB.crucible)) / (parseFloat(rB.sample) - parseFloat(rB.crucible))) * 100).toFixed(2) : '-';
                                     const variation = (ashA !== '-' && ashB !== '-') ? (parseFloat(ashA) - parseFloat(ashB)).toFixed(2) : '-';
+                                    const isAshAOut = ashA !== '-' && parseFloat(ashA) > (specs.maxA || specs.a);
+                                    const isAshBOut = ashB !== '-' && parseFloat(ashB) > (specs.maxB || specs.b || specs.a);
 
                                     return (
                                       <tr key={sn}>
                                         <td style={{ padding: '10px', border: '1px solid #e2e8f0', textAlign: 'center', fontWeight: '700', color: '#64748b' }}>S{sn}</td>
                                         <td style={{ padding: '4px', border: '1px solid #e2e8f0' }}>
-                                          <input type="number" value={rA.crucible || ''} onChange={(e) => setElecData(prev => ({ ...prev, ash: { ...prev.ash, compoundA: prev.ash.compoundA.map((r, i) => i === realIdx ? { ...r, crucible: e.target.value } : r) } }))} style={{ width: '100%', padding: '8px', border: 'none', textAlign: 'center', fontWeight: '800', fontSize: '13px' }} />
+                                          <input type="number" disabled={!hasApprovedAsh} value={rA.crucible || ''} onChange={(e) => setElecData(prev => ({ ...prev, ash: { ...prev.ash, compoundA: prev.ash.compoundA.map((r, i) => i === realIdx ? { ...r, crucible: e.target.value } : r) } }))} style={{ width: '100%', padding: '8px', border: 'none', textAlign: 'center', fontWeight: '800', fontSize: '13px', background: !hasApprovedAsh ? '#f8fafc' : 'transparent', cursor: !hasApprovedAsh ? 'not-allowed' : 'text' }} />
                                         </td>
                                         <td style={{ padding: '4px', border: '1px solid #e2e8f0' }}>
-                                          <input type="number" value={rA.sample || ''} onChange={(e) => setElecData(prev => ({ ...prev, ash: { ...prev.ash, compoundA: prev.ash.compoundA.map((r, i) => i === realIdx ? { ...r, sample: e.target.value } : r) } }))} style={{ width: '100%', padding: '8px', border: 'none', textAlign: 'center', fontWeight: '800', fontSize: '13px' }} />
+                                          <input type="number" disabled={!hasApprovedAsh} value={rA.sample || ''} onChange={(e) => setElecData(prev => ({ ...prev, ash: { ...prev.ash, compoundA: prev.ash.compoundA.map((r, i) => i === realIdx ? { ...r, sample: e.target.value } : r) } }))} style={{ width: '100%', padding: '8px', border: 'none', textAlign: 'center', fontWeight: '800', fontSize: '13px', background: !hasApprovedAsh ? '#f8fafc' : 'transparent', cursor: !hasApprovedAsh ? 'not-allowed' : 'text' }} />
                                         </td>
                                         <td style={{ padding: '4px', border: '1px solid #e2e8f0' }}>
-                                          <input type="number" value={rA.ash || ''} onChange={(e) => setElecData(prev => ({ ...prev, ash: { ...prev.ash, compoundA: prev.ash.compoundA.map((r, i) => i === realIdx ? { ...r, ash: e.target.value } : r) } }))} style={{ width: '100%', padding: '8px', border: 'none', textAlign: 'center', fontWeight: '800', fontSize: '13px' }} />
+                                          <input type="number" disabled={!hasApprovedAsh} value={rA.ash || ''} onChange={(e) => setElecData(prev => ({ ...prev, ash: { ...prev.ash, compoundA: prev.ash.compoundA.map((r, i) => i === realIdx ? { ...r, ash: e.target.value } : r) } }))} style={{ width: '100%', padding: '8px', border: 'none', textAlign: 'center', fontWeight: '800', fontSize: '13px', background: !hasApprovedAsh ? '#f8fafc' : 'transparent', cursor: !hasApprovedAsh ? 'not-allowed' : 'text' }} />
                                         </td>
-                                        <td style={{ padding: '10px', border: '1px solid #e2e8f0', textAlign: 'center', fontWeight: '900', color: ashA !== '-' && parseFloat(ashA) > specs.a ? '#ef4444' : '#21808d', background: '#f8fafc' }}>{ashA}%</td>
+                                        <td style={{ padding: '10px', border: '1px solid #e2e8f0', textAlign: 'center', fontWeight: '900', color: isAshAOut ? '#ef4444' : '#21808d', background: '#f8fafc' }}>{ashA}%</td>
 
                                         {(isCGRSP || isNCRGRSP) && (
                                           <>
                                             <td style={{ padding: '4px', border: '1px solid #e2e8f0' }}>
-                                              <input type="number" value={rB.crucible || ''} onChange={(e) => setElecData(prev => ({ ...prev, ash: { ...prev.ash, compoundB: prev.ash.compoundB.map((r, i) => i === realIdx ? { ...r, crucible: e.target.value } : r) } }))} style={{ width: '100%', padding: '8px', border: 'none', textAlign: 'center', fontWeight: '800', fontSize: '13px' }} />
+                                              <input type="number" disabled={!hasApprovedAsh} value={rB.crucible || ''} onChange={(e) => setElecData(prev => ({ ...prev, ash: { ...prev.ash, compoundB: prev.ash.compoundB.map((r, i) => i === realIdx ? { ...r, crucible: e.target.value } : r) } }))} style={{ width: '100%', padding: '8px', border: 'none', textAlign: 'center', fontWeight: '800', fontSize: '13px', background: !hasApprovedAsh ? '#f8fafc' : 'transparent', cursor: !hasApprovedAsh ? 'not-allowed' : 'text' }} />
                                             </td>
                                             <td style={{ padding: '4px', border: '1px solid #e2e8f0' }}>
-                                              <input type="number" value={rB.sample || ''} onChange={(e) => setElecData(prev => ({ ...prev, ash: { ...prev.ash, compoundB: prev.ash.compoundB.map((r, i) => i === realIdx ? { ...r, sample: e.target.value } : r) } }))} style={{ width: '100%', padding: '8px', border: 'none', textAlign: 'center', fontWeight: '800', fontSize: '13px' }} />
+                                              <input type="number" disabled={!hasApprovedAsh} value={rB.sample || ''} onChange={(e) => setElecData(prev => ({ ...prev, ash: { ...prev.ash, compoundB: prev.ash.compoundB.map((r, i) => i === realIdx ? { ...r, sample: e.target.value } : r) } }))} style={{ width: '100%', padding: '8px', border: 'none', textAlign: 'center', fontWeight: '800', fontSize: '13px', background: !hasApprovedAsh ? '#f8fafc' : 'transparent', cursor: !hasApprovedAsh ? 'not-allowed' : 'text' }} />
                                             </td>
                                             <td style={{ padding: '4px', border: '1px solid #e2e8f0' }}>
-                                              <input type="number" value={rB.ash || ''} onChange={(e) => setElecData(prev => ({ ...prev, ash: { ...prev.ash, compoundB: prev.ash.compoundB.map((r, i) => i === realIdx ? { ...r, ash: e.target.value } : r) } }))} style={{ width: '100%', padding: '8px', border: 'none', textAlign: 'center', fontWeight: '800', fontSize: '13px' }} />
+                                              <input type="number" disabled={!hasApprovedAsh} value={rB.ash || ''} onChange={(e) => setElecData(prev => ({ ...prev, ash: { ...prev.ash, compoundB: prev.ash.compoundB.map((r, i) => i === realIdx ? { ...r, ash: e.target.value } : r) } }))} style={{ width: '100%', padding: '8px', border: 'none', textAlign: 'center', fontWeight: '800', fontSize: '13px', background: !hasApprovedAsh ? '#f8fafc' : 'transparent', cursor: !hasApprovedAsh ? 'not-allowed' : 'text' }} />
                                             </td>
-                                            <td style={{ padding: '10px', border: '1px solid #e2e8f0', textAlign: 'center', fontWeight: '900', color: ashB !== '-' && parseFloat(ashB) > (specs.b || specs.a) ? '#ef4444' : '#21808d', background: '#f8fafc' }}>{ashB}%</td>
+                                            <td style={{ padding: '10px', border: '1px solid #e2e8f0', textAlign: 'center', fontWeight: '900', color: isAshBOut ? '#ef4444' : '#21808d', background: '#f8fafc' }}>{ashB}%</td>
                                             {isNCRGRSP && (
                                               <td style={{ padding: '10px', border: '1px solid #e2e8f0', textAlign: 'center', fontWeight: '900', color: variation !== '-' && Math.abs(parseFloat(variation)) > specs.variation ? '#ef4444' : '#64748b', background: '#f8fafc' }}>{variation}</td>
                                             )}

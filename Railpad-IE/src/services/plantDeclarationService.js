@@ -88,6 +88,11 @@ export const productRecipeService = {
 };
 
 export const approvedAshSGService = {
+  getByVendor: async (vendorCode) => {
+    const response = await fetch(`${getBaseUrl()}/rail-approved-ash-sg/vendor/${encodeURIComponent(vendorCode)}`);
+    if (!response.ok) throw new Error('Failed to fetch entries by vendor code');
+    return response.json();
+  },
   getByPlantId: async (plantId) => {
     const response = await fetch(`${getBaseUrl()}/rail-approved-ash-sg/plant?plantId=${encodeURIComponent(plantId)}`);
     if (!response.ok) throw new Error('Failed to fetch entries by plant ID');

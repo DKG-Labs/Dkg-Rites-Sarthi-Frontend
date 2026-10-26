@@ -60,16 +60,38 @@ const SBUDiversionApprovalsTab = ({ rioId: propRioId }) => {
     }
   };
 
-  const handleViewIcCertificate = async (token) => {
+  const handleViewIcCertificate = async (token, stage) => {
     if (!token) {
       showNotification('Source IC Number is not available.', 'error');
       return;
     }
     try {
       const { API_BASE_URL, getAuthHeaders } = await import('../../../services/apiConfig');
-      const res = await fetch(`${API_BASE_URL}/api/certificate-storage/view?icNumber=${encodeURIComponent(token)}`, {
+      let icToView = token;
+
+      // 1. Fetch full IC Number from the new get-ic-number API (from IC edit table)
+      try {
+        const icRes = await fetch(
+          `${API_BASE_URL}/api/erc/diversion/get-ic-number?callNo=${encodeURIComponent(token)}${stage ? `&stage=${encodeURIComponent(stage)}` : ''}`,
+          { headers: getAuthHeaders() }
+        );
+        const icData = await icRes.json();
+        const resolved = icData?.responseData?.icNumber || icData?.data?.icNumber || icData?.icNumber;
+        if (resolved) {
+          icToView = resolved;
+        }
+      } catch (err) {
+        console.warn('Could not fetch IC Number from edit tables, falling back to call token:', err);
+      }
+
+      // 2. Fetch certificate using the resolved IC Number
+      const res = await fetch(`${API_BASE_URL}/api/certificate-storage/view?icNumber=${encodeURIComponent(icToView)}`, {
         headers: getAuthHeaders()
       });
+      if (!res.ok) {
+        const errText = await res.text();
+        throw new Error(errText || `HTTP Error ${res.status}`);
+      }
       const certData = await res.json();
       if (certData && certData.signedData) {
         const cleanBase64 = String(certData.signedData).replace(/^data:application\/pdf;base64,/, '').trim();
@@ -84,13 +106,14 @@ const SBUDiversionApprovalsTab = ({ rioId: propRioId }) => {
       }
       const targetUrl = certData?.url;
       if (targetUrl) {
-        window.open(targetUrl, '_blank');
+        const fullUrl = targetUrl.startsWith('http') ? targetUrl : `${API_BASE_URL}${targetUrl.startsWith('/') ? '' : '/'}${targetUrl}`;
+        window.open(fullUrl, '_blank');
       } else {
         showNotification('Certificate document is not available in storage.', 'error');
       }
     } catch (e) {
       console.error('Error fetching IC Certificate:', e);
-      showNotification('Could not retrieve certificate document from storage.', 'error');
+      showNotification('Could not retrieve certificate document: ' + (e?.message || ''), 'error');
     }
   };
 
@@ -413,7 +436,7 @@ const SBUDiversionApprovalsTab = ({ rioId: propRioId }) => {
                 </div>
                 <button
                   type="button"
-                  onClick={() => handleViewIcCertificate(selectedRequest.sourceCallNo || selectedRequest.sourceIcNo)}
+                  onClick={() => handleViewIcCertificate(selectedRequest.sourceIcNo || selectedRequest.sourceCallNo, selectedRequest.stage || selectedRequest.diversionStage)}
                   style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', color: '#fff', background: 'linear-gradient(135deg, #0284c7, #0ea5e9)', border: 'none', padding: '7px 14px', borderRadius: '7px', cursor: 'pointer', fontWeight: 600, whiteSpace: 'nowrap', boxShadow: '0 1px 4px rgba(2,132,199,0.3)', flexShrink: 0 }}
                 >
                   <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">

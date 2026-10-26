@@ -5310,7 +5310,7 @@ const ProcessDashboard = ({ call, onBack, onNavigateToSubModule, productionLines
 
           checkRejection('tolerance', qTemp, 'Quenching Temp', 'quenchingTemperatureRejected');
           checkRejection('tolerance', qDur, 'Quenching Duration', 'quenchingDurationRejected');
-          checkRejection('always', qHard, 'Quenching Hardness', 'quenchingHardnessRejected');
+          checkRejection('tolerance', qHard, 'Quenching Hardness', 'quenchingHardnessRejected');
           checkRejection('notOk', qBox, 'Box Gauge', 'boxGaugeRejected');
           checkRejection('notOk', qFlat, 'Flat Bearing Area', 'flatBearingAreaRejected');
           checkRejection('notOk', qFall, 'Falling Gauge', 'fallingGaugeRejected');

@@ -211,7 +211,7 @@ export default function UdmRejectionDashboard() {
                     <h2>UDM / IMMS Consignee Rejections</h2>
                     <p>
                         <span className="src-dot" />
-                        Live data · CRIS IREPS Portal &nbsp;·&nbsp; ERC, PSC Sleepers &amp; Rail Pads
+                        Synced daily from CRIS IREPS &nbsp;·&nbsp; ERC, PSC Sleepers &amp; Rail Pads
                         {hasFetched && appliedDate && (
                             <span className="applied-hint">
                                 &nbsp;·&nbsp; Showing from <strong>{new Date(appliedDate).toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'})}</strong>
@@ -291,14 +291,14 @@ export default function UdmRejectionDashboard() {
                             <div className="st-icon">
                                 <i className="fa-solid fa-circle-notch fa-spin" style={{ color:'#3b82f6' }} />
                             </div>
-                            <h4>Fetching from CRIS IREPS…</h4>
-                            <p>Connecting to the live portal. This may take a moment.</p>
+                            <h4>Loading records…</h4>
+                            <p>Fetching rejection data from the database.</p>
                         </div>
                     ) : !hasFetched ? (
                         <div className="udm-state-box">
                             <div className="st-icon"><i className="fa-regular fa-calendar" style={{color:'#3b82f6'}} /></div>
                             <h4>Select a date to fetch records</h4>
-                            <p>Enter a Rejection Date above and click <strong>Fetch Records</strong> to load data from CRIS IREPS.</p>
+                            <p>Enter a Rejection Date above and click <strong>Fetch Records</strong> to load saved rejection records.</p>
                         </div>
                     ) : visible.length === 0 ? (
                         <div className="udm-state-box">

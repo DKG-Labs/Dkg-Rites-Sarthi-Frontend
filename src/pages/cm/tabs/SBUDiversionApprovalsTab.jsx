@@ -29,6 +29,71 @@ const SBUDiversionApprovalsTab = ({ rioId: propRioId }) => {
     setTimeout(() => setNotification({ show: false, message: '', type: 'info' }), 4000);
   };
 
+  const handleViewDoc = async (requestId) => {
+    if (!requestId) return;
+    try {
+      const { API_BASE_URL, getAuthHeaders } = await import('../../../services/apiConfig');
+      const res = await fetch(`${API_BASE_URL}/api/erc/diversion/doc-url/${requestId}`, { headers: getAuthHeaders() });
+      const data = await res.json();
+      const docData = data?.responseData || data?.data || data;
+      if (docData?.signedData) {
+        const cleanBase64 = String(docData.signedData).replace(/^data:application\/pdf;base64,/, '').trim();
+        const byteCharacters = atob(cleanBase64);
+        const byteNumbers = new Array(byteCharacters.length);
+        for (let i = 0; i < byteCharacters.length; i++) byteNumbers[i] = byteCharacters.charCodeAt(i);
+        const byteArray = new Uint8Array(byteNumbers);
+        const file = new Blob([byteArray], { type: 'application/pdf' });
+        const fileURL = URL.createObjectURL(file);
+        window.open(fileURL, '_blank');
+        return;
+      }
+      const url = docData?.viewUrl || docData?.railwayPermissionDocUrl;
+      if (url) {
+        const fullUrl = url.startsWith('http') ? url : `${API_BASE_URL}${url.startsWith('/') ? '' : '/'}${url}`;
+        window.open(fullUrl, '_blank');
+      } else {
+        showNotification('Document not available.', 'error');
+      }
+    } catch (e) {
+      console.error('Error opening railway document:', e);
+      showNotification('Unable to open document.', 'error');
+    }
+  };
+
+  const handleViewIcCertificate = async (token) => {
+    if (!token) {
+      showNotification('Source IC Number is not available.', 'error');
+      return;
+    }
+    try {
+      const { API_BASE_URL, getAuthHeaders } = await import('../../../services/apiConfig');
+      const res = await fetch(`${API_BASE_URL}/api/certificate-storage/view?icNumber=${encodeURIComponent(token)}`, {
+        headers: getAuthHeaders()
+      });
+      const certData = await res.json();
+      if (certData && certData.signedData) {
+        const cleanBase64 = String(certData.signedData).replace(/^data:application\/pdf;base64,/, '').trim();
+        const byteCharacters = atob(cleanBase64);
+        const byteNumbers = new Array(byteCharacters.length);
+        for (let i = 0; i < byteCharacters.length; i++) byteNumbers[i] = byteCharacters.charCodeAt(i);
+        const byteArray = new Uint8Array(byteNumbers);
+        const file = new Blob([byteArray], { type: 'application/pdf' });
+        const fileURL = URL.createObjectURL(file);
+        window.open(fileURL, '_blank');
+        return;
+      }
+      const targetUrl = certData?.url;
+      if (targetUrl) {
+        window.open(targetUrl, '_blank');
+      } else {
+        showNotification('Certificate document is not available in storage.', 'error');
+      }
+    } catch (e) {
+      console.error('Error fetching IC Certificate:', e);
+      showNotification('Could not retrieve certificate document from storage.', 'error');
+    }
+  };
+
   const fetchPendingRequests = useCallback(async () => {
     setLoading(true);
     setError(null);
@@ -111,15 +176,21 @@ const SBUDiversionApprovalsTab = ({ rioId: propRioId }) => {
 
   const filteredRequests = useMemo(() => {
     return requests.filter(item => {
+      const reqNo = item.requestNo || item.diversionRequestNo || '';
+      const vName = item.companyName || item.vendorName || '';
       const matchesSearch =
         !searchTerm ||
-        item.diversionRequestNo?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        item.vendorName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        reqNo.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        vName.toLowerCase().includes(searchTerm.toLowerCase()) ||
         item.sourceIcNo?.toLowerCase().includes(searchTerm.toLowerCase()) ||
         item.sourcePoNo?.toLowerCase().includes(searchTerm.toLowerCase()) ||
         item.targetPoNo?.toLowerCase().includes(searchTerm.toLowerCase());
 
-      const matchesStage = stageFilter === 'ALL' || item.diversionStage === stageFilter;
+      const st = item.stage || item.diversionStage || '';
+      const matchesStage = stageFilter === 'ALL' || st === stageFilter ||
+        (stageFilter === 'STAGE_I_RAW_MATERIAL' && st === 'RAW_MATERIAL') ||
+        (stageFilter === 'STAGE_II_MANUFACTURING' && st === 'PROCESS') ||
+        (stageFilter === 'STAGE_III_FINISHED' && st === 'FINAL');
 
       return matchesSearch && matchesStage;
     });
@@ -127,43 +198,52 @@ const SBUDiversionApprovalsTab = ({ rioId: propRioId }) => {
 
   const columns = [
     {
-      key: 'diversionRequestNo',
+      key: 'requestNo',
       label: 'Request No.',
-      render: (val, row) => (
-        <span style={{ fontWeight: '700', color: '#1e3a8a', cursor: 'pointer' }} onClick={() => { setSelectedRequest(row); setIsDetailsModalOpen(true); }}>
-          {val}
-        </span>
-      )
+      render: (val, row) => {
+        const no = val || row.requestNo || row.diversionRequestNo || '-';
+        return (
+          <span style={{ fontWeight: '700', color: '#1e3a8a', cursor: 'pointer' }} onClick={() => { setSelectedRequest(row); setIsDetailsModalOpen(true); }}>
+            {no}
+          </span>
+        );
+      }
     },
-    { key: 'vendorName', label: 'Vendor Name', render: (val, row) => `${val || row.vendorCode}` },
+    { key: 'companyName', label: 'Vendor Name', render: (val, row) => `${val || row.vendorName || row.vendorCode}` },
     {
-      key: 'diversionStage',
+      key: 'stage',
       label: 'Stage',
-      render: (val) => (
-        <span className={`badge ${val === 'STAGE_I_RAW_MATERIAL' ? 'bg-primary' : val === 'STAGE_II_MANUFACTURING' ? 'bg-warning text-dark' : 'bg-success'}`} style={{ fontSize: '11px', padding: '4px 8px', borderRadius: '4px' }}>
-          {val ? val.replace('STAGE_', '').replace('_', ' ') : '-'}
-        </span>
-      )
+      render: (val, row) => {
+        const st = val || row.stage || row.diversionStage;
+        return (
+          <span className={`badge ${st === 'RAW_MATERIAL' || st === 'STAGE_I_RAW_MATERIAL' ? 'bg-primary' : st === 'PROCESS' || st === 'STAGE_II_MANUFACTURING' ? 'bg-warning text-dark' : 'bg-success'}`} style={{ fontSize: '11px', padding: '4px 8px', borderRadius: '4px' }}>
+            {st ? String(st).replace('STAGE_', '').replace('_', ' ') : '-'}
+          </span>
+        );
+      }
     },
     { key: 'sourceIcNo', label: 'Source IC No.' },
     {
       key: 'sourcePoNo',
       label: 'Source PO / Rly',
-      render: (val, row) => `${val} (${row.sourceRailwayCode || '-'})`
+      render: (val, row) => `${row.sourcePoSrNo || val || row.sourcePoNo || '-'} (${row.sourceRailwayCode || '-'})`
     },
     {
       key: 'targetPoNo',
       label: 'Target PO / Rly',
       render: (val, row) => (
         <span style={{ fontWeight: '600', color: '#047857' }}>
-          {val} ({row.targetRailwayCode || '-'})
+          {row.targetPoSrNo || val || row.targetPoNo || '-'} ({row.targetRailwayCode || '-'})
         </span>
       )
     },
     {
-      key: 'totalDivertedQty',
+      key: 'totalDiversionQty',
       label: 'Diverted Qty',
-      render: (val) => <span style={{ fontWeight: '700' }}>{val != null ? Number(val).toFixed(2) : '0.00'}</span>
+      render: (val, row) => {
+        const qty = val != null ? val : row.totalDivertedQty;
+        return <span style={{ fontWeight: '700' }}>{qty != null ? Number(qty).toFixed(2) : '0.00'}</span>;
+      }
     },
     {
       key: 'cmRemarks',
@@ -171,12 +251,15 @@ const SBUDiversionApprovalsTab = ({ rioId: propRioId }) => {
       render: (val) => <span style={{ fontStyle: 'italic', color: '#475569' }}>{val || '-'}</span>
     },
     {
-      key: 'railwayDocUrl',
+      key: 'railwayPermissionDocUrl',
       label: 'Railway Approval',
-      render: (val) => val ? (
-        <a href={val} target="_blank" rel="noopener noreferrer" style={{ color: '#2563eb', fontWeight: '600', textDecoration: 'underline' }}>
+      render: (_, row) => (row.railwayPermissionNo || row.railwayPermissionDocUrl || row.railwayDocUrl) ? (
+        <button
+          onClick={() => handleViewDoc(row.id || row.diversionId)}
+          style={{ color: '#2563eb', fontWeight: '600', textDecoration: 'underline', background: 'none', border: 'none', padding: 0, cursor: 'pointer' }}
+        >
           📄 View Doc
-        </a>
+        </button>
       ) : <span style={{ color: '#94a3b8' }}>None</span>
     },
     {
@@ -294,21 +377,52 @@ const SBUDiversionApprovalsTab = ({ rioId: propRioId }) => {
         <Modal
           isOpen={isDetailsModalOpen}
           onClose={() => setIsDetailsModalOpen(false)}
-          title={`Diversion SBU Authorization: ${selectedRequest.diversionRequestNo}`}
+          title={`Diversion SBU Authorization: ${selectedRequest.requestNo || selectedRequest.diversionRequestNo}`}
         >
           <div style={{ padding: '10px' }}>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '12px', marginBottom: '16px', background: '#f1f5f9', padding: '12px', borderRadius: '8px' }}>
-              <div><strong>Vendor:</strong> {selectedRequest.vendorName} ({selectedRequest.vendorCode})</div>
-              <div><strong>Plant RIO:</strong> {selectedRequest.plantRioCode}</div>
-              <div><strong>Diversion Stage:</strong> {selectedRequest.diversionStage}</div>
+              <div><strong>Vendor:</strong> {selectedRequest.companyName || selectedRequest.vendorName} ({selectedRequest.vendorCode})</div>
+              <div><strong>Plant RIO:</strong> {selectedRequest.rioId || selectedRequest.plantRioCode}</div>
+              <div><strong>Diversion Stage:</strong> {selectedRequest.stage || selectedRequest.diversionStage}</div>
               <div><strong>Diversion Type:</strong> {selectedRequest.diversionType}</div>
               <div><strong>Source IC No:</strong> {selectedRequest.sourceIcNo}</div>
-              <div><strong>Source PO:</strong> {selectedRequest.sourcePoNo} ({selectedRequest.sourceRailwayCode})</div>
-              <div><strong>Target PO:</strong> {selectedRequest.targetPoNo} ({selectedRequest.targetRailwayCode})</div>
+              <div><strong>Source PO:</strong> {selectedRequest.sourcePoSrNo || selectedRequest.sourcePoNo} {selectedRequest.sourceRailwayCode ? `(${selectedRequest.sourceRailwayCode})` : ''}</div>
+              <div><strong>Target PO:</strong> {selectedRequest.targetPoSrNo || selectedRequest.targetPoNo} {selectedRequest.targetRailwayCode ? `(${selectedRequest.targetRailwayCode})` : ''}</div>
               <div><strong>Target Consignee:</strong> {selectedRequest.targetConsigneeCode || '-'}</div>
-              <div><strong>Total Diverted Qty:</strong> {selectedRequest.totalDivertedQty}</div>
+              <div><strong>Total Diverted Qty:</strong> {selectedRequest.totalDiversionQty != null ? selectedRequest.totalDiversionQty : selectedRequest.totalDivertedQty}</div>
               <div><strong>CM Recommendation Remarks:</strong> {selectedRequest.cmRemarks || 'None'}</div>
             </div>
+
+            {/* Certificate Generated By & View IC Certificate */}
+            {(selectedRequest.sourceIeName || selectedRequest.sourceIcNo || selectedRequest.sourceCallNo) && (
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', marginBottom: '16px', padding: '10px 16px', background: 'linear-gradient(135deg, #eff6ff 0%, #f0fdf4 100%)', borderRadius: '10px', border: '1px solid #bfdbfe', boxShadow: '0 1px 3px rgba(59,130,246,0.08)' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <div style={{ width: '30px', height: '30px', borderRadius: '50%', background: 'linear-gradient(135deg, #3b82f6, #06b6d4)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
+                    </svg>
+                  </div>
+                  {selectedRequest.sourceIeName ? (
+                    <div>
+                      <div style={{ fontSize: '10.5px', color: '#64748b', fontWeight: 500, letterSpacing: '0.3px', textTransform: 'uppercase' }}>Certificate Generated By</div>
+                      <div style={{ fontSize: '13px', color: '#1e40af', fontWeight: 700, marginTop: '1px' }}>{selectedRequest.sourceIeName}</div>
+                    </div>
+                  ) : (
+                    <span style={{ fontSize: '12.5px', color: '#475569', fontWeight: 500 }}>Source IC: {selectedRequest.sourceIcNo || selectedRequest.sourceCallNo}</span>
+                  )}
+                </div>
+                <button
+                  type="button"
+                  onClick={() => handleViewIcCertificate(selectedRequest.sourceCallNo || selectedRequest.sourceIcNo)}
+                  style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', color: '#fff', background: 'linear-gradient(135deg, #0284c7, #0ea5e9)', border: 'none', padding: '7px 14px', borderRadius: '7px', cursor: 'pointer', fontWeight: 600, whiteSpace: 'nowrap', boxShadow: '0 1px 4px rgba(2,132,199,0.3)', flexShrink: 0 }}
+                >
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/>
+                  </svg>
+                  View IC Certificate
+                </button>
+              </div>
+            )}
 
             <div style={{ marginBottom: '16px' }}>
               <h4 style={{ fontSize: '15px', fontWeight: '600', marginBottom: '8px' }}>Line Items Breakup for Basket Credit</h4>
@@ -340,12 +454,15 @@ const SBUDiversionApprovalsTab = ({ rioId: propRioId }) => {
               </table>
             </div>
 
-            {selectedRequest.railwayDocUrl && (
-              <div style={{ marginBottom: '16px' }}>
+            {(selectedRequest.railwayPermissionNo || selectedRequest.railwayPermissionDocUrl || selectedRequest.railwayDocUrl) && (
+              <div style={{ marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <strong>Railway Authorization Document:</strong>{' '}
-                <a href={selectedRequest.railwayDocUrl} target="_blank" rel="noopener noreferrer" style={{ color: '#2563eb', fontWeight: '600' }}>
+                <button
+                  onClick={() => handleViewDoc(selectedRequest.id || selectedRequest.diversionId)}
+                  style={{ color: '#2563eb', fontWeight: '600', textDecoration: 'underline', background: 'none', border: 'none', padding: 0, cursor: 'pointer' }}
+                >
                   📄 Open Attached PDF
-                </a>
+                </button>
               </div>
             )}
 

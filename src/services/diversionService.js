@@ -100,6 +100,14 @@ export const diversionService = {
       headers: getAuthHeaders()
     });
     return handleResponse(response);
+  },
+
+  getDocUrl: async (id) => {
+    const response = await fetch(`${BASE_URL}/doc-url/${id}`, {
+      method: 'GET',
+      headers: getAuthHeaders()
+    });
+    return handleResponse(response);
   }
 };
 

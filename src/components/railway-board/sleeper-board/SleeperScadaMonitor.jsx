@@ -4,21 +4,23 @@ import './SleeperSummary.css';
 import ExcelJS from 'exceljs/dist/exceljs.min.js';
 
 const SCADA_MANUFACTURERS = [
-    { label: 'Patil Rail Infrastructure Pvt. Ltd.', value: 'PRIL' }
+    { label: 'Patil Rail Infrastructure Pvt. Ltd.', value: 'PRIL' },
+    { label: 'Track Innovations (India) Pvt. Ltd.', value: 'TIPL' }
 ];
 
 const SCADA_UNITS = [
-    { label: 'Wadiyaram Unit', value: 'Wadiyaram Unit', code: 'WDM' },
-    { label: 'Thirumangalam', value: 'Thirumangalam', code: 'TMQ' },
-    { label: 'Pahtri', value: 'Pahtri', code: 'PAT' },
-    { label: 'Hubli', value: 'Hubli', code: 'HUB' },
-    { label: 'Sholaka', value: 'Sholaka', code: 'SHO' },
-    { label: 'Anara', value: 'Anara', code: 'ANR' },
-    { label: 'Mirza', value: 'Mirza', code: 'MRZ' },
-    { label: 'Gaya', value: 'Gaya', code: 'GYA' },
-    { label: 'Kaipadar', value: 'Kaipadar', code: 'KPR' },
-    { label: 'Kargi', value: 'Kargi', code: 'KAR' },
-    { label: 'ACPL', value: 'ACPL', code: 'BUW' }
+    { label: 'Wadiyaram Unit', value: 'Wadiyaram Unit', code: 'WDM', manufacturer: 'PRIL' },
+    { label: 'Thirumangalam', value: 'Thirumangalam', code: 'TMQ', manufacturer: 'PRIL' },
+    { label: 'Pahtri', value: 'Pahtri', code: 'PAT', manufacturer: 'PRIL' },
+    { label: 'Hubli', value: 'Hubli', code: 'HUB', manufacturer: 'PRIL' },
+    { label: 'Sholaka', value: 'Sholaka', code: 'SHO', manufacturer: 'PRIL' },
+    { label: 'Anara', value: 'Anara', code: 'ANR', manufacturer: 'PRIL' },
+    { label: 'Mirza', value: 'Mirza', code: 'MRZ', manufacturer: 'PRIL' },
+    { label: 'Gaya', value: 'Gaya', code: 'GYA', manufacturer: 'PRIL' },
+    { label: 'Kaipadar', value: 'Kaipadar', code: 'KPR', manufacturer: 'PRIL' },
+    { label: 'Kargi', value: 'Kargi', code: 'KAR', manufacturer: 'PRIL' },
+    { label: 'ACPL', value: 'ACPL', code: 'BUW', manufacturer: 'PRIL' },
+    { label: 'Chandigarh', value: 'Chandigarh', code: 'CDG', manufacturer: 'TIPL' }
 ];
 
 const SCADA_LINES = [
@@ -406,7 +408,7 @@ const SleeperScadaMonitor = ({ selectedProduct }) => {
                             allowClear
                             placeholder="Select Manufacturer"
                             value={manufacturer || undefined} 
-                            onChange={(val) => { setManufacturer(val || ''); setCurrentPage(0); }}
+                            onChange={(val) => { setManufacturer(val || ''); setUnit(''); setLine(''); setStage(''); setCurrentPage(0); }}
                             className="scada-select"
                             popupClassName="scada-select-dropdown"
                             dropdownClassName="scada-select-dropdown"
@@ -434,7 +436,7 @@ const SleeperScadaMonitor = ({ selectedProduct }) => {
                             dropdownClassName="scada-select-dropdown"
                             style={{ width: '100%' }}
                             listHeight={260}
-                            options={SCADA_UNITS.map(u => ({
+                            options={SCADA_UNITS.filter(u => u.manufacturer === manufacturer).map(u => ({
                                 label: u.label,
                                 value: u.value,
                                 code: u.code

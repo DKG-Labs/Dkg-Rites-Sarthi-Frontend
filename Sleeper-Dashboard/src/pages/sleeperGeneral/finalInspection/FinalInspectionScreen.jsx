@@ -702,19 +702,46 @@ const FinalInspectionScreen = ({ call, onBack }) => {
                 // 4. Merge Saved / Draft Overlay on Master Batches so ALL batches are always present
                 const overlayMap = new Map();
                 // Priority: draftBatches > savedBackendBatches
-                savedBackendBatches.forEach(b => { if (b.batchNo) overlayMap.set(b.batchNo.trim(), b); });
-                draftBatches.forEach(b => { if (b.batchNo) overlayMap.set(b.batchNo.trim(), b); });
+                // Batch numbers can repeat (same batch cast on different dates), so key by batch + casting date
+                const ovKey = (b) => `${(b.batchNo || '').trim()}|${(b.dateCasted || '').toString().trim()}`;
+                const draftKeys = new Set();
+                savedBackendBatches.forEach(b => { if (b.batchNo) overlayMap.set(ovKey(b), b); });
+                draftBatches.forEach(b => { if (b.batchNo) { overlayMap.set(ovKey(b), b); draftKeys.add(ovKey(b)); } });
+                const masterBatchCount = {};
+                masterBatches.forEach(mb => { const k = (mb.batchNo || '').trim(); masterBatchCount[k] = (masterBatchCount[k] || 0) + 1; });
+                const findOverlay = (mb) => {
+                    const key = ovKey(mb);
+                    if (overlayMap.has(key)) return { overlay: overlayMap.get(key), fromDraft: draftKeys.has(key) };
+                    // Fallback to batch-number-only match, only when that batch number is unique
+                    if (masterBatchCount[(mb.batchNo || '').trim()] === 1) {
+                        const alt = [...draftBatches, ...savedBackendBatches].reverse().find(o => (o.batchNo || '').trim() === (mb.batchNo || '').trim());
+                        if (alt) return { overlay: alt, fromDraft: draftBatches.includes(alt) };
+                    }
+                    return { overlay: null, fromDraft: false };
+                };
 
                 let combinedBatches = [];
                 if (masterBatches.length > 0) {
                     combinedBatches = masterBatches.map(mb => {
-                        const overlay = overlayMap.get(mb.batchNo?.trim());
+                        const { overlay, fromDraft } = findOverlay(mb);
                         if (overlay) {
-                            const rejList = overlay.rejectedSleepers || mb.rejectedSleepers || [];
+                            // A draft is the user's latest edit and wins; a saved overlay must not hide rejections recorded on the master batch
+                            const rejList = fromDraft
+                                ? (overlay.rejectedSleepers || [])
+                                : [...(overlay.rejectedSleepers || [])];
+                            if (!fromDraft) {
+                                const have = new Set(rejList.map(r => getSCode(r)));
+                                (mb.rejectedSleepers || []).forEach(r => { if (!have.has(getSCode(r))) rejList.push(r); });
+                            }
                             const rejCodes = new Set(rejList.map(r => getSCode(r)));
                             let finalAccepted = mb.acceptedSleepers.filter(s => !rejCodes.has(getSCode(s)));
-                            if (overlay.acceptedSleepers && overlay.acceptedSleepers.length > 0 && overlay.acceptedSleepers.length >= finalAccepted.length) {
-                                finalAccepted = overlay.acceptedSleepers;
+                            if (overlay.acceptedSleepers && overlay.acceptedSleepers.length > 0) {
+                                // Offered sleepers come from the call itself; a saved/draft list may only narrow it, never add sleepers beyond what was offered
+                                const masterAcc = new Set((mb.acceptedSleepers || []).map(x => getSCode(x)));
+                                const narrowed = masterAcc.size > 0
+                                    ? overlay.acceptedSleepers.filter(x => masterAcc.has(getSCode(x)))
+                                    : overlay.acceptedSleepers;
+                                if (narrowed.length > 0) finalAccepted = narrowed.filter(x => !rejCodes.has(getSCode(x)));
                             }
                             const offeredNow = Math.max(mb.offeredNow || 0, mb.acceptedSleepers.length + (mb.rejectedSleepers || []).length);
                             const overlayEt = (overlay.etSleepers || []).filter(s => getSCode(s) !== '' && getSCode(s) !== '0');
@@ -746,7 +773,12 @@ const FinalInspectionScreen = ({ call, onBack }) => {
                     combinedBatches = draftBatches.length > 0 ? draftBatches : savedBackendBatches;
                 }
 
-                setBatches(combinedBatches);
+                setBatches(combinedBatches.map((b, i) => {
+                    // A rejected sleeper can never also be counted as passed
+                    const rc = new Set((b.rejectedSleepers || []).map(r => getSCode(r)));
+                    const acc = (b.acceptedSleepers || []).filter(x => !rc.has(getSCode(x)));
+                    return { ...b, rowKey: `${b.batchNo}#${i}`, acceptedSleepers: acc, passed: acc.length, rejected: rc.size };
+                }));
 
                 // Fetch inspection call summary if summaryData is still missing
                 try {
@@ -1255,7 +1287,7 @@ const FinalInspectionScreen = ({ call, onBack }) => {
         if (!rejectionEntry.batchNo || !rejectionEntry.sleeperNo || !rejectionEntry.reason) return;
 
         setBatches(prev => prev.map(batch => {
-            if (batch.batchNo === rejectionEntry.batchNo) {
+            if (batch.rowKey === rejectionEntry.batchNo) {
                 if (batch.rejectedSleepers.some(s => getSCode(s) === rejectionEntry.sleeperNo)) return batch;
                 const newAccepted = naturalSortSleepers(batch.acceptedSleepers.filter(s => getSCode(s) !== rejectionEntry.sleeperNo));
                 const newRejected = naturalSortSleepers([...batch.rejectedSleepers, {
@@ -1281,7 +1313,7 @@ const FinalInspectionScreen = ({ call, onBack }) => {
         if (!etEntry.batchNo || !etEntry.sleeperNo || !etEntry.reason) return;
 
         setBatches(prev => prev.map(batch => {
-            if (batch.batchNo === etEntry.batchNo) {
+            if (batch.rowKey === etEntry.batchNo) {
                 if (batch.etSleepers.some(s => getSCode(s) === etEntry.sleeperNo)) return batch;
 
                 const newAccepted = naturalSortSleepers(batch.acceptedSleepers.filter(s => getSCode(s) !== etEntry.sleeperNo));
@@ -1303,7 +1335,7 @@ const FinalInspectionScreen = ({ call, onBack }) => {
 
     const removeRejection = (batchNo, sleeperNo) => {
         setBatches(prev => prev.map(batch => {
-            if (batch.batchNo === batchNo) {
+            if (batch.rowKey === batchNo) {
                 const newRejected = naturalSortSleepers(batch.rejectedSleepers.filter(s => getSCode(s) !== sleeperNo));
                 const newAccepted = naturalSortSleepers([...batch.acceptedSleepers, sleeperNo]);
                 return {
@@ -1320,7 +1352,7 @@ const FinalInspectionScreen = ({ call, onBack }) => {
 
     const removeEt = (batchNo, sleeperNo) => {
         setBatches(prev => prev.map(batch => {
-            if (batch.batchNo === batchNo) {
+            if (batch.rowKey === batchNo) {
                 const newEt = naturalSortSleepers(batch.etSleepers.filter(s => getSCode(s) !== sleeperNo));
                 const newAccepted = naturalSortSleepers([...batch.acceptedSleepers, sleeperNo]);
                 return {
@@ -1796,9 +1828,9 @@ const FinalInspectionScreen = ({ call, onBack }) => {
                                 </thead>
                                 <tbody>
                                     {batches.map(batch => (
-                                        <React.Fragment key={batch.batchNo}>
-                                            <tr className="batch-row" onClick={() => toggleBatchExpand(batch.batchNo)}>
-                                                <td>{expandedBatches[batch.batchNo] ? '▼' : '▶'}</td>
+                                        <React.Fragment key={batch.rowKey || batch.batchNo}>
+                                            <tr className="batch-row" onClick={() => toggleBatchExpand(batch.rowKey || batch.batchNo)}>
+                                                <td>{expandedBatches[batch.rowKey || batch.batchNo] ? '▼' : '▶'}</td>
                                                 <td>{batch.batchNo}</td>
                                                 <td>{batch.dateCasted}</td>
                                                 <td>{batch.qtyCasted}</td>
@@ -1807,7 +1839,7 @@ const FinalInspectionScreen = ({ call, onBack }) => {
                                                 <td className="text-success">{batch.passed}</td>
                                                 <td className="text-danger">{batch.rejectedSleepers.length}</td>
                                             </tr>
-                                            {expandedBatches[batch.batchNo] && (
+                                            {expandedBatches[batch.rowKey || batch.batchNo] && (
                                                 <tr className="expand-content">
                                                     <td colSpan="8">
                                                         <div className="expanded-details">
@@ -1821,7 +1853,7 @@ const FinalInspectionScreen = ({ call, onBack }) => {
                                                                             <span key={sCode} className="tag rejected">
                                                                                 <strong>{sCode}</strong>
                                                                                 {sReason && <span className="tag-reason"> ({sReason})</span>}
-                                                                                <i onClick={() => removeRejection(batch.batchNo, sCode)}>×</i>
+                                                                                <i onClick={() => removeRejection(batch.rowKey, sCode)}>×</i>
                                                                             </span>
                                                                         );
                                                                     })}
@@ -1838,7 +1870,7 @@ const FinalInspectionScreen = ({ call, onBack }) => {
                                                                             <span key={sCode} className="tag et">
                                                                                 <strong>{sCode}</strong>
                                                                                 {sReason && <span className="tag-reason"> ({sReason})</span>}
-                                                                                <i onClick={() => removeEt(batch.batchNo, sCode)}>×</i>
+                                                                                <i onClick={() => removeEt(batch.rowKey, sCode)}>×</i>
                                                                             </span>
                                                                         );
                                                                     })}
@@ -1918,7 +1950,7 @@ const FinalInspectionScreen = ({ call, onBack }) => {
                                                 <ModernSearchableSelect
                                                     value={rejectionEntry.batchNo}
                                                     onChange={(val) => setRejectionEntry({ ...rejectionEntry, batchNo: val, sleeperNo: '' })}
-                                                    options={batches.map(b => ({ value: b.batchNo, label: `Batch ${b.batchNo}` }))}
+                                                    options={batches.map(b => ({ value: b.rowKey, label: `Batch ${b.batchNo}${b.dateCasted ? ` (${b.dateCasted})` : ''}` }))}
                                                     placeholder="Search or Select Batch"
                                                     theme="red"
                                                 />
@@ -1928,7 +1960,7 @@ const FinalInspectionScreen = ({ call, onBack }) => {
                                                 <ModernSearchableSelect
                                                     value={rejectionEntry.sleeperNo}
                                                     onChange={(val) => setRejectionEntry({ ...rejectionEntry, sleeperNo: val })}
-                                                    options={naturalSortSleepers(batches.find(b => b.batchNo === rejectionEntry.batchNo)?.acceptedSleepers || [])
+                                                    options={naturalSortSleepers(batches.find(b => b.rowKey === rejectionEntry.batchNo)?.acceptedSleepers || [])
                                                         .map(s => {
                                                             const code = getSCode(s);
                                                             return { value: code, label: code };
@@ -1990,7 +2022,7 @@ const FinalInspectionScreen = ({ call, onBack }) => {
                                                 <ModernSearchableSelect
                                                     value={etEntry.batchNo}
                                                     onChange={(val) => setEtEntry({ ...etEntry, batchNo: val, sleeperNo: '' })}
-                                                    options={batches.map(b => ({ value: b.batchNo, label: `Batch ${b.batchNo}` }))}
+                                                    options={batches.map(b => ({ value: b.rowKey, label: `Batch ${b.batchNo}${b.dateCasted ? ` (${b.dateCasted})` : ''}` }))}
                                                     placeholder="Search or Select Batch"
                                                     theme="blue"
                                                 />
@@ -2000,7 +2032,7 @@ const FinalInspectionScreen = ({ call, onBack }) => {
                                                 <ModernSearchableSelect
                                                     value={etEntry.sleeperNo}
                                                     onChange={(val) => setEtEntry({ ...etEntry, sleeperNo: val })}
-                                                    options={naturalSortSleepers(batches.find(b => b.batchNo === etEntry.batchNo)?.acceptedSleepers || [])
+                                                    options={naturalSortSleepers(batches.find(b => b.rowKey === etEntry.batchNo)?.acceptedSleepers || [])
                                                         .map(s => {
                                                             const code = getSCode(s);
                                                             return { value: code, label: code };

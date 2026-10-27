@@ -31,12 +31,22 @@ export const visualInspectionService = {
     }
   },
 
-  getList: async (plantId, vendorCode) => {
+  getList: async (plantId, vendorCode, fromDate, toDate) => {
     try {
-      const response = await axios.get(`${getBase()}/${plantId}/${vendorCode}`);
-      return response.data;
+      // Use query parameter endpoint /list to safely handle slashes in plantId (e.g. 26002/Howrah)
+      const params = { plantId, vendorCode };
+      if (fromDate) params.fromDate = fromDate;
+      if (toDate) params.toDate = toDate;
+      const response = await axios.get(`${getBase()}/list`, { params });
+      return response.data || [];
     } catch (error) {
-      handleApiError(error, 'Failed to fetch visual inspection records');
+      try {
+        const response2 = await axios.get(`${getBase()}/${plantId}/${vendorCode}`);
+        return response2.data || [];
+      } catch (err2) {
+        console.warn('Failed to fetch visual inspection records:', error);
+        return [];
+      }
     }
   },
 

@@ -57,10 +57,11 @@ export const rheometerService = {
     return response.text();
   },
 
-  getRheometerList: async (plantId, vendorCode) => {
-    const response = await fetch(
-      `${getBaseUrl()}/railpad-workflow/rheometer/list?plantId=${encodeURIComponent(plantId)}&vendorCode=${encodeURIComponent(vendorCode)}`
-    );
+  getRheometerList: async (plantId, vendorCode, fromDate, toDate) => {
+    let url = `${getBaseUrl()}/railpad-workflow/rheometer/list?plantId=${encodeURIComponent(plantId)}&vendorCode=${encodeURIComponent(vendorCode)}`;
+    if (fromDate) url += `&fromDate=${encodeURIComponent(fromDate)}`;
+    if (toDate) url += `&toDate=${encodeURIComponent(toDate)}`;
+    const response = await fetch(url);
     if (!response.ok) {
         await handleApiError(response, 'Failed to fetch rheometer test records');
     }

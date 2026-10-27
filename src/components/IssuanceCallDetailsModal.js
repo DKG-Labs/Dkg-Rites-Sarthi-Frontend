@@ -1,10 +1,11 @@
-import React from 'react';
+import React, { useState } from 'react';
 import DescriptionRoundedIcon from '@mui/icons-material/DescriptionRounded';
 import AttachmentRoundedIcon from '@mui/icons-material/AttachmentRounded';
 import UndoRoundedIcon from '@mui/icons-material/UndoRounded';
 import StatusBadge from './StatusBadge';
 import { getDetailedStatus } from '../utils/statusMapper';
 import { getProductTypeDisplayName, formatDate } from '../utils/helpers';
+import { RailpadProcessAnnexureAModal } from './annexures/RailpadProcessAnnexureA';
 
 const IssuanceCallDetailsModal = ({
   isOpen,
@@ -15,10 +16,16 @@ const IssuanceCallDetailsModal = ({
   onBackToInspection,
   isLoadingCertificate = false
 }) => {
+  const [showAnnexureAModal, setShowAnnexureAModal] = useState(false);
   if (!isOpen || !call) return null;
 
   const { mainStatus, combinedText } = getDetailedStatus(call.status);
   const isViewMode = call.originalStatus === 'GENERATE_IC';
+
+  const cNo = String(call.call_no || call.callNumber || call.requestId || '').toUpperCase();
+  const pType = String(call.product_type || call.productType || '').toUpperCase();
+  const stage = String(call.stage || '').toUpperCase();
+  const isProcess = cNo.startsWith('RPP') || cNo.startsWith('EP') || pType.includes('PROCESS') || stage.includes('PROCESS') || pType.includes('RAIL');
 
   return (
     <div
@@ -376,8 +383,12 @@ const IssuanceCallDetailsModal = ({
             {/* 2. Technical Annexures Action */}
             <button
               onClick={() => {
-                onClose();
-                onViewAnnexures(call);
+                if (isProcess) {
+                  setShowAnnexureAModal(true);
+                } else {
+                  onClose();
+                  onViewAnnexures(call);
+                }
               }}
               style={{
                 display: 'flex',
@@ -418,8 +429,12 @@ const IssuanceCallDetailsModal = ({
               >
                 <AttachmentRoundedIcon style={{ fontSize: '25px', color: '#7e22ce' }} />
               </div>
-              <span style={{ fontWeight: '700', fontSize: '15px' }}>Technical Annexures</span>
-              <span style={{ fontSize: '12px', color: '#64748b' }}>View test records & inspection sheets</span>
+              <span style={{ fontWeight: '700', fontSize: '15px' }}>
+                {isProcess ? 'Annexure (Daily Report)' : 'Technical Annexures'}
+              </span>
+              <span style={{ fontSize: '12px', color: '#64748b' }}>
+                {isProcess ? 'View Annexure-A Activity Report' : 'View test records & inspection sheets'}
+              </span>
             </button>
 
             {/* 3. Back to Inspection Action */}
@@ -473,6 +488,12 @@ const IssuanceCallDetailsModal = ({
           </div>
         </div>
       </div>
+      {/* Railpad Process Annexure-A Modal */}
+      <RailpadProcessAnnexureAModal
+        isOpen={showAnnexureAModal}
+        onClose={() => setShowAnnexureAModal(false)}
+        call={call}
+      />
     </div>
   );
 };

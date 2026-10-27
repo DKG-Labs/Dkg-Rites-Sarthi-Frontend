@@ -1,8 +1,10 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import PropTypes from 'prop-types';
 import * as XLSX from 'xlsx';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 import './UdmRejectionDashboard.css';
-import { getUdmRejections } from '../../services/udmRejectionService';
+import { getUdmRejections, syncUdmRejections } from '../../services/udmRejectionService';
 
 const IREPS_BASE = 'https://ireps.gov.in';
 
@@ -72,10 +74,6 @@ const Dropdown = ({ label, value = '', onChange, options, placeholder, minWidth 
     );
 };
 
-/* ─── Constants ─────────────────────────────────────────────────── */
-
-const EMPTY_F = () => ({ rejDate: '', poNo: '', vendorCode: '', type: '', inspAgency: '' });
-
 /* ─── Helpers ───────────────────────────────────────────────────── */
 const fmtDate = str => {
     if (!str) return null;
@@ -112,39 +110,62 @@ export default function UdmRejectionDashboard() {
     const cached = loadCache();
 
     const [rows,          setRows]          = useState(cached?.rows  || []);
-    const [draft,         setDraft]         = useState(() => ({ ...EMPTY_F(), rejDate: cached?.appliedDate || '' }));
     const [appliedDate,   setAppliedDate]   = useState(cached?.appliedDate || '');
     const [search,        setSearch]        = useState('');
     const [loading,       setLoading]       = useState(false);
     const [error,         setError]         = useState(null);
     const [detail,        setDetail]        = useState(null);
-    const [hasFetched,    setHasFetched]    = useState(!!cached);
+    const [syncing,       setSyncing]       = useState(false);
+    const [syncResult,    setSyncResult]    = useState(null);
+    const [showSyncModal, setShowSyncModal] = useState(false);
+    const [syncDate,      setSyncDate]      = useState('');
+    const [syncNoData,    setSyncNoData]    = useState(false);
+    const [page,          setPage]          = useState(1);
+    const [pageSize,      setPageSize]      = useState(10);
 
-    const fetchData = useCallback(async (f) => {
+    const fetchData = useCallback(async () => {
         setLoading(true); setError(null);
         try {
-            const apiFilters = {
-                ...(f.rejDate    && { rejDate:    f.rejDate }),
-                ...(f.poNo       && { poNo:       f.poNo }),
-                ...(f.vendorCode && { vendorCode: f.vendorCode }),
-                ...(f.type       && { type:       f.type }),
-            };
-            const data    = await getUdmRejections(apiFilters);
+            const data    = await getUdmRejections({});
             const newRows = data || [];
-            const newDate = f.rejDate || '';
             setRows(newRows);
-            setAppliedDate(newDate);
-            setHasFetched(true);
-            saveCache(newRows, newDate);
+            setAppliedDate('');
+            saveCache(newRows, '');
         } catch (e) { setError(e.message || 'Failed to fetch rejection data.'); }
         finally     { setLoading(false); }
     }, []);
 
-    // No auto-load — restore from cache on mount, user fetches fresh data manually
+    // Auto-load all records on mount
+    useEffect(() => { fetchData(); }, [fetchData]);
 
-    const setF    = (k, v) => setDraft(p => ({ ...p, [k]: v }));
-    const apply   = () => fetchData(draft);
-    const clear   = () => { const d = EMPTY_F(); setDraft(d); setSearch(''); fetchData(d); };
+    const openSyncModal = () => {
+        setSyncDate('');
+        setSyncResult(null);
+        setSyncNoData(false);
+        setError(null);
+        setShowSyncModal(true);
+    };
+
+    const handleSync = async () => {
+        if (!syncDate) return;
+        setSyncing(true); setSyncResult(null); setSyncNoData(false); setError(null);
+        try {
+            const res = await syncUdmRejections(syncDate);
+            const saved = res.recordsSaved ?? 0;
+            if (saved === 0) {
+                setSyncNoData(true);
+            } else {
+                setShowSyncModal(false);
+                setSyncResult(`Synced ${saved} record(s) for ${syncDate}`);
+                setTimeout(() => setSyncResult(null), 5000);
+                await fetchData();
+            }
+        } catch (e) {
+            setError(e.message || 'Sync failed.');
+        } finally {
+            setSyncing(false);
+        }
+    };
 
     const exportExcel = () => {
         const data = visible.map((r, i) => ({
@@ -199,6 +220,58 @@ export default function UdmRejectionDashboard() {
         ].some(v => (v || '').toString().toLowerCase().includes(q));
     });
 
+    const downloadPdf = () => {
+        const doc = new jsPDF({ orientation: 'landscape', unit: 'pt', format: 'a4' });
+        doc.setFontSize(13);
+        doc.setFont('helvetica', 'bold');
+        doc.text('UDM / IMMS Consignee Rejections', 40, 36);
+        doc.setFontSize(9);
+        doc.setFont('helvetica', 'normal');
+        doc.setTextColor(100);
+        doc.text(`Generated: ${new Date().toLocaleDateString('en-IN', { day:'2-digit', month:'short', year:'numeric' })}  ·  Total records: ${visible.length}`, 40, 52);
+
+        autoTable(doc, {
+            startY: 64,
+            styles: { fontSize: 7.5, cellPadding: 4 },
+            headStyles: { fillColor: [15, 23, 42], textColor: 255, fontStyle: 'bold' },
+            alternateRowStyles: { fillColor: [248, 250, 252] },
+            head: [[
+                '#', 'Rejection No.', 'Rejection Date', 'PO Number', 'Item Description',
+                'Firm Name', 'Rej. Qty', 'UOM', 'Rej. Value', 'IC Number', 'IC Date',
+                'Type', 'Status',
+            ]],
+            body: visible.map((r, i) => [
+                i + 1,
+                r.rejectionNumber  || '',
+                r.rejectionDate    || '',
+                r.poNumber         || '',
+                r.itemDescription  || '',
+                r.vendorName       || '',
+                r.rejectedQty      || '',
+                r.uom              || '',
+                r.rejectionValue   || '',
+                r.icNumber         || '',
+                r.icDate           || '',
+                r.typeOfRejection  || '',
+                r.status           || '',
+            ]),
+            columnStyles: {
+                0: { cellWidth: 22, halign: 'center' },
+                4: { cellWidth: 120 },
+                5: { cellWidth: 100 },
+            },
+        });
+
+        doc.save(`UDM_Rejections_${new Date().toISOString().slice(0,10)}.pdf`);
+    };
+
+    const totalPages = Math.max(1, Math.ceil(visible.length / pageSize));
+    const safePage   = Math.min(page, totalPages);
+    const pageRows   = visible.slice((safePage - 1) * pageSize, safePage * pageSize);
+
+    const handleSearch = v => { setSearch(v); setPage(1); };
+    const handlePageSize = v => { setPageSize(Number(v)); setPage(1); };
+
     return (
         <div className="udm-root fade-in">
 
@@ -212,40 +285,16 @@ export default function UdmRejectionDashboard() {
                     <p>
                         <span className="src-dot" />
                         Synced daily from CRIS IREPS &nbsp;·&nbsp; ERC, PSC Sleepers &amp; Rail Pads
-                        {hasFetched && appliedDate && (
-                            <span className="applied-hint">
-                                &nbsp;·&nbsp; Showing from <strong>{new Date(appliedDate).toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'})}</strong>
-                            </span>
-                        )}
                     </p>
                 </div>
             </div>
 
 
-            {/* ── Filter bar — date only ── */}
-            <div className="udm-filters udm-filters-simple">
-                <div className="udm-filter-field">
-                    <label>
-                        <i className="fa-regular fa-calendar" style={{marginRight:4}} />
-                        Rejection Date
-                    </label>
-                    <input type="date" className="udm-input-base" value={draft.rejDate}
-                        onChange={e => setF('rejDate', e.target.value)}
-                        onKeyDown={e => e.key === 'Enter' && apply()}
-                        style={{ minWidth: 160 }} />
+            {syncResult && (
+                <div className="udm-sync-success">
+                    <i className="fa-solid fa-circle-check" /> {syncResult}
                 </div>
-
-                <button className="btn-udm-apply" onClick={apply} disabled={loading}>
-                    {loading
-                        ? <><i className="fa-solid fa-circle-notch fa-spin" /> Fetching…</>
-                        : <><i className="fa-solid fa-magnifying-glass" /> Fetch Records</>
-                    }
-                </button>
-
-                <button className="btn-udm-clear" onClick={clear} disabled={loading}>
-                    <i className="fa-solid fa-rotate-left" /> Reset
-                </button>
-            </div>
+            )}
 
             {error && (
                 <div className="udm-error">
@@ -256,12 +305,12 @@ export default function UdmRejectionDashboard() {
             {/* ── Table panel ── */}
             <div className="udm-panel">
                 <div className="udm-panel-head">
-                    <div className="udm-panel-title">
-                        <i className="fa-solid fa-table-list" style={{ color:'#94a3b8' }} />
-                        Rejection Records
-                        <span className="udm-count-pill">{visible.length}</span>
-                    </div>
-                    <div className="udm-panel-head-right">
+                    <div className="udm-panel-head-left">
+                        <div className="udm-panel-title">
+                            <i className="fa-solid fa-table-list" style={{ color:'#94a3b8' }} />
+                            Rejection Records
+                            <span className="udm-count-pill">{visible.length}</span>
+                        </div>
                         <div className="udm-gsearch-wrap">
                             <i className="fa-solid fa-magnifying-glass udm-gsearch-icon" />
                             <input
@@ -269,19 +318,27 @@ export default function UdmRejectionDashboard() {
                                 className="udm-gsearch"
                                 placeholder="Search rejection no., PO, IC, vendor…"
                                 value={search}
-                                onChange={e => setSearch(e.target.value)}
+                                onChange={e => handleSearch(e.target.value)}
                             />
                             {search && (
-                                <button className="udm-gsearch-clear" onClick={() => setSearch('')}>
+                                <button className="udm-gsearch-clear" onClick={() => handleSearch('')}>
                                     <i className="fa-solid fa-xmark" />
                                 </button>
                             )}
                         </div>
-                        {visible.length > 0 && (
+                    </div>
+                    <div className="udm-panel-head-right">
+                        <button className="btn-udm-sync" onClick={openSyncModal} disabled={syncing || loading}>
+                            <i className="fa-solid fa-rotate" /> Manual Sync
+                        </button>
+                        {visible.length > 0 && (<>
+                            <button className="btn-udm-pdf" onClick={downloadPdf}>
+                                <i className="fa-solid fa-file-pdf" /> Download PDF
+                            </button>
                             <button className="btn-udm-excel" onClick={exportExcel}>
                                 <i className="fa-solid fa-file-excel" /> Export Excel
                             </button>
-                        )}
+                        </>)}
                     </div>
                 </div>
 
@@ -294,17 +351,11 @@ export default function UdmRejectionDashboard() {
                             <h4>Loading records…</h4>
                             <p>Fetching rejection data from the database.</p>
                         </div>
-                    ) : !hasFetched ? (
-                        <div className="udm-state-box">
-                            <div className="st-icon"><i className="fa-regular fa-calendar" style={{color:'#3b82f6'}} /></div>
-                            <h4>Select a date to fetch records</h4>
-                            <p>Enter a Rejection Date above and click <strong>Fetch Records</strong> to load saved rejection records.</p>
-                        </div>
                     ) : visible.length === 0 ? (
                         <div className="udm-state-box">
                             <div className="st-icon"><i className="fa-solid fa-inbox" /></div>
                             <h4>No records found</h4>
-                            <p>No rejections found for the selected date. Try a different date.</p>
+                            <p>No rejections have been synced yet. Enter a date and click <strong>Manual Sync</strong> to fetch from CRIS.</p>
                         </div>
                     ) : (
                         <table className="udm-table">
@@ -320,9 +371,9 @@ export default function UdmRejectionDashboard() {
                                 </tr>
                             </thead>
                             <tbody>
-                                {visible.map((r, i) => (
+                                {pageRows.map((r, i) => (
                                     <tr key={r.rejectionNumber || i}>
-                                        <td className="td-muted td-num">{i + 1}</td>
+                                        <td className="td-muted td-num">{(safePage - 1) * pageSize + i + 1}</td>
                                         <td>
                                             <div className="td-main">{r.rejectionNumber || '—'}</div>
                                             {r.rejectionDate && <div className="td-sub">{fmtDate(r.rejectionDate)}</div>}
@@ -367,9 +418,159 @@ export default function UdmRejectionDashboard() {
                         </table>
                     )}
                 </div>
+
+                {/* ── Pagination bar ── */}
+                {visible.length > 0 && (
+                    <div className="udm-pagination">
+                        <div className="udm-pg-left">
+                            <span className="udm-pg-label">Rows per page</span>
+                            <select
+                                className="udm-pg-select"
+                                value={pageSize}
+                                onChange={e => handlePageSize(e.target.value)}
+                            >
+                                {[5, 10, 15, 20].map(n => (
+                                    <option key={n} value={n}>{n}</option>
+                                ))}
+                            </select>
+                            <span className="udm-pg-info">
+                                {(safePage - 1) * pageSize + 1}–{Math.min(safePage * pageSize, visible.length)} of {visible.length}
+                            </span>
+                        </div>
+                        <div className="udm-pg-right">
+                            <button
+                                className="udm-pg-btn"
+                                onClick={() => setPage(1)}
+                                disabled={safePage === 1}
+                                title="First page"
+                            >
+                                <i className="fa-solid fa-angles-left" />
+                            </button>
+                            <button
+                                className="udm-pg-btn"
+                                onClick={() => setPage(p => Math.max(1, p - 1))}
+                                disabled={safePage === 1}
+                                title="Previous page"
+                            >
+                                <i className="fa-solid fa-angle-left" />
+                            </button>
+                            {Array.from({ length: totalPages }, (_, i) => i + 1)
+                                .filter(p => p === 1 || p === totalPages || Math.abs(p - safePage) <= 1)
+                                .reduce((acc, p, idx, arr) => {
+                                    if (idx > 0 && p - arr[idx - 1] > 1) acc.push('…');
+                                    acc.push(p);
+                                    return acc;
+                                }, [])
+                                .map((p, idx) =>
+                                    p === '…'
+                                        ? <span key={`e${idx}`} className="udm-pg-ellipsis">…</span>
+                                        : <button
+                                            key={p}
+                                            className={`udm-pg-btn udm-pg-num${p === safePage ? ' active' : ''}`}
+                                            onClick={() => setPage(p)}
+                                        >{p}</button>
+                                )
+                            }
+                            <button
+                                className="udm-pg-btn"
+                                onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+                                disabled={safePage === totalPages}
+                                title="Next page"
+                            >
+                                <i className="fa-solid fa-angle-right" />
+                            </button>
+                            <button
+                                className="udm-pg-btn"
+                                onClick={() => setPage(totalPages)}
+                                disabled={safePage === totalPages}
+                                title="Last page"
+                            >
+                                <i className="fa-solid fa-angles-right" />
+                            </button>
+                        </div>
+                    </div>
+                )}
             </div>
 
             {detail && <DetailModal r={detail} onClose={() => setDetail(null)} />}
+
+            {showSyncModal && (
+                <div className="udm-overlay" onClick={e => { if (e.target === e.currentTarget && !syncing) setShowSyncModal(false); }}>
+                    <div className="udm-modal udm-sync-modal">
+                        <div className="udm-mhead">
+                            <div className="udm-mhead-top">
+                                <div className="udm-mhead-text">
+                                    <h3>
+                                        <i className="fa-solid fa-rotate" style={{marginRight:8,fontSize:15}} />
+                                        Manual Sync from CRIS
+                                    </h3>
+                                    <p style={{color:'#94a3b8',fontSize:12,marginTop:4}}>
+                                        Select a date to fetch and store rejection records from CRIS IREPS.
+                                    </p>
+                                </div>
+                                {!syncing && (
+                                    <button className="btn-mclose" onClick={() => setShowSyncModal(false)}>
+                                        <i className="fa-solid fa-xmark" />
+                                    </button>
+                                )}
+                            </div>
+                        </div>
+
+                        <div className="udm-mbody" style={{padding:'20px 24px'}}>
+                            <div className="udm-filter-field" style={{marginBottom:20}}>
+                                <label style={{display:'block',marginBottom:6,fontSize:12,fontWeight:700,color:'#64748b',textTransform:'uppercase',letterSpacing:'0.06em'}}>
+                                    <i className="fa-regular fa-calendar" style={{marginRight:6}} />
+                                    Rejection Date
+                                </label>
+                                <input
+                                    type="date"
+                                    className="udm-input-base"
+                                    value={syncDate}
+                                    onChange={e => { setSyncDate(e.target.value); setSyncNoData(false); setError(null); }}
+                                    onKeyDown={e => e.key === 'Enter' && syncDate && handleSync()}
+                                    disabled={syncing}
+                                    style={{width:'100%',maxWidth:260}}
+                                />
+                            </div>
+
+                            {syncNoData && (
+                                <div className="udm-sync-nodata">
+                                    <i className="fa-solid fa-circle-info" />
+                                    <div>
+                                        <div style={{fontWeight:700}}>No data found</div>
+                                        <div style={{fontSize:11,marginTop:2,opacity:0.8}}>
+                                            CRIS IREPS returned no rejection records for <strong>{syncDate}</strong>.
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+
+                            {error && (
+                                <div className="udm-error" style={{marginBottom:16}}>
+                                    <i className="fa-solid fa-circle-exclamation" /> {error}
+                                </div>
+                            )}
+
+                            <div style={{display:'flex',gap:10,justifyContent:'flex-end'}}>
+                                <button className="btn-udm-clear" onClick={() => setShowSyncModal(false)} disabled={syncing}>
+                                    Cancel
+                                </button>
+                                <button
+                                    className="btn-udm-apply"
+                                    onClick={handleSync}
+                                    disabled={!syncDate || syncing}
+                                    style={{minWidth:110}}
+                                >
+                                    {syncing
+                                        ? <><i className="fa-solid fa-circle-notch fa-spin" /> Syncing…</>
+                                        : <><i className="fa-solid fa-rotate" /> Sync</>
+                                    }
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

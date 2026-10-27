@@ -116,7 +116,9 @@ const PeriodicTestingTab = ({ periodicData, setPeriodicData, activeRailpadType, 
   const isDurabilityMandatory = hasDurabilityQty && parseInt(periodicData.durability.qtyProduced || 0, 10) >= DURABILITY_THRESHOLD;
   const isAbrasionMandatory = hasAbrasionQty && parseInt(periodicData.abrasion.qtyProduced || 0, 10) >= ABRASION_THRESHOLD;
 
-  const maxThicknessReduction = (activeRailpadType || '').toLowerCase().includes('10mm') ? 1.0 : 0.6;
+  const _rt = (activeRailpadType || '').toLowerCase();
+  const maxThicknessReduction =
+    (_rt.includes('10mm') || _rt.includes('10.00mm') || _rt.includes('10.0mm')) ? 1.0 : 0.6;
 
   const renderSectionHeader = (title, data, setData, threshold, hasQty, isMandatory, status) => (
     <div style={{ marginBottom: '16px', padding: '16px', background: '#f8fafc', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
@@ -395,7 +397,7 @@ const PeriodicTestingTab = ({ periodicData, setPeriodicData, activeRailpadType, 
                   const initialThick = parseFloat(sample?.initialThick) || 0;
                   const finalThick = parseFloat(sample?.finalThick) || 0;
                   const thickReduction = (initialThick > 0 && finalThick > 0) ? (initialThick - finalThick).toFixed(2) : '-';
-                  const isReductionOut = thickReduction !== '-' && parseFloat(thickReduction) > maxThicknessReduction;
+                  const isReductionOut = thickReduction !== '-' && parseFloat(thickReduction) >= maxThicknessReduction;
                   
                   const initialLoad = parseFloat(sample?.initialLoad) || 0;
                   const finalLoad = parseFloat(sample?.finalLoad) || 0;

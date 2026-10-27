@@ -57,10 +57,11 @@ export const sheetingService = {
     return response.text();
   },
 
-  getSheetingList: async (plantId, vendorCode) => {
-    const response = await fetch(
-      `${getBaseUrl()}/railpad-workflow/sheeting/list?plantId=${encodeURIComponent(plantId)}&vendorCode=${encodeURIComponent(vendorCode)}`
-    );
+  getSheetingList: async (plantId, vendorCode, fromDate, toDate) => {
+    let url = `${getBaseUrl()}/railpad-workflow/sheeting/list?plantId=${encodeURIComponent(plantId)}&vendorCode=${encodeURIComponent(vendorCode)}`;
+    if (fromDate) url += `&fromDate=${encodeURIComponent(fromDate)}`;
+    if (toDate) url += `&toDate=${encodeURIComponent(toDate)}`;
+    const response = await fetch(url);
     if (!response.ok) {
         await handleApiError(response, 'Failed to fetch sheeting/sizing records');
     }

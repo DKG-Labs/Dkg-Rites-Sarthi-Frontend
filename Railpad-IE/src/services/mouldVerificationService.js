@@ -56,10 +56,11 @@ export const mouldVerificationService = {
     return response.text();
   },
 
-  getMouldVerificationsList: async (plantId, vendorCode) => {
-    const response = await fetch(
-      `${getBaseUrl()}/railpad-workflow/mould-verification/list?plantId=${encodeURIComponent(plantId)}&vendorCode=${encodeURIComponent(vendorCode)}`
-    );
+  getMouldVerificationsList: async (plantId, vendorCode, fromDate, toDate) => {
+    let url = `${getBaseUrl()}/railpad-workflow/mould-verification/list?plantId=${encodeURIComponent(plantId)}&vendorCode=${encodeURIComponent(vendorCode)}`;
+    if (fromDate) url += `&fromDate=${encodeURIComponent(fromDate)}`;
+    if (toDate) url += `&toDate=${encodeURIComponent(toDate)}`;
+    const response = await fetch(url);
     if (!response.ok) {
         await handleApiError(response, 'Failed to fetch mould verification records.');
     }

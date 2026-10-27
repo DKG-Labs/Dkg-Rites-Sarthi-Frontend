@@ -100,6 +100,7 @@ export const approvedAshSGService = {
   },
   getById: async (id) => {
     const response = await fetch(`${getBaseUrl()}/rail-approved-ash-sg/${id}`);
+    if (response.status === 404) throw new Error('RECORD_DELETED');
     if (!response.ok) throw new Error('Failed to fetch ash baseline by ID');
     return response.json();
   },

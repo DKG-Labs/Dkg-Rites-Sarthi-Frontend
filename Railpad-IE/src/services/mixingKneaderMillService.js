@@ -11,6 +11,16 @@ export const mixingKneaderMillService = {
     return data.responseData || [];
   },
 
+  getByPlant: async (plantId, fromDate = null, toDate = null) => {
+    let url = `${getBaseUrl()}/mixing-kneader-mill/list?plantId=${encodeURIComponent(plantId)}`;
+    if (fromDate) url += `&fromDate=${encodeURIComponent(fromDate)}`;
+    if (toDate) url += `&toDate=${encodeURIComponent(toDate)}`;
+    const response = await fetch(url);
+    if (!response.ok) throw new Error('Failed to fetch plant mixing kneader mill records');
+    const data = await response.json();
+    return data.responseData || [];
+  },
+
   create: async (payload) => {
     const user = getStoredUser();
     const createdBy = user ? user.userId : null;

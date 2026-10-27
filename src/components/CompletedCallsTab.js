@@ -25,6 +25,7 @@ import AssignmentRoundedIcon from '@mui/icons-material/AssignmentRounded';
 import PictureAsPdfRoundedIcon from '@mui/icons-material/PictureAsPdfRounded';
 import AssignmentReturnRoundedIcon from '@mui/icons-material/AssignmentReturnRounded';
 import { fetchSavedCaseLetterInfo } from '../services/caseLetterService';
+import { RailpadProcessAnnexureAModal } from './annexures/RailpadProcessAnnexureA';
 
 
 const CompletedCallsTab = ({ setSelectedCall, setCurrentPage, onCallSentToIbs }) => {
@@ -57,6 +58,8 @@ const CompletedCallsTab = ({ setSelectedCall, setCurrentPage, onCallSentToIbs })
   const [isRevertingIc, setIsRevertingIc] = useState(false);
   const [pdfLoading, setPdfLoading] = useState(false);
   const [tcPdfLoading, setTcPdfLoading] = useState(false);
+  const [showAnnexureAModal, setShowAnnexureAModal] = useState(false);
+  const [annexureACall, setAnnexureACall] = useState(null);
 
   const hasFetchedRef = useRef(false);
 
@@ -640,8 +643,18 @@ const CompletedCallsTab = ({ setSelectedCall, setCurrentPage, onCallSentToIbs })
                 <button
                   onClick={() => {
                     const row = selectedActionCall;
-                    setSelectedActionCall(null);
-                    handleViewAnnexures(row);
+                    const cNo = String(row?.call_no || row?.callNumber || row?.requestId || '').toUpperCase();
+                    const pType = String(row?.product_type || row?.productType || '').toUpperCase();
+                    const stage = String(row?.stage || '').toUpperCase();
+                    const isProc = cNo.startsWith('RPP') || cNo.startsWith('EP') || pType.includes('PROCESS') || stage.includes('PROCESS') || pType.includes('RAIL');
+                    
+                    if (isProc) {
+                      setAnnexureACall(row);
+                      setShowAnnexureAModal(true);
+                    } else {
+                      setSelectedActionCall(null);
+                      handleViewAnnexures(row);
+                    }
                   }}
                   style={{
                     display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '12px',
@@ -663,7 +676,17 @@ const CompletedCallsTab = ({ setSelectedCall, setCurrentPage, onCallSentToIbs })
                   <div style={{ width: '48px', height: '48px', background: '#ffffff', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 2px 4px rgba(0,0,0,0.05)' }}>
                     <AssignmentRoundedIcon style={{ fontSize: '26px', color: '#7e22ce' }} />
                   </div>
-                  <span style={{ fontWeight: '700', fontSize: '15px' }}>Annexures</span>
+                  <span style={{ fontWeight: '700', fontSize: '15px' }}>
+                    {(() => {
+                      const row = selectedActionCall;
+                      const cNo = String(row?.call_no || row?.callNumber || row?.requestId || '').toUpperCase();
+                      const pType = String(row?.product_type || row?.productType || '').toUpperCase();
+                      const stage = String(row?.stage || '').toUpperCase();
+                      return (cNo.startsWith('RPP') || cNo.startsWith('EP') || pType.includes('PROCESS') || stage.includes('PROCESS') || pType.includes('RAIL'))
+                        ? 'Annexure (Daily Report)'
+                        : 'Annexures';
+                    })()}
+                  </span>
                 </button>
 
                 {/* 3. Send call to IBS */}
@@ -1119,6 +1142,12 @@ const CompletedCallsTab = ({ setSelectedCall, setCurrentPage, onCallSentToIbs })
           mode="upload"
         />
       )}
+      {/* Railpad Process Annexure-A Modal */}
+      <RailpadProcessAnnexureAModal
+        isOpen={showAnnexureAModal}
+        onClose={() => setShowAnnexureAModal(false)}
+        call={annexureACall}
+      />
     </div>
   );
 };

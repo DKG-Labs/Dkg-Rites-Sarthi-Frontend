@@ -36,7 +36,9 @@ const RailwayBoardDashboard = () => {
     const [rowsPerPage, setRowsPerPage] = useState(5);
 
     // Track active tab to defer non-essential API calls
-    const [activeMainCard, setActiveMainCard] = useState('summary');
+    const [activeMainCard, setActiveMainCard] = useState(
+        () => sessionStorage.getItem('rb_activeTab') || 'summary'
+    );
     const [reportSubmenuOpen, setReportSubmenuOpen] = useState(activeMainCard === 'reports');
     const [activeReport, setActiveReport] = useState('mpr');
 
@@ -482,6 +484,7 @@ const RailwayBoardDashboard = () => {
 
     const handleSwitchTab = (tab) => {
         setActiveMainCard(tab);
+        sessionStorage.setItem('rb_activeTab', tab);
         if (tab === 'reports' || tab === 'performance') setReportSubmenuOpen(true); else setReportSubmenuOpen(false);
     };
 
@@ -862,17 +865,17 @@ const RailwayBoardDashboard = () => {
                                 </button>
                             </div>
                         </div>
-                    ) : (
+                    ) : activeMainCard !== 'udm' && (
                         <div className="sub-tabs" style={{ padding: '0 24px', marginTop: '16px', marginBottom: '4px', display: 'flex', justifyContent: 'flex-end', alignItems: 'center' }}>
-                            <button 
+                            <button
                                 onClick={handleDownloadDashboardPdf}
                                 disabled={isExportingPdf}
-                                style={{ 
-                                    padding: '6px 14px', 
-                                    backgroundColor: '#1e40af', 
-                                    color: 'white', 
-                                    border: 'none', 
-                                    borderRadius: '6px', 
+                                style={{
+                                    padding: '6px 14px',
+                                    backgroundColor: '#1e40af',
+                                    color: 'white',
+                                    border: 'none',
+                                    borderRadius: '6px',
                                     cursor: isExportingPdf ? 'not-allowed' : 'pointer',
                                     display: 'flex',
                                     alignItems: 'center',

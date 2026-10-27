@@ -5,6 +5,7 @@ import ConfirmationModal from '../common/ConfirmationModal';
 import '../../styles/ProductionVerification.css';
 import { getBaseUrl, API_ENDPOINTS, getDefaultHeaders } from '../../services/apiConfig';
 import { normalizePlantId, isPlantIdMatching } from '../../services/workflowService';
+import { RailpadProcessAnnexureAModal } from '../ProcessInspection/RailpadProcessAnnexureA';
 
 class ErrorBoundary extends React.Component {
   constructor(props) {
@@ -87,6 +88,7 @@ const ProductionVerificationDashboard = ({ activeCard, setActiveCard, currentShi
   const [selectedDeclaration, setSelectedDeclaration] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [showAnnexureModal, setShowAnnexureModal] = useState(false);
 
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 5;
@@ -621,6 +623,26 @@ const ProductionVerificationDashboard = ({ activeCard, setActiveCard, currentShi
             <span className="pv-badge">{verifiedDeclarations.length}</span>
           </button>
         </div>
+        <button
+          className="pv-tab-btn"
+          style={{
+            background: 'linear-gradient(135deg, #0f766e 0%, #0d9488 100%)',
+            color: '#ffffff',
+            borderColor: '#0f766e',
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '6px',
+            marginLeft: 'auto',
+            padding: '8px 16px',
+            borderRadius: '8px',
+            fontWeight: '700',
+            fontSize: '13px',
+            boxShadow: '0 2px 4px rgba(15, 118, 110, 0.2)'
+          }}
+          onClick={() => setShowAnnexureModal(true)}
+        >
+          <span>📊</span> Daily Report (Annexure-A)
+        </button>
       </div>
 
       <div className="pv-content">
@@ -864,6 +886,22 @@ const ProductionVerificationDashboard = ({ activeCard, setActiveCard, currentShi
           </div>
         </div>
       )}
+
+      {/* Daily Report (Annexure-A) Modal */}
+      <RailpadProcessAnnexureAModal
+        isOpen={showAnnexureModal}
+        onClose={() => setShowAnnexureModal(false)}
+        currentShift={currentShift}
+        call={{
+          plantId: currentShift?.unit,
+          unit: currentShift?.unit,
+          vendorName: currentShift?.company,
+          vendorCode: currentShift?.company,
+          placeOfInspection: `${currentShift?.company || ''} - ${currentShift?.unit || ''}`,
+          shift: currentShift?.shift,
+          inspectionDate: currentShift?.date
+        }}
+      />
     </div>
   );
 };

@@ -6139,7 +6139,9 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
       case 'durability': {
         const samples = periodicData?.durability?.samples || [];
         primaryCount = samples.length;
-        const maxThicknessReduction = (activeRailpadType || '').toLowerCase().includes('10mm') ? 1.0 : 0.6;
+        const _rt2 = (activeRailpadType || '').toLowerCase();
+        const maxThicknessReduction =
+          (_rt2.includes('10mm') || _rt2.includes('10.00mm') || _rt2.includes('10.0mm')) ? 1.0 : 0.6;
         const checkSample = (val) => {
           if (!val || val.initialThick === '' || val.finalThick === '' || val.initialLoad === '' || val.finalLoad === '') return { filled: false, out: false };
           const it = parseFloat(val.initialThick);
@@ -6151,7 +6153,7 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
           const reduction = it - ft;
           const changeLd = il === 0 ? 0 : Math.abs(((fl - il) / il) * 100);
           
-          const out = reduction > maxThicknessReduction || changeLd > 10;
+          const out = reduction >= maxThicknessReduction || changeLd > 10;
           return { filled: true, out };
         };
         samples.forEach(sample => {

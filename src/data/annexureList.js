@@ -10,6 +10,7 @@ import ToeLoadTestAnnexure from '../components/annexures/ToeLoadTestAnnexure';
 import WeightTestAnnexure from '../components/annexures/WeightTestAnnexure';
 import InspectionTestPlanAnnexure from '../components/annexures/InspectionTestPlanAnnexure';
 import ProcessInspectionAnnexure from '../components/annexures/ProcessInspectionAnnexure';
+import RailpadProcessAnnexureA from '../components/annexures/RailpadProcessAnnexureA';
 
 export const ANNEXURE_LIST = [
   {
@@ -52,6 +53,17 @@ export const ANNEXURE_LIST = [
     category: 'general',
     orientation: 'portrait',
     component: ProcessInspectionAnnexure
+  },
+  {
+    id: 'railpad-process-annexure-a',
+    title: 'Process Inspection Order for Rail Pads (Annexure-A)',
+    subtitle: 'Activity Report per IRS-T-55-2025 & Letter No-2024/RS(G)/779/12',
+    cardTitle: 'Process Activity Report (Annexure-A)',
+    code: 'Annexure-A',
+    icon: '📊',
+    category: 'general',
+    orientation: 'portrait',
+    component: RailpadProcessAnnexureA
   },
   {
     id: 'final-inspection',

@@ -255,7 +255,16 @@ const PlantDeclarationDashboard = ({ dutyPlantId }) => {
       setDetailData(data);
     } catch (err) {
       console.error('Error fetching transaction details:', err);
-      showNotification('Error fetching transaction details from database', 'error');
+      if (err.message === 'RECORD_DELETED') {
+        showNotification('This record was deleted by the vendor. Refreshing the list...', 'error');
+        setSelectedTx(null);
+        setDetailData(null);
+        setCachedPendingModules({});
+        setCachedCompletedModules({});
+        await loadData();
+      } else {
+        showNotification('Failed to load transaction data from database. Please verify the ID or contact admin.', 'error');
+      }
     } finally {
       setDetailLoading(false);
     }
@@ -289,8 +298,9 @@ const PlantDeclarationDashboard = ({ dutyPlantId }) => {
         );
         setSelectedTx(null);
         setDetailData(null);
-        setPendingFetched(false);
-        setCompletedFetched(false);
+        // Clear caches so counts refresh on next module switch
+        setCachedPendingModules({});
+        setCachedCompletedModules({});
         // Reload list and refresh the transaction count badges
         await loadData();
       } else {

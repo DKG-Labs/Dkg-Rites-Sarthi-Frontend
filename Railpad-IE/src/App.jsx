@@ -29,6 +29,7 @@ import InspectionInitiationPage from './pages/InspectionInitiationPage';
 import PlantDeclarationDashboard from './components/PlantDeclaration/PlantDeclarationDashboard';
 import RailpadFinalProductCertificate from './components/FinalInspection/RailpadFinalProductCertificate';
 import RailpadProcessInspectionDashboard from './components/ProcessInspection/RailpadProcessInspectionDashboard';
+import RailpadProcessAnnexureA, { RailpadProcessAnnexureAModal } from './components/ProcessInspection/RailpadProcessAnnexureA';
 import VersionUpdateBanner from './components/common/VersionUpdateBanner';
 import SessionExpiryModal from './components/common/SessionExpiryModal';
 import SpecificVersionDropdown from './components/common/SpecificVersionDropdown';
@@ -89,6 +90,12 @@ const MODULES = [
     title: 'Process IE - Production Verification & Acceptance',
     subtitle: 'Review shift production, log rejections and finalize accepted inventory',
     icon: '✅'
+  },
+  {
+    id: 'daily-report',
+    title: 'Daily Report',
+    subtitle: 'Process Inspection Order (Annexure-A, IRS-T-55-2025)',
+    icon: '📊'
   }
 ];
 
@@ -153,6 +160,7 @@ const App = () => {
     onConfirm: () => { },
     type: 'info'
   });
+  const [showDailyReportModal, setShowDailyReportModal] = useState(false);
 
   const [specificVersion, setSpecificVersion] = useState(() => {
     const savedCall = localStorage.getItem('railpad_ie_selected_call');
@@ -1684,7 +1692,7 @@ const App = () => {
           }}>
             <div style={{
               display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
               gap: '12px'
             }}>
               {MODULES.map(mod => (
@@ -1702,6 +1710,8 @@ const App = () => {
                       setActiveCard('verification-dashboard');
                     } else if (mod.id === 'production-verification') {
                       setActiveCard('production-verification-dashboard');
+                    } else if (mod.id === 'daily-report') {
+                      setActiveCard('daily-report-view');
                     }
                   }}
                   style={{
@@ -2172,6 +2182,47 @@ const App = () => {
                   user={loggedInUser}
                 />
               </div>
+            ) : selectedModule === 'daily-report' ? (
+              <div className="fade-in" style={{
+                background: '#ffffff',
+                borderRadius: '16px',
+                border: '1px solid #e2e8f0',
+                padding: '24px',
+                boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)',
+                marginTop: '8px'
+              }}>
+                <div style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  marginBottom: '20px',
+                  paddingBottom: '16px',
+                  borderBottom: '1px solid #e2e8f0'
+                }}>
+                  <div>
+                    <h2 style={{ fontSize: '22px', fontWeight: '800', color: '#0f3a5e', margin: '0 0 4px 0', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <span>📊</span> Process Inspection Order - Daily Activity Report (Annexure-A)
+                    </h2>
+                    <p style={{ color: '#64748b', fontSize: '13.5px', margin: 0 }}>
+                      Ref: Railway Board Letter No-2024/RS(G)/779/12 Date-16.10.2025 | Specification - IRS-T-55-2025
+                    </p>
+                  </div>
+                </div>
+
+                <RailpadProcessAnnexureA
+                  call={{
+                    plantId: currentShift?.unit,
+                    unit: currentShift?.unit,
+                    vendorName: currentShift?.company,
+                    vendorCode: currentShift?.company,
+                    placeOfInspection: `${currentShift?.company || ''} - ${currentShift?.unit || ''}`,
+                    shift: currentShift?.shift,
+                    inspectionDate: currentShift?.date,
+                    callNo: selectedCallForInitiation?.callNo || selectedCallForInitiation?.requestId || 'N/A'
+                  }}
+                  currentShift={currentShift}
+                />
+              </div>
             ) : (
               <div style={{ textAlign: 'center', padding: '100px 0', color: '#94a3b8', background: '#fff', borderRadius: '16px', border: '1px dashed #cbd5e1' }}>
                 <div style={{ fontSize: '2rem', marginBottom: '16px' }}>👆</div>
@@ -2267,6 +2318,23 @@ const App = () => {
         onCancel={() => setConfirmConfig(prev => ({ ...prev, isOpen: false }))}
       />
       <SessionExpiryModal />
+      {/* Daily Report (Annexure-A) Modal */}
+      <RailpadProcessAnnexureAModal
+        isOpen={showDailyReportModal}
+        onClose={() => setShowDailyReportModal(false)}
+        call={{
+          plantId: currentShift?.unit,
+          unit: currentShift?.unit,
+          vendorName: currentShift?.company,
+          vendorCode: currentShift?.company,
+          placeOfInspection: `${currentShift?.company || ''} - ${currentShift?.unit || ''}`,
+          shift: currentShift?.shift,
+          inspectionDate: currentShift?.date,
+          callNo: selectedCallForInitiation?.callNo || selectedCallForInitiation?.requestId || 'N/A'
+        }}
+        currentShift={currentShift}
+        entries={entries}
+      />
     </MainLayout>
   );
 };

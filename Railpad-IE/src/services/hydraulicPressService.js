@@ -11,6 +11,16 @@ export const hydraulicPressService = {
     return data.responseData || [];
   },
 
+  getByPlant: async (plantId, fromDate = null, toDate = null) => {
+    let url = `${getBaseUrl()}/hydraulic-press/list?plantId=${encodeURIComponent(plantId)}`;
+    if (fromDate) url += `&fromDate=${encodeURIComponent(fromDate)}`;
+    if (toDate) url += `&toDate=${encodeURIComponent(toDate)}`;
+    const response = await fetch(url);
+    if (!response.ok) throw new Error('Failed to fetch plant hydraulic press records');
+    const data = await response.json();
+    return data.responseData || [];
+  },
+
   create: async (payload) => {
     const user = getStoredUser();
     const createdBy = user ? user.userId : null;

@@ -3,6 +3,7 @@ import html2canvas from "html2canvas";
 import { jsPDF } from "jspdf";
 import RailpadFinalIc from "./RailpadFinalIc";
 import RailpadProcessIc from "./RailpadProcessIc";
+import { RailpadProcessAnnexureAModal } from "../ProcessInspection/RailpadProcessAnnexureA";
 import AnnexureLoader from '../annexures/AnnexureLoader';
 import {
   generateRailpadIcDetails,
@@ -128,6 +129,7 @@ export default function RailpadFinalProductCertificate({ call = {}, onBack, isVi
   const [isUploadingManual, setIsUploadingManual] = useState(false);
   const [manualUploadError, setManualUploadError] = useState(null);
   const [isDraggingManualFile, setIsDraggingManualFile] = useState(false);
+  const [showDailyReportModal, setShowDailyReportModal] = useState(false);
   const manualFileInputRef = useRef(null);
 
   const user = getStoredUser();
@@ -1276,6 +1278,29 @@ export default function RailpadFinalProductCertificate({ call = {}, onBack, isVi
               >
                 📥 Export PDF
               </button>
+
+              {/* Daily Report (Annexure-A) Button for Process Calls */}
+              {isProcessCall && (
+                <button
+                  onClick={() => setShowDailyReportModal(true)}
+                  disabled={isESigning}
+                  style={{
+                    padding: '8px 16px',
+                    border: '1px solid #0d9488',
+                    borderRadius: '6px',
+                    background: '#0d9488',
+                    color: 'white',
+                    fontWeight: '600',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px'
+                  }}
+                  title="View Process Inspection Order Activity Report (Annexure-A)"
+                >
+                  📊 Daily Report (Annexure-A)
+                </button>
+              )}
             </>
           ) : (
             <>
@@ -2037,6 +2062,12 @@ export default function RailpadFinalProductCertificate({ call = {}, onBack, isVi
           </div>
         </div>
       )}
+      {/* Daily Report (Annexure-A) Modal */}
+      <RailpadProcessAnnexureAModal
+        isOpen={showDailyReportModal}
+        onClose={() => setShowDailyReportModal(false)}
+        call={call}
+      />
     </div>
   );
 }

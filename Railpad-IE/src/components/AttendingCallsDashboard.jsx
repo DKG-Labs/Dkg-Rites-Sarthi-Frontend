@@ -22,6 +22,7 @@ import ShiftDutyForm from './ShiftDutyForm';
 import AnnexureLoader from './AnnexureLoader';
 import AnnexureUploadModal from './AnnexureUploadModal';
 import GenerateCaseLetterModal from './GenerateCaseLetterModal';
+import { RailpadProcessAnnexureAModal } from './ProcessInspection/RailpadProcessAnnexureA';
 import { generateRailpadCallLetterPDF } from '../utils/generateCallLetterPDF';
 import {
   fetchCorrectionSlipDocument,
@@ -100,6 +101,7 @@ const AttendingCallsDashboard = ({
   const [hasCaseLetter, setHasCaseLetter] = useState(false);
   const [checkingCaseLetter, setCheckingCaseLetter] = useState(false);
   const [pdfLoading, setPdfLoading] = useState(false);
+  const [showDailyReportModal, setShowDailyReportModal] = useState(false);
   const [isSendingIbs, setIsSendingIbs] = useState(false);
   const [selectedIbsCall, setSelectedIbsCall] = useState(null);
   const [confirmDialog, setConfirmDialog] = useState({
@@ -2718,6 +2720,37 @@ const AttendingCallsDashboard = ({
                   <span style={{ fontWeight: '700', fontSize: '14px' }}>Download Annexures</span>
                 </button>
 
+                {/* 4c. View Annexure-A (Daily Report) for Process Calls */}
+                {isProcessCall(selectedActionCall) && (
+                  <button
+                    onClick={() => {
+                      setShowDailyReportModal(true);
+                    }}
+                    style={{
+                      display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '8px',
+                      padding: '16px 12px', background: 'linear-gradient(135deg, #f0fdfa 0%, #ccfbf1 100%)',
+                      border: '1.5px solid #5eead4', borderRadius: '14px',
+                      cursor: 'pointer', transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                      color: '#0f766e', width: '100%',
+                      boxShadow: '0 4px 6px -1px rgba(15, 118, 110, 0.1), 0 2px 4px -1px rgba(15, 118, 110, 0.06)'
+                    }}
+                    onMouseEnter={(e) => { 
+                      e.currentTarget.style.transform = 'translateY(-3px)';
+                      e.currentTarget.style.boxShadow = '0 10px 15px -3px rgba(15, 118, 110, 0.2), 0 4px 6px -2px rgba(15, 118, 110, 0.1)'; 
+                    }}
+                    onMouseLeave={(e) => { 
+                      e.currentTarget.style.transform = 'translateY(0)';
+                      e.currentTarget.style.boxShadow = '0 4px 6px -1px rgba(15, 118, 110, 0.1), 0 2px 4px -1px rgba(15, 118, 110, 0.06)'; 
+                    }}
+                    title="View Process Inspection Activity Report (Annexure-A)"
+                  >
+                    <div style={{ width: '42px', height: '42px', background: '#ffffff', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 2px 4px rgba(0,0,0,0.05)', fontSize: '20px' }}>
+                      📊
+                    </div>
+                    <span style={{ fontWeight: '700', fontSize: '14px' }}>Annexure (Daily Report)</span>
+                  </button>
+                )}
+
                 {/* 5. Case Letter (Generate / View) */}
                 <button
                   disabled={Boolean(downloadingCaseLetterCall)}
@@ -3496,6 +3529,12 @@ const AttendingCallsDashboard = ({
         autoClose={notification.type !== 'info'}
         autoCloseDelay={5000}
         onClose={() => setNotification({ ...notification, message: '' })}
+      />
+      {/* Daily Report (Annexure-A) Modal */}
+      <RailpadProcessAnnexureAModal
+        isOpen={showDailyReportModal}
+        onClose={() => setShowDailyReportModal(false)}
+        call={selectedActionCall}
       />
     </div>
   );

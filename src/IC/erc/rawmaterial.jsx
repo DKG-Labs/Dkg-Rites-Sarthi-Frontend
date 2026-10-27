@@ -223,7 +223,18 @@ export default function RawMaterialCertificate({ call = {}, onBack }) {
       inspectionDate: c.dateOfInspection || "",
       sealingPattern: c.sealingPattern || "",
       sealFacsimile: c.sealFacsimile || c.facsimile || "",
-      inspectingEngineer: c.inspectingEngineer || ""
+      inspectingEngineer: c.inspectingEngineer || "",
+      isDiverted: Boolean(
+        c.isDiverted ||
+        c.isDivertedMaterial ||
+        c.is_diverted ||
+        c.workflowId === 4 ||
+        c.callCategory === 'DIVERTED_PASSED' ||
+        c.call_category === 'DIVERTED_PASSED' ||
+        c.diversionRequestNo ||
+        (typeof c.remarks === 'string' && c.remarks.toLowerCase().includes('diversion')) ||
+        (typeof c.reference === 'string' && c.reference.toLowerCase().includes('diverted from'))
+      )
     };
   };
 

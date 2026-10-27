@@ -444,6 +444,17 @@ export default function FinalProductCertificate({ call = {}, onBack }) {
       rmIcDate: c.rmIcDate || "",
       processIcNo: c.processIcNo || "",
       processIcDate: c.processIcDate || "",
+      isDiverted: Boolean(
+        c.isDiverted ||
+        c.isDivertedMaterial ||
+        c.is_diverted ||
+        c.workflowId === 4 ||
+        c.callCategory === 'DIVERTED_PASSED' ||
+        c.call_category === 'DIVERTED_PASSED' ||
+        c.diversionRequestNo ||
+        (typeof c.remarks === 'string' && c.remarks.toLowerCase().includes('diversion')) ||
+        (typeof c.reference === 'string' && c.reference.toLowerCase().includes('diverted from'))
+      ),
     };
   };
 

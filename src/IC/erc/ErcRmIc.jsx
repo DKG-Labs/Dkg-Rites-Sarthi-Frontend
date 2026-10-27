@@ -72,6 +72,18 @@ const ErcRmIC = ({ data = {}, isEditing = false, isBusy = false, onChange = () =
     .replace(/[\r\n]+/g, ' ')
     .trim();
 
+  const isDiverted = Boolean(
+    data?.isDiverted ||
+    data?.isDivertedMaterial ||
+    data?.is_diverted ||
+    data?.callCategory === 'DIVERTED_PASSED' ||
+    data?.call_category === 'DIVERTED_PASSED' ||
+    data?.workflowId === 4 ||
+    data?.diversionRequestNo ||
+    (typeof data?.remarks === 'string' && data.remarks.toLowerCase().includes('diversion')) ||
+    (typeof data?.reference === 'string' && data.reference.toLowerCase().includes('diverted'))
+  );
+
   // Default value for Consignee (Manufacturer): place of inspection always takes priority
   const defaultConsigneeManufacturer = placeOfInspection || consigneeManufacturer;
 
@@ -194,7 +206,12 @@ const ErcRmIC = ({ data = {}, isEditing = false, isBusy = false, onChange = () =
           <div className="w-full grid grid-cols-[1fr_auto_1fr] items-end mt-3 px-4">
             <div className="empty-col"></div>
             <div className="text-center font-bold text-[13px] uppercase">
-              {data?.region || "RITES LIMITED, NORTHERN REGION, DELHI"}
+              <span>{data?.region || "RITES LIMITED, NORTHERN REGION, DELHI"}</span>
+              {isDiverted && (
+                <span className="ml-2 font-bold text-[13px] normal-case text-black">
+                  (Diverted IC)
+                </span>
+              )}
             </div>
             <div className="text-right leading-tight">
               <div className="text-[9.5px] font-bold">निरंतरता पत्रक शामिल</div>

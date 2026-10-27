@@ -3,6 +3,7 @@ import DescriptionRoundedIcon from '@mui/icons-material/DescriptionRounded';
 import AttachmentRoundedIcon from '@mui/icons-material/AttachmentRounded';
 import UndoRoundedIcon from '@mui/icons-material/UndoRounded';
 import StatusBadge from './StatusBadge';
+import HeatLotDetailsSection from './HeatLotDetailsSection';
 import { getDetailedStatus } from '../utils/statusMapper';
 import { getProductTypeDisplayName, formatDate } from '../utils/helpers';
 import { RailpadProcessAnnexureAModal } from './annexures/RailpadProcessAnnexureA';
@@ -296,6 +297,9 @@ const IssuanceCallDetailsModal = ({
                   <StatusBadge status={mainStatus} text={combinedText} />
                 </div>
               </div>
+
+              {/* Heat Number (RM) / Lot Number (Process/Final) */}
+              <HeatLotDetailsSection call={call} />
             </div>
           </div>
 

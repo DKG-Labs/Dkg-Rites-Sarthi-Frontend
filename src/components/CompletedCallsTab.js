@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo, useRef } from 'react';
 import DataTable from './DataTable';
 import StatusBadge from './StatusBadge';
 import Notification from './Notification';
+import HeatLotDetailsSection from './HeatLotDetailsSection';
 import { getProductTypeDisplayName, formatDate } from '../utils/helpers';
 import CallsFilterSection from './common/CallsFilterSection';
 import { getDetailedStatus } from '../utils/statusMapper';
@@ -108,7 +109,7 @@ const CompletedCallsTab = ({ setSelectedCall, setCurrentPage, onCallSentToIbs })
         }
         const fetched = await fetchSignedCallsForIC(userId);
         // Keep completed / signed calls (exclude cancelled and blocked)
-        const validCalls = fetched.filter(c => 
+        const validCalls = fetched.filter(c =>
           (c.status === 'Completed' || c.status === 'DSC_SIGN_IC' || c.originalStatus === 'DSC_SIGN_IC') &&
           !(c.status || '').toUpperCase().includes('CANCEL') &&
           !(c.originalStatus || '').toUpperCase().includes('CANCEL') &&
@@ -156,7 +157,7 @@ const CompletedCallsTab = ({ setSelectedCall, setCurrentPage, onCallSentToIbs })
 
     if (globalSearchTerm) {
       const lowerSearch = globalSearchTerm.toLowerCase();
-      result = result.filter(call => 
+      result = result.filter(call =>
         (call.call_no && call.call_no.toLowerCase().includes(lowerSearch)) ||
         (call.po_no && call.po_no.toLowerCase().includes(lowerSearch)) ||
         (call.vendor_name && call.vendor_name.toLowerCase().includes(lowerSearch))
@@ -221,22 +222,22 @@ const CompletedCallsTab = ({ setSelectedCall, setCurrentPage, onCallSentToIbs })
         setNotificationMessage('The Inspection Certificate (IC) number was not found for this call.');
         return;
       }
-      
+
       setNotificationType('info');
       setNotificationMessage('Retrieving signed Inspection Certificate...');
-      
+
       const { signedData } = await viewSignedCertificate(icNumber);
-      
+
       const byteCharacters = atob(signedData);
       const byteNumbers = new Array(byteCharacters.length);
       for (let i = 0; i < byteCharacters.length; i++) {
-          byteNumbers[i] = byteCharacters.charCodeAt(i);
+        byteNumbers[i] = byteCharacters.charCodeAt(i);
       }
       const byteArray = new Uint8Array(byteNumbers);
       const blob = new Blob([byteArray], { type: "application/pdf" });
       const url = URL.createObjectURL(blob);
       window.open(url, "_blank");
-      
+
       setNotificationMessage(''); // Clear notification on success
     } catch (err) {
       console.error(err);
@@ -267,15 +268,15 @@ const CompletedCallsTab = ({ setSelectedCall, setCurrentPage, onCallSentToIbs })
         poNumber: call.po_no || call.poNumber,
         vendorName: call.vendor_name || call.vendorName
       };
-      
+
       const details = await fetchCallLetterDetails(callNumber);
       const user = getStoredUser();
-      const enrichedCall = { 
-        ...pdfCallData, 
+      const enrichedCall = {
+        ...pdfCallData,
         ...details,
-        rio: details.rio || pdfCallData.rio || user?.rio 
+        rio: details.rio || pdfCallData.rio || user?.rio
       };
-      
+
       generateCallLetterPDF(enrichedCall);
     } catch (err) {
       console.error('Failed to generate Call Letter PDF:', err);
@@ -330,14 +331,14 @@ const CompletedCallsTab = ({ setSelectedCall, setCurrentPage, onCallSentToIbs })
       setNotificationMessage('Call ID not found. Cannot download TC Document.');
       return;
     }
-    
+
     setTcPdfLoading(true);
     try {
       const response = await axios.get(`${API_BASE_URL}/api/vendor/inspection-calls/tc-docs/${callNumber}`, {
         headers: getAuthHeaders(),
         responseType: 'blob'
       });
-      
+
       if (response.status === 200) {
         const url = window.URL.createObjectURL(new Blob([response.data], { type: 'application/pdf' }));
         const a = document.createElement('a');
@@ -352,7 +353,7 @@ const CompletedCallsTab = ({ setSelectedCall, setCurrentPage, onCallSentToIbs })
       console.error('Failed to download TC document:', err);
       let errorMessage = 'Failed to download TC document. It may not be available yet.';
       if (err.response && err.response.status === 404) {
-          errorMessage = 'No TC Documents found for this call number.';
+        errorMessage = 'No TC Documents found for this call number.';
       }
       setNotificationType('info');
       setNotificationMessage(errorMessage);
@@ -383,7 +384,7 @@ const CompletedCallsTab = ({ setSelectedCall, setCurrentPage, onCallSentToIbs })
       await performTransitionAction(payload);
       setNotificationType('success');
       setNotificationMessage(`Call ${sendIbsCallRow.call_no} has been successfully sent to IBS!`);
-      
+
       // Remove from completedCalls list
       setCompletedCalls(prev => prev.filter(c => c.call_no !== sendIbsCallRow.call_no && c.id !== sendIbsCallRow.id));
       setSendIbsCallRow(null);
@@ -524,18 +525,18 @@ const CompletedCallsTab = ({ setSelectedCall, setCurrentPage, onCallSentToIbs })
 
       {/* Inspection Call Details Modal */}
       {selectedActionCall && (
-        <div 
-          className="modal-overlay" 
-          onClick={() => setSelectedActionCall(null)} 
+        <div
+          className="modal-overlay"
+          onClick={() => setSelectedActionCall(null)}
           style={{ zIndex: 9999, backgroundColor: 'rgba(15, 23, 42, 0.6)', backdropFilter: 'blur(4px)' }}
         >
           <div
             className="modal-content"
             onClick={(e) => e.stopPropagation()}
-            style={{ 
-              maxWidth: '960px', 
-              width: '95%', 
-              borderRadius: '16px', 
+            style={{
+              maxWidth: '960px',
+              width: '95%',
+              borderRadius: '16px',
               boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)',
               overflow: 'hidden',
               backgroundColor: '#ffffff'
@@ -552,8 +553,8 @@ const CompletedCallsTab = ({ setSelectedCall, setCurrentPage, onCallSentToIbs })
               <h2 className="modal-title" style={{ margin: 0, fontSize: '1.25rem', fontWeight: '700', color: '#0f172a', display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <span style={{ color: '#0ea5e9' }}>📋</span> Inspection Call Details - <span style={{ color: '#334155' }}>{selectedActionCall.call_no || selectedActionCall.callNumber}</span>
               </h2>
-              <button 
-                className="modal-close" 
+              <button
+                className="modal-close"
                 onClick={() => setSelectedActionCall(null)}
                 style={{
                   background: 'white', border: '1px solid #e2e8f0', borderRadius: '50%',
@@ -567,12 +568,12 @@ const CompletedCallsTab = ({ setSelectedCall, setCurrentPage, onCallSentToIbs })
 
             <div className="modal-body" style={{ maxHeight: '80vh', overflowY: 'auto', padding: '32px 24px' }}>
               {/* Top Summary Section */}
-              <div style={{ 
-                background: 'linear-gradient(to right, #ffffff, #f8fafc)', 
-                padding: '20px', 
-                borderRadius: '12px', 
+              <div style={{
+                background: 'linear-gradient(to right, #ffffff, #f8fafc)',
+                padding: '20px',
+                borderRadius: '12px',
                 border: '1px solid #e2e8f0',
-                borderLeft: '4px solid #0ea5e9', 
+                borderLeft: '4px solid #0ea5e9',
                 marginBottom: '32px',
                 boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05)'
               }}>
@@ -601,13 +602,15 @@ const CompletedCallsTab = ({ setSelectedCall, setCurrentPage, onCallSentToIbs })
                       {getDetailedStatus(selectedActionCall.status || selectedActionCall.originalStatus).combinedText || (selectedActionCall.status ? selectedActionCall.status.replace(/_/g, ' ') : 'Completed')}
                     </div>
                   </div>
+                  {/* Heat Number (RM) / Lot Number (Process/Final) */}
+                  <HeatLotDetailsSection call={selectedActionCall} />
                 </div>
               </div>
 
               <h3 style={{ fontSize: '18px', fontWeight: '700', marginBottom: '20px', color: '#0f172a', display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <span style={{ color: '#f59e0b' }}>⚡</span> Actions & Documents
               </h3>
-              
+
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: '16px' }}>
                 {/* 1. View IC */}
                 <button
@@ -624,13 +627,13 @@ const CompletedCallsTab = ({ setSelectedCall, setCurrentPage, onCallSentToIbs })
                     color: '#0891b2', width: '100%',
                     boxShadow: '0 4px 6px -1px rgba(8, 145, 178, 0.1), 0 2px 4px -1px rgba(8, 145, 178, 0.06)'
                   }}
-                  onMouseEnter={(e) => { 
+                  onMouseEnter={(e) => {
                     e.currentTarget.style.transform = 'translateY(-4px)';
-                    e.currentTarget.style.boxShadow = '0 10px 15px -3px rgba(8, 145, 178, 0.2), 0 4px 6px -2px rgba(8, 145, 178, 0.1)'; 
+                    e.currentTarget.style.boxShadow = '0 10px 15px -3px rgba(8, 145, 178, 0.2), 0 4px 6px -2px rgba(8, 145, 178, 0.1)';
                   }}
-                  onMouseLeave={(e) => { 
+                  onMouseLeave={(e) => {
                     e.currentTarget.style.transform = 'translateY(0)';
-                    e.currentTarget.style.boxShadow = '0 4px 6px -1px rgba(8, 145, 178, 0.1), 0 2px 4px -1px rgba(8, 145, 178, 0.06)'; 
+                    e.currentTarget.style.boxShadow = '0 4px 6px -1px rgba(8, 145, 178, 0.1), 0 2px 4px -1px rgba(8, 145, 178, 0.06)';
                   }}
                 >
                   <div style={{ width: '48px', height: '48px', background: '#ffffff', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 2px 4px rgba(0,0,0,0.05)' }}>
@@ -664,13 +667,13 @@ const CompletedCallsTab = ({ setSelectedCall, setCurrentPage, onCallSentToIbs })
                     color: '#7e22ce', width: '100%',
                     boxShadow: '0 4px 6px -1px rgba(126, 34, 206, 0.1), 0 2px 4px -1px rgba(126, 34, 206, 0.06)'
                   }}
-                  onMouseEnter={(e) => { 
+                  onMouseEnter={(e) => {
                     e.currentTarget.style.transform = 'translateY(-4px)';
-                    e.currentTarget.style.boxShadow = '0 10px 15px -3px rgba(126, 34, 206, 0.2), 0 4px 6px -2px rgba(126, 34, 206, 0.1)'; 
+                    e.currentTarget.style.boxShadow = '0 10px 15px -3px rgba(126, 34, 206, 0.2), 0 4px 6px -2px rgba(126, 34, 206, 0.1)';
                   }}
-                  onMouseLeave={(e) => { 
+                  onMouseLeave={(e) => {
                     e.currentTarget.style.transform = 'translateY(0)';
-                    e.currentTarget.style.boxShadow = '0 4px 6px -1px rgba(126, 34, 206, 0.1), 0 2px 4px -1px rgba(126, 34, 206, 0.06)'; 
+                    e.currentTarget.style.boxShadow = '0 4px 6px -1px rgba(126, 34, 206, 0.1), 0 2px 4px -1px rgba(126, 34, 206, 0.06)';
                   }}
                 >
                   <div style={{ width: '48px', height: '48px', background: '#ffffff', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 2px 4px rgba(0,0,0,0.05)' }}>
@@ -716,16 +719,16 @@ const CompletedCallsTab = ({ setSelectedCall, setCurrentPage, onCallSentToIbs })
                         opacity: isBtnDisabled ? 0.7 : 1,
                         boxShadow: isBtnDisabled ? 'none' : '0 4px 6px -1px rgba(21, 128, 61, 0.1), 0 2px 4px -1px rgba(21, 128, 61, 0.06)'
                       }}
-                      onMouseEnter={(e) => { 
+                      onMouseEnter={(e) => {
                         if (!isBtnDisabled) {
                           e.currentTarget.style.transform = 'translateY(-4px)';
-                          e.currentTarget.style.boxShadow = '0 10px 15px -3px rgba(21, 128, 61, 0.2), 0 4px 6px -2px rgba(21, 128, 61, 0.1)'; 
+                          e.currentTarget.style.boxShadow = '0 10px 15px -3px rgba(21, 128, 61, 0.2), 0 4px 6px -2px rgba(21, 128, 61, 0.1)';
                         }
                       }}
-                      onMouseLeave={(e) => { 
+                      onMouseLeave={(e) => {
                         if (!isBtnDisabled) {
                           e.currentTarget.style.transform = 'translateY(0)';
-                          e.currentTarget.style.boxShadow = '0 4px 6px -1px rgba(21, 128, 61, 0.1), 0 2px 4px -1px rgba(21, 128, 61, 0.06)'; 
+                          e.currentTarget.style.boxShadow = '0 4px 6px -1px rgba(21, 128, 61, 0.1), 0 2px 4px -1px rgba(21, 128, 61, 0.06)';
                         }
                       }}
                       title={
@@ -774,16 +777,16 @@ const CompletedCallsTab = ({ setSelectedCall, setCurrentPage, onCallSentToIbs })
                     color: '#0891b2', width: '100%',
                     boxShadow: '0 4px 6px -1px rgba(8, 145, 178, 0.1), 0 2px 4px -1px rgba(8, 145, 178, 0.06)'
                   }}
-                  onMouseEnter={(e) => { 
-                    if(!pdfLoading) { 
+                  onMouseEnter={(e) => {
+                    if (!pdfLoading) {
                       e.currentTarget.style.transform = 'translateY(-4px)';
-                      e.currentTarget.style.boxShadow = '0 10px 15px -3px rgba(8, 145, 178, 0.2), 0 4px 6px -2px rgba(8, 145, 178, 0.1)'; 
+                      e.currentTarget.style.boxShadow = '0 10px 15px -3px rgba(8, 145, 178, 0.2), 0 4px 6px -2px rgba(8, 145, 178, 0.1)';
                     }
                   }}
-                  onMouseLeave={(e) => { 
-                    if(!pdfLoading) { 
+                  onMouseLeave={(e) => {
+                    if (!pdfLoading) {
                       e.currentTarget.style.transform = 'translateY(0)';
-                      e.currentTarget.style.boxShadow = '0 4px 6px -1px rgba(8, 145, 178, 0.1), 0 2px 4px -1px rgba(8, 145, 178, 0.06)'; 
+                      e.currentTarget.style.boxShadow = '0 4px 6px -1px rgba(8, 145, 178, 0.1), 0 2px 4px -1px rgba(8, 145, 178, 0.06)';
                     }
                   }}
                 >
@@ -804,13 +807,13 @@ const CompletedCallsTab = ({ setSelectedCall, setCurrentPage, onCallSentToIbs })
                     color: '#7e22ce', width: '100%',
                     boxShadow: '0 4px 6px -1px rgba(126, 34, 206, 0.1), 0 2px 4px -1px rgba(126, 34, 206, 0.06)'
                   }}
-                  onMouseEnter={(e) => { 
+                  onMouseEnter={(e) => {
                     e.currentTarget.style.transform = 'translateY(-4px)';
-                    e.currentTarget.style.boxShadow = '0 10px 15px -3px rgba(126, 34, 206, 0.2), 0 4px 6px -2px rgba(126, 34, 206, 0.1)'; 
+                    e.currentTarget.style.boxShadow = '0 10px 15px -3px rgba(126, 34, 206, 0.2), 0 4px 6px -2px rgba(126, 34, 206, 0.1)';
                   }}
-                  onMouseLeave={(e) => { 
+                  onMouseLeave={(e) => {
                     e.currentTarget.style.transform = 'translateY(0)';
-                    e.currentTarget.style.boxShadow = '0 4px 6px -1px rgba(126, 34, 206, 0.1), 0 2px 4px -1px rgba(126, 34, 206, 0.06)'; 
+                    e.currentTarget.style.boxShadow = '0 4px 6px -1px rgba(126, 34, 206, 0.1), 0 2px 4px -1px rgba(126, 34, 206, 0.06)';
                   }}
                 >
                   <div style={{ width: '48px', height: '48px', background: '#ffffff', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 2px 4px rgba(0,0,0,0.05)' }}>
@@ -832,16 +835,16 @@ const CompletedCallsTab = ({ setSelectedCall, setCurrentPage, onCallSentToIbs })
                     boxShadow: '0 4px 6px -1px rgba(21, 128, 61, 0.1), 0 2px 4px -1px rgba(21, 128, 61, 0.06)',
                     opacity: tcPdfLoading ? 0.7 : 1
                   }}
-                  onMouseEnter={(e) => { 
+                  onMouseEnter={(e) => {
                     if (!tcPdfLoading) {
                       e.currentTarget.style.transform = 'translateY(-4px)';
-                      e.currentTarget.style.boxShadow = '0 10px 15px -3px rgba(21, 128, 61, 0.2), 0 4px 6px -2px rgba(21, 128, 61, 0.1)'; 
+                      e.currentTarget.style.boxShadow = '0 10px 15px -3px rgba(21, 128, 61, 0.2), 0 4px 6px -2px rgba(21, 128, 61, 0.1)';
                     }
                   }}
-                  onMouseLeave={(e) => { 
+                  onMouseLeave={(e) => {
                     if (!tcPdfLoading) {
                       e.currentTarget.style.transform = 'translateY(0)';
-                      e.currentTarget.style.boxShadow = '0 4px 6px -1px rgba(21, 128, 61, 0.1), 0 2px 4px -1px rgba(21, 128, 61, 0.06)'; 
+                      e.currentTarget.style.boxShadow = '0 4px 6px -1px rgba(21, 128, 61, 0.1), 0 2px 4px -1px rgba(21, 128, 61, 0.06)';
                     }
                   }}
                 >
@@ -867,13 +870,13 @@ const CompletedCallsTab = ({ setSelectedCall, setCurrentPage, onCallSentToIbs })
                     color: '#be123c', width: '100%',
                     boxShadow: '0 4px 6px -1px rgba(190, 18, 60, 0.1), 0 2px 4px -1px rgba(190, 18, 60, 0.06)'
                   }}
-                  onMouseEnter={(e) => { 
+                  onMouseEnter={(e) => {
                     e.currentTarget.style.transform = 'translateY(-4px)';
-                    e.currentTarget.style.boxShadow = '0 10px 15px -3px rgba(190, 18, 60, 0.2), 0 4px 6px -2px rgba(190, 18, 60, 0.1)'; 
+                    e.currentTarget.style.boxShadow = '0 10px 15px -3px rgba(190, 18, 60, 0.2), 0 4px 6px -2px rgba(190, 18, 60, 0.1)';
                   }}
-                  onMouseLeave={(e) => { 
+                  onMouseLeave={(e) => {
                     e.currentTarget.style.transform = 'translateY(0)';
-                    e.currentTarget.style.boxShadow = '0 4px 6px -1px rgba(190, 18, 60, 0.1), 0 2px 4px -1px rgba(190, 18, 60, 0.06)'; 
+                    e.currentTarget.style.boxShadow = '0 4px 6px -1px rgba(190, 18, 60, 0.1), 0 2px 4px -1px rgba(190, 18, 60, 0.06)';
                   }}
                 >
                   <div style={{ width: '48px', height: '48px', background: '#ffffff', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 2px 4px rgba(0,0,0,0.05)' }}>
@@ -897,13 +900,13 @@ const CompletedCallsTab = ({ setSelectedCall, setCurrentPage, onCallSentToIbs })
                     color: '#4338ca', width: '100%',
                     boxShadow: '0 4px 6px -1px rgba(67, 56, 202, 0.1), 0 2px 4px -1px rgba(67, 56, 202, 0.06)'
                   }}
-                  onMouseEnter={(e) => { 
+                  onMouseEnter={(e) => {
                     e.currentTarget.style.transform = 'translateY(-4px)';
-                    e.currentTarget.style.boxShadow = '0 10px 15px -3px rgba(67, 56, 202, 0.2), 0 4px 6px -2px rgba(67, 56, 202, 0.1)'; 
+                    e.currentTarget.style.boxShadow = '0 10px 15px -3px rgba(67, 56, 202, 0.2), 0 4px 6px -2px rgba(67, 56, 202, 0.1)';
                   }}
-                  onMouseLeave={(e) => { 
+                  onMouseLeave={(e) => {
                     e.currentTarget.style.transform = 'translateY(0)';
-                    e.currentTarget.style.boxShadow = '0 4px 6px -1px rgba(67, 56, 202, 0.1), 0 2px 4px -1px rgba(67, 56, 202, 0.06)'; 
+                    e.currentTarget.style.boxShadow = '0 4px 6px -1px rgba(67, 56, 202, 0.1), 0 2px 4px -1px rgba(67, 56, 202, 0.06)';
                   }}
                   title="Compile, upload and generate merged Inspection Call Documents (Merge Dossier)"
                 >

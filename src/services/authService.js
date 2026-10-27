@@ -229,24 +229,50 @@ export const hasActiveAuthenticatorLogin = async (userId) => {
   }
 };
 
-export const resetPassword = async (identifier, newPassword) => {
+export const sendForgotPasswordOtp = async (identifier) => {
+  try {
+    const response = await fetch(`${API_BASE_URL}/api/auth/forgot-password/send-otp`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ identifier }),
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.responseStatus?.message || data.message || 'Failed to send OTP');
+    }
+
+    if (data.responseStatus && data.responseStatus.statusCode !== 0) {
+      throw new Error(data.responseStatus.message || 'Failed to send OTP');
+    }
+
+    return data.responseData;
+  } catch (error) {
+    throw error;
+  }
+};
+
+export const resetPassword = async (identifier, newPassword, transactionId, otp) => {
   try {
     const response = await fetch(`${API_BASE_URL}/api/auth/forgot-password`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({ identifier, newPassword }),
+      body: JSON.stringify({ identifier, newPassword, transactionId, otp }),
     });
 
     const data = await response.json();
 
     if (!response.ok) {
-      throw new Error(data.responseStatus?.message || 'Password reset failed');
+      throw new Error(data.responseStatus?.message || data.message || 'Password reset failed');
     }
 
-    if (data.responseStatus?.statusCode !== 0) {
-      throw new Error(data.responseStatus?.message || 'Password reset failed');
+    if (data.responseStatus && data.responseStatus.statusCode !== 0) {
+      throw new Error(data.responseStatus.message || 'Password reset failed');
     }
 
     return data;

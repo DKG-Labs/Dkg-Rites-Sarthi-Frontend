@@ -126,7 +126,7 @@ const IssuanceOfICTab = ({ calls, setSelectedCall, setCurrentPage, isLoaded }) =
 
     if (globalSearchTerm) {
       const lowerSearch = globalSearchTerm.toLowerCase();
-      result = result.filter(call => 
+      result = result.filter(call =>
         (call.call_no && call.call_no.toLowerCase().includes(lowerSearch)) ||
         (call.po_no && call.po_no.toLowerCase().includes(lowerSearch)) ||
         (call.vendor_name && call.vendor_name.toLowerCase().includes(lowerSearch))

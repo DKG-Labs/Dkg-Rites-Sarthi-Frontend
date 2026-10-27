@@ -10,6 +10,7 @@ import AttachmentRoundedIcon from '@mui/icons-material/AttachmentRounded';
 
 import { message } from 'antd';
 import CallCancellationModal from './CallCancellationModal';
+import HeatLotDetailsSection from './HeatLotDetailsSection';
 
 const PendingCallDetailsModal = ({
   isOpen,
@@ -61,16 +62,16 @@ const PendingCallDetailsModal = ({
         poNumber: call.po_no || call.poNumber,
         vendorName: call.vendor_name || call.vendorName
       };
-      
+
       // Fetch enriched details (PO Header, PO Item, type-specific fields)
       const details = await fetchCallLetterDetails(callNumber);
       const user = getStoredUser();
-      const enrichedCall = { 
-        ...pdfCallData, 
+      const enrichedCall = {
+        ...pdfCallData,
         ...details,
-        rio: details.rio || pdfCallData.rio || user?.rio 
+        rio: details.rio || pdfCallData.rio || user?.rio
       };
-      
+
       generateCallLetterPDF(enrichedCall);
     } catch (err) {
       console.error('Failed to generate Call Letter PDF:', err);
@@ -120,14 +121,14 @@ const PendingCallDetailsModal = ({
       notify('Call ID not found. Cannot download TC Document.', 'error');
       return;
     }
-    
+
     setTcPdfLoading(true);
     try {
       const response = await axios.get(`${API_BASE_URL}/api/vendor/inspection-calls/tc-docs/${callNumber}`, {
         headers: getAuthHeaders(),
         responseType: 'blob'
       });
-      
+
       // Axios treats 404/500 as an error automatically, but just in case:
       if (response.status === 200) {
         const url = window.URL.createObjectURL(new Blob([response.data], { type: 'application/pdf' }));
@@ -144,7 +145,7 @@ const PendingCallDetailsModal = ({
       // Try to parse the blob error message if possible
       let errorMessage = 'Failed to download TC document. It may not be available yet.';
       if (err.response && err.response.status === 404) {
-          errorMessage = 'No TC Documents found for this call number.';
+        errorMessage = 'No TC Documents found for this call number.';
       }
       notify(errorMessage, 'info');
     } finally {
@@ -157,10 +158,10 @@ const PendingCallDetailsModal = ({
       <div
         className="modal-content"
         onClick={(e) => e.stopPropagation()}
-        style={{ 
-          maxWidth: '960px', 
-          width: '95%', 
-          borderRadius: '16px', 
+        style={{
+          maxWidth: '960px',
+          width: '95%',
+          borderRadius: '16px',
           boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)',
           overflow: 'hidden',
           backgroundColor: '#ffffff'
@@ -177,8 +178,8 @@ const PendingCallDetailsModal = ({
           <h2 className="modal-title" style={{ margin: 0, fontSize: '1.25rem', fontWeight: '700', color: '#0f172a', display: 'flex', alignItems: 'center', gap: '8px' }}>
             <span style={{ color: '#0ea5e9' }}>📋</span> Inspection Call Details - <span style={{ color: '#334155' }}>{call.call_no || call.callNumber}</span>
           </h2>
-          <button 
-            className="modal-close" 
+          <button
+            className="modal-close"
             onClick={onClose}
             style={{
               background: 'white', border: '1px solid #e2e8f0', borderRadius: '50%',
@@ -192,12 +193,12 @@ const PendingCallDetailsModal = ({
 
         <div className="modal-body" style={{ maxHeight: '80vh', overflowY: 'auto', padding: '32px 24px' }}>
           {/* Top Summary Section */}
-          <div style={{ 
-            background: 'linear-gradient(to right, #ffffff, #f8fafc)', 
-            padding: '20px', 
-            borderRadius: '12px', 
+          <div style={{
+            background: 'linear-gradient(to right, #ffffff, #f8fafc)',
+            padding: '20px',
+            borderRadius: '12px',
             border: '1px solid #e2e8f0',
-            borderLeft: '4px solid #0ea5e9', 
+            borderLeft: '4px solid #0ea5e9',
             marginBottom: '32px',
             boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05)'
           }}>
@@ -226,6 +227,8 @@ const PendingCallDetailsModal = ({
                   {call.status ? call.status.replace(/_/g, ' ') : '-'}
                 </div>
               </div>
+              {/* Heat Number (RM) / Lot Number (Process/Final) */}
+              <HeatLotDetailsSection call={call} />
             </div>
           </div>
 
@@ -255,7 +258,7 @@ const PendingCallDetailsModal = ({
           <h3 style={{ fontSize: '18px', fontWeight: '700', marginBottom: '20px', color: '#0f172a', display: 'flex', alignItems: 'center', gap: '8px' }}>
             <span style={{ color: '#3b82f6' }}>⚡</span> Actions & Documents
           </h3>
-          
+
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: '16px' }}>
             {availableActions.includes('schedule') && (
               <button className="btn btn-secondary" onClick={onSchedule} style={{ width: '100%', height: '100%', minHeight: '80px', borderRadius: '16px', fontWeight: 'bold' }}>SCHEDULE</button>
@@ -274,18 +277,18 @@ const PendingCallDetailsModal = ({
             )}
 
             {call.status !== 'CANCELLED' ? (
-              <button 
-                className="btn btn-danger" 
-                onClick={() => setShowCancelModal(true)} 
-                style={{ 
-                  width: '100%', 
-                  height: '100%', 
-                  minHeight: '80px', 
-                  borderRadius: '16px', 
-                  fontWeight: 'bold', 
-                  background: '#ef4444', 
-                  color: '#ffffff', 
-                  border: 'none', 
+              <button
+                className="btn btn-danger"
+                onClick={() => setShowCancelModal(true)}
+                style={{
+                  width: '100%',
+                  height: '100%',
+                  minHeight: '80px',
+                  borderRadius: '16px',
+                  fontWeight: 'bold',
+                  background: '#ef4444',
+                  color: '#ffffff',
+                  border: 'none',
                   cursor: 'pointer',
                   display: 'flex',
                   alignItems: 'center',
@@ -297,16 +300,16 @@ const PendingCallDetailsModal = ({
                 CANCEL CALL
               </button>
             ) : (
-              <div 
-                style={{ 
-                  width: '100%', 
-                  height: '100%', 
-                  minHeight: '80px', 
-                  borderRadius: '16px', 
-                  fontWeight: '800', 
-                  background: '#fef2f2', 
-                  color: '#dc2626', 
-                  border: '1px solid #fecaca', 
+              <div
+                style={{
+                  width: '100%',
+                  height: '100%',
+                  minHeight: '80px',
+                  borderRadius: '16px',
+                  fontWeight: '800',
+                  background: '#fef2f2',
+                  color: '#dc2626',
+                  border: '1px solid #fecaca',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
@@ -328,16 +331,16 @@ const PendingCallDetailsModal = ({
                 color: '#0891b2', width: '100%',
                 boxShadow: '0 4px 6px -1px rgba(8, 145, 178, 0.1), 0 2px 4px -1px rgba(8, 145, 178, 0.06)'
               }}
-              onMouseEnter={(e) => { 
-                if(!pdfLoading) { 
+              onMouseEnter={(e) => {
+                if (!pdfLoading) {
                   e.currentTarget.style.transform = 'translateY(-4px)';
-                  e.currentTarget.style.boxShadow = '0 10px 15px -3px rgba(8, 145, 178, 0.2), 0 4px 6px -2px rgba(8, 145, 178, 0.1)'; 
+                  e.currentTarget.style.boxShadow = '0 10px 15px -3px rgba(8, 145, 178, 0.2), 0 4px 6px -2px rgba(8, 145, 178, 0.1)';
                 }
               }}
-              onMouseLeave={(e) => { 
-                if(!pdfLoading) { 
+              onMouseLeave={(e) => {
+                if (!pdfLoading) {
                   e.currentTarget.style.transform = 'translateY(0)';
-                  e.currentTarget.style.boxShadow = '0 4px 6px -1px rgba(8, 145, 178, 0.1), 0 2px 4px -1px rgba(8, 145, 178, 0.06)'; 
+                  e.currentTarget.style.boxShadow = '0 4px 6px -1px rgba(8, 145, 178, 0.1), 0 2px 4px -1px rgba(8, 145, 178, 0.06)';
                 }
               }}
             >
@@ -357,13 +360,13 @@ const PendingCallDetailsModal = ({
                 color: '#7e22ce', width: '100%',
                 boxShadow: '0 4px 6px -1px rgba(126, 34, 206, 0.1), 0 2px 4px -1px rgba(126, 34, 206, 0.06)'
               }}
-              onMouseEnter={(e) => { 
+              onMouseEnter={(e) => {
                 e.currentTarget.style.transform = 'translateY(-4px)';
-                e.currentTarget.style.boxShadow = '0 10px 15px -3px rgba(126, 34, 206, 0.2), 0 4px 6px -2px rgba(126, 34, 206, 0.1)'; 
+                e.currentTarget.style.boxShadow = '0 10px 15px -3px rgba(126, 34, 206, 0.2), 0 4px 6px -2px rgba(126, 34, 206, 0.1)';
               }}
-              onMouseLeave={(e) => { 
+              onMouseLeave={(e) => {
                 e.currentTarget.style.transform = 'translateY(0)';
-                e.currentTarget.style.boxShadow = '0 4px 6px -1px rgba(126, 34, 206, 0.1), 0 2px 4px -1px rgba(126, 34, 206, 0.06)'; 
+                e.currentTarget.style.boxShadow = '0 4px 6px -1px rgba(126, 34, 206, 0.1), 0 2px 4px -1px rgba(126, 34, 206, 0.06)';
               }}
             >
               <div style={{ width: '48px', height: '48px', background: '#ffffff', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 2px 4px rgba(0,0,0,0.05)' }}>
@@ -384,16 +387,16 @@ const PendingCallDetailsModal = ({
                 boxShadow: '0 4px 6px -1px rgba(21, 128, 61, 0.1), 0 2px 4px -1px rgba(21, 128, 61, 0.06)',
                 opacity: tcPdfLoading ? 0.7 : 1
               }}
-              onMouseEnter={(e) => { 
+              onMouseEnter={(e) => {
                 if (!tcPdfLoading) {
                   e.currentTarget.style.transform = 'translateY(-4px)';
-                  e.currentTarget.style.boxShadow = '0 10px 15px -3px rgba(21, 128, 61, 0.2), 0 4px 6px -2px rgba(21, 128, 61, 0.1)'; 
+                  e.currentTarget.style.boxShadow = '0 10px 15px -3px rgba(21, 128, 61, 0.2), 0 4px 6px -2px rgba(21, 128, 61, 0.1)';
                 }
               }}
-              onMouseLeave={(e) => { 
+              onMouseLeave={(e) => {
                 if (!tcPdfLoading) {
                   e.currentTarget.style.transform = 'translateY(0)';
-                  e.currentTarget.style.boxShadow = '0 4px 6px -1px rgba(21, 128, 61, 0.1), 0 2px 4px -1px rgba(21, 128, 61, 0.06)'; 
+                  e.currentTarget.style.boxShadow = '0 4px 6px -1px rgba(21, 128, 61, 0.1), 0 2px 4px -1px rgba(21, 128, 61, 0.06)';
                 }
               }}
             >

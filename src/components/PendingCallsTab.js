@@ -211,7 +211,7 @@ const PendingCallsTab = ({ calls, onSchedule, onReschedule, onStart, onBulkSched
 
     if (globalSearchTerm) {
       const lowerSearch = globalSearchTerm.toLowerCase();
-      result = result.filter(call => 
+      result = result.filter(call =>
         (call.call_no && call.call_no.toLowerCase().includes(lowerSearch)) ||
         (call.po_no && call.po_no.toLowerCase().includes(lowerSearch)) ||
         (call.vendor_name && call.vendor_name.toLowerCase().includes(lowerSearch))
@@ -308,7 +308,7 @@ const PendingCallsTab = ({ calls, onSchedule, onReschedule, onStart, onBulkSched
 
         let apiStatus = row.status || API_STATUS.CALL_REGISTERED;
         if (!isFromWorkflowAPI && isScheduled(row.call_no)) {
-           apiStatus = 'SCHEDULED'; // mock data handling
+          apiStatus = 'SCHEDULED'; // mock data handling
         }
         const { mainStatus, combinedText } = getDetailedStatus(apiStatus);
         return <StatusBadge status={mainStatus} text={combinedText} />;
@@ -388,8 +388,8 @@ const PendingCallsTab = ({ calls, onSchedule, onReschedule, onStart, onBulkSched
 
     return (
       <div style={{ display: 'flex', gap: 'var(--space-8)' }}>
-        <button 
-          className="btn btn-sm btn-primary" 
+        <button
+          className="btn btn-sm btn-primary"
           onClick={(e) => {
             if (e && e.stopPropagation) e.stopPropagation();
             setSelectedCallForView(row);
@@ -685,10 +685,10 @@ const PendingCallsTab = ({ calls, onSchedule, onReschedule, onStart, onBulkSched
           <div style={{ display: 'flex', alignItems: 'center', gap: '16px', flex: 1 }}>
             <button
               onClick={() => setShowFilters(!showFilters)}
-              style={{ 
-                display: 'inline-flex', 
-                alignItems: 'center', 
-                gap: '8px', 
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '8px',
                 minHeight: '40px',
                 padding: '0 16px',
                 backgroundColor: showFilters ? '#3b5a82' : '#476b9b', // matching the blue color from screenshot

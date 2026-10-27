@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { loginUser, storeAuthData, isAuthenticated, resetPassword } from '../services/authService';
+import { loginUser, storeAuthData, isAuthenticated, sendForgotPasswordOtp, resetPassword } from '../services/authService';
 import { fetchMappedPlantIds } from '../services/workflowService';
 import './LoginPage.css';
 
@@ -17,9 +17,25 @@ const LoginPage = () => {
   
   // Forgot password state
   const [showForgotPassword, setShowForgotPassword] = useState(false);
+  const [forgotPasswordStep, setForgotPasswordStep] = useState('ID'); // 'ID' or 'OTP'
+  const [forgotOtpValue, setForgotOtpValue] = useState('');
+  const [forgotTransactionId, setForgotTransactionId] = useState('');
+  const [forgotResendCountdown, setForgotResendCountdown] = useState(0);
+  const [forgotOtpNotice, setForgotOtpNotice] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [resetSuccess, setResetSuccess] = useState('');
+
+  // Resend OTP countdown for Forgot Password
+  useEffect(() => {
+    let timer;
+    if (forgotResendCountdown > 0) {
+      timer = setInterval(() => {
+        setForgotResendCountdown((prev) => prev - 1);
+      }, 1000);
+    }
+    return () => clearInterval(timer);
+  }, [forgotResendCountdown]);
 
   const [currentSlide, setCurrentSlide] = useState(0);
   const [isInteracting, setIsInteracting] = useState(false);
@@ -92,19 +108,67 @@ const LoginPage = () => {
     setPointerRatio({ x: 0, y: 0 });
   };
 
+  const isVendorIdentifier = (id) => {
+    if (!id) return false;
+    const clean = String(id).trim().toLowerCase();
+    return clean.startsWith(':') || clean.startsWith('ven_') || clean.startsWith('vendor');
+  };
+
+  const handleSendForgotOtp = async (e) => {
+    if (e) e.preventDefault();
+    setError('');
+    setResetSuccess('');
+
+    if (!userId.trim()) {
+      setError('Please enter your Employee Code or Username');
+      return;
+    }
+
+    if (isVendorIdentifier(userId)) {
+      setError('Forgot password is only available for IE (Inspection Engineers). Vendors cannot reset password here. Please contact administrator.');
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      const res = await sendForgotPasswordOtp(userId.trim());
+      setForgotTransactionId(res?.transactionId || '');
+      setForgotOtpValue('');
+      setForgotResendCountdown(30);
+      setForgotOtpNotice(res?.noticeMessage || 'OTP sent to your registered mobile number.');
+      setForgotPasswordStep('OTP');
+    } catch (err) {
+      setError(err.message || 'Failed to send OTP. Please verify your Employee Code or Username.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const handleForgotPasswordSubmit = async (e) => {
     e.preventDefault();
     setError('');
     setResetSuccess('');
 
-    if (!userId.trim()) {
-      setError('Please enter Username or Email');
+    if (isVendorIdentifier(userId)) {
+      setError('Forgot password is only available for IE (Inspection Engineers). Vendors cannot reset password here.');
       return;
     }
+
+    if (!forgotOtpValue.trim() || forgotOtpValue.trim().length !== 6) {
+      setError('Please enter the 6-digit OTP sent to your registered mobile number.');
+      return;
+    }
+
     if (!newPassword.trim()) {
       setError('Please enter New Password');
       return;
     }
+
+    if (newPassword.length < 6) {
+      setError('Password must be at least 6 characters long');
+      return;
+    }
+
     if (newPassword !== confirmPassword) {
       setError('Passwords do not match');
       return;
@@ -112,11 +176,14 @@ const LoginPage = () => {
 
     setIsLoading(true);
     try {
-      await resetPassword(userId, newPassword);
-      setResetSuccess('Password reset successfully. You can now login.');
+      await resetPassword(userId.trim(), newPassword, forgotTransactionId, forgotOtpValue.trim());
+      setResetSuccess('Password reset successfully! You can now login with your new password.');
       setShowForgotPassword(false);
+      setForgotPasswordStep('ID');
       setNewPassword('');
       setConfirmPassword('');
+      setForgotOtpValue('');
+      setForgotTransactionId('');
     } catch (err) {
       setError(err.message || 'Failed to reset password');
     } finally {
@@ -256,10 +323,10 @@ const LoginPage = () => {
                 </div>
 
                 {showForgotPassword ? (
-                  <form className="dashboard-form" id="forgotPasswordForm" onSubmit={handleForgotPasswordSubmit}>
+                  <form className="dashboard-form" id="forgotPasswordForm" onSubmit={forgotPasswordStep === 'ID' ? handleSendForgotOtp : handleForgotPasswordSubmit}>
                     <div className="form-header" style={{marginBottom: '20px'}}>
-                      <h2 style={{fontSize: '1.25rem', color: '#1a1a1a'}}>Reset Password</h2>
-                      <p style={{fontSize: '0.875rem', color: '#666'}}>Enter your details to change your password</p>
+                      <h2 style={{fontSize: '1.25rem', color: '#1a1a1a'}}>{forgotPasswordStep === 'ID' ? 'Forgot Password (IE Portal)' : 'Verify OTP & Reset Password'}</h2>
+                      <p style={{fontSize: '0.875rem', color: '#666'}}>{forgotPasswordStep === 'ID' ? 'Enter your Employee Code to receive an OTP' : 'Enter the OTP sent to your mobile and your new password'}</p>
                     </div>
 
                     {error && (
@@ -273,83 +340,183 @@ const LoginPage = () => {
                       </div>
                     )}
 
-                    <div className="form-group">
-                      <label htmlFor="username">Username or Employee Code</label>
-                      <div className="input-field-shell">
-                        <span className="input-icon" aria-hidden="true">
-                          <svg viewBox="0 0 24 24" focusable="false" aria-hidden="true">
-                            <path d="M12 12a5 5 0 1 0-5-5 5 5 0 0 0 5 5Zm0 2c-4.1 0-8 2.1-8 5v1h16v-1c0-2.9-3.9-5-8-5Z"></path>
-                          </svg>
-                        </span>
-                        <input
-                          type="text"
-                          id="username"
-                          name="username"
-                          placeholder="Enter your username or employee code"
-                          className={isFilled.userId ? 'is-filled' : ''}
-                          value={userId}
-                          onChange={(e) => handleInputChange('userId', e.target.value)}
-                          required
-                        />
-                      </div>
-                    </div>
+                    {forgotPasswordStep === 'ID' ? (
+                      <>
+                        <div className="form-group">
+                          <label htmlFor="username">Username or Employee Code</label>
+                          <div className="input-field-shell">
+                            <span className="input-icon" aria-hidden="true">
+                              <svg viewBox="0 0 24 24" focusable="false" aria-hidden="true">
+                                <path d="M12 12a5 5 0 1 0-5-5 5 5 0 0 0 5 5Zm0 2c-4.1 0-8 2.1-8 5v1h16v-1c0-2.9-3.9-5-8-5Z"></path>
+                              </svg>
+                            </span>
+                            <input
+                              type="text"
+                              id="username"
+                              name="username"
+                              placeholder="Enter your Employee Code (e.g. 100412)"
+                              className={isFilled.userId ? 'is-filled' : ''}
+                              value={userId}
+                              onChange={(e) => handleInputChange('userId', e.target.value)}
+                              required
+                              autoFocus
+                            />
+                          </div>
+                        </div>
 
-                    <div className="form-group">
-                      <label htmlFor="newPassword">New Password</label>
-                      <div className="input-field-shell">
-                        <span className="input-icon" aria-hidden="true">
-                          <svg viewBox="0 0 24 24" focusable="false" aria-hidden="true">
-                            <path d="M17 9h-1V7a4 4 0 1 0-8 0v2H7a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-8a2 2 0 0 0-2-2Zm-7-2a2 2 0 1 1 4 0v2h-4Zm2 10.75A1.75 1.75 0 1 1 13.75 16 1.75 1.75 0 0 1 12 17.75Z"></path>
-                          </svg>
-                        </span>
-                        <input
-                          type={showPassword ? 'text' : 'password'}
-                          id="newPassword"
-                          placeholder="Enter new password"
-                          value={newPassword}
-                          onChange={(e) => setNewPassword(e.target.value)}
-                          required
-                        />
-                      </div>
-                    </div>
+                        <button
+                          type="submit"
+                          className="submit-btn js-ripple"
+                          disabled={isLoading}
+                        >
+                          Send Verification OTP
+                        </button>
 
-                    <div className="form-group">
-                      <label htmlFor="confirmPassword">Confirm Password</label>
-                      <div className="input-field-shell">
-                        <span className="input-icon" aria-hidden="true">
-                          <svg viewBox="0 0 24 24" focusable="false" aria-hidden="true">
-                            <path d="M17 9h-1V7a4 4 0 1 0-8 0v2H7a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-8a2 2 0 0 0-2-2Zm-7-2a2 2 0 1 1 4 0v2h-4Zm2 10.75A1.75 1.75 0 1 1 13.75 16 1.75 1.75 0 0 1 12 17.75Z"></path>
-                          </svg>
-                        </span>
-                        <input
-                          type={showPassword ? 'text' : 'password'}
-                          id="confirmPassword"
-                          placeholder="Confirm new password"
-                          value={confirmPassword}
-                          onChange={(e) => setConfirmPassword(e.target.value)}
-                          required
-                        />
-                      </div>
-                    </div>
+                        <div className="dashboard-options" style={{ justifyContent: 'center', marginTop: '1rem' }}>
+                          <button
+                            type="button"
+                            className="forgot-link"
+                            onClick={() => {
+                              setShowForgotPassword(false);
+                              setForgotPasswordStep('ID');
+                              setError('');
+                              setResetSuccess('');
+                            }}
+                          >
+                            Back to Login
+                          </button>
+                        </div>
+                      </>
+                    ) : (
+                      <>
+                        <div style={{
+                          margin: '8px 0 16px',
+                          padding: '10px 14px',
+                          background: '#eff6ff',
+                          border: '1px solid #bfdbfe',
+                          borderRadius: '10px',
+                          fontSize: '0.85rem',
+                          color: '#1e40af',
+                          lineHeight: '1.4',
+                          fontWeight: '600'
+                        }}>
+                          📱 {forgotOtpNotice}
+                        </div>
 
-                    <div className="dashboard-options">
-                      <label className="remember-me" htmlFor="showPassword">
-                        <input type="checkbox" id="showPassword" checked={showPassword} onChange={() => setShowPassword(!showPassword)} />
-                        <span>Show Passwords</span>
-                      </label>
-                    </div>
+                        <div className="form-group">
+                          <label htmlFor="forgotOtp">Enter 6-Digit OTP</label>
+                          <div className="input-field-shell">
+                            <input
+                              type="text"
+                              id="forgotOtp"
+                              maxLength={6}
+                              placeholder="------"
+                              value={forgotOtpValue}
+                              onChange={(e) => setForgotOtpValue(e.target.value.replace(/\D/g, ''))}
+                              style={{ letterSpacing: '8px', fontSize: '1.2rem', fontWeight: '800', textAlign: 'center' }}
+                              autoFocus
+                              required
+                            />
+                          </div>
+                        </div>
 
-                    <button
-                      type="submit"
-                      className="submit-btn js-ripple"
-                      disabled={isLoading}
-                    >
-                      {isLoading ? 'Resetting...' : 'Reset Password'}
-                    </button>
-                    
-                    <div className="dashboard-options" style={{ justifyContent: 'center', marginTop: '1rem' }}>
-                      <button type="button" className="forgot-link" onClick={() => { setShowForgotPassword(false); setError(''); setResetSuccess(''); }}>Back to Login</button>
-                    </div>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px', fontSize: '0.82rem' }}>
+                          <span style={{ color: '#64748b' }}>
+                            {forgotResendCountdown > 0 ? `Resend OTP in ${forgotResendCountdown}s` : "Didn't receive OTP?"}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={handleSendForgotOtp}
+                            disabled={forgotResendCountdown > 0}
+                            style={{
+                              background: 'none',
+                              border: 'none',
+                              color: forgotResendCountdown > 0 ? '#94a3b8' : '#2563eb',
+                              fontWeight: '700',
+                              cursor: forgotResendCountdown > 0 ? 'not-allowed' : 'pointer'
+                            }}
+                          >
+                            Resend OTP
+                          </button>
+                        </div>
+
+                        <div className="form-group">
+                          <label htmlFor="newPassword">New Password</label>
+                          <div className="input-field-shell">
+                            <span className="input-icon" aria-hidden="true">
+                              <svg viewBox="0 0 24 24" focusable="false" aria-hidden="true">
+                                <path d="M17 9h-1V7a4 4 0 1 0-8 0v2H7a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-8a2 2 0 0 0-2-2Zm-7-2a2 2 0 1 1 4 0v2h-4Zm2 10.75A1.75 1.75 0 1 1 13.75 16 1.75 1.75 0 0 1 12 17.75Z"></path>
+                              </svg>
+                            </span>
+                            <input
+                              type={showPassword ? 'text' : 'password'}
+                              id="newPassword"
+                              placeholder="Enter new password (min. 6 chars)"
+                              value={newPassword}
+                              onChange={(e) => setNewPassword(e.target.value)}
+                              required
+                            />
+                          </div>
+                        </div>
+
+                        <div className="form-group">
+                          <label htmlFor="confirmPassword">Confirm Password</label>
+                          <div className="input-field-shell">
+                            <span className="input-icon" aria-hidden="true">
+                              <svg viewBox="0 0 24 24" focusable="false" aria-hidden="true">
+                                <path d="M17 9h-1V7a4 4 0 1 0-8 0v2H7a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-8a2 2 0 0 0-2-2Zm-7-2a2 2 0 1 1 4 0v2h-4Zm2 10.75A1.75 1.75 0 1 1 13.75 16 1.75 1.75 0 0 1 12 17.75Z"></path>
+                              </svg>
+                            </span>
+                            <input
+                              type={showPassword ? 'text' : 'password'}
+                              id="confirmPassword"
+                              placeholder="Confirm new password"
+                              value={confirmPassword}
+                              onChange={(e) => setConfirmPassword(e.target.value)}
+                              required
+                            />
+                          </div>
+                        </div>
+
+                        <div className="dashboard-options">
+                          <label className="remember-me" htmlFor="showPassword">
+                            <input type="checkbox" id="showPassword" checked={showPassword} onChange={() => setShowPassword(!showPassword)} />
+                            <span>Show Passwords</span>
+                          </label>
+                        </div>
+
+                        <button
+                          type="submit"
+                          className="submit-btn js-ripple"
+                          disabled={isLoading}
+                        >
+                          {isLoading ? 'Resetting Password...' : 'Verify OTP & Reset Password'}
+                        </button>
+
+                        <div className="dashboard-options" style={{ justifyContent: 'space-between', marginTop: '1rem', alignItems: 'center' }}>
+                          <button
+                            type="button"
+                            className="forgot-link"
+                            onClick={() => { setForgotPasswordStep('ID'); setError(''); }}
+                            style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#64748b' }}
+                          >
+                            ← Change ID
+                          </button>
+                          <button
+                            type="button"
+                            className="forgot-link"
+                            onClick={() => {
+                              setShowForgotPassword(false);
+                              setForgotPasswordStep('ID');
+                              setError('');
+                              setResetSuccess('');
+                            }}
+                          >
+                            Back to Login
+                          </button>
+                        </div>
+                      </>
+                    )}
                   </form>
                 ) : (
                   <form className="dashboard-form" id="loginForm" onSubmit={handleSubmit}>

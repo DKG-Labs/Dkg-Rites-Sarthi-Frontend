@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { QRCode } from 'antd';
-import { loginUser, verifyOtp, initiateAuthenticatorSession, checkAuthenticatorStatus, hasActiveAuthenticatorLogin, storeAuthData, isAuthenticated, getStoredUser, resetPassword, logoutUser } from '../services/authService';
+import { loginUser, verifyOtp, initiateAuthenticatorSession, checkAuthenticatorStatus, hasActiveAuthenticatorLogin, storeAuthData, isAuthenticated, getStoredUser, sendForgotPasswordOtp, resetPassword, logoutUser } from '../services/authService';
 import { API_BASE_URL } from '../services/apiConfig';
 import { ROUTES, ROLE_LANDING_ROUTE } from '../routes';
 import './LoginPage.css';
@@ -54,11 +54,27 @@ const LoginPage = () => {
 
   // Forgot password state
   const [showForgotPassword, setShowForgotPassword] = useState(false);
+  const [forgotPasswordStep, setForgotPasswordStep] = useState('ID'); // 'ID' or 'OTP'
+  const [forgotOtpValue, setForgotOtpValue] = useState('');
+  const [forgotTransactionId, setForgotTransactionId] = useState('');
+  const [forgotResendCountdown, setForgotResendCountdown] = useState(0);
+  const [forgotOtpNotice, setForgotOtpNotice] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [resetSuccess, setResetSuccess] = useState('');
 
   const heroRef = useRef(null);
+
+  // Resend OTP countdown for Forgot Password
+  useEffect(() => {
+    let timer;
+    if (forgotResendCountdown > 0) {
+      timer = setInterval(() => {
+        setForgotResendCountdown((prev) => prev - 1);
+      }, 1000);
+    }
+    return () => clearInterval(timer);
+  }, [forgotResendCountdown]);
 
   // Resend OTP countdown timer
   useEffect(() => {
@@ -202,19 +218,67 @@ const LoginPage = () => {
     }
   };
 
+  const isVendorIdentifier = (id) => {
+    if (!id) return false;
+    const clean = String(id).trim().toLowerCase();
+    return clean.startsWith(':') || clean.startsWith('ven_') || clean.startsWith('vendor');
+  };
+
+  const handleSendForgotOtp = async (e) => {
+    if (e) e.preventDefault();
+    setError('');
+    setResetSuccess('');
+
+    if (!userId.trim()) {
+      setError('Please enter your Employee Code or Username');
+      return;
+    }
+
+    if (isVendorIdentifier(userId)) {
+      setError('Forgot password is only available for IE (Inspection Engineers). Vendors cannot reset password here. Please contact administrator.');
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      const res = await sendForgotPasswordOtp(userId.trim());
+      setForgotTransactionId(res?.transactionId || '');
+      setForgotOtpValue('');
+      setForgotResendCountdown(30);
+      setForgotOtpNotice(res?.noticeMessage || 'OTP sent to your registered mobile number.');
+      setForgotPasswordStep('OTP');
+    } catch (err) {
+      setError(err.message || 'Failed to send OTP. Please verify your Employee Code or Username.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const handleForgotPasswordSubmit = async (e) => {
     e.preventDefault();
     setError('');
     setResetSuccess('');
 
-    if (!userId.trim()) {
-      setError('Please enter Username or Email');
+    if (isVendorIdentifier(userId)) {
+      setError('Forgot password is only available for IE (Inspection Engineers). Vendors cannot reset password here.');
       return;
     }
+
+    if (!forgotOtpValue.trim() || forgotOtpValue.trim().length !== 6) {
+      setError('Please enter the 6-digit OTP sent to your registered mobile number.');
+      return;
+    }
+
     if (!newPassword.trim()) {
       setError('Please enter New Password');
       return;
     }
+
+    if (newPassword.length < 6) {
+      setError('Password must be at least 6 characters long');
+      return;
+    }
+
     if (newPassword !== confirmPassword) {
       setError('Passwords do not match');
       return;
@@ -222,11 +286,14 @@ const LoginPage = () => {
 
     setIsLoading(true);
     try {
-      await resetPassword(userId, newPassword);
-      setResetSuccess('Password reset successfully. You can now login.');
+      await resetPassword(userId.trim(), newPassword, forgotTransactionId, forgotOtpValue.trim());
+      setResetSuccess('Password reset successfully! You can now login with your new password.');
       setShowForgotPassword(false);
+      setForgotPasswordStep('ID');
       setNewPassword('');
       setConfirmPassword('');
+      setForgotOtpValue('');
+      setForgotTransactionId('');
     } catch (err) {
       setError(err.message || 'Failed to reset password');
     } finally {
@@ -1252,81 +1319,181 @@ const LoginPage = () => {
                     </div>
                   </form>
                 ) : showForgotPassword ? (
-                  <form className="dashboard-form forgot-password-form" onSubmit={handleForgotPasswordSubmit}>
+                  <form className="dashboard-form forgot-password-form" onSubmit={forgotPasswordStep === 'ID' ? handleSendForgotOtp : handleForgotPasswordSubmit}>
                     <div className="form-header">
-                      <h2>Reset Password</h2>
-                      <p>Enter your details to change your password</p>
+                      <h2>{forgotPasswordStep === 'ID' ? 'Forgot Password (IE Portal)' : 'Verify OTP & Reset Password'}</h2>
+                      <p>{forgotPasswordStep === 'ID' ? 'Enter your Employee Code to receive an OTP' : 'Enter the OTP sent to your mobile and your new password'}</p>
                     </div>
 
                     {error && <div className="error-banner">{error}</div>}
 
-                    <div className="form-group">
-                      <label htmlFor="userId">Username or Employee Code</label>
-                      <div className="input-field-shell">
-                        <input
-                          type="text"
-                          id="userId"
-                          placeholder="Enter username or employee code"
-                          value={userId}
-                          onChange={(e) => setUserId(e.target.value)}
-                          required
-                        />
-                      </div>
-                    </div>
+                    {forgotPasswordStep === 'ID' ? (
+                      <>
+                        <div className="form-group">
+                          <label htmlFor="userId">Employee Code or Username</label>
+                          <div className="input-field-shell">
+                            <input
+                              type="text"
+                              id="userId"
+                              placeholder="Enter your Employee Code (e.g. 100412)"
+                              value={userId}
+                              onChange={(e) => setUserId(e.target.value)}
+                              required
+                              autoFocus
+                            />
+                          </div>
+                        </div>
 
-                    <div className="form-group">
-                      <label htmlFor="newPassword">New Password</label>
-                      <div className="input-field-shell">
-                        <input
-                          type={showPassword ? 'text' : 'password'}
-                          id="newPassword"
-                          placeholder="Enter new password"
-                          value={newPassword}
-                          onChange={(e) => setNewPassword(e.target.value)}
-                          required
-                        />
                         <button
-                          type="button"
-                          className="password-toggle-redesign"
-                          onClick={() => setShowPassword(!showPassword)}
+                          type="submit"
+                          className="submit-btn js-ripple"
+                          disabled={isLoading}
                         >
-                          {showPassword ? '🙈' : '👁️'}
+                          Send Verification OTP
                         </button>
-                      </div>
-                    </div>
 
-                    <div className="form-group">
-                      <label htmlFor="confirmPassword">Confirm Password</label>
-                      <div className="input-field-shell">
-                        <input
-                          type={showPassword ? 'text' : 'password'}
-                          id="confirmPassword"
-                          placeholder="Confirm new password"
-                          value={confirmPassword}
-                          onChange={(e) => setConfirmPassword(e.target.value)}
-                          required
-                        />
+                        <div className="dashboard-options" style={{ justifyContent: 'center', marginTop: '1rem' }}>
+                          <button
+                            type="button"
+                            className="forgot-link"
+                            onClick={() => {
+                              setShowForgotPassword(false);
+                              setForgotPasswordStep('ID');
+                              setError('');
+                              setResetSuccess('');
+                            }}
+                          >
+                            Back to Login
+                          </button>
+                        </div>
+                      </>
+                    ) : (
+                      <>
+                        <div style={{
+                          margin: '8px 0 16px',
+                          padding: '10px 14px',
+                          background: '#eff6ff',
+                          border: '1px solid #bfdbfe',
+                          borderRadius: '10px',
+                          fontSize: '0.85rem',
+                          color: '#1e40af',
+                          lineHeight: '1.4',
+                          fontWeight: '600'
+                        }}>
+                          📱 {forgotOtpNotice}
+                        </div>
+
+                        <div className="form-group">
+                          <label htmlFor="forgotOtp">Enter 6-Digit OTP</label>
+                          <div className="input-field-shell">
+                            <input
+                              type="text"
+                              id="forgotOtp"
+                              maxLength={6}
+                              placeholder="------"
+                              value={forgotOtpValue}
+                              onChange={(e) => setForgotOtpValue(e.target.value.replace(/\D/g, ''))}
+                              style={{ letterSpacing: '8px', fontSize: '1.2rem', fontWeight: '800', textAlign: 'center' }}
+                              autoFocus
+                              required
+                            />
+                          </div>
+                        </div>
+
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px', fontSize: '0.82rem' }}>
+                          <span style={{ color: '#64748b' }}>
+                            {forgotResendCountdown > 0 ? `Resend OTP in ${forgotResendCountdown}s` : "Didn't receive OTP?"}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={handleSendForgotOtp}
+                            disabled={forgotResendCountdown > 0}
+                            style={{
+                              background: 'none',
+                              border: 'none',
+                              color: forgotResendCountdown > 0 ? '#94a3b8' : '#2563eb',
+                              fontWeight: '700',
+                              cursor: forgotResendCountdown > 0 ? 'not-allowed' : 'pointer'
+                            }}
+                          >
+                            Resend OTP
+                          </button>
+                        </div>
+
+                        <div className="form-group">
+                          <label htmlFor="newPassword">New Password</label>
+                          <div className="input-field-shell">
+                            <input
+                              type={showPassword ? 'text' : 'password'}
+                              id="newPassword"
+                              placeholder="Enter new password (min. 6 chars)"
+                              value={newPassword}
+                              onChange={(e) => setNewPassword(e.target.value)}
+                              required
+                            />
+                            <button
+                              type="button"
+                              className="password-toggle-redesign"
+                              onClick={() => setShowPassword(!showPassword)}
+                            >
+                              {showPassword ? '🙈' : '👁️'}
+                            </button>
+                          </div>
+                        </div>
+
+                        <div className="form-group">
+                          <label htmlFor="confirmPassword">Confirm Password</label>
+                          <div className="input-field-shell">
+                            <input
+                              type={showPassword ? 'text' : 'password'}
+                              id="confirmPassword"
+                              placeholder="Confirm new password"
+                              value={confirmPassword}
+                              onChange={(e) => setConfirmPassword(e.target.value)}
+                              required
+                            />
+                            <button
+                              type="button"
+                              className="password-toggle-redesign"
+                              onClick={() => setShowPassword(!showPassword)}
+                            >
+                              {showPassword ? '🙈' : '👁️'}
+                            </button>
+                          </div>
+                        </div>
+
                         <button
-                          type="button"
-                          className="password-toggle-redesign"
-                          onClick={() => setShowPassword(!showPassword)}
+                          type="submit"
+                          className="submit-btn js-ripple"
+                          disabled={isLoading}
                         >
-                          {showPassword ? '🙈' : '👁️'}
+                          {isLoading ? 'Resetting Password...' : 'Verify OTP & Reset Password'}
                         </button>
-                      </div>
-                    </div>
-                    
-                    <button
-                      type="submit"
-                      className="submit-btn js-ripple"
-                      disabled={isLoading}
-                    >
-                      {isLoading ? 'Resetting...' : 'Reset Password'}
-                    </button>
-                    
-                    <div className="dashboard-options" style={{ justifyContent: 'center', marginTop: '1rem' }}>
-                      <button type="button" className="forgot-link" onClick={() => { setShowForgotPassword(false); setError(''); setResetSuccess(''); }}>Back to Login</button>
-                    </div>
+
+                        <div className="dashboard-options" style={{ justifyContent: 'space-between', marginTop: '1rem', alignItems: 'center' }}>
+                          <button
+                            type="button"
+                            className="forgot-link"
+                            onClick={() => { setForgotPasswordStep('ID'); setError(''); }}
+                            style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#64748b' }}
+                          >
+                            ← Change ID
+                          </button>
+                          <button
+                            type="button"
+                            className="forgot-link"
+                            onClick={() => {
+                              setShowForgotPassword(false);
+                              setForgotPasswordStep('ID');
+                              setError('');
+                              setResetSuccess('');
+                            }}
+                          >
+                            Back to Login
+                          </button>
+                        </div>
+                      </>
+                    )}
                   </form>
                 ) : (
                   <form className="dashboard-form" onSubmit={handleSubmit}>

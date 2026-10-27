@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo, useRef } from 'react';
 import DataTable from './DataTable';
 import StatusBadge from './StatusBadge';
 import Notification from './Notification';
+import HeatLotDetailsSection from './HeatLotDetailsSection';
 import { getProductTypeDisplayName, formatDate } from '../utils/helpers';
 import CallsFilterSection from './common/CallsFilterSection';
 import { getDetailedStatus } from '../utils/statusMapper';
@@ -95,7 +96,7 @@ const ClosedCallsTab = ({ setSelectedCall, setCurrentPage }) => {
     fetchCorrectionSlipDocuments(callNo).then(docs => {
       const list = Array.isArray(docs) ? docs : [];
       setSlipDocsMap(prev => ({ ...prev, [callNo]: list }));
-    }).catch(() => {});
+    }).catch(() => { });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedActionCall]);
 
@@ -127,7 +128,7 @@ const ClosedCallsTab = ({ setSelectedCall, setCurrentPage }) => {
 
     if (globalSearchTerm) {
       const lowerSearch = globalSearchTerm.toLowerCase();
-      result = result.filter(call => 
+      result = result.filter(call =>
         (call.call_no && call.call_no.toLowerCase().includes(lowerSearch)) ||
         (call.po_no && call.po_no.toLowerCase().includes(lowerSearch)) ||
         (call.vendor_name && call.vendor_name.toLowerCase().includes(lowerSearch))
@@ -300,22 +301,22 @@ const ClosedCallsTab = ({ setSelectedCall, setCurrentPage }) => {
         setNotificationMessage('The Inspection Certificate (IC) number was not found for this call.');
         return;
       }
-      
+
       setNotificationType('info');
       setNotificationMessage('Retrieving signed Inspection Certificate...');
-      
+
       const { signedData } = await viewSignedCertificate(icNumber);
-      
+
       const byteCharacters = atob(signedData);
       const byteNumbers = new Array(byteCharacters.length);
       for (let i = 0; i < byteCharacters.length; i++) {
-          byteNumbers[i] = byteCharacters.charCodeAt(i);
+        byteNumbers[i] = byteCharacters.charCodeAt(i);
       }
       const byteArray = new Uint8Array(byteNumbers);
       const blob = new Blob([byteArray], { type: "application/pdf" });
       const url = URL.createObjectURL(blob);
       window.open(url, "_blank");
-      
+
       setNotificationMessage(''); // Clear notification on success
     } catch (err) {
       console.error(err);
@@ -346,15 +347,15 @@ const ClosedCallsTab = ({ setSelectedCall, setCurrentPage }) => {
         poNumber: call.po_no || call.poNumber,
         vendorName: call.vendor_name || call.vendorName
       };
-      
+
       const details = await fetchCallLetterDetails(callNumber);
       const user = getStoredUser();
-      const enrichedCall = { 
-        ...pdfCallData, 
+      const enrichedCall = {
+        ...pdfCallData,
         ...details,
-        rio: details.rio || pdfCallData.rio || user?.rio 
+        rio: details.rio || pdfCallData.rio || user?.rio
       };
-      
+
       generateCallLetterPDF(enrichedCall);
     } catch (err) {
       console.error('Failed to generate Call Letter PDF:', err);
@@ -409,14 +410,14 @@ const ClosedCallsTab = ({ setSelectedCall, setCurrentPage }) => {
       setNotificationMessage('Call ID not found. Cannot download TC Document.');
       return;
     }
-    
+
     setTcPdfLoading(true);
     try {
       const response = await axios.get(`${API_BASE_URL}/api/vendor/inspection-calls/tc-docs/${callNumber}`, {
         headers: getAuthHeaders(),
         responseType: 'blob'
       });
-      
+
       if (response.status === 200) {
         const url = window.URL.createObjectURL(new Blob([response.data], { type: 'application/pdf' }));
         const a = document.createElement('a');
@@ -431,7 +432,7 @@ const ClosedCallsTab = ({ setSelectedCall, setCurrentPage }) => {
       console.error('Failed to download TC document:', err);
       let errorMessage = 'Failed to download TC document. It may not be available yet.';
       if (err.response && err.response.status === 404) {
-          errorMessage = 'No TC Documents found for this call number.';
+        errorMessage = 'No TC Documents found for this call number.';
       }
       setNotificationType('info');
       setNotificationMessage(errorMessage);
@@ -527,18 +528,18 @@ const ClosedCallsTab = ({ setSelectedCall, setCurrentPage }) => {
 
       {/* Inspection Call Details Modal */}
       {selectedActionCall && (
-        <div 
-          className="modal-overlay" 
-          onClick={() => setSelectedActionCall(null)} 
+        <div
+          className="modal-overlay"
+          onClick={() => setSelectedActionCall(null)}
           style={{ zIndex: 9999, backgroundColor: 'rgba(15, 23, 42, 0.6)', backdropFilter: 'blur(4px)' }}
         >
           <div
             className="modal-content"
             onClick={(e) => e.stopPropagation()}
-            style={{ 
-              maxWidth: '960px', 
-              width: '95%', 
-              borderRadius: '16px', 
+            style={{
+              maxWidth: '960px',
+              width: '95%',
+              borderRadius: '16px',
               boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)',
               overflow: 'hidden',
               backgroundColor: '#ffffff'
@@ -555,8 +556,8 @@ const ClosedCallsTab = ({ setSelectedCall, setCurrentPage }) => {
               <h2 className="modal-title" style={{ margin: 0, fontSize: '1.25rem', fontWeight: '700', color: '#0f172a', display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <span style={{ color: '#0ea5e9' }}>📋</span> Inspection Call Details - <span style={{ color: '#334155' }}>{selectedActionCall.call_no || selectedActionCall.callNumber}</span>
               </h2>
-              <button 
-                className="modal-close" 
+              <button
+                className="modal-close"
                 onClick={() => setSelectedActionCall(null)}
                 style={{
                   background: 'white', border: '1px solid #e2e8f0', borderRadius: '50%',
@@ -570,12 +571,12 @@ const ClosedCallsTab = ({ setSelectedCall, setCurrentPage }) => {
 
             <div className="modal-body" style={{ maxHeight: '80vh', overflowY: 'auto', padding: '32px 24px' }}>
               {/* Top Summary Section */}
-              <div style={{ 
-                background: 'linear-gradient(to right, #ffffff, #f8fafc)', 
-                padding: '20px', 
-                borderRadius: '12px', 
+              <div style={{
+                background: 'linear-gradient(to right, #ffffff, #f8fafc)',
+                padding: '20px',
+                borderRadius: '12px',
                 border: '1px solid #e2e8f0',
-                borderLeft: '4px solid #0ea5e9', 
+                borderLeft: '4px solid #0ea5e9',
                 marginBottom: '32px',
                 boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05)'
               }}>
@@ -618,6 +619,8 @@ const ClosedCallsTab = ({ setSelectedCall, setCurrentPage }) => {
                       </div>
                     </div>
                   )}
+                  {/* Heat Number (RM) / Lot Number (Process/Final) */}
+                  <HeatLotDetailsSection call={selectedActionCall} />
                 </div>
               </div>
 
@@ -699,7 +702,7 @@ const ClosedCallsTab = ({ setSelectedCall, setCurrentPage }) => {
                   </div>
                 );
               })()}
-              
+
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: '16px' }}>
                 {/* 1. View IC */}
                 <button
@@ -716,13 +719,13 @@ const ClosedCallsTab = ({ setSelectedCall, setCurrentPage }) => {
                     color: '#0891b2', width: '100%',
                     boxShadow: '0 4px 6px -1px rgba(8, 145, 178, 0.1), 0 2px 4px -1px rgba(8, 145, 178, 0.06)'
                   }}
-                  onMouseEnter={(e) => { 
+                  onMouseEnter={(e) => {
                     e.currentTarget.style.transform = 'translateY(-4px)';
-                    e.currentTarget.style.boxShadow = '0 10px 15px -3px rgba(8, 145, 178, 0.2), 0 4px 6px -2px rgba(8, 145, 178, 0.1)'; 
+                    e.currentTarget.style.boxShadow = '0 10px 15px -3px rgba(8, 145, 178, 0.2), 0 4px 6px -2px rgba(8, 145, 178, 0.1)';
                   }}
-                  onMouseLeave={(e) => { 
+                  onMouseLeave={(e) => {
                     e.currentTarget.style.transform = 'translateY(0)';
-                    e.currentTarget.style.boxShadow = '0 4px 6px -1px rgba(8, 145, 178, 0.1), 0 2px 4px -1px rgba(8, 145, 178, 0.06)'; 
+                    e.currentTarget.style.boxShadow = '0 4px 6px -1px rgba(8, 145, 178, 0.1), 0 2px 4px -1px rgba(8, 145, 178, 0.06)';
                   }}
                 >
                   <div style={{ width: '48px', height: '48px', background: '#ffffff', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 2px 4px rgba(0,0,0,0.05)' }}>
@@ -757,13 +760,13 @@ const ClosedCallsTab = ({ setSelectedCall, setCurrentPage }) => {
                           width: '100%',
                           boxShadow: '0 4px 6px -1px rgba(217, 119, 6, 0.1), 0 2px 4px -1px rgba(217, 119, 6, 0.06)'
                         }}
-                        onMouseEnter={(e) => { 
+                        onMouseEnter={(e) => {
                           e.currentTarget.style.transform = 'translateY(-4px)';
-                          e.currentTarget.style.boxShadow = '0 10px 15px -3px rgba(217, 119, 6, 0.2), 0 4px 6px -2px rgba(217, 119, 6, 0.1)'; 
+                          e.currentTarget.style.boxShadow = '0 10px 15px -3px rgba(217, 119, 6, 0.2), 0 4px 6px -2px rgba(217, 119, 6, 0.1)';
                         }}
-                        onMouseLeave={(e) => { 
+                        onMouseLeave={(e) => {
                           e.currentTarget.style.transform = 'translateY(0)';
-                          e.currentTarget.style.boxShadow = '0 4px 6px -1px rgba(217, 119, 6, 0.1), 0 2px 4px -1px rgba(217, 119, 6, 0.06)'; 
+                          e.currentTarget.style.boxShadow = '0 4px 6px -1px rgba(217, 119, 6, 0.1), 0 2px 4px -1px rgba(217, 119, 6, 0.06)';
                         }}
                         title="Issue or View Correction Slip"
                       >
@@ -799,13 +802,13 @@ const ClosedCallsTab = ({ setSelectedCall, setCurrentPage }) => {
                           width: '100%',
                           boxShadow: '0 4px 6px -1px rgba(234, 88, 12, 0.1), 0 2px 4px -1px rgba(234, 88, 12, 0.06)'
                         }}
-                        onMouseEnter={(e) => { 
+                        onMouseEnter={(e) => {
                           e.currentTarget.style.transform = 'translateY(-4px)';
-                          e.currentTarget.style.boxShadow = '0 10px 15px -3px rgba(234, 88, 12, 0.2), 0 4px 6px -2px rgba(234, 88, 12, 0.1)'; 
+                          e.currentTarget.style.boxShadow = '0 10px 15px -3px rgba(234, 88, 12, 0.2), 0 4px 6px -2px rgba(234, 88, 12, 0.1)';
                         }}
-                        onMouseLeave={(e) => { 
+                        onMouseLeave={(e) => {
                           e.currentTarget.style.transform = 'translateY(0)';
-                          e.currentTarget.style.boxShadow = '0 4px 6px -1px rgba(234, 88, 12, 0.1), 0 2px 4px -1px rgba(234, 88, 12, 0.06)'; 
+                          e.currentTarget.style.boxShadow = '0 4px 6px -1px rgba(234, 88, 12, 0.1), 0 2px 4px -1px rgba(234, 88, 12, 0.06)';
                         }}
                         title="Issue New Correction Slip"
                       >
@@ -835,15 +838,15 @@ const ClosedCallsTab = ({ setSelectedCall, setCurrentPage }) => {
                             style={{
                               display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '12px',
                               padding: '24px 16px',
-                              background: isCompleted 
-                                ? 'linear-gradient(135deg, #dcfce7 0%, #bbf7d0 100%)' 
-                                : isDownloading 
-                                  ? 'linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%)' 
+                              background: isCompleted
+                                ? 'linear-gradient(135deg, #dcfce7 0%, #bbf7d0 100%)'
+                                : isDownloading
+                                  ? 'linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%)'
                                   : 'linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%)',
-                              border: isCompleted 
-                                ? '1.5px solid #22c55e' 
-                                : isDownloading 
-                                  ? '1.5px solid #4ade80' 
+                              border: isCompleted
+                                ? '1.5px solid #22c55e'
+                                : isDownloading
+                                  ? '1.5px solid #4ade80'
                                   : '1px solid #86efac',
                               borderRadius: '16px',
                               cursor: isDownloading ? 'wait' : 'pointer',
@@ -853,16 +856,16 @@ const ClosedCallsTab = ({ setSelectedCall, setCurrentPage }) => {
                               width: '100%',
                               boxShadow: '0 4px 6px -1px rgba(22, 101, 52, 0.1), 0 2px 4px -1px rgba(22, 101, 52, 0.06)'
                             }}
-                            onMouseEnter={(e) => { 
+                            onMouseEnter={(e) => {
                               if (!isDownloading) {
                                 e.currentTarget.style.transform = 'translateY(-4px)';
-                                e.currentTarget.style.boxShadow = '0 10px 15px -3px rgba(22, 101, 52, 0.2), 0 4px 6px -2px rgba(22, 101, 52, 0.1)'; 
+                                e.currentTarget.style.boxShadow = '0 10px 15px -3px rgba(22, 101, 52, 0.2), 0 4px 6px -2px rgba(22, 101, 52, 0.1)';
                               }
                             }}
-                            onMouseLeave={(e) => { 
+                            onMouseLeave={(e) => {
                               if (!isDownloading) {
                                 e.currentTarget.style.transform = 'translateY(0)';
-                                e.currentTarget.style.boxShadow = '0 4px 6px -1px rgba(22, 101, 52, 0.1), 0 2px 4px -1px rgba(22, 101, 52, 0.06)'; 
+                                e.currentTarget.style.boxShadow = '0 4px 6px -1px rgba(22, 101, 52, 0.1), 0 2px 4px -1px rgba(22, 101, 52, 0.06)';
                               }
                             }}
                             title={isDownloading ? "Downloading correction slips..." : (docs.length > 1 ? `View Correction Slips (${docs.length})` : "View Correction Slip")}
@@ -886,10 +889,10 @@ const ClosedCallsTab = ({ setSelectedCall, setCurrentPage }) => {
                               )}
                             </div>
                             <span style={{ fontWeight: '700', fontSize: isDownloading ? '13px' : '15px', textAlign: 'center', lineHeight: '1.2' }}>
-                              {isDownloading 
-                                ? (callDownload?.total > 1 ? `Downloading (${callDownload.current}/${callDownload.total})...` : "Downloading...") 
-                                : isCompleted 
-                                  ? `✓ Downloaded (${callDownload?.total})!` 
+                              {isDownloading
+                                ? (callDownload?.total > 1 ? `Downloading (${callDownload.current}/${callDownload.total})...` : "Downloading...")
+                                : isCompleted
+                                  ? `✓ Downloaded (${callDownload?.total})!`
                                   : (docs.length > 1 ? `View Correction Slips (${docs.length})` : 'View Correction Slip')}
                             </span>
                           </button>
@@ -914,13 +917,13 @@ const ClosedCallsTab = ({ setSelectedCall, setCurrentPage }) => {
                     color: '#16a34a', width: '100%',
                     boxShadow: '0 4px 6px -1px rgba(22, 163, 74, 0.1), 0 2px 4px -1px rgba(22, 163, 74, 0.06)'
                   }}
-                  onMouseEnter={(e) => { 
+                  onMouseEnter={(e) => {
                     e.currentTarget.style.transform = 'translateY(-4px)';
-                    e.currentTarget.style.boxShadow = '0 10px 15px -3px rgba(22, 163, 74, 0.2), 0 4px 6px -2px rgba(22, 163, 74, 0.1)'; 
+                    e.currentTarget.style.boxShadow = '0 10px 15px -3px rgba(22, 163, 74, 0.2), 0 4px 6px -2px rgba(22, 163, 74, 0.1)';
                   }}
-                  onMouseLeave={(e) => { 
+                  onMouseLeave={(e) => {
                     e.currentTarget.style.transform = 'translateY(0)';
-                    e.currentTarget.style.boxShadow = '0 4px 6px -1px rgba(22, 163, 74, 0.1), 0 2px 4px -1px rgba(22, 163, 74, 0.06)'; 
+                    e.currentTarget.style.boxShadow = '0 4px 6px -1px rgba(22, 163, 74, 0.1), 0 2px 4px -1px rgba(22, 163, 74, 0.06)';
                   }}
                 >
                   <div style={{ width: '48px', height: '48px', background: '#ffffff', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 2px 4px rgba(0,0,0,0.05)' }}>
@@ -941,16 +944,16 @@ const ClosedCallsTab = ({ setSelectedCall, setCurrentPage }) => {
                     color: '#0891b2', width: '100%',
                     boxShadow: '0 4px 6px -1px rgba(8, 145, 178, 0.1), 0 2px 4px -1px rgba(8, 145, 178, 0.06)'
                   }}
-                  onMouseEnter={(e) => { 
-                    if(!pdfLoading) { 
+                  onMouseEnter={(e) => {
+                    if (!pdfLoading) {
                       e.currentTarget.style.transform = 'translateY(-4px)';
-                      e.currentTarget.style.boxShadow = '0 10px 15px -3px rgba(8, 145, 178, 0.2), 0 4px 6px -2px rgba(8, 145, 178, 0.1)'; 
+                      e.currentTarget.style.boxShadow = '0 10px 15px -3px rgba(8, 145, 178, 0.2), 0 4px 6px -2px rgba(8, 145, 178, 0.1)';
                     }
                   }}
-                  onMouseLeave={(e) => { 
-                    if(!pdfLoading) { 
+                  onMouseLeave={(e) => {
+                    if (!pdfLoading) {
                       e.currentTarget.style.transform = 'translateY(0)';
-                      e.currentTarget.style.boxShadow = '0 4px 6px -1px rgba(8, 145, 178, 0.1), 0 2px 4px -1px rgba(8, 145, 178, 0.06)'; 
+                      e.currentTarget.style.boxShadow = '0 4px 6px -1px rgba(8, 145, 178, 0.1), 0 2px 4px -1px rgba(8, 145, 178, 0.06)';
                     }
                   }}
                 >
@@ -971,13 +974,13 @@ const ClosedCallsTab = ({ setSelectedCall, setCurrentPage }) => {
                     color: '#7e22ce', width: '100%',
                     boxShadow: '0 4px 6px -1px rgba(126, 34, 206, 0.1), 0 2px 4px -1px rgba(126, 34, 206, 0.06)'
                   }}
-                  onMouseEnter={(e) => { 
+                  onMouseEnter={(e) => {
                     e.currentTarget.style.transform = 'translateY(-4px)';
-                    e.currentTarget.style.boxShadow = '0 10px 15px -3px rgba(126, 34, 206, 0.2), 0 4px 6px -2px rgba(126, 34, 206, 0.1)'; 
+                    e.currentTarget.style.boxShadow = '0 10px 15px -3px rgba(126, 34, 206, 0.2), 0 4px 6px -2px rgba(126, 34, 206, 0.1)';
                   }}
-                  onMouseLeave={(e) => { 
+                  onMouseLeave={(e) => {
                     e.currentTarget.style.transform = 'translateY(0)';
-                    e.currentTarget.style.boxShadow = '0 4px 6px -1px rgba(126, 34, 206, 0.1), 0 2px 4px -1px rgba(126, 34, 206, 0.06)'; 
+                    e.currentTarget.style.boxShadow = '0 4px 6px -1px rgba(126, 34, 206, 0.1), 0 2px 4px -1px rgba(126, 34, 206, 0.06)';
                   }}
                 >
                   <div style={{ width: '48px', height: '48px', background: '#ffffff', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 2px 4px rgba(0,0,0,0.05)' }}>
@@ -999,16 +1002,16 @@ const ClosedCallsTab = ({ setSelectedCall, setCurrentPage }) => {
                     boxShadow: '0 4px 6px -1px rgba(21, 128, 61, 0.1), 0 2px 4px -1px rgba(21, 128, 61, 0.06)',
                     opacity: tcPdfLoading ? 0.7 : 1
                   }}
-                  onMouseEnter={(e) => { 
+                  onMouseEnter={(e) => {
                     if (!tcPdfLoading) {
                       e.currentTarget.style.transform = 'translateY(-4px)';
-                      e.currentTarget.style.boxShadow = '0 10px 15px -3px rgba(21, 128, 61, 0.2), 0 4px 6px -2px rgba(21, 128, 61, 0.1)'; 
+                      e.currentTarget.style.boxShadow = '0 10px 15px -3px rgba(21, 128, 61, 0.2), 0 4px 6px -2px rgba(21, 128, 61, 0.1)';
                     }
                   }}
-                  onMouseLeave={(e) => { 
+                  onMouseLeave={(e) => {
                     if (!tcPdfLoading) {
                       e.currentTarget.style.transform = 'translateY(0)';
-                      e.currentTarget.style.boxShadow = '0 4px 6px -1px rgba(21, 128, 61, 0.1), 0 2px 4px -1px rgba(21, 128, 61, 0.06)'; 
+                      e.currentTarget.style.boxShadow = '0 4px 6px -1px rgba(21, 128, 61, 0.1), 0 2px 4px -1px rgba(21, 128, 61, 0.06)';
                     }
                   }}
                 >
@@ -1062,16 +1065,16 @@ const ClosedCallsTab = ({ setSelectedCall, setCurrentPage }) => {
                     color: '#4338ca', width: '100%',
                     boxShadow: '0 4px 6px -1px rgba(67, 56, 202, 0.1), 0 2px 4px -1px rgba(67, 56, 202, 0.06)'
                   }}
-                  onMouseEnter={(e) => { 
+                  onMouseEnter={(e) => {
                     if (!downloadingCaseLetterCall) {
                       e.currentTarget.style.transform = 'translateY(-4px)';
-                      e.currentTarget.style.boxShadow = '0 10px 15px -3px rgba(67, 56, 202, 0.2), 0 4px 6px -2px rgba(67, 56, 202, 0.1)'; 
+                      e.currentTarget.style.boxShadow = '0 10px 15px -3px rgba(67, 56, 202, 0.2), 0 4px 6px -2px rgba(67, 56, 202, 0.1)';
                     }
                   }}
-                  onMouseLeave={(e) => { 
+                  onMouseLeave={(e) => {
                     if (!downloadingCaseLetterCall) {
                       e.currentTarget.style.transform = 'translateY(0)';
-                      e.currentTarget.style.boxShadow = '0 4px 6px -1px rgba(67, 56, 202, 0.1), 0 2px 4px -1px rgba(67, 56, 202, 0.06)'; 
+                      e.currentTarget.style.boxShadow = '0 4px 6px -1px rgba(67, 56, 202, 0.1), 0 2px 4px -1px rgba(67, 56, 202, 0.06)';
                     }
                   }}
                   title="Directly download stored Inspection Call Documents for this call"
@@ -1079,8 +1082,8 @@ const ClosedCallsTab = ({ setSelectedCall, setCurrentPage }) => {
                   <div style={{ width: '48px', height: '48px', background: '#ffffff', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 2px 4px rgba(0,0,0,0.05)' }}>
                     {downloadingCaseLetterCall ? (
                       <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#4338ca" strokeWidth="2.5" style={{ animation: 'spin 1s linear infinite' }}>
-                        <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" strokeDasharray="31.4" strokeDashoffset="10" fill="none" opacity="0.25"/>
-                        <path d="M12 2a10 10 0 0 1 10 10" stroke="currentColor" strokeWidth="3" strokeLinecap="round"/>
+                        <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" strokeDasharray="31.4" strokeDashoffset="10" fill="none" opacity="0.25" />
+                        <path d="M12 2a10 10 0 0 1 10 10" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
                       </svg>
                     ) : (
                       <PictureAsPdfRoundedIcon style={{ fontSize: '26px', color: '#4338ca' }} />
@@ -1108,7 +1111,7 @@ const ClosedCallsTab = ({ setSelectedCall, setCurrentPage }) => {
               fetchCorrectionSlipDocuments(callNo).then(docs => {
                 const list = Array.isArray(docs) ? docs : [];
                 setSlipDocsMap(prev => ({ ...prev, [callNo]: list }));
-              }).catch(() => {});
+              }).catch(() => { });
             }
           }}
         />

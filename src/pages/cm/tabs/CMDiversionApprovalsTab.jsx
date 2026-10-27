@@ -235,7 +235,7 @@ const CMDiversionApprovalsTab = ({ cmUserId }) => {
     setActionLoading(true);
     try {
       const { API_BASE_URL, getAuthHeaders } = await import('../../../services/apiConfig');
-      await fetch(`${API_BASE_URL}/api/erc/diversion/cm/approve`, {
+      const res = await fetch(`${API_BASE_URL}/api/erc/diversion/cm/approve`, {
         method: 'POST',
         headers: getAuthHeaders(),
         body: JSON.stringify({
@@ -247,6 +247,11 @@ const CMDiversionApprovalsTab = ({ cmUserId }) => {
           assignUserId: Number(selectedIeId),
         }),
       });
+      const data = await res.json().catch(() => null);
+      if (!res.ok || (data?.responseStatus && data.responseStatus.statusCode !== 0 && data.responseStatus.statusCode !== 200)) {
+        const errorMsg = data?.responseStatus?.message || data?.message || `Approval failed (HTTP ${res.status})`;
+        throw new Error(errorMsg);
+      }
       setIsAssignIEModalOpen(false);
       setIsDetailsModalOpen(false);
       showToast(`Request ${selectedRequest.requestNo} approved and IE assigned.`, 'success');
@@ -254,7 +259,8 @@ const CMDiversionApprovalsTab = ({ cmUserId }) => {
     } catch (err) {
       showToast(`Approval failed: ${err.message}`, 'error');
     } finally {
-      setActionLoading(false); }
+      setActionLoading(false);
+    }
   };
 
   const fetchPendingRequests = useCallback(async () => {

@@ -165,6 +165,18 @@ const ErcFinalIc = ({ data = {}, isEditing = false, isBusy = false, onFieldChang
     setNo = "",
   } = data;
 
+  const isDiverted = Boolean(
+    data?.isDiverted ||
+    data?.isDivertedMaterial ||
+    data?.is_diverted ||
+    data?.callCategory === 'DIVERTED_PASSED' ||
+    data?.call_category === 'DIVERTED_PASSED' ||
+    data?.workflowId === 4 ||
+    data?.diversionRequestNo ||
+    (typeof data?.remarks === 'string' && data.remarks.toLowerCase().includes('diversion')) ||
+    (typeof data?.reference === 'string' && data.reference.toLowerCase().includes('diverted'))
+  );
+
   const effectiveQtyOfferedPreviously = (qtyOfferedPreviously !== undefined && qtyOfferedPreviously !== null && qtyOfferedPreviously !== "")
     ? qtyOfferedPreviously
     : (data?.cummQtyOfferedPrev ?? data?.cummQtyOfferedPreviously ?? data?.cumm_qty_offered_previously ?? 0);
@@ -362,7 +374,12 @@ const ErcFinalIc = ({ data = {}, isEditing = false, isBusy = false, onFieldChang
           <div className="w-full grid grid-cols-[1fr_auto_1fr] items-end mt-3 px-4">
             <div className="empty-col"></div>
             <div className="text-center font-bold text-[13px] uppercase">
-              {data?.region || "RITES LIMITED, NORTHERN REGION, DELHI"}
+              <span>{data?.region || "RITES LIMITED, NORTHERN REGION, DELHI"}</span>
+              {isDiverted && (
+                <span className="ml-2 font-bold text-[13px] normal-case text-black">
+                  (Diverted IC)
+                </span>
+              )}
             </div>
             <div className="text-right leading-tight">
               <div className="text-[9.5px] font-bold">निरंतरता पत्रक शामिल</div>

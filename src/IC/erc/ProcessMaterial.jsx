@@ -98,7 +98,18 @@ export default function ProcessMaterialCertificate({ call = {}, onBack }) {
       inspectionDate: c.inspectionDate || c.dateOfInspection || "",
       manDays: c.manDays || "",
       sealingPattern: c.sealingPattern || "NA",
-      inspectingEngineer: c.inspectingEngineer ? c.inspectingEngineer.replace(/Mr\.?\s/gi, "") : ""
+      inspectingEngineer: c.inspectingEngineer ? c.inspectingEngineer.replace(/Mr\.?\s/gi, "") : "",
+      isDiverted: Boolean(
+        c.isDiverted ||
+        c.isDivertedMaterial ||
+        c.is_diverted ||
+        c.workflowId === 4 ||
+        c.callCategory === 'DIVERTED_PASSED' ||
+        c.call_category === 'DIVERTED_PASSED' ||
+        c.diversionRequestNo ||
+        (typeof c.remarks === 'string' && c.remarks.toLowerCase().includes('diversion')) ||
+        (typeof c.reference === 'string' && c.reference.toLowerCase().includes('diverted from'))
+      )
     };
   };
 

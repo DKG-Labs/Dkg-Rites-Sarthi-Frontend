@@ -11,7 +11,7 @@ import {
   revertToIcIssuance
 } from '../services/workflowService';
 import { scheduleInspection } from '../services/scheduleService';
-import { viewSignedCertificate, getAnnexureDocuments } from '../services/certificateService';
+import { viewSignedCertificate, getAnnexureDocuments, getProcessInspectionResult } from '../services/certificateService';
 import { getBaseUrl } from '../services/apiConfig';
 import Notification from './Notification';
 import { getStoredUser } from '../services/authService';
@@ -102,6 +102,8 @@ const AttendingCallsDashboard = ({
   const [checkingCaseLetter, setCheckingCaseLetter] = useState(false);
   const [pdfLoading, setPdfLoading] = useState(false);
   const [showDailyReportModal, setShowDailyReportModal] = useState(false);
+  const [dailyReportCall, setDailyReportCall] = useState(null);
+  const [loadingAnnexureDates, setLoadingAnnexureDates] = useState(false);
   const [isSendingIbs, setIsSendingIbs] = useState(false);
   const [selectedIbsCall, setSelectedIbsCall] = useState(null);
   const [confirmDialog, setConfirmDialog] = useState({
@@ -653,6 +655,74 @@ const AttendingCallsDashboard = ({
   const handleIssueICClick = (call) => {
     if (onIssueIc) {
       onIssueIc(call, false);
+    }
+  };
+
+  const handleOpenProcessAnnexure = async (call) => {
+    if (!call) return;
+    const callNo = call.requestId || call.call_no || call.callNo || '';
+    const rawPlantId = call.plantId || call.plant_id || call.unit || call.placeOfInspection || '';
+    const cleanPlantId = String(rawPlantId).replace(/^:/, '').trim();
+    const vendorName = call.vendorName || call.vendor_code || call.vendorCode || '';
+
+    setLoadingAnnexureDates(true);
+    setNotification({ message: `Fetching batch casting dates for ${callNo}...`, type: 'info' });
+    try {
+      const inspectData = await getProcessInspectionResult(callNo);
+      const batches = inspectData?.batches || [];
+      const dates = batches
+        .map(b => b.productionDate || b.dateOfManufacturing || b.castingDate)
+        .filter(Boolean)
+        .map(d => String(d).split('T')[0])
+        .filter(d => !isNaN(Date.parse(d)));
+
+      let fromDate = '';
+      let toDate = '';
+
+      if (dates.length > 0) {
+        dates.sort();
+        fromDate = dates[0];
+        toDate = dates[dates.length - 1];
+      } else {
+        const fallbackDate = call.dateOfInspection || call.inspectionDate || call.dateOfShift || call.created_at?.split('T')[0] || new Date().toISOString().split('T')[0];
+        fromDate = fallbackDate;
+        toDate = fallbackDate;
+      }
+
+      const reportCall = {
+        ...call,
+        callNo,
+        requestId: callNo,
+        plantId: cleanPlantId || rawPlantId,
+        unit: cleanPlantId || rawPlantId,
+        vendorName: vendorName,
+        company: vendorName,
+        fromDate: fromDate,
+        toDate: toDate,
+        autoFetch: true
+      };
+
+      setDailyReportCall(reportCall);
+      setSelectedCertificateCall(null);
+      setShowDailyReportModal(true);
+    } catch (err) {
+      console.error('Error opening process annexure:', err);
+      const fallbackDate = call.dateOfInspection || call.inspectionDate || call.created_at?.split('T')[0] || new Date().toISOString().split('T')[0];
+      setDailyReportCall({
+        ...call,
+        callNo,
+        plantId: cleanPlantId || rawPlantId,
+        unit: cleanPlantId || rawPlantId,
+        vendorName: vendorName,
+        company: vendorName,
+        fromDate: fallbackDate,
+        toDate: fallbackDate,
+        autoFetch: true
+      });
+      setSelectedCertificateCall(null);
+      setShowDailyReportModal(true);
+    } finally {
+      setLoadingAnnexureDates(false);
     }
   };
 
@@ -3459,7 +3529,54 @@ const AttendingCallsDashboard = ({
                   <span style={{ fontSize: '11.5px', color: '#64748b' }}>Generate or view certificate</span>
                 </button>
 
-                {/* 2. Back to Inspection */}
+                {/* 2. Annexure (Daily Report) for Process Calls (RPP) */}
+                {isProcessCall(selectedCertificateCall) && (
+                  <button
+                    disabled={loadingAnnexureDates}
+                    onClick={() => handleOpenProcessAnnexure(selectedCertificateCall)}
+                    style={{
+                      display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '8px',
+                      padding: '20px 14px', background: 'linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%)',
+                      border: '1px solid #a7f3d0', borderRadius: '14px',
+                      cursor: loadingAnnexureDates ? 'wait' : 'pointer', transition: 'all 0.25s ease',
+                      color: '#047857', width: '100%',
+                      boxShadow: '0 4px 6px -1px rgba(4, 120, 87, 0.08)'
+                    }}
+                    onMouseEnter={(e) => { 
+                      if (!loadingAnnexureDates) {
+                        e.currentTarget.style.transform = 'translateY(-3px)'; 
+                        e.currentTarget.style.boxShadow = '0 10px 15px -3px rgba(4, 120, 87, 0.16)'; 
+                      }
+                    }}
+                    onMouseLeave={(e) => { 
+                      if (!loadingAnnexureDates) {
+                        e.currentTarget.style.transform = 'translateY(0)'; 
+                        e.currentTarget.style.boxShadow = '0 4px 6px -1px rgba(4, 120, 87, 0.08)'; 
+                      }
+                    }}
+                    title="View Process Inspection Daily Activity Report (Annexure-A)"
+                  >
+                    <div style={{ width: '44px', height: '44px', background: '#ffffff', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 2px 4px rgba(0,0,0,0.06)' }}>
+                      {loadingAnnexureDates ? (
+                        <div style={{ width: '20px', height: '20px', border: '2.5px solid #059669', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 1s linear infinite' }} />
+                      ) : (
+                        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#059669" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                          <polyline points="14 2 14 8 20 8"></polyline>
+                          <line x1="16" y1="13" x2="8" y2="13"></line>
+                          <line x1="16" y1="17" x2="8" y2="17"></line>
+                          <line x1="10" y1="9" x2="8" y2="9"></line>
+                        </svg>
+                      )}
+                    </div>
+                    <span style={{ fontWeight: '700', fontSize: '14.5px' }}>Annexure</span>
+                    <span style={{ fontSize: '11.5px', color: '#64748b' }}>
+                      {loadingAnnexureDates ? 'Fetching batches...' : 'Daily Report (Annexure-A)'}
+                    </span>
+                  </button>
+                )}
+
+                {/* 3. Back to Inspection */}
                 <button
                   onClick={() => {
                     const call = selectedCertificateCall;
@@ -3533,8 +3650,11 @@ const AttendingCallsDashboard = ({
       {/* Daily Report (Annexure-A) Modal */}
       <RailpadProcessAnnexureAModal
         isOpen={showDailyReportModal}
-        onClose={() => setShowDailyReportModal(false)}
-        call={selectedActionCall}
+        onClose={() => {
+          setShowDailyReportModal(false);
+          setDailyReportCall(null);
+        }}
+        call={dailyReportCall || selectedActionCall}
       />
     </div>
   );

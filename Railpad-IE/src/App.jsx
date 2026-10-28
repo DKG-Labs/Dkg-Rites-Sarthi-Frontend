@@ -90,12 +90,6 @@ const MODULES = [
     title: 'Process IE - Production Verification & Acceptance',
     subtitle: 'Review shift production, log rejections and finalize accepted inventory',
     icon: '✅'
-  },
-  {
-    id: 'daily-report',
-    title: 'Daily Report',
-    subtitle: 'Process Inspection Order (Annexure-A, IRS-T-55-2025)',
-    icon: '📊'
   }
 ];
 
@@ -1710,8 +1704,7 @@ const App = () => {
                       setActiveCard('verification-dashboard');
                     } else if (mod.id === 'production-verification') {
                       setActiveCard('production-verification-dashboard');
-                    } else if (mod.id === 'daily-report') {
-                      setActiveCard('daily-report-view');
+
                     }
                   }}
                   style={{
@@ -2180,47 +2173,6 @@ const App = () => {
                   setActiveCard={setActiveCard}
                   currentShift={currentShift}
                   user={loggedInUser}
-                />
-              </div>
-            ) : selectedModule === 'daily-report' ? (
-              <div className="fade-in" style={{
-                background: '#ffffff',
-                borderRadius: '16px',
-                border: '1px solid #e2e8f0',
-                padding: '24px',
-                boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)',
-                marginTop: '8px'
-              }}>
-                <div style={{
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                  marginBottom: '20px',
-                  paddingBottom: '16px',
-                  borderBottom: '1px solid #e2e8f0'
-                }}>
-                  <div>
-                    <h2 style={{ fontSize: '22px', fontWeight: '800', color: '#0f3a5e', margin: '0 0 4px 0', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      <span>📊</span> Process Inspection Order - Daily Activity Report (Annexure-A)
-                    </h2>
-                    <p style={{ color: '#64748b', fontSize: '13.5px', margin: 0 }}>
-                      Ref: Railway Board Letter No-2024/RS(G)/779/12 Date-16.10.2025 | Specification - IRS-T-55-2025
-                    </p>
-                  </div>
-                </div>
-
-                <RailpadProcessAnnexureA
-                  call={{
-                    plantId: currentShift?.unit,
-                    unit: currentShift?.unit,
-                    vendorName: currentShift?.company,
-                    vendorCode: currentShift?.company,
-                    placeOfInspection: `${currentShift?.company || ''} - ${currentShift?.unit || ''}`,
-                    shift: currentShift?.shift,
-                    inspectionDate: currentShift?.date,
-                    callNo: selectedCallForInitiation?.callNo || selectedCallForInitiation?.requestId || 'N/A'
-                  }}
-                  currentShift={currentShift}
                 />
               </div>
             ) : (

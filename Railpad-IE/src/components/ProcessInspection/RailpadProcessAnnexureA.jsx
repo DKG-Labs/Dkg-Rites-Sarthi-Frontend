@@ -8,6 +8,8 @@ import { sheetingService } from '../../services/sheetingService';
 import { rheometerService } from '../../services/rheometerService';
 import { mouldVerificationService } from '../../services/mouldVerificationService';
 import { visualInspectionService } from '../../services/visualInspectionService';
+import { getStoredUser } from '../../services/authService';
+import { fetchMappedPlantIds } from '../../services/workflowService';
 
 /**
  * RailpadProcessAnnexureA Component
@@ -27,16 +29,87 @@ export const RailpadProcessAnnexureA = ({
   const printRef = useRef(null);
   const [loading, setLoading] = useState(false);
 
+  // Plant Selection for Process IE
+  const isCallBound = Boolean(call && (call.callNo || call.requestId || call.call_no || call.id));
+  const rawCallPlant = call?.plantId || call?.unit || '';
+  const cleanCallPlant = String(rawCallPlant).replace(/^:/, '').trim();
+  const initialPlant = cleanCallPlant || rawCallPlant || currentShift?.unit || (call?.mappedPlants?.[0]) || '';
+  const [selectedPlant, setSelectedPlant] = useState(initialPlant);
+  const [plantOptions, setPlantOptions] = useState(() => {
+    const list = [];
+    if (initialPlant) list.push(initialPlant);
+    if (call?.mappedPlants && Array.isArray(call.mappedPlants)) {
+      call.mappedPlants.forEach(p => { if (p && !list.includes(p)) list.push(p); });
+    }
+    return list;
+  });
+  const [loadingPlants, setLoadingPlants] = useState(false);
+
+  // Fetch mapped plants for Process IE
+  useEffect(() => {
+    if (isCallBound && (cleanCallPlant || rawCallPlant)) {
+      setSelectedPlant(cleanCallPlant || rawCallPlant);
+      setLoadingPlants(false);
+      return;
+    }
+    let isMounted = true;
+    const loadProcessPlants = async () => {
+      setLoadingPlants(true);
+      try {
+        const user = getStoredUser();
+        const uId = user?.userId || localStorage.getItem('userId');
+        let plants = [];
+        if (uId) {
+          const [procPlants, allPlants] = await Promise.all([
+            fetchMappedPlantIds(uId, 'Process IE').catch(() => []),
+            fetchMappedPlantIds(uId, 'ALL').catch(() => [])
+          ]);
+          plants = Array.from(new Set([...(procPlants || []), ...(allPlants || [])]));
+        }
+        const propPlant = currentShift?.unit || call?.plantId || call?.unit;
+        if (propPlant && !plants.includes(propPlant)) {
+          plants.unshift(propPlant);
+        }
+        if (call?.mappedPlants && Array.isArray(call.mappedPlants)) {
+          call.mappedPlants.forEach(p => {
+            if (p && !plants.includes(p)) plants.push(p);
+          });
+        }
+        if (isMounted) {
+          setPlantOptions(plants);
+          if (plants.length > 0 && (!selectedPlant || !plants.includes(selectedPlant))) {
+            setSelectedPlant(propPlant || plants[0]);
+          }
+        }
+      } catch (err) {
+        console.warn('Could not load plant options:', err);
+      } finally {
+        if (isMounted) setLoadingPlants(false);
+      }
+    };
+    loadProcessPlants();
+    return () => { isMounted = false; };
+  }, [call, currentShift]);
+
   // Meta values from active duty session
   const activeDutyDate = currentShift?.date || call?.inspectionDate || call?.created_at?.split('T')[0] || new Date().toISOString().split('T')[0];
   const activeDutyShift = (currentShift?.shift || call?.shift || 'A').replace('Shift ', '').trim();
   const vendorName = currentShift?.company || call?.vendorName || call?.vendor_code || 'Authorized Vendor';
-  const unitAddress = currentShift?.unit || call?.placeOfInspection || call?.plantId || 'Works / Plant';
+  const unitAddress = selectedPlant || currentShift?.unit || call?.placeOfInspection || call?.plantId || 'Works / Plant';
   const placeOfInspection = `${vendorName} - ${unitAddress}`;
 
-  // Date range & shift filters
-  const [fromDate, setFromDate] = useState(activeDutyDate);
-  const [toDate, setToDate] = useState(activeDutyDate);
+  // Date range & shift filters (empty initially, filled by IE)
+  const [fromDate, setFromDate] = useState(call?.fromDate || '');
+  const [toDate, setToDate] = useState(call?.toDate || '');
+
+  // Synchronize when call prop updates (e.g. when opening from Issuance of IC modal)
+  useEffect(() => {
+    if (call?.fromDate) setFromDate(call.fromDate);
+    if (call?.toDate) setToDate(call.toDate);
+    if (call?.plantId || call?.unit) {
+      setSelectedPlant(call.plantId || call.unit);
+    }
+  }, [call?.fromDate, call?.toDate, call?.plantId, call?.unit]);
   const [shiftFilter, setShiftFilter] = useState('ALL'); // 'ALL' | 'A' | 'B' | 'C'
 
   // Raw fetched data pool (populated via 7 single batch queries)
@@ -51,13 +124,17 @@ export const RailpadProcessAnnexureA = ({
   });
 
   // Active selected sheet key (e.g. "2026-10-27_B")
-  const [activeSheetKey, setActiveSheetKey] = useState(`${activeDutyDate}_${activeDutyShift}`);
+  const [activeSheetKey, setActiveSheetKey] = useState('');
   // View mode: 'SINGLE' (focus on selected sheet) or 'ALL' (preview all sheets stacked)
   const [viewMode, setViewMode] = useState('SINGLE');
 
   // Single-query batch fetch for all 7 sections (Zero N+1 queries)
   const fetchAllPlantData = async () => {
-    const rawPlantId = currentShift?.unit || call?.plantId || call?.unit;
+    if (!fromDate || !toDate) {
+      console.warn('fetchAllPlantData: Both fromDate and toDate must be selected');
+      return;
+    }
+    const rawPlantId = selectedPlant || currentShift?.unit || call?.plantId || call?.unit;
     const vendorCode = currentShift?.company || call?.vendorCode || call?.vendor_code || vendorName;
     if (!rawPlantId) {
       console.warn('fetchAllPlantData: No plantId available');
@@ -141,9 +218,11 @@ export const RailpadProcessAnnexureA = ({
   };
 
   useEffect(() => {
-    fetchAllPlantData();
+    if (fromDate && toDate && selectedPlant) {
+      fetchAllPlantData();
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [fromDate, toDate, currentShift, call]);
+  }, [fromDate, toDate, selectedPlant]);
 
   // Helper date normalizer
   const normalizeDate = (d) => {
@@ -238,10 +317,6 @@ export const RailpadProcessAnnexureA = ({
       setActiveSheetKey(sheets[0].key);
     }
   }, [sheets, activeSheetKey]);
-
-  const handlePrint = () => {
-    window.print();
-  };
 
   const [isExporting, setIsExporting] = useState(false);
 
@@ -623,18 +698,73 @@ export const RailpadProcessAnnexureA = ({
         justifyContent: 'space-between',
         gap: '14px'
       }}>
-        {/* Plant / Vendor Info Badge */}
+        {/* Plant / Vendor Info Badge with Plant Dropdown */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+          {isCallBound && (
+            <div style={{
+              background: '#eff6ff',
+              border: '1px solid #bfdbfe',
+              padding: '4px 10px',
+              borderRadius: '6px',
+              fontSize: '11.5px',
+              color: '#1d4ed8',  
+              fontWeight: '700',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px'
+            }}>
+              <span>📋 Call:</span>
+              <strong>{call.callNo || call.requestId || call.call_no}</strong>
+              <span style={{ fontSize: '10px', background: '#dbeafe', color: '#1e40af', padding: '1px 5px', borderRadius: '4px', fontWeight: '800' }}>🔒 Locked</span>
+            </div>
+          )}
           <div style={{
             background: '#e0f2fe',
             border: '1px solid #bae6fd',
-            padding: '4px 10px',
+            padding: '3px 10px',
             borderRadius: '6px',
-            fontSize: '11.5px',
+            fontSize: '12px',
             color: '#0369a1',
-            fontWeight: '700'
+            fontWeight: '700',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px'
           }}>
-            🏢 Plant: <strong>{unitAddress}</strong>
+            <span>🏢 Plant:</span>
+            {isCallBound ? (
+              <strong style={{ color: '#0369a1', fontSize: '12px' }}>
+                {cleanCallPlant || rawCallPlant || selectedPlant || unitAddress || 'Works / Plant'}
+              </strong>
+            ) : loadingPlants ? (
+              <span style={{ fontSize: '11.5px', color: '#0284c7' }}>Loading...</span>
+            ) : plantOptions && plantOptions.length > 0 ? (
+              <select
+                value={selectedPlant || plantOptions[0]}
+                onChange={(e) => {
+                  setSelectedPlant(e.target.value);
+                }}
+                style={{
+                  background: '#ffffff',
+                  border: '1px solid #7dd3fc',
+                  borderRadius: '5px',
+                  padding: '3px 8px',
+                  fontSize: '12px',
+                  fontWeight: '700',
+                  color: '#0369a1',
+                  cursor: 'pointer',
+                  outline: 'none',
+                  minWidth: '170px'
+                }}
+              >
+                {plantOptions.map((p, idx) => (
+                  <option key={idx} value={p}>
+                    {p}
+                  </option>
+                ))}
+              </select>
+            ) : (
+              <strong>{selectedPlant || unitAddress || 'Works / Plant'}</strong>
+            )}
           </div>
           <div style={{
             background: '#f1f5f9',
@@ -647,17 +777,6 @@ export const RailpadProcessAnnexureA = ({
           }}>
             Vendor: <strong>{vendorName}</strong>
           </div>
-          <div style={{
-            background: '#fef3c7',
-            border: '1px solid #fde68a',
-            padding: '4px 10px',
-            borderRadius: '6px',
-            fontSize: '11.5px',
-            color: '#92400e',
-            fontWeight: '700'
-          }}>
-            Duty Shift: <strong>{activeDutyShift}</strong> ({activeDutyDate})
-          </div>
         </div>
 
         {/* Date Range & Shift Filter Controls */}
@@ -667,14 +786,20 @@ export const RailpadProcessAnnexureA = ({
             <input
               type="date"
               value={fromDate}
-              onChange={(e) => setFromDate(e.target.value)}
+              disabled={isCallBound}
+              readOnly={isCallBound}
+              onChange={(e) => !isCallBound && setFromDate(e.target.value)}
               style={{
                 padding: '5px 8px',
                 borderRadius: '6px',
                 border: '1px solid #cbd5e1',
                 fontSize: '12px',
-                background: '#ffffff'
+                background: isCallBound ? '#f1f5f9' : '#ffffff',
+                color: isCallBound ? '#334155' : '#0f172a',
+                cursor: isCallBound ? 'not-allowed' : 'pointer',
+                fontWeight: isCallBound ? '700' : 'normal'
               }}
+              title={isCallBound ? "Date is locked to this call's batch casting date" : "Select from date"}
             />
           </div>
 
@@ -683,14 +808,20 @@ export const RailpadProcessAnnexureA = ({
             <input
               type="date"
               value={toDate}
-              onChange={(e) => setToDate(e.target.value)}
+              disabled={isCallBound}
+              readOnly={isCallBound}
+              onChange={(e) => !isCallBound && setToDate(e.target.value)}
               style={{
                 padding: '5px 8px',
                 borderRadius: '6px',
                 border: '1px solid #cbd5e1',
                 fontSize: '12px',
-                background: '#ffffff'
+                background: isCallBound ? '#f1f5f9' : '#ffffff',
+                color: isCallBound ? '#334155' : '#0f172a',
+                cursor: isCallBound ? 'not-allowed' : 'pointer',
+                fontWeight: isCallBound ? '700' : 'normal'
               }}
+              title={isCallBound ? "Date is locked to this call's batch casting date" : "Select to date"}
             />
           </div>
 
@@ -698,15 +829,19 @@ export const RailpadProcessAnnexureA = ({
             <span style={{ fontWeight: '700', color: '#475569' }}>Shift:</span>
             <select
               value={shiftFilter}
-              onChange={(e) => setShiftFilter(e.target.value)}
+              disabled={isCallBound}
+              onChange={(e) => !isCallBound && setShiftFilter(e.target.value)}
               style={{
                 padding: '5px 8px',
                 borderRadius: '6px',
                 border: '1px solid #cbd5e1',
                 fontSize: '12px',
-                background: '#ffffff',
+                background: isCallBound ? '#f1f5f9' : '#ffffff',
+                color: isCallBound ? '#334155' : '#0f172a',
+                cursor: isCallBound ? 'not-allowed' : 'pointer',
                 fontWeight: '600'
               }}
+              title={isCallBound ? "Shift filter is locked to this call" : "Select shift"}
             >
               <option value="ALL">All Shifts</option>
               <option value="A">Shift A</option>
@@ -717,24 +852,24 @@ export const RailpadProcessAnnexureA = ({
 
           <button
             onClick={fetchAllPlantData}
-            disabled={loading}
+            disabled={loading || !fromDate || !toDate || !selectedPlant}
             style={{
               padding: '6px 14px',
               borderRadius: '6px',
               border: 'none',
-              background: '#0f766e',
+              background: (!fromDate || !toDate || !selectedPlant) ? '#94a3b8' : '#0f766e',
               color: '#ffffff',
               fontSize: '12px',
               fontWeight: '700',
-              cursor: loading ? 'not-allowed' : 'pointer',
+              cursor: (loading || !fromDate || !toDate || !selectedPlant) ? 'not-allowed' : 'pointer',
               display: 'flex',
               alignItems: 'center',
               gap: '6px',
-              boxShadow: '0 1px 2px rgba(15, 118, 110, 0.2)'
+              boxShadow: (!fromDate || !toDate) ? 'none' : '0 1px 2px rgba(15, 118, 110, 0.2)'
             }}
           >
             <span>{loading ? '⏳' : '🔄'}</span>
-            <span>{loading ? 'Fetching...' : 'Fetch Reports'}</span>
+            <span>{loading ? 'Fetching...' : isCallBound ? 'Reload Data' : 'Fetch Reports'}</span>
           </button>
         </div>
       </div>
@@ -816,27 +951,6 @@ export const RailpadProcessAnnexureA = ({
                   ? `Export All Sheets (PDF - ${sheets.length})`
                   : 'Export to PDF'}
             </span>
-          </button>
-
-          <button
-            onClick={handlePrint}
-            disabled={isExporting || loading || sheetsToRender.length === 0}
-            style={{
-              padding: '6px 12px',
-              borderRadius: '6px',
-              border: '1px solid #cbd5e1',
-              background: '#ffffff',
-              color: '#334155',
-              fontWeight: '600',
-              fontSize: '12px',
-              cursor: isExporting || loading || sheetsToRender.length === 0 ? 'not-allowed' : 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '6px'
-            }}
-            title="Open browser print preview"
-          >
-            <span>🖨️</span> Print
           </button>
           {onClose && (
             <button
@@ -935,7 +1049,22 @@ export const RailpadProcessAnnexureA = ({
 
       {/* ─── PRINTABLE SHEETS CONTAINER ────────────────────────────────────── */}
       <div ref={printRef}>
-        {sheetsToRender.length === 0 ? (
+        {(!fromDate || !toDate) ? (
+          <div style={{
+            textAlign: 'center',
+            padding: '48px 16px',
+            background: '#ffffff',
+            borderRadius: '10px',
+            border: '1px dashed #cbd5e1',
+            color: '#64748b'
+          }}>
+            <div style={{ fontSize: '32px', marginBottom: '8px' }}>📅</div>
+            <div style={{ fontWeight: '700', fontSize: '15px', color: '#334155' }}>Select Date Range</div>
+            <p style={{ fontSize: '13px', margin: '4px 0 0 0' }}>
+              Please select <strong>From</strong> and <strong>To</strong> date to fetch and view the Daily Activity Report (Annexure-A).
+            </p>
+          </div>
+        ) : sheetsToRender.length === 0 ? (
           <div style={{
             textAlign: 'center',
             padding: '48px 16px',

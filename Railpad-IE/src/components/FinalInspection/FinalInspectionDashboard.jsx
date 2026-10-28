@@ -2401,6 +2401,9 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
       tensionStatus: 'PASS', notOkCount: 0, remarks: tRemarks || ''
     };
 
+    const p1ResDraft = getPadLoadEvaluation(tPhys?.loadTest?.pad1, tPhys?.loadTest?.loads, oRailpadType);
+    const p2ResDraft = getPadLoadEvaluation(tPhys?.loadTest?.pad2, tPhys?.loadTest?.loads, oRailpadType);
+
     const loadPayload = {
       callNo: currentCallId,
       lotNo: oLotId,
@@ -2465,6 +2468,14 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
       mpad4L6: tPhys.loadTest.mPad4[5]?.left || '', mpad4R6: tPhys.loadTest.mPad4[5]?.right || '',
       mpad4L7: tPhys.loadTest.mPad4[6]?.left || '', mpad4R7: tPhys.loadTest.mPad4[6]?.right || '',
       mpad4L8: tPhys.loadTest.mPad4[7]?.left || '', mpad4R8: tPhys.loadTest.mPad4[7]?.right || '',
+      pad1Result: p1ResDraft.result,
+      pad2Result: p2ResDraft.result,
+      pad1D1: p1ResDraft.d1,
+      pad1D2: p1ResDraft.d2,
+      pad2D1: p2ResDraft.d1,
+      pad2D2: p2ResDraft.d2,
+      pad1Difference: p1ResDraft.diff,
+      pad2Difference: p2ResDraft.diff,
       loadStatus: 'PASS', notOkCount: 0, remarks: tRemarks || ''
     };
 
@@ -3289,6 +3300,9 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
         const loadReport = rawReports['load'];
         const loadStatusStr = getSectionStatus('load');
 
+        const p1ResMain = getPadLoadEvaluation(physicalData?.loadTest?.pad1, physicalData?.loadTest?.loads, activeRailpadType);
+        const p2ResMain = getPadLoadEvaluation(physicalData?.loadTest?.pad2, physicalData?.loadTest?.loads, activeRailpadType);
+
         const loadPayload = {
           callNo: currentCallId,
           lotNo: selectedLot,
@@ -3401,6 +3415,14 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
           mpad4R6: physicalData.loadTest.mPad4[5]?.right || '',
           mpad4R7: physicalData.loadTest.mPad4[6]?.right || '',
           mpad4R8: physicalData.loadTest.mPad4[7]?.right || '',
+          pad1Result: p1ResMain.result,
+          pad2Result: p2ResMain.result,
+          pad1D1: p1ResMain.d1,
+          pad1D2: p1ResMain.d2,
+          pad2D1: p2ResMain.d1,
+          pad2D2: p2ResMain.d2,
+          pad1Difference: p1ResMain.diff,
+          pad2Difference: p2ResMain.diff,
           loadStatus: loadStatusStr,
           notOkCount: loadReport ? (loadReport.primaryOutCount + loadReport.doubleOutCount) : 0,
           remarks: remarks || ''
@@ -4559,6 +4581,9 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
         const loadReportPause = localRawReports['load'];
         const loadStatusStrPause = getSectionStatus('load');
 
+        const p1ResPause = getPadLoadEvaluation(physicalData?.loadTest?.pad1, physicalData?.loadTest?.loads, activeRailpadType);
+        const p2ResPause = getPadLoadEvaluation(physicalData?.loadTest?.pad2, physicalData?.loadTest?.loads, activeRailpadType);
+
         const loadPayloadPause = {
           callNo: currentCallId,
           lotNo: selectedLot,
@@ -4671,6 +4696,14 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
           mpad4R6: physicalData.loadTest.mPad4[5]?.right || '',
           mpad4R7: physicalData.loadTest.mPad4[6]?.right || '',
           mpad4R8: physicalData.loadTest.mPad4[7]?.right || '',
+          pad1Result: p1ResPause.result,
+          pad2Result: p2ResPause.result,
+          pad1D1: p1ResPause.d1,
+          pad1D2: p1ResPause.d2,
+          pad2D1: p2ResPause.d1,
+          pad2D2: p2ResPause.d2,
+          pad1Difference: p1ResPause.diff,
+          pad2Difference: p2ResPause.diff,
           loadStatus: loadStatusStrPause,
           notOkCount: loadReportPause ? (loadReportPause.primaryOutCount + loadReportPause.doubleOutCount) : 0,
           remarks: remarks || ''
@@ -5522,6 +5555,186 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
   });
 
   const isCGRSP = Boolean(activeRailpadType && activeRailpadType.includes('CGRSP'));
+  const is62CGRSP = Boolean((activeRailpadType || '').toLowerCase().includes('6.2') && (activeRailpadType || '').toLowerCase().includes('cgrsp'));
+  const is10CGRSPorNCR = Boolean(
+    (activeRailpadType || '').toLowerCase().includes('10') &&
+    ((activeRailpadType || '').toLowerCase().includes('cgrsp') || (activeRailpadType || '').toLowerCase().includes('ncr'))
+  );
+  const isGrspOr6Ncr = Boolean(
+    !is62CGRSP && !is10CGRSPorNCR &&
+    (
+      ((activeRailpadType || '').toLowerCase().includes('grsp') && !(activeRailpadType || '').toLowerCase().includes('cgrsp') && !(activeRailpadType || '').toLowerCase().includes('ncr')) ||
+      ((activeRailpadType || '').toLowerCase().includes('ncr') && ((activeRailpadType || '').toLowerCase().includes('6') || (activeRailpadType || '').toLowerCase().includes('6.00') || (activeRailpadType || '').toLowerCase().includes('6.0')))
+    )
+  );
+  const hasFactorColumn = is10CGRSPorNCR || isGrspOr6Ncr;
+  const factorValue = is10CGRSPorNCR ? 0.93 : 1.00;
+  const factorStr = is10CGRSPorNCR ? '0.93' : '1';
+  const _dummy = (0
+  );
+
+  const getCgrsp62Deflections = (pad, overrideLoads = null) => {
+    if (!pad || !Array.isArray(pad)) return { d1: null, d2: null, diff: null, hasBoth: false, isOutOfSpec: false };
+    let d1 = null;
+    let d2 = null;
+    const loads = overrideLoads || physicalData?.loadTest?.loads || [];
+    const count = Math.min(loads.length, pad.length, visibleLoadRows || 8);
+    for (let i = 0; i < count; i++) {
+      const lVal = parseFloat(loads[i]);
+      if (!isNaN(lVal)) {
+        const stress = (lVal * 1000 * 100) / 26000;
+        const row = pad[i];
+        if (row && row.left !== '' && row.right !== '' && row.left !== null && row.right !== null && row.left !== undefined && row.right !== undefined) {
+          const l = parseFloat(row.left);
+          const r = parseFloat(row.right);
+          if (!isNaN(l) && !isNaN(r)) {
+            const defl = (l + r) / 2;
+            if (Math.abs(stress - 3.846) < 0.1 || Math.abs(lVal - 1) < 0.05) {
+              d1 = defl;
+            }
+            if (Math.abs(stress - 57.692) < 0.2 || Math.abs(lVal - 15) < 0.05) {
+              d2 = defl;
+            }
+          }
+        }
+      }
+    }
+    const hasBoth = d1 !== null && d2 !== null;
+    const diff = hasBoth ? parseFloat((d2 - d1).toFixed(2)) : null;
+    const specs = currentLoadSpecs || { min: 0.6, max: 0.9 };
+    const isOutOfSpec = diff !== null && (diff < specs.min || diff > specs.max);
+    return { d1, d2, diff, hasBoth, isOutOfSpec };
+  };
+
+  const get10mmDeflections = (pad, overrideLoads = null) => {
+    if (!pad || !Array.isArray(pad)) return { left: null, right: null, defl: null, gaugeDiff: null, isGaugeDiffOut: false, isDeflOut: false, isOutOfSpec: false, isComplete: false };
+    const loads = overrideLoads || physicalData?.loadTest?.loads || [];
+    const count = Math.min(loads.length, pad.length, visibleLoadRows || 8);
+    let left = null;
+    let right = null;
+    let defl = null;
+    let gaugeDiff = null;
+
+    for (let i = 0; i < count; i++) {
+      const lVal = parseFloat(loads[i]);
+      if (!isNaN(lVal)) {
+        // Standard sample load 20T (or tested product load 18.60T with factor 0.93)
+        const is20Row = Math.abs(lVal - 20) < 0.05 || Math.abs(lVal - 18.60) < 0.05;
+        if (is20Row) {
+          const row = pad[i];
+          if (row && row.left !== '' && row.right !== '' && row.left !== null && row.right !== null && row.left !== undefined && row.right !== undefined) {
+            const l = parseFloat(row.left);
+            const r = parseFloat(row.right);
+            if (!isNaN(l) && !isNaN(r)) {
+              left = l;
+              right = r;
+              gaugeDiff = parseFloat(Math.abs(l - r).toFixed(2));
+              defl = parseFloat(((l + r) / 2).toFixed(2));
+            }
+          }
+        }
+      }
+    }
+
+    const isComplete = left !== null && right !== null;
+    const specs = currentLoadSpecs || { min: 0.9, max: 1.2 };
+    // Validation: Difference in two dial gauges (left - right) < 0.3mm
+    const isGaugeDiffOut = isComplete && (gaugeDiff >= 0.3);
+    // Deformation within specified limits
+    const isDeflOut = isComplete && (defl < specs.min || defl > specs.max);
+    const isOutOfSpec = isDeflOut || isGaugeDiffOut;
+
+    return { left, right, defl, gaugeDiff, isGaugeDiffOut, isDeflOut, isOutOfSpec, isComplete };
+  };
+
+  const getGrspDeflections = (pad, overrideLoads = null) => {
+    if (!pad || !Array.isArray(pad)) return { left: null, right: null, defl: null, gaugeDiff: null, isGaugeDiffOut: false, isDeflOut: false, isOutOfSpec: false, isComplete: false };
+    const loads = overrideLoads || physicalData?.loadTest?.loads || [];
+    const count = Math.min(loads.length, pad.length, visibleLoadRows || 8);
+    let left = null;
+    let right = null;
+    let defl = null;
+    let gaugeDiff = null;
+
+    for (let i = 0; i < count; i++) {
+      const lVal = parseFloat(loads[i]);
+      if (!isNaN(lVal)) {
+        // Standard sample load 15T (tested product load 15T with factor 1)
+        const is15Row = Math.abs(lVal - 15) < 0.05;
+        if (is15Row) {
+          const row = pad[i];
+          if (row && row.left !== '' && row.right !== '' && row.left !== null && row.right !== null && row.left !== undefined && row.right !== undefined) {
+            const l = parseFloat(row.left);
+            const r = parseFloat(row.right);
+            if (!isNaN(l) && !isNaN(r)) {
+              left = l;
+              right = r;
+              gaugeDiff = parseFloat(Math.abs(l - r).toFixed(2));
+              defl = parseFloat(((l + r) / 2).toFixed(2));
+            }
+          }
+        }
+      }
+    }
+
+    const isComplete = left !== null && right !== null;
+    const specs = currentLoadSpecs || { min: 0.4, max: 0.6 };
+    // Validation: Difference in two dial gauges (left - right) < 0.3mm
+    const isGaugeDiffOut = isComplete && (gaugeDiff >= 0.3);
+    // Deformation within specified limits (0.3-0.5 for 6mm NCR, 0.4-0.6 for 6mm GRSP, 0.7-1.0 for 10mm GRSP)
+    const isDeflOut = isComplete && (defl < specs.min || defl > specs.max);
+    const isOutOfSpec = isDeflOut || isGaugeDiffOut;
+
+    return { left, right, defl, gaugeDiff, isGaugeDiffOut, isDeflOut, isOutOfSpec, isComplete };
+  };
+
+  const getPadLoadEvaluation = (pad, overrideLoads = null, typeOverride = null) => {
+    const rawType = (typeOverride || activeRailpadType || '').toLowerCase();
+    const is62 = rawType.includes('6.2') && rawType.includes('cgrsp');
+    const is10 = rawType.includes('10') && (rawType.includes('cgrsp') || rawType.includes('ncr'));
+    const isGrspOr6NcrPad = !is62 && !is10 && (
+      (rawType.includes('grsp') && !rawType.includes('cgrsp') && !rawType.includes('ncr')) ||
+      (rawType.includes('ncr') && (rawType.includes('6') || rawType.includes('6.00') || rawType.includes('6.0')))
+    );
+    if (is62) {
+      const res = getCgrsp62Deflections(pad, overrideLoads);
+      return {
+        isComplete: res.hasBoth,
+        isOutOfSpec: res.isOutOfSpec,
+        result: res.hasBoth ? (res.isOutOfSpec ? 'FAIL' : 'PASS') : '',
+        d1: res.d1 !== null ? res.d1.toFixed(2) : '',
+        d2: res.d2 !== null ? res.d2.toFixed(2) : '',
+        diff: res.diff !== null ? res.diff.toFixed(2) : ''
+      };
+    }
+    if (is10) {
+      const res = get10mmDeflections(pad, overrideLoads);
+      return {
+        isComplete: res.isComplete,
+        isOutOfSpec: res.isOutOfSpec,
+        result: res.isComplete ? (res.isOutOfSpec ? 'FAIL' : 'PASS') : '',
+        d1: res.left !== null ? res.left.toFixed(2) : '',
+        d2: res.right !== null ? res.right.toFixed(2) : '',
+        diff: res.defl !== null ? res.defl.toFixed(2) : ''
+      };
+    }
+    if (isGrspOr6NcrPad) {
+      const res = getGrspDeflections(pad, overrideLoads);
+      return {
+        isComplete: res.isComplete,
+        isOutOfSpec: res.isOutOfSpec,
+        result: res.isComplete ? (res.isOutOfSpec ? 'FAIL' : 'PASS') : '',
+        d1: res.left !== null ? res.left.toFixed(2) : '',
+        d2: res.right !== null ? res.right.toFixed(2) : '',
+        diff: res.defl !== null ? res.defl.toFixed(2) : ''
+      };
+    }
+    if (false) {
+      return {
+      };
+    }
+    return { isComplete: false, isOutOfSpec: false, result: '', d1: '', d2: '', diff: '' };
+  };
 
   const finalDecision = (visualResult === 'PASS' && dimensionalResult === 'PASS' && (isWeightHidden || weightStatus === 'ACCEPTED' || weightStatus === 'PENDING' || weightStatus === '2ND SAMPLING'))
     ? 'LOT PASSED'
@@ -5744,6 +5957,66 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
 
       case 'load': {
         const specs = currentLoadSpecs;
+        if (is62CGRSP) {
+          primaryCount = 2;
+          doubleCount = 4;
+          const p1Res = getCgrsp62Deflections(physicalData?.loadTest?.pad1);
+          const p2Res = getCgrsp62Deflections(physicalData?.loadTest?.pad2);
+
+          if (p1Res.hasBoth) primaryFilled++;
+          if (p2Res.hasBoth) primaryFilled++;
+
+          if (p1Res.hasBoth && p1Res.isOutOfSpec) primaryOutCount++;
+          if (p2Res.hasBoth && p2Res.isOutOfSpec) primaryOutCount++;
+
+          ['mPad1', 'mPad2', 'mPad3', 'mPad4'].forEach(mKey => {
+            const mRes = getCgrsp62Deflections(physicalData?.loadTest?.[mKey]);
+            if (mRes.hasBoth) doubleFilled++;
+            if (mRes.hasBoth && mRes.isOutOfSpec) doubleOutCount++;
+          });
+          break;
+        }
+
+        if (is10CGRSPorNCR) {
+          primaryCount = 2;
+          doubleCount = 4;
+          const p1Res = get10mmDeflections(physicalData?.loadTest?.pad1);
+          const p2Res = get10mmDeflections(physicalData?.loadTest?.pad2);
+
+          if (p1Res.isComplete) primaryFilled++;
+          if (p2Res.isComplete) primaryFilled++;
+
+          if (p1Res.isComplete && p1Res.isOutOfSpec) primaryOutCount++;
+          if (p2Res.isComplete && p2Res.isOutOfSpec) primaryOutCount++;
+
+          ['mPad1', 'mPad2', 'mPad3', 'mPad4'].forEach(mKey => {
+            const mRes = get10mmDeflections(physicalData?.loadTest?.[mKey]);
+            if (mRes.isComplete) doubleFilled++;
+            if (mRes.isComplete && mRes.isOutOfSpec) doubleOutCount++;
+          });
+          break;
+        }
+
+        if (isGrspOr6Ncr) {
+          primaryCount = 2;
+          doubleCount = 4;
+          const p1Res = getGrspDeflections(physicalData?.loadTest?.pad1);
+          const p2Res = getGrspDeflections(physicalData?.loadTest?.pad2);
+
+          if (p1Res.isComplete) primaryFilled++;
+          if (p2Res.isComplete) primaryFilled++;
+
+          if (p1Res.isComplete && p1Res.isOutOfSpec) primaryOutCount++;
+          if (p2Res.isComplete && p2Res.isOutOfSpec) primaryOutCount++;
+
+          ['mPad1', 'mPad2', 'mPad3', 'mPad4'].forEach(mKey => {
+            const mRes = getGrspDeflections(physicalData?.loadTest?.[mKey]);
+            if (mRes.isComplete) doubleFilled++;
+            if (mRes.isComplete && mRes.isOutOfSpec) doubleOutCount++;
+          });
+          break;
+        }
+
         primaryCount = visibleLoadRows * 2;
         doubleCount = visibleLoadRows * 4;
 
@@ -6366,6 +6639,42 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
 
   const getPadDeflection = (pad) => {
     if (!pad || !Array.isArray(pad)) return null;
+    if (is62CGRSP) {
+      const res = getCgrsp62Deflections(pad);
+      return res.hasBoth ? res.diff : null;
+    }
+    if (is10CGRSPorNCR) {
+      const res = get10mmDeflections(pad);
+      return res.isComplete ? res.defl : null;
+    }
+    if (isGrspOr6Ncr) {
+      const res = getGrspDeflections(pad);
+      return res.isComplete ? res.defl : null;
+    }
+    const s8 = pad[7];
+    if (!s8 || s8.left === '' || s8.right === '') return null;
+    return (parseFloat(s8.left) + parseFloat(s8.right)) / 2;
+  };
+  const _getPadDeflectionOld = (pad) => {
+    if (!pad || !Array.isArray(pad)) return null;
+    if (is62CGRSP) {
+      const res = getCgrsp62Deflections(pad);
+      return res.hasBoth ? res.diff : null;
+    }
+    if (is10) {
+      const res = get10mmDeflections(pad);
+      return res.isComplete ? res.defl : null;
+    }
+    const s8 = pad[7];
+    if (!s8 || s8.left === '' || s8.right === '') return null;
+    return (parseFloat(s8.left) + parseFloat(s8.right)) / 2;
+  };
+  const _ignoredGetPadDeflection = () => null; if (false) {
+    if (!pad || !Array.isArray(pad)) return null;
+    if (is62CGRSP) {
+      const res = getCgrsp62Deflections(pad);
+      return res.hasBoth ? res.diff : null;
+    }
     const s8 = pad[7];
     if (!s8 || s8.left === '' || s8.right === '') return null;
     return (parseFloat(s8.left) + parseFloat(s8.right)) / 2;
@@ -7899,7 +8208,85 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
                   <div style={{ background: '#fff', borderRadius: '16px', border: '1px solid #e2e8f0', overflow: 'hidden', marginTop: '12px' }}>
                     <div style={{ background: '#f8fafc', padding: '12px 20px', borderBottom: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                       <div>
-                        <h4 style={{ margin: 0, fontSize: '14px', fontWeight: '800', color: '#0f172a' }}>Load Compression Test</h4>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+                          <h4 style={{ margin: 0, fontSize: '14px', fontWeight: '800', color: '#0f172a' }}>Load Compression Test</h4>
+                          {hasFactorColumn && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const stdLoads = ['1', '2', '3', '5', '10', '15', '20'];
+                                setPhysicalData(prev => ({ ...prev, loadTest: { ...prev.loadTest, loads: stdLoads } }));
+                                setVisibleLoadRows(7);
+                              }}
+                              style={{
+                                padding: '2px 8px',
+                                fontSize: '10.5px',
+                                fontWeight: '700',
+                                color: '#0369a1',
+                                background: '#e0f2fe',
+                                border: '1px solid #bae6fd',
+                                borderRadius: '5px',
+                                cursor: 'pointer'
+                              }}
+                              title="Pre-fill standard 10mm test loads: 1, 2, 3, 5, 10, 15, 20 Tonnes"
+                              hidden={!is10CGRSPorNCR}
+                            >
+                              ⚡ Fill Standard Loads (1T - 20T)
+                            </button>
+                          )}
+                          {isGrspOr6Ncr && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const stdLoads = ['1', '5', '10', '15', '20'];
+                                setPhysicalData(prev => ({ ...prev, loadTest: { ...prev.loadTest, loads: stdLoads } }));
+                                setVisibleLoadRows(5);
+                              }}
+                              style={{
+                                padding: '2px 8px',
+                                fontSize: '10.5px',
+                                fontWeight: '700',
+                                color: '#0369a1',
+                                background: '#e0f2fe',
+                                border: '1px solid #bae6fd',
+                                borderRadius: '5px',
+                                cursor: 'pointer'
+                              }}
+                              title="Pre-fill standard GRSP / 6mm NCR test loads: 1, 5, 10, 15, 20 Tonnes"
+                            >
+                              ⚡ Fill Standard Loads (1T - 20T)
+                            </button>
+                          )}
+                          {false && (
+                            <button
+                            >
+                              ⚡ Fill Standard Loads (1T - 20T)
+                            </button>
+                          )}
+                          {is62CGRSP && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const stdLoads = ['0.1', '1', '2', '3', '5', '10', '15', '20'];
+                                setPhysicalData(prev => ({ ...prev, loadTest: { ...prev.loadTest, loads: stdLoads } }));
+                                setVisibleLoadRows(8);
+                              }}
+                              style={{
+                                padding: '2px 8px',
+                                fontSize: '10.5px',
+                                fontWeight: '700',
+                                color: '#0369a1',
+                                background: '#e0f2fe',
+                                border: '1px solid #bae6fd',
+                                borderRadius: '5px',
+                                cursor: 'pointer'
+                              }}
+                              title="Pre-fill standard 6.2mm test loads: 0.1, 1, 2, 3, 5, 10, 15, 20 Tonnes"
+                            >
+                              ⚡ Fill Standard Loads (0.1T - 20T)
+                            </button>
+                          )}
+                        </div>
                         <div style={{ fontSize: '10px', color: '#21808d', fontWeight: '700', marginTop: '2px' }}>FOR: {activeRailpadType}</div>
                       </div>
                       <div style={{ display: 'flex', gap: '20px' }}>
@@ -7912,6 +8299,22 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
                       <thead>
                         <tr style={{ background: '#fcfcfc' }}>
                           <th style={{ padding: '10px', fontSize: '11px', border: '1px solid #f1f5f9' }} rowSpan="2">Load (Tonnes)</th>
+                          {hasFactorColumn && (
+                            <th style={{ padding: '8px 10px', fontSize: '11px', border: '1px solid #f1f5f9', background: '#f8fafc', color: '#0f172a', textAlign: 'center', minWidth: '170px' }} rowSpan="2">
+                              <div>FOR PRODUCT TO BE TESTED</div>
+                              <div style={{ fontSize: '9.5px', fontWeight: '600', color: '#64748b', marginTop: '2px', lineHeight: '1.2' }}>
+                                LOAD IN TONNES = (LOAD IN TONNES FOR STANDARD SAMPLE * FACTOR {factorStr})
+                              </div>
+                            </th>
+                          )}
+                          {is62CGRSP && (
+                            <th style={{ padding: '8px 10px', fontSize: '11px', border: '1px solid #f1f5f9', background: '#f8fafc', color: '#0f172a', textAlign: 'center', minWidth: '160px' }} rowSpan="2">
+                              <div>Specific Stress (Kg/cm²)</div>
+                              <div style={{ fontSize: '9.5px', fontWeight: '600', color: '#64748b', marginTop: '2px', lineHeight: '1.2' }}>
+                                {'{'}(Load in tonnes for standard sample*1000*100)/Area of standard sample{'}'}
+                              </div>
+                            </th>
+                          )}
                           <th style={{ padding: '10px', fontSize: '11px', border: '1px solid #f1f5f9' }} colSpan="3">Pad 1</th>
                           <th style={{ padding: '10px', fontSize: '11px', border: '1px solid #f1f5f9' }} colSpan="3">Pad 2</th>
                         </tr>
@@ -7942,10 +8345,32 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
                                 <button type="button" onClick={() => handleDeleteRow(idx)} title="Delete Row" style={{ background: 'transparent', border: 'none', color: '#ef4444', cursor: 'pointer', fontWeight: 'bold', padding: '0 4px', fontSize: '14px' }}>✕</button>
                               </div>
                             </td>
+                            {hasFactorColumn && (
+                              <td style={{ padding: '8px', textAlign: 'center', fontSize: '12px', fontWeight: '800', background: '#f8fafc', border: '1px solid #f1f5f9', color: '#0369a1' }}>
+                                {load && !isNaN(parseFloat(load)) ? (parseFloat(load) * factorValue).toFixed(2) : '-'}
+                              </td>
+                            )}
+                            {is62CGRSP && (
+                              <td style={{ padding: '8px', textAlign: 'center', fontSize: '12px', fontWeight: '800', background: '#f8fafc', border: '1px solid #f1f5f9', color: '#0369a1' }}>
+                                {load && !isNaN(parseFloat(load)) ? ((parseFloat(load) * 1000 * 100) / 26000).toFixed(2) : '-'}
+                              </td>
+                            )}
                             {['pad1', 'pad2'].map(padKey => {
                               const data = physicalData.loadTest[padKey][idx];
                               const defl = (data.left && data.right) ? ((parseFloat(data.left) + parseFloat(data.right)) / 2).toFixed(2) : '-';
-                              const isOutOfSpec = defl !== '-' && (parseFloat(defl) < currentLoadSpecs.min || parseFloat(defl) > currentLoadSpecs.max);
+                              const lVal = parseFloat(load);
+                              const isD1Row = is62CGRSP && !isNaN(lVal) && (Math.abs(lVal - 1) < 0.05 || Math.abs(((lVal * 1000 * 100) / 26000) - 3.846) < 0.1);
+                              const isD2Row = is62CGRSP && !isNaN(lVal) && (Math.abs(lVal - 15) < 0.05 || Math.abs(((lVal * 1000 * 100) / 26000) - 57.692) < 0.2);
+                              const is20Row = is10CGRSPorNCR && !isNaN(lVal) && (Math.abs(lVal - 20) < 0.05 || Math.abs(lVal - 18.60) < 0.05);
+                              const dialDiff = (data.left !== '' && data.right !== '' && data.left !== null && data.right !== null) ? Math.abs(parseFloat(data.left) - parseFloat(data.right)) : null;
+                              const isDialDiffOut = (is10CGRSPorNCR || isGrspOr6Ncr) && dialDiff !== null && dialDiff >= 0.3;
+                              const isGrsp15Row = isGrspOr6Ncr && !isNaN(lVal) && Math.abs(lVal - 15) < 0.05;
+                              const isTargetResultRow = is20Row || isGrsp15Row;
+                              const isTargetOutOfSpec = isTargetResultRow && defl !== '-' && ((parseFloat(defl) < currentLoadSpecs.min || parseFloat(defl) > currentLoadSpecs.max) || isDialDiffOut);
+                              const isOutOfSpec = !is62CGRSP && !hasFactorColumn && defl !== '-' && (parseFloat(defl) < currentLoadSpecs.min || parseFloat(defl) > currentLoadSpecs.max);
+                              const is20OutOfSpec = isTargetOutOfSpec;
+                              const _unused1 = 0;
+                              const _unused2 = 0;
                               return (
                                 <React.Fragment key={padKey}>
                                   <td style={{ padding: '4px', border: '1px solid #f1f5f9' }}>
@@ -7954,7 +8379,14 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
                                   <td style={{ padding: '4px', border: '1px solid #f1f5f9' }}>
                                     <input type="number" value={data.right} disabled={!load || String(load).trim() === ''} onChange={(e) => setPhysicalData(prev => ({ ...prev, loadTest: { ...prev.loadTest, [padKey]: prev.loadTest[padKey].map((v, i) => i === idx ? { ...v, right: e.target.value } : v) } }))} style={{ width: '100%', padding: '6px', border: '1px solid #e2e8f0', borderRadius: '4px', textAlign: 'center', fontSize: '12px', fontWeight: '700', backgroundColor: (!load || String(load).trim() === '') ? '#f8fafc' : '#fff' }} />
                                   </td>
-                                  <td style={{ padding: '8px', textAlign: 'center', fontSize: '12px', fontWeight: '900', background: '#f8fafc', border: '1px solid #f1f5f9', color: isOutOfSpec ? '#ef4444' : '#21808d' }}>{defl}</td>
+                                  <td style={{ padding: '8px', textAlign: 'center', fontSize: '12px', fontWeight: '900', background: '#f8fafc', border: '1px solid #f1f5f9', color: (isOutOfSpec || isTargetOutOfSpec) ? '#ef4444' : (isD1Row || isD2Row || isTargetResultRow) ? '#0284c7' : '#21808d' }}>
+                                    {defl}
+                                    {isD1Row && <span style={{ fontSize: '10px', color: '#0369a1', fontWeight: '800', marginLeft: '4px' }}>(d1)</span>}
+                                    {isD2Row && <span style={{ fontSize: '10px', color: '#0369a1', fontWeight: '800', marginLeft: '4px' }}>(d2)</span>}
+                                    {is20Row && <span style={{ fontSize: '10px', color: is20OutOfSpec ? '#dc2626' : '#0369a1', fontWeight: '800', marginLeft: '4px' }}>(20T Result)</span>}
+                                    {isGrsp15Row && <span style={{ fontSize: '10px', color: isTargetOutOfSpec ? '#dc2626' : '#0369a1', fontWeight: '800', marginLeft: '4px' }}>(15T Result)</span>}
+                                    {isDialDiffOut && <span title="Dial gauge diff ≥ 0.3mm" style={{ fontSize: '9px', color: '#dc2626', fontWeight: '800', marginLeft: '3px', background: '#fee2e2', padding: '1px 3px', borderRadius: '3px' }}>Δ≥0.3</span>}
+                                  </td>
                                 </React.Fragment>
                               );
                             })}
@@ -7970,12 +8402,225 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
                                 + Add Row
                               </button>
                             </td>
-                            <td colSpan="6" style={{ border: 'none' }}></td>
+                            <td colSpan={(is62CGRSP || hasFactorColumn) ? 7 : 6} style={{ border: 'none' }}></td>
                           </tr>
                         )}
                       </tbody>
                     </table>
                   </div>
+
+                  {is62CGRSP && (
+                    <div style={{
+                      background: '#f0f9ff',
+                      borderRadius: '16px',
+                      border: '1px solid #bae6fd',
+                      padding: '16px 20px',
+                      marginTop: '12px',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: '10px'
+                    }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
+                        <div style={{ fontSize: '13.5px', fontWeight: '800', color: '#0369a1', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          <span>📐</span>
+                          <span>6.20mm CGRSP Deflection Evaluation: Difference (d2 - d1)</span>
+                        </div>
+                        <div style={{ fontSize: '12px', fontWeight: '700', color: '#0369a1', background: '#ffffff', padding: '4px 12px', borderRadius: '6px', border: '1px solid #7dd3fc' }}>
+                          Specified Limit: <strong>{currentLoadSpecs.min} - {currentLoadSpecs.max} mm</strong>
+                        </div>
+                      </div>
+                      <div style={{ fontSize: '12px', color: '#334155', lineHeight: '1.5' }}>
+                        Deflection is noted corresponding to specific stress <strong>3.85 Kg/cm² as d1</strong> (Load: 1 Tonne) and <strong>57.70 Kg/cm² as d2</strong> (Load: 15 Tonnes). The difference between <strong>(d2 - d1)</strong> shall be within <strong>{currentLoadSpecs.min} to {currentLoadSpecs.max} mm</strong>.
+                      </div>
+                      <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap', marginTop: '4px' }}>
+                        {['pad1', 'pad2'].map((padKey, pIdx) => {
+                          const res = getCgrsp62Deflections(physicalData?.loadTest?.[padKey]);
+                          const padTitle = `Pad ${pIdx + 1}`;
+                          return (
+                            <div key={padKey} style={{
+                              background: '#ffffff',
+                              border: `1.5px solid ${!res.hasBoth ? '#cbd5e1' : res.isOutOfSpec ? '#fca5a5' : '#86efac'}`,
+                              borderRadius: '10px',
+                              padding: '12px 16px',
+                              fontSize: '12px',
+                              minWidth: '260px',
+                              boxShadow: '0 1px 3px rgba(0,0,0,0.04)'
+                            }}>
+                              <div style={{ fontWeight: '800', color: '#1e293b', marginBottom: '6px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                <span>{padTitle} Result:</span>
+                                {res.hasBoth && (
+                                  <span style={{ fontSize: '11px', fontWeight: '800', color: res.isOutOfSpec ? '#dc2626' : '#16a34a', background: res.isOutOfSpec ? '#fee2e2' : '#dcfce7', padding: '2px 8px', borderRadius: '4px' }}>
+                                    {res.isOutOfSpec ? 'FAIL (Out of Spec)' : 'PASS ✓'}
+                                  </span>
+                                )}
+                              </div>
+                              {res.hasBoth ? (
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
+                                  <div style={{ color: '#475569', fontSize: '12px' }}>
+                                    d1 (at 3.85 Kg/cm²): <strong>{res.d1.toFixed(2)} mm</strong>
+                                  </div>
+                                  <div style={{ color: '#475569', fontSize: '12px' }}>
+                                    d2 (at 57.70 Kg/cm²): <strong>{res.d2.toFixed(2)} mm</strong>
+                                  </div>
+                                  <div style={{ marginTop: '6px', paddingTop: '6px', borderTop: '1px dashed #e2e8f0', fontSize: '13px' }}>
+                                    Difference (d2 - d1): <strong style={{ color: res.isOutOfSpec ? '#dc2626' : '#16a34a', fontSize: '14px' }}>{res.diff.toFixed(2)} mm</strong>
+                                  </div>
+                                </div>
+                              ) : (
+                                <div style={{ color: '#94a3b8', fontStyle: 'italic', fontSize: '11.5px', padding: '4px 0' }}>
+                                  Pending: Enter readings for 1T (d1) & 15T (d2)
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+
+                  {is10CGRSPorNCR && (
+                    <div style={{
+                      background: '#f0f9ff',
+                      borderRadius: '16px',
+                      border: '1px solid #bae6fd',
+                      padding: '16px 20px',
+                      marginTop: '12px',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: '10px'
+                    }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
+                        <div style={{ fontSize: '13.5px', fontWeight: '800', color: '#0369a1', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          <span>📐</span>
+                          <span>{activeRailpadType || '10mm CGRSP / 10mm NCR GRSP'} Deformation Evaluation (at 20 Tonnes)</span>
+                        </div>
+                        <div style={{ fontSize: '12px', fontWeight: '700', color: '#0369a1', background: '#ffffff', padding: '4px 12px', borderRadius: '6px', border: '1px solid #7dd3fc' }}>
+                          Specified Limit: <strong>{currentLoadSpecs.min} - {currentLoadSpecs.max} mm</strong>
+                        </div>
+                      </div>
+                      <div style={{ fontSize: '12px', color: '#334155', lineHeight: '1.5' }}>
+                        Dial gauge readings shall be recorded at load corresponding to <strong>20 Tonnes</strong> (Tested Product Load: <strong>18.60 Tonnes</strong> with Factor 0.93). The deformation to be considered for report shall be the average of the readings taken from 2 dial gauges at 20 Tonnes. Validation: Difference between Left &amp; Right dial gauges shall be <strong>&lt; 0.3 mm</strong>.
+                      </div>
+                      <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap', marginTop: '4px' }}>
+                        {['pad1', 'pad2'].map((padKey, pIdx) => {
+                          const res = get10mmDeflections(physicalData?.loadTest?.[padKey]);
+                          const padTitle = `Pad ${pIdx + 1}`;
+                          return (
+                            <div key={padKey} style={{
+                              background: '#ffffff',
+                              border: `1.5px solid ${!res.isComplete ? '#cbd5e1' : res.isOutOfSpec ? '#fca5a5' : '#86efac'}`,
+                              borderRadius: '10px',
+                              padding: '12px 16px',
+                              fontSize: '12px',
+                              minWidth: '260px',
+                              boxShadow: '0 1px 3px rgba(0,0,0,0.04)'
+                            }}>
+                              <div style={{ fontWeight: '800', color: '#1e293b', marginBottom: '6px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                <span>{padTitle} Result:</span>
+                                {res.isComplete && (
+                                  <span style={{ fontSize: '11px', fontWeight: '800', color: res.isOutOfSpec ? '#dc2626' : '#16a34a', background: res.isOutOfSpec ? '#fee2e2' : '#dcfce7', padding: '2px 8px', borderRadius: '4px' }}>
+                                    {res.isOutOfSpec ? 'FAIL (Out of Spec)' : 'PASS ✓'}
+                                  </span>
+                                )}
+                              </div>
+                              {res.isComplete ? (
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
+                                  <div style={{ color: '#475569', fontSize: '12px' }}>
+                                    Dial Gauge Left (at 20T): <strong>{res.left.toFixed(2)} mm</strong>
+                                  </div>
+                                  <div style={{ color: '#475569', fontSize: '12px' }}>
+                                    Dial Gauge Right (at 20T): <strong>{res.right.toFixed(2)} mm</strong>
+                                  </div>
+                                  <div style={{ color: res.isGaugeDiffOut ? '#dc2626' : '#475569', fontSize: '12px' }}>
+                                    Gauge Diff |L - R|: <strong>{res.gaugeDiff.toFixed(2)} mm</strong> {res.isGaugeDiffOut ? '(≥ 0.3 mm FAIL)' : '(< 0.3 mm ✓)'}
+                                  </div>
+                                  <div style={{ marginTop: '6px', paddingTop: '6px', borderTop: '1px dashed #e2e8f0', fontSize: '13px' }}>
+                                    Deformation (Average): <strong style={{ color: res.isOutOfSpec ? '#dc2626' : '#16a34a', fontSize: '14px' }}>{res.defl.toFixed(2)} mm</strong>
+                                  </div>
+                                </div>
+                              ) : (
+                                <div style={{ color: '#94a3b8', fontStyle: 'italic', fontSize: '11.5px', padding: '4px 0' }}>
+                                  Pending: Enter dial gauge readings for 20T
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+
+                  {isGrspOr6Ncr && (
+                    <div style={{
+                      background: '#f0f9ff',
+                      borderRadius: '16px',
+                      border: '1px solid #bae6fd',
+                      padding: '16px 20px',
+                      marginTop: '12px',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: '10px'
+                    }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
+                        <div style={{ fontSize: '13.5px', fontWeight: '800', color: '#0369a1', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          <span>📐</span>
+                          <span>{activeRailpadType || 'GRSP / 6mm NCR GRSP'} Deformation Evaluation (at 15 Tonnes)</span>
+                        </div>
+                        <div style={{ fontSize: '12px', fontWeight: '700', color: '#0369a1', background: '#ffffff', padding: '4px 12px', borderRadius: '6px', border: '1px solid #7dd3fc' }}>
+                          Specified Limit: <strong>{currentLoadSpecs.min} - {currentLoadSpecs.max} mm</strong>
+                        </div>
+                      </div>
+                      <div style={{ fontSize: '12px', color: '#334155', lineHeight: '1.5' }}>
+                        Dial gauge readings shall be recorded at load corresponding to <strong>15 Tonnes</strong> (Tested Product Load: <strong>15.00 Tonnes</strong> with Factor 1). The deformation to be considered for report shall be the average of the readings taken from 2 dial gauges at 15 Tonnes. Validation: Difference between Left &amp; Right dial gauges shall be <strong>&lt; 0.3 mm</strong>.
+                      </div>
+                      <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap', marginTop: '4px' }}>
+                        {['pad1', 'pad2'].map((padKey, pIdx) => {
+                          const res = getGrspDeflections(physicalData?.loadTest?.[padKey]);
+                          const padTitle = `Pad ${pIdx + 1}`;
+                          return (
+                            <div key={padKey} style={{
+                              background: '#ffffff',
+                              border: `1.5px solid ${!res.isComplete ? '#cbd5e1' : res.isOutOfSpec ? '#fca5a5' : '#86efac'}`,
+                              borderRadius: '10px',
+                              padding: '12px 16px',
+                              fontSize: '12px',
+                              minWidth: '260px',
+                              boxShadow: '0 1px 3px rgba(0,0,0,0.04)'
+                            }}>
+                              <div style={{ fontWeight: '800', color: '#1e293b', marginBottom: '6px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                <span>{padTitle} Result:</span>
+                                {res.isComplete && (
+                                  <span style={{ fontSize: '11px', fontWeight: '800', color: res.isOutOfSpec ? '#dc2626' : '#16a34a', background: res.isOutOfSpec ? '#fee2e2' : '#dcfce7', padding: '2px 8px', borderRadius: '4px' }}>
+                                    {res.isOutOfSpec ? 'FAIL (Out of Spec)' : 'PASS ✓'}
+                                  </span>
+                                )}
+                              </div>
+                              {res.isComplete ? (
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
+                                  <div style={{ color: '#475569', fontSize: '12px' }}>
+                                    Dial Gauge Left (at 15T): <strong>{res.left.toFixed(2)} mm</strong>
+                                  </div>
+                                  <div style={{ color: '#475569', fontSize: '12px' }}>
+                                    Dial Gauge Right (at 15T): <strong>{res.right.toFixed(2)} mm</strong>
+                                  </div>
+                                  <div style={{ color: res.isGaugeDiffOut ? '#dc2626' : '#475569', fontSize: '12px' }}>
+                                    Gauge Diff |L - R|: <strong>{res.gaugeDiff.toFixed(2)} mm</strong> {res.isGaugeDiffOut ? '(≥ 0.3 mm FAIL)' : '(< 0.3 mm ✓)'}
+                                  </div>
+                                  <div style={{ marginTop: '6px', paddingTop: '6px', borderTop: '1px dashed #e2e8f0', fontSize: '13px' }}>
+                                    Deformation (Average): <strong style={{ color: res.isOutOfSpec ? '#dc2626' : '#16a34a', fontSize: '14px' }}>{res.defl.toFixed(2)} mm</strong>
+                                  </div>
+                                </div>
+                              ) : (
+                                <div style={{ color: '#94a3b8', fontStyle: 'italic', fontSize: '11.5px', padding: '4px 0' }}>
+                                  Pending: Enter dial gauge readings for 15T
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
 
                   {/* Resilience by Vertical Rebound Test */}
                   {!isT55_2023 && (
@@ -9281,6 +9926,22 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
                               <thead>
                                 <tr style={{ background: '#fcfcfc' }}>
                                   <th style={{ padding: '10px', fontSize: '11px', border: '1px solid #f1f5f9' }} rowSpan="2">Load (Tonnes)</th>
+                          {hasFactorColumn && (
+                            <th style={{ padding: '8px 10px', fontSize: '11px', border: '1px solid #f1f5f9', background: '#f8fafc', color: '#0f172a', textAlign: 'center', minWidth: '170px' }} rowSpan="2">
+                              <div>FOR PRODUCT TO BE TESTED</div>
+                              <div style={{ fontSize: '9.5px', fontWeight: '600', color: '#64748b', marginTop: '2px', lineHeight: '1.2' }}>
+                                LOAD IN TONNES = (LOAD IN TONNES FOR STANDARD SAMPLE * FACTOR {factorStr})
+                              </div>
+                            </th>
+                          )}
+                          {is62CGRSP && (
+                            <th style={{ padding: '8px 10px', fontSize: '11px', border: '1px solid #f1f5f9', background: '#f8fafc', color: '#0f172a', textAlign: 'center', minWidth: '160px' }} rowSpan="2">
+                              <div>Specific Stress (Kg/cm²)</div>
+                              <div style={{ fontSize: '9.5px', fontWeight: '600', color: '#64748b', marginTop: '2px', lineHeight: '1.2' }}>
+                                {'{'}(Load in tonnes for standard sample*1000*100)/Area of standard sample{'}'}
+                              </div>
+                            </th>
+                          )}
                                   <th style={{ padding: '10px', fontSize: '11px', border: '1px solid #f1f5f9' }} colSpan="3">Pad 3</th>
                                   <th style={{ padding: '10px', fontSize: '11px', border: '1px solid #f1f5f9' }} colSpan="3">Pad 4</th>
                                   <th style={{ padding: '10px', fontSize: '11px', border: '1px solid #f1f5f9' }} colSpan="3">Pad 5</th>
@@ -9319,10 +9980,23 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
                                         <button type="button" onClick={() => handleDeleteRow(idx)} title="Delete Row" style={{ background: 'transparent', border: 'none', color: '#ef4444', cursor: 'pointer', fontWeight: 'bold', padding: '0 4px', fontSize: '14px' }}>✕</button>
                                       </div>
                                     </td>
+                                    {hasFactorColumn && (
+                              <td style={{ padding: '8px', textAlign: 'center', fontSize: '12px', fontWeight: '800', background: '#f8fafc', border: '1px solid #f1f5f9', color: '#0369a1' }}>
+                                {load && !isNaN(parseFloat(load)) ? (parseFloat(load) * factorValue).toFixed(2) : '-'}
+                              </td>
+                            )}
+                            {is62CGRSP && (
+                                      <td style={{ padding: '8px', textAlign: 'center', fontSize: '12px', fontWeight: '800', background: '#f8fafc', border: '1px solid #f1f5f9', color: '#0369a1' }}>
+                                        {load && !isNaN(parseFloat(load)) ? ((parseFloat(load) * 1000 * 100) / 26000).toFixed(2) : '-'}
+                                      </td>
+                                    )}
                                     {['mPad1', 'mPad2', 'mPad3', 'mPad4'].map(padKey => {
                                       const data = physicalData.loadTest[padKey][idx];
                                       const defl = (data.left && data.right) ? ((parseFloat(data.left) + parseFloat(data.right)) / 2).toFixed(2) : '-';
-                                      const isOutAtEnd = idx === (visibleLoadRows - 1) && defl !== '-' && (parseFloat(defl) < specs.min || parseFloat(defl) > specs.max);
+                                      const lVal = parseFloat(load);
+                                      const isD1Row = is62CGRSP && !isNaN(lVal) && (Math.abs(lVal - 1) < 0.05 || Math.abs(((lVal * 1000 * 100) / 26000) - 3.846) < 0.1);
+                                      const isD2Row = is62CGRSP && !isNaN(lVal) && (Math.abs(lVal - 15) < 0.05 || Math.abs(((lVal * 1000 * 100) / 26000) - 57.692) < 0.2);
+                                      const isOutAtEnd = !is62CGRSP && idx === (visibleLoadRows - 1) && defl !== '-' && (parseFloat(defl) < specs.min || parseFloat(defl) > specs.max);
                                       return (
                                         <React.Fragment key={padKey}>
                                           <td style={{ padding: '4px', border: '1px solid #f1f5f9' }}>
@@ -9331,7 +10005,14 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
                                           <td style={{ padding: '4px', border: '1px solid #f1f5f9' }}>
                                             <input type="number" value={data.right} disabled={!load || String(load).trim() === ''} onChange={(e) => setPhysicalData(prev => ({ ...prev, loadTest: { ...prev.loadTest, [padKey]: prev.loadTest[padKey].map((v, i) => i === idx ? { ...v, right: e.target.value } : v) } }))} style={{ width: '100%', padding: '6px', border: '1px solid #f1f5f9', borderRadius: '4px', textAlign: 'center', fontSize: '12px', fontWeight: '700', backgroundColor: (!load || String(load).trim() === '') ? '#f8fafc' : '#fff' }} />
                                           </td>
-                                          <td style={{ padding: '8px', textAlign: 'center', fontSize: '12px', fontWeight: '900', background: '#f8fafc', border: '1px solid #f1f5f9', color: isOutAtEnd ? '#ef4444' : '#21808d' }}>{defl}</td>
+                                          <td style={{ padding: '8px', textAlign: 'center', fontSize: '12px', fontWeight: '900', background: '#f8fafc', border: '1px solid #f1f5f9', color: isOutAtEnd ? '#ef4444' : (isD1Row || isD2Row) ? '#0284c7' : '#21808d' }}>
+                                            {defl}
+                                            {isD1Row && <span style={{ fontSize: '10px', color: '#0369a1', fontWeight: '800', marginLeft: '4px' }}>(d1)</span>}
+                                            {isD2Row && <span style={{ fontSize: '10px', color: '#0369a1', fontWeight: '800', marginLeft: '4px' }}>(d2)</span>}
+                                    {is20Row && <span style={{ fontSize: '10px', color: is20OutOfSpec ? '#dc2626' : '#0369a1', fontWeight: '800', marginLeft: '4px' }}>(20T Result)</span>}
+                                    {isGrsp15Row && <span style={{ fontSize: '10px', color: isTargetOutOfSpec ? '#dc2626' : '#0369a1', fontWeight: '800', marginLeft: '4px' }}>(15T Result)</span>}
+                                    {isDialDiffOut && <span title="Dial gauge diff ≥ 0.3mm" style={{ fontSize: '9px', color: '#dc2626', fontWeight: '800', marginLeft: '3px', background: '#fee2e2', padding: '1px 3px', borderRadius: '3px' }}>Δ≥0.3</span>}
+                                          </td>
                                         </React.Fragment>
                                       );
                                     })}
@@ -9347,7 +10028,7 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
                                         + Add Row
                                       </button>
                                     </td>
-                                    <td colSpan="12" style={{ border: 'none' }}></td>
+                                    <td colSpan={(is62CGRSP || hasFactorColumn) ? 13 : 12} style={{ border: 'none' }}></td>
                                   </tr>
                                 )}
                               </tbody>

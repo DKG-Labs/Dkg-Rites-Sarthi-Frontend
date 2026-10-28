@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import ShiftDutyForm from './ShiftDutyForm';
 import PlantDeclarationDashboard from './PlantDeclaration/PlantDeclarationDashboard';
 import AttendingCallsDashboard from './AttendingCallsDashboard';
+import RailpadProcessAnnexureA, { RailpadProcessAnnexureAModal } from './ProcessInspection/RailpadProcessAnnexureA';
 import { 
   fetchPendingWorkflowTransitions, 
   fetchCompletedCalls, 
@@ -89,6 +90,8 @@ const PortalHome = ({
   const [showShiftForm, setShowShiftForm] = useState(false);
   const [showPlantDeclaration, setShowPlantDeclaration] = useState(false);
   const [hoveredLocked, setHoveredLocked] = useState(null); // 'calls' | 'plant' | null
+  const [showDailyReportModal, setShowDailyReportModal] = useState(false);
+  const [selectedDailyReportPlant, setSelectedDailyReportPlant] = useState('');
 
   useEffect(() => {
     if (defaultShowPlantDeclaration) {
@@ -687,24 +690,63 @@ const PortalHome = ({
                 </div>
               </div>
 
-              <button
-                onClick={handleStartDutyClick}
-                style={{
-                  padding: '7px 14px',
-                  borderRadius: '8px',
-                  border: 'none',
-                  background: isShiftActive ? '#16a34a' : '#0284c7',
-                  color: '#ffffff',
-                  fontWeight: '700',
-                  fontSize: '12px',
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '6px'
-                }}
-              >
-                {isShiftActive ? '▶ Resume Duty' : '+ Start Shift Duty'}
-              </button>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <button
+                  onClick={() => setShowDailyReportModal(true)}
+                  style={{
+                    padding: '7px 14px',
+                    borderRadius: '8px',
+                    border: '1.5px solid #0d9488',
+                    background: '#f0fdfa',
+                    color: '#0f766e',
+                    fontWeight: '700',
+                    fontSize: '12px',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    boxShadow: '0 1px 2px rgba(13, 148, 136, 0.08)',
+                    transition: 'all 0.2s ease'
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.background = '#ccfbf1';
+                    e.currentTarget.style.transform = 'translateY(-1px)';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.background = '#f0fdfa';
+                    e.currentTarget.style.transform = 'translateY(0)';
+                  }}
+                  title="View Process Inspection Activity Report (Annexure-A, IRS-T-55-2025)"
+                >
+                  <span>📊</span> Daily Report (Annexure-A)
+                </button>
+
+                <button
+                  onClick={handleStartDutyClick}
+                  style={{
+                    padding: '7px 14px',
+                    borderRadius: '8px',
+                    border: 'none',
+                    background: isShiftActive ? '#16a34a' : '#0284c7',
+                    color: '#ffffff',
+                    fontWeight: '700',
+                    fontSize: '12px',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    transition: 'all 0.2s ease'
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.transform = 'translateY(-1px)';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.transform = 'translateY(0)';
+                  }}
+                >
+                  {isShiftActive ? '▶ Resume Duty' : '+ Start Shift Duty'}
+                </button>
+              </div>
             </div>
           )}
 
@@ -915,6 +957,32 @@ const PortalHome = ({
                 </div>
               </div>
             </div>
+
+            {/* Daily Report Card — always visible */}
+            <div
+              className="ph-card ph-card--clickable"
+              onClick={() => setShowDailyReportModal(true)}
+            >
+              <div className="ph-card-text">
+                <div className="ph-card-title-row">
+                  <span className="ph-card-title">Daily Report</span>
+                  <span className="ph-badge ph-badge--teal">Annexure-A</span>
+                </div>
+                <span className="ph-card-sub">
+                  Process Inspection Order (IRS-T-55-2025) activity report
+                </span>
+              </div>
+              <div className="ph-card-icon-wrap">
+                <div className="ph-card-icon" style={{
+                  background: '#f0fdfa',
+                  color: '#0d9488',
+                  border: '1px solid #ccfbf1',
+                  fontSize: '18px'
+                }}>
+                  📊
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       )}
@@ -947,6 +1015,26 @@ const PortalHome = ({
           <PlantDeclarationDashboard dutyPlantId={dutyPlantId} />
         </div>
       )}
+
+      {/* Daily Report (Annexure-A) Modal for Process IE */}
+      <RailpadProcessAnnexureAModal
+        isOpen={showDailyReportModal}
+        onClose={() => setShowDailyReportModal(false)}
+        call={{
+          plantId: currentShift?.unit || dutyPlantId || mappedPlants?.[0],
+          unit: currentShift?.unit || dutyPlantId || mappedPlants?.[0],
+          mappedPlants: mappedPlants,
+          vendorName: currentShift?.company || 'Authorized Vendor',
+          vendorCode: currentShift?.company,
+          placeOfInspection: currentShift
+            ? `${currentShift.company || ''} - ${currentShift.unit || ''}`
+            : (dutyPlantId || 'Works / Plant'),
+          shift: currentShift?.shift,
+          inspectionDate: currentShift?.date,
+          callNo: 'N/A'
+        }}
+        currentShift={currentShift}
+      />
     </div>
   );
 };

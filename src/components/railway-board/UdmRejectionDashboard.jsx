@@ -593,7 +593,9 @@ const Fv = ({ l, v, cls }) => (
 
 /* ─── Detail Modal ───────────────────────────────────────────── */
 function DetailModal({ r, onClose }) {
-    const pdfUrl   = r.pdfPath ? `${IREPS_BASE}${r.pdfPath}` : null;
+    const pdfUrl   = r.pdfPath
+        ? (r.pdfPath.startsWith('http') ? r.pdfPath : `${IREPS_BASE}${r.pdfPath}`)
+        : null;
     const typeSlug = (r.typeOfRejection || '').toLowerCase();
     const qty      = r.rejectedQty ? `${Number(r.rejectedQty).toLocaleString('en-IN')} ${r.uom || ''}` : null;
 

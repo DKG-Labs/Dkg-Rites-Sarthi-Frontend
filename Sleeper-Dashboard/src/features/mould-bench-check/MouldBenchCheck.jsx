@@ -4,6 +4,7 @@ import { useShift } from '../../context/ShiftContext';
 import * as XLSX from 'xlsx';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import PaginationBar, { usePagination } from '../../components/common/PaginationBar';
 import './MouldBenchCheck.css';
 
 // --- Constants & Failure Options Configuration ---
@@ -374,6 +375,9 @@ const MouldBenchCheck = ({ onBack, sharedState, initialModule, initialViewMode, 
             return new Date(b.timestamp) - new Date(a.timestamp);
         });
     }, [normalizedRecords, searchBench, filterLocType, filterResult]);
+
+    // History table shows one page of the filtered logs; search, filters and exports use the full list
+    const historyPagination = usePagination(filteredHistoricalLogs);
 
     const handleExportExcel = () => {
         const basePlantName = companyName || localStorage.getItem('plantName') || 'Sleeper Plant';
@@ -1168,7 +1172,7 @@ const MouldBenchCheck = ({ onBack, sharedState, initialModule, initialViewMode, 
                                                 </td>
                                             </tr>
                                         ) : (
-                                            filteredHistoricalLogs.map(record => (
+                                            historyPagination.pageItems.map(record => (
                                                 <tr key={record.id} className="table-row-hover">
                                                     <td><strong>{record.dateOfChecking ? record.dateOfChecking.split('-').reverse().join('/') : ''}</strong></td>
                                                     <td>{record.location}</td>
@@ -1198,6 +1202,7 @@ const MouldBenchCheck = ({ onBack, sharedState, initialModule, initialViewMode, 
                                     </tbody>
                                 </table>
                             </div>
+                            <PaginationBar pagination={historyPagination} />
                         </div>
                     </>
                 )}

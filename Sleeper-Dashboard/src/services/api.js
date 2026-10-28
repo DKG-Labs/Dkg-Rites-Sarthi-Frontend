@@ -19,6 +19,11 @@ export const api = axios.create({
 // Request interceptor to add authentication token
 api.interceptors.request.use(
     (config) => {
+        // A write invalidates only the cached list of the resource it touches, so unrelated saves
+        // (wire tensioning, compaction...) don't force the heavy lists to be downloaded again
+        if (config.method && config.method.toLowerCase() !== 'get') {
+            invalidateRecentLists(config.url);
+        }
         const candidates = [
             localStorage.getItem('sleeper_token'),
             localStorage.getItem('authToken'),
@@ -61,12 +66,55 @@ api.interceptors.request.use(
 // Simple promise-based cache to prevent redundant simultaneous requests
 const pendingRequests = new Map();
 
+// Short-lived result cache for the heavy list endpoints below. A write to the same resource clears
+// it (see request interceptor), as does session expiry, so it only absorbs repeated reads between edits.
+const RECENT_LIST_TTL_MS = 60000;
+const RECENT_LIST_URLS = ['/MoistureAnalysis/list', '/bench-mould-inspection/get-all-lite'];
+const recentListCache = new Map();
+
+const resourceOf = (url) => '/' + String(url || '').split('?')[0].split('/').filter(Boolean)[0];
+function invalidateRecentLists(writeUrl) {
+    const resource = resourceOf(writeUrl);
+    for (const key of Array.from(recentListCache.keys())) {
+        if (resourceOf(key) === resource) recentListCache.delete(key);
+    }
+}
+
+// Bench/mould checks have no plant column, so the list is limited by age instead
+const BENCH_MOULD_WINDOW_DAYS = 90;
+// History windows (days) for the other heavy lists; older rows are no longer returned
+const MOISTURE_WINDOW_DAYS = 30;
+const WATER_CUBE_WINDOW_DAYS = 60;
+const PRODUCTION_WINDOW_DAYS = 60;
+
+// Plant of the current duty, so list endpoints return only that plant's rows (undefined = no filter)
+const getDutyPlant = () => {
+    try {
+        return localStorage.getItem('dutyUnit') || undefined;
+    } catch (e) {
+        return undefined;
+    }
+};
+if (typeof window !== 'undefined') {
+    window.addEventListener('sarthi:session_expired', () => recentListCache.clear());
+}
+
 const getWithCache = (url, options) => {
     const cacheKey = options?.params ? `${url}?${JSON.stringify(options.params)}` : url;
+    const cacheable = RECENT_LIST_URLS.includes(url);
+    if (cacheable) {
+        const hit = recentListCache.get(cacheKey);
+        if (hit && Date.now() - hit.time < RECENT_LIST_TTL_MS) {
+            return Promise.resolve(hit.data);
+        }
+    }
     if (pendingRequests.has(cacheKey)) {
         return pendingRequests.get(cacheKey);
     }
-    const promise = api.get(url, options).finally(() => {
+    const promise = api.get(url, options).then((data) => {
+        if (cacheable) recentListCache.set(cacheKey, { time: Date.now(), data });
+        return data;
+    }).finally(() => {
         // Clear cache after a short delay to allow fresh fetches later
         setTimeout(() => pendingRequests.delete(cacheKey), 2000);
     });
@@ -102,7 +150,9 @@ api.interceptors.response.use(
 
 export const apiService = {
     // ================= Moisture Analysis =================
-    getAllMoistureAnalysis: () => getWithCache('/MoistureAnalysis/all'),
+    // Slim list (only the fields list screens read). Optional plantId narrows server-side.
+    getAllMoistureAnalysis: (plantId) =>
+        getWithCache('/MoistureAnalysis/list', { params: { plantId: plantId || getDutyPlant(), days: MOISTURE_WINDOW_DAYS } }),
     getMoistureAnalysisById: (id) => api.get(`/MoistureAnalysis/${id}`),
     getLastFiveMoisture: () => getWithCache('/MoistureAnalysis/lastFiveMoisture'),
     createMoistureAnalysis: (payload) => api.post('/MoistureAnalysis/create', payload),
@@ -144,9 +194,9 @@ export const apiService = {
         getByUser: (userId) => api.get(`/water-cube-sample/getByUser/${userId}`),
         saveTestResult: (data) => api.post('/water-cube-sample/save-test-result', data),
         getTestResultsByUser: (userId) => api.get(`/water-cube-sample/test-results/user/${userId}`),
-        getAllTests: () => getWithCache('/water-cube-sample/getAllTests')
+        getAllTests: () => getWithCache('/water-cube-sample/getAllTestsLite', { params: { plantId: getDutyPlant(), days: WATER_CUBE_WINDOW_DAYS } })
     },
-    getAllWaterCubeTests: () => getWithCache('/water-cube-sample/getAllTests'),
+    getAllWaterCubeTests: () => getWithCache('/water-cube-sample/getAllTestsLite', { params: { plantId: getDutyPlant(), days: WATER_CUBE_WINDOW_DAYS } }),
 
     // ================= Water Quality Testing =================
     waterQuality: {
@@ -180,7 +230,7 @@ export const apiService = {
     deleteStressBench: (id) => api.delete(`/stress-bench/delete/${id}`),
 
     // ================= Bench / Mould Shift Inspection =================
-    getAllBenchMouldInspections: () => getWithCache('/bench-mould-inspection/get-all'),
+    getAllBenchMouldInspections: () => getWithCache('/bench-mould-inspection/get-all-lite', { params: { days: BENCH_MOULD_WINDOW_DAYS } }),
     getBenchMouldInspectionById: (id) => api.get(`/bench-mould-inspection/get/${id}`),
     createBenchMouldInspection: (payload) => api.post('/bench-mould-inspection/create', payload),
     updateBenchMouldInspection: (id, payload) => api.put(`/bench-mould-inspection/update/${id}`, payload),
@@ -345,9 +395,9 @@ export const apiService = {
     getDowelRecordById: (id) => api.get(`/dowel/${id}`),
 
     getProductionDeclarationRecordById: (id) => api.get(`/production-declaration/${id}`),
-    getAllProductionDeclarations: () => getWithCache('/production-declaration/getAll'),
+    getAllProductionDeclarations: () => getWithCache('/production-declaration/getAllLite', { params: { plantId: getDutyPlant(), days: PRODUCTION_WINDOW_DAYS } }),
     getVerifiedProductionDeclarations: () => getWithCache('/production-declaration/verified-declarations'),
-    getAllVerifedWaterBatchs: (params = {}) => getWithCache('/production-declaration/getAllVerifedWaterBatchs', { params }),
+    getAllVerifedWaterBatchs: (params = {}) => getWithCache('/production-declaration/getAllVerifedWaterBatchsLite', { params: { plantId: params.plantId || getDutyPlant(), days: PRODUCTION_WINDOW_DAYS } }),
     getAllProductionBatches: (vendorId, castingDate, plantId, productionUnit) =>
         api.get('/production-declaration/getAll/batches', {
             params: { vendorId, castingDate, plantId, productionUnit }

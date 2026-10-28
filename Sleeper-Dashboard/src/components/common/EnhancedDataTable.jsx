@@ -8,10 +8,12 @@ const EnhancedDataTable = ({
   selectable = true,
   onSelectionChange,
   loading = false,
-  emptyMessage = "No records found"
+  emptyMessage = "No records found",
+  pageSizeOptions,
+  defaultPageSize = 10
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
-  const [perPage, setPerPage] = useState(10);
+  const [perPage, setPerPage] = useState(defaultPageSize);
   const [currentPage, setCurrentPage] = useState(1);
   const [selectedRows, setSelectedRows] = useState([]);
 
@@ -136,6 +138,18 @@ const EnhancedDataTable = ({
           Page {currentPage} of {totalPages}
         </div>
         <div style={{ display: 'flex', alignItems: 'center' }}>
+          {Array.isArray(pageSizeOptions) && pageSizeOptions.length > 0 && (
+            <label style={{ display: 'flex', alignItems: 'center', gap: '6px', marginRight: '12px', fontSize: '12px', color: '#475467' }}>
+              Rows
+              <select
+                value={perPage}
+                onChange={(e) => { setPerPage(Number(e.target.value)); setCurrentPage(1); }}
+                style={{ padding: '3px 6px', fontSize: '12px', borderRadius: '6px', border: '1px solid #cbd5e1' }}
+              >
+                {pageSizeOptions.map(n => <option key={n} value={n}>{n}</option>)}
+              </select>
+            </label>
+          )}
           <button
             className="btn-action"
             style={{ padding: '6px 12px', background: 'white', border: '1px solid #e2e8f0', color: '#475467' }}

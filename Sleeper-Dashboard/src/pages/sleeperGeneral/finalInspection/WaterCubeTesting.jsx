@@ -688,6 +688,8 @@ const WaterCubeTesting = () => {
                             ]}
                             data={doneTests}
                             selectable={false}
+                            pageSizeOptions={[5, 10, 15, 25]}
+                            defaultPageSize={5}
                         />
                     </div>
                 )}

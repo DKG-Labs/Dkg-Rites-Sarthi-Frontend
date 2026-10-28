@@ -801,6 +801,10 @@ export const AdminDashboard = () => {
                         getSleeperMappedEmployees={getSleeperMappedEmployeesApi}
                         getRailpadCompanies={getRailpadCompaniesApi}
                         getRailpadPlants={getRailpadPlantsApi}
+                        checkDuplicateErcMain={checkDuplicateErcMainApi}
+                        checkDuplicateErcProcess={checkDuplicateErcProcessApi}
+                        checkDuplicateSleeper={checkDuplicateSleeperApi}
+                        checkDuplicateRailpad={checkDuplicateRailpadApi}
                     />
                 )}
             </Modal>
@@ -1488,6 +1492,38 @@ const saveRailpadMappingApi = async (payload) => {
     }
 };
 
+
+const checkDuplicateErcMainApi = async (empCode, poiCode, ieType) => {
+    const token = (getAuthHeaders()['Authorization'] || '').replace(/^Bearer\s+/i, '');
+    const res = await fetch(`${API_BASE_URL}/api/mapping/check-duplicate?empCode=${encodeURIComponent(empCode)}&poiCode=${encodeURIComponent(poiCode)}&ieType=${encodeURIComponent(ieType)}`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+    });
+    return res.json();
+};
+
+const checkDuplicateErcProcessApi = async (empCode, poiCode) => {
+    const token = (getAuthHeaders()['Authorization'] || '').replace(/^Bearer\s+/i, '');
+    const res = await fetch(`${API_BASE_URL}/api/mapping/check-duplicate-process?empCode=${encodeURIComponent(empCode)}&poiCode=${encodeURIComponent(poiCode)}`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+    });
+    return res.json();
+};
+
+const checkDuplicateSleeperApi = async (userId, plantId, poiCode, ieType) => {
+    const token = (getAuthHeaders()['Authorization'] || '').replace(/^Bearer\s+/i, '');
+    const res = await fetch(`${API_BASE_URL}/api/sleeper-mapping/check-duplicate?userId=${userId}&plantId=${encodeURIComponent(plantId)}&poiCode=${encodeURIComponent(poiCode)}&ieType=${encodeURIComponent(ieType)}`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+    });
+    return res.json();
+};
+
+const checkDuplicateRailpadApi = async (userId, plantId, poiCode, ieType) => {
+    const token = (getAuthHeaders()['Authorization'] || '').replace(/^Bearer\s+/i, '');
+    const res = await fetch(`${API_BASE_URL}/api/railpadMapping/check-duplicate?userId=${userId}&plantId=${encodeURIComponent(plantId)}&poiCode=${encodeURIComponent(poiCode)}&ieType=${encodeURIComponent(ieType)}`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+    });
+    return res.json();
+};
 
 /**
  * API to delete IE mapping

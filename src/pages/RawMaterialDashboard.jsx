@@ -602,6 +602,19 @@ const RawMaterialDashboard = ({ call, onBack, onNavigateToSubModule, onHeatsChan
       'MK-III';
   }, [poData]);
 
+  const defaultDivisor = useMemo(() => getErcDivisor(productModel), [productModel]);
+  const [divisor, setDivisor] = useState(() => getErcDivisor('MK-III'));
+  const [divisorInput, setDivisorInput] = useState(() => String(getErcDivisor('MK-III')));
+
+  // Keep divisor in sync with productModel on fresh load (not on resume — resume sets it explicitly)
+  const divisorSetFromResume = useRef(false);
+  useEffect(() => {
+    if (!divisorSetFromResume.current) {
+      setDivisor(defaultDivisor);
+      setDivisorInput(String(defaultDivisor));
+    }
+  }, [defaultDivisor]);
+
   /**
    * Consolidate heats by grouping duplicate heat numbers
    * Returns array of unique heats with aggregated weights
@@ -919,6 +932,12 @@ const RawMaterialDashboard = ({ call, onBack, onNavigateToSubModule, onHeatsChan
             setSourceOfRawMaterial(updatedData.sourceOfRawMaterial);
             restoredAny = true;
           }
+          if (pausedData.preInspectionData.divisor) {
+            divisorSetFromResume.current = true;
+            const restoredDivisor = parseFloat(pausedData.preInspectionData.divisor);
+            setDivisor(restoredDivisor);
+            setDivisorInput(String(restoredDivisor));
+          }
         }
 
         // 7. Restore Final Results (Remarks, Sealing)
@@ -995,9 +1014,8 @@ const RawMaterialDashboard = ({ call, onBack, onNavigateToSubModule, onHeatsChan
    */
   const numberOfERC = useMemo(() => {
     const weightMT = parseFloat(totalQuantity) || 0;
-    const divisor = getErcDivisor(productModel);
     return Math.floor((weightMT * 1000) / divisor);
-  }, [totalQuantity, productModel]);
+  }, [totalQuantity, divisor]);
 
   // Sync consolidated heats and productModel to parent for submodule pages
   useEffect(() => {
@@ -1870,6 +1888,7 @@ const RawMaterialDashboard = ({ call, onBack, onNavigateToSubModule, onHeatsChan
         numberOfBundles: numberOfBundles ? parseInt(numberOfBundles) : null,
         numberOfErc: numberOfERC || null,
         productModel: productModel || null,
+        divisor: divisor || null,
         poNo: poData?.po_no || null,
         poDate: poData?.po_date || null,
         vendorName: poData?.vendor_name || null,
@@ -1934,7 +1953,7 @@ const RawMaterialDashboard = ({ call, onBack, onNavigateToSubModule, onHeatsChan
           } else {
             // All modules are complete
             acceptedQtyMt = weight - totalRejectedWeight;
-            wtAcceptedNumbers = (acceptedQtyMt * 1000) / getErcDivisor(productModel);
+            wtAcceptedNumbers = (acceptedQtyMt * 1000) / divisor;
 
             // Determine Heat Status based on weights and submodule results
             if (acceptedQtyMt === weight) {
@@ -2130,7 +2149,7 @@ const RawMaterialDashboard = ({ call, onBack, onNavigateToSubModule, onHeatsChan
       setIsSaving(false);
       isProcessingFinishRef.current = false;
     }
-  }, [call?.call_no, call?.id, call?.pincode, call?.workflowTransitionId, activeHeats, onBack, numberOfBundles, numberOfERC, sourceOfRawMaterial, poData, productModel, heatSubmoduleStatuses, heatRemarks, commonSealingType, commonSteelStampNumber, commonHolograms, calculateVisualRejectedWeight, consolidatedHeats, canFinishInspection, updateRmCallDataCache, updateRmHeatDataCache, updateRmPoDataCache, capturedImages, setCapturedImages]);
+  }, [call?.call_no, call?.id, call?.pincode, call?.workflowTransitionId, activeHeats, onBack, numberOfBundles, numberOfERC, sourceOfRawMaterial, poData, productModel, divisor, heatSubmoduleStatuses, heatRemarks, commonSealingType, commonSteelStampNumber, commonHolograms, calculateVisualRejectedWeight, consolidatedHeats, canFinishInspection, updateRmCallDataCache, updateRmHeatDataCache, updateRmPoDataCache, capturedImages, setCapturedImages]);
 
   // Withheld modal handlers
   const handleOpenWithheldModal = () => {
@@ -2481,6 +2500,7 @@ const RawMaterialDashboard = ({ call, onBack, onNavigateToSubModule, onHeatsChan
         numberOfBundles: numberOfBundles ? parseInt(numberOfBundles) : null,
         numberOfErc: numberOfERC || null,
         productModel: productModel || null,
+        divisor: divisor || null,
         poNo: poData?.po_no || null,
         poDate: poData?.po_date || null,
         vendorName: poData?.vendor_name || null,
@@ -2529,7 +2549,7 @@ const RawMaterialDashboard = ({ call, onBack, onNavigateToSubModule, onHeatsChan
         const acceptedQtyMt = weight - totalRejectedWeight;
 
         // Calculate Wt. Accepted (Numbers) depending on productModel
-        const wtAcceptedNumbers = (acceptedQtyMt * 1000) / getErcDivisor(productModel);
+        const wtAcceptedNumbers = (acceptedQtyMt * 1000) / divisor;
 
         let overallStatus = 'PENDING';
         if (acceptedQtyMt === weight) {
@@ -2972,7 +2992,7 @@ const RawMaterialDashboard = ({ call, onBack, onNavigateToSubModule, onHeatsChan
         const acceptedQtyMt = weight - totalRejectedWeight;
 
         // Calculate Wt. Accepted (Numbers) depending on productModel
-        const wtAcceptedNumbers = (acceptedQtyMt * 1000) / getErcDivisor(productModel);
+        const wtAcceptedNumbers = (acceptedQtyMt * 1000) / divisor;
 
         let overallStatus = 'PENDING';
         if (acceptedQtyMt === weight) {
@@ -3093,7 +3113,7 @@ const RawMaterialDashboard = ({ call, onBack, onNavigateToSubModule, onHeatsChan
     } finally {
       setIsSavingDraft(false);
     }
-  }, [call, activeHeats, consolidatedHeats, numberOfBundles, numberOfERC, productModel, poData, heatSubmoduleStatuses, heatRemarks, commonSealingType, commonSteelStampNumber, commonHolograms, calculateVisualRejectedWeight, sourceOfRawMaterial, capturedImages]);
+  }, [call, activeHeats, consolidatedHeats, numberOfBundles, numberOfERC, productModel, divisor, poData, heatSubmoduleStatuses, heatRemarks, commonSealingType, commonSteelStampNumber, commonHolograms, calculateVisualRejectedWeight, sourceOfRawMaterial, capturedImages]);
 
   // Load draft data from localStorage on mount (after heat data is loaded)
   useEffect(() => {
@@ -3367,6 +3387,47 @@ const RawMaterialDashboard = ({ call, onBack, onNavigateToSubModule, onHeatsChan
               value={poData.ibsCaseNo || 'N/A'}
               disabled
             />
+          </div>
+          <div className="rm-form-group">
+            <label className="rm-form-label" style={{ fontWeight: '500', marginBottom: '8px', color: '#374151' }}>ERC Type</label>
+            <input
+              type="text"
+              className="rm-form-input"
+              style={{ backgroundColor: '#f8fafc', borderColor: '#e2e8f0', color: '#475569', borderRadius: '10px' }}
+              value={productModel || '-'}
+              disabled
+            />
+          </div>
+          <div className="rm-form-group">
+            <label className="rm-form-label" style={{ fontWeight: '500', marginBottom: '4px', color: '#374151' }}>
+              Formula (kg/piece){' '}
+              <span
+                title={`Default divisor for ${productModel}: ${defaultDivisor} kg/piece. You can only increase this value, not decrease below the default.`}
+                style={{ cursor: 'help', color: '#6b7280', fontSize: '13px' }}
+              >ⓘ</span>
+            </label>
+            <input
+              type="number"
+              className="rm-form-input"
+              step="0.001"
+              min={defaultDivisor}
+              style={{ borderColor: '#e2e8f0', borderRadius: '10px' }}
+              value={divisorInput}
+              onChange={e => setDivisorInput(e.target.value)}
+              onBlur={e => {
+                const val = parseFloat(e.target.value);
+                if (isNaN(val) || val < defaultDivisor) {
+                  setDivisor(defaultDivisor);
+                  setDivisorInput(String(defaultDivisor));
+                } else {
+                  setDivisor(val);
+                  setDivisorInput(String(val));
+                }
+              }}
+            />
+            <span style={{ fontSize: '11px', color: '#6b7280', marginTop: '4px', display: 'block' }}>
+              Default: {defaultDivisor} kg/piece (minimum)
+            </span>
           </div>
         </div>
       </div>
@@ -3884,7 +3945,7 @@ const RawMaterialDashboard = ({ call, onBack, onNavigateToSubModule, onHeatsChan
                           }
 
                           const acceptedQtyTons = Math.max(0, offeredTons - totalRejectedWeight);
-                          const wtAcceptedNumbers = (acceptedQtyTons * 1000) / getErcDivisor(productModel);
+                          const wtAcceptedNumbers = (acceptedQtyTons * 1000) / divisor;
                           return Math.floor(wtAcceptedNumbers);
                         })()}
                       </strong>

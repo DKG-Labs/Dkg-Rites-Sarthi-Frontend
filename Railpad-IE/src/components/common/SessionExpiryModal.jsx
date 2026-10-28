@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import ReactDOM from 'react-dom';
 import { RITES_LOGO_DATA_URI } from './ritesLogoData';
 import './SessionExpiryModal.css';
 
@@ -71,7 +72,7 @@ const SessionExpiryModal = () => {
 
   if (!isOpen) return null;
 
-  return (
+  return ReactDOM.createPortal(
     <div className="session-expiry-overlay" role="dialog" aria-modal="true">
       <div className="session-expiry-card">
         {/* Official RITES Branding Logo */}
@@ -121,7 +122,8 @@ const SessionExpiryModal = () => {
           <span>Log Out &amp; Sign In</span>
         </button>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 };
 

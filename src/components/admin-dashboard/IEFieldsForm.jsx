@@ -215,11 +215,11 @@ const IeMultiSelect = ({ options, selected, onToggle, onClear }) => {
 };
 
 export const IEFieldsForm = ({
-    onSubmit, 
-    onCancel, 
-    getUsersByRole, 
-    getCompanies, 
-    getUnitsByCompany, 
+    onSubmit,
+    onCancel,
+    getUsersByRole,
+    getCompanies,
+    getUnitsByCompany,
     getMappingDetails,
     getSleeperEmployeesByRole,
     getSleeperCompanies,
@@ -227,6 +227,10 @@ export const IEFieldsForm = ({
     getSleeperMappedEmployees,
     getRailpadCompanies,
     getRailpadPlants,
+    checkDuplicateErcMain,
+    checkDuplicateErcProcess,
+    checkDuplicateSleeper,
+    checkDuplicateRailpad,
     initialData
 }) => {
     const [productType, setProductType] = useState(() => {
@@ -273,6 +277,7 @@ export const IEFieldsForm = ({
     const [mappedEmployees, setMappedEmployees] = useState([]);
     const [loading, setLoading] = useState(false);
     const [validating, setValidating] = useState(false);
+    const [mappingErrors, setMappingErrors] = useState({});
 
     // Controlling Manager mapping state
     const [cmList, setCmList] = useState([]);
@@ -767,6 +772,22 @@ export const IEFieldsForm = ({
                     selectedEmployees: value
                 }
             }));
+        } else if (name === 'plantId') {
+            setFormData(prev => ({
+                ...prev,
+                sleeperMapping: { ...prev.sleeperMapping, plantId: value }
+            }));
+            if (checkDuplicateSleeper && formData.sleeperMapping.employeeId && formData.sleeperMapping.poiCode && value) {
+                const ieType = selectedRole === 'Main IE' ? 'MAIN_IE' : 'PROCESS_IE';
+                try {
+                    const result = await checkDuplicateSleeper(formData.sleeperMapping.employeeId, value, formData.sleeperMapping.poiCode, ieType);
+                    if (result?.exists) {
+                        setMappingErrors(prev => ({ ...prev, sleeper: 'This mapping already exists.' }));
+                    } else {
+                        setMappingErrors(prev => { const n = {...prev}; delete n.sleeper; return n; });
+                    }
+                } catch (e) { /* ignore network errors */ }
+            }
         } else {
             setFormData(prev => ({
                 ...prev,
@@ -820,9 +841,10 @@ export const IEFieldsForm = ({
                 setLoading(false);
             }
         } else if (field === 'plantId') {
+            const plantIdVal = value.plantId || value;
             newEntries[index] = {
                 ...newEntries[index],
-                plantId: value.plantId || value,
+                plantId: plantIdVal,
                 plantName: value.plantName || value.plantId || value
             };
             setFormData(prev => ({
@@ -832,6 +854,17 @@ export const IEFieldsForm = ({
                     entries: newEntries
                 }
             }));
+            if (checkDuplicateRailpad && formData.railpadMapping.employeeId && newEntries[index].poiCode && plantIdVal) {
+                const ieType = selectedRole.includes('Main') ? 'MAIN_IE' : 'PROCESS_IE';
+                try {
+                    const result = await checkDuplicateRailpad(formData.railpadMapping.employeeId, plantIdVal, newEntries[index].poiCode, ieType);
+                    if (result?.exists) {
+                        setMappingErrors(prev => ({ ...prev, [`railpad_${index}`]: 'This mapping already exists.' }));
+                    } else {
+                        setMappingErrors(prev => { const n = {...prev}; delete n[`railpad_${index}`]; return n; });
+                    }
+                } catch (e) { /* ignore network errors */ }
+            }
         }
     };
 
@@ -917,6 +950,23 @@ export const IEFieldsForm = ({
             }
         }
 
+        // DB duplicate check for ERC Main IE
+        if (checkDuplicateErcMain && newList[index].poiCode && newList[index].ieType) {
+            const empCode = users.find(u => String(u.userId) === String(formData.userId))?.employeeCode || '';
+            if (empCode) {
+                try {
+                    const result = await checkDuplicateErcMain(empCode, newList[index].poiCode, newList[index].ieType);
+                    if (result?.exists) {
+                        setMappingErrors(prev => ({ ...prev, [`erc_main_${index}`]: 'This mapping already exists.' }));
+                    } else {
+                        setMappingErrors(prev => { const n = {...prev}; delete n[`erc_main_${index}`]; return n; });
+                    }
+                } catch (e) { /* ignore network errors */ }
+            }
+        } else if (!newList[index].poiCode) {
+            setMappingErrors(prev => { const n = {...prev}; delete n[`erc_main_${index}`]; return n; });
+        }
+
         setFormData(prev => ({ ...prev, iePinPoiList: newList }));
     };
 
@@ -964,6 +1014,23 @@ export const IEFieldsForm = ({
             }
         } else {
             newList[index][name] = value;
+        }
+
+        // DB duplicate check for ERC Process IE
+        if (checkDuplicateErcProcess && newList[index].poiCode && newList[index].ieUserId) {
+            const empCode = ieUsers.find(u => String(u.userId) === String(newList[index].ieUserId))?.employeeCode || '';
+            if (empCode) {
+                try {
+                    const result = await checkDuplicateErcProcess(empCode, newList[index].poiCode);
+                    if (result?.exists) {
+                        setMappingErrors(prev => ({ ...prev, [`erc_process_${index}`]: 'This mapping already exists.' }));
+                    } else {
+                        setMappingErrors(prev => { const n = {...prev}; delete n[`erc_process_${index}`]; return n; });
+                    }
+                } catch (e) { /* ignore network errors */ }
+            }
+        } else if (!newList[index].poiCode) {
+            setMappingErrors(prev => { const n = {...prev}; delete n[`erc_process_${index}`]; return n; });
         }
 
         setFormData(prev => ({ ...prev, iePoiMappings: newList }));
@@ -1023,6 +1090,10 @@ export const IEFieldsForm = ({
                 }
             }
             
+            if (Object.keys(mappingErrors).length > 0) {
+                alert('This mapping already exists in the database. Please resolve duplicate entries before saving.');
+                return;
+            }
             const submissionData = {
                 productType,
                 mappingType,
@@ -1066,6 +1137,10 @@ export const IEFieldsForm = ({
                 plantSet.add(pId);
             }
 
+            if (Object.keys(mappingErrors).length > 0) {
+                alert('One or more mappings already exist in the database. Please resolve duplicate entries before saving.');
+                return;
+            }
             const submissionData = {
                 productType,
                 role: selectedRole,
@@ -1106,6 +1181,11 @@ export const IEFieldsForm = ({
                 }
                 seen.add(key);
             }
+        }
+
+        if (Object.keys(mappingErrors).length > 0) {
+            alert('One or more mappings already exist in the database. Please resolve duplicate entries before saving.');
+            return;
         }
 
         // Structure the data as expected by backend
@@ -1417,6 +1497,11 @@ export const IEFieldsForm = ({
                                         placeholder="Select Plant"
                                         disabled={!formData.sleeperMapping.vendorCode}
                                     />
+                                    {mappingErrors.sleeper && (
+                                        <span style={{ color: '#dc2626', fontSize: '12px', display: 'block', marginTop: '4px' }}>
+                                            ⚠ {mappingErrors.sleeper}
+                                        </span>
+                                    )}
                                 </div>
 
                                 {mappingType === 'company wise' && (
@@ -1554,14 +1639,19 @@ export const IEFieldsForm = ({
                                             valueKey="plantId"
                                             onChange={(val) => handleRailpadEntryChange(index, 'plantId', val)}
                                             placeholder={
-                                                !entry.vendorCode 
-                                                    ? "Select Plant" 
-                                                    : getAvailablePlantsForEntry(index).length === 0 
-                                                        ? "All plants for this company already mapped" 
+                                                !entry.vendorCode
+                                                    ? "Select Plant"
+                                                    : getAvailablePlantsForEntry(index).length === 0
+                                                        ? "All plants for this company already mapped"
                                                         : "Select Plant"
                                             }
                                             disabled={!entry.vendorCode || (getAvailablePlantsForEntry(index).length === 0 && !entry.plantId)}
                                         />
+                                        {mappingErrors[`railpad_${index}`] && (
+                                            <span style={{ color: '#dc2626', fontSize: '12px', display: 'block', marginTop: '4px' }}>
+                                                ⚠ {mappingErrors[`railpad_${index}`]}
+                                            </span>
+                                        )}
                                     </div>
                                 </div>
                             </div>
@@ -1690,6 +1780,11 @@ export const IEFieldsForm = ({
                                         <div className="form-group mapping-full-row">
                                             <label className="form-label">Unit Name <small className="required-star">*</small></label>
                                             <SearchableSelect options={item.units} value={item.unitName} onChange={(val) => handleIEMappingChange(index, 'unitName', val)} placeholder="Select Unit" disabled={!item.companyName} />
+                                            {mappingErrors[`erc_main_${index}`] && (
+                                                <span style={{ color: '#dc2626', fontSize: '12px', display: 'block', marginTop: '4px' }}>
+                                                    ⚠ {mappingErrors[`erc_main_${index}`]}
+                                                </span>
+                                            )}
                                         </div>
                                     </div>
                                 </div>
@@ -1727,6 +1822,11 @@ export const IEFieldsForm = ({
                                         <div className="form-group mapping-full-row">
                                             <label className="form-label">Unit Name (POI) <small className="required-star">*</small></label>
                                             <SearchableSelect options={item.units} value={item.unitName} onChange={(val) => handleProcessMappingChange(index, 'unitName', val)} placeholder="Select Unit" disabled={!item.companyName} />
+                                            {mappingErrors[`erc_process_${index}`] && (
+                                                <span style={{ color: '#dc2626', fontSize: '12px', display: 'block', marginTop: '4px' }}>
+                                                    ⚠ {mappingErrors[`erc_process_${index}`]}
+                                                </span>
+                                            )}
                                         </div>
                                     </div>
                                 </div>
@@ -1740,7 +1840,7 @@ export const IEFieldsForm = ({
                 )}
 
                 <div className="form-actions" style={{ marginTop: '30px', display: 'flex', gap: '12px', justifyContent: 'flex-end' }}>
-                    <button type="submit" className="btn btn-primary" disabled={loading}>
+                    <button type="submit" className="btn btn-primary" disabled={loading || Object.keys(mappingErrors).length > 0}>
                         {loading ? 'Processing...' : 'Submit'}
                     </button>
                     <button type="button" className="btn btn-secondary" onClick={onCancel}>

@@ -20,6 +20,7 @@ import { fetchCompletedCallsForIC, fetchSignedCallsForIC, fetchClosedCallsForIC,
 // import { fetchRawMaterialCallsByStatus } from '../services/rawMaterial/rawMaterialApiService';
 import ProcessDefectSummaryCard from '../components/ProcessDefectSummaryCard';
 import ProcessIeFeedbackModule from './ProcessIeFeedbackModule/ProcessIeFeedbackModule';
+import RejectionScrappingCard from '../components/rejection-scrapping/RejectionScrappingCard';
 import { useInspection } from '../context/InspectionContext';
 
 const IELandingPage = ({ onStartInspection, onStartMultipleInspections, setSelectedCall, setContextSelectedCalls, setCurrentPage, initialTab = 'pending', setInspectionShift, setInspectionDate, setProcessShift }) => {
@@ -254,6 +255,7 @@ const IELandingPage = ({ onStartInspection, onStartMultipleInspections, setSelec
       tooltip: signedCallsCount > 0 ? 'Kindly send present calls to IBS' : undefined
     },
     { id: 'closed', label: 'Closed Calls', description: `${closedCallsCount} closed` },
+    { id: 'rejection-scrapping', label: 'Rejection & Scrapping', description: 'Scrap rejected pieces' },
     ...(showDefectSummary ? [{ id: 'defect-summary', label: 'Process Defect Summary', description: 'Call-wise defect data' }] : []),
     { id: 'feedback-discrepancy', label: 'Process Inspection Feedback module', description: 'Manage discrepancies' },
   ];
@@ -1048,6 +1050,14 @@ const IELandingPage = ({ onStartInspection, onStartMultipleInspections, setSelec
           setCurrentPage={setCurrentPage}
         />
       )}
+
+      {/* Rejection & Scrapping */}
+      {activeTab === 'rejection-scrapping' && (() => {
+        const u = getStoredUser();
+        const ieUserId = u?.userId ? parseInt(u.userId) : null;
+        const ieType = isProcessIE ? 'PROCESS_IE' : 'MAIN_IE';
+        return <RejectionScrappingCard ieUserId={ieUserId} ieType={ieType} />;
+      })()}
 
       {/* 6. Performance */}
       {activeTab === 'performance' && (

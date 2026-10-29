@@ -29,6 +29,7 @@ import {
   ProcessOilTankWrapper,
   ProcessParametersWrapper,
   ProcessSummaryWrapper,
+  ProcessRejectionScrappingWrapper,
 } from './pages/wrappers/ProcessWrappers';
 import {
   FinalProductDashboardWrapper,
@@ -41,6 +42,7 @@ import {
   FinalToeLoadWrapper,
   FinalWeightWrapper,
   FinalReportsWrapper,
+  FinalRejectionScrappingWrapper,
 } from './pages/wrappers/FinalProductWrappers';
 import {
   MultiInitiationWrapper,
@@ -224,6 +226,7 @@ const App = () => {
               <Route path={ROUTES.PROCESS_OIL_TANK} element={<ProcessOilTankWrapper />} />
               <Route path={ROUTES.PROCESS_PARAMETERS} element={<ProcessParametersWrapper />} />
               <Route path={ROUTES.PROCESS_SUMMARY} element={<ProcessSummaryWrapper />} />
+              <Route path={ROUTES.PROCESS_REJECTION_SCRAPPING} element={<ProcessRejectionScrappingWrapper />} />
 
               {/* Final Product Routes */}
               <Route path={ROUTES.FINAL_PRODUCT} element={<FinalProductDashboardWrapper />} />
@@ -236,6 +239,7 @@ const App = () => {
               <Route path={ROUTES.FINAL_TOE_LOAD} element={<FinalToeLoadWrapper />} />
               <Route path={ROUTES.FINAL_WEIGHT} element={<FinalWeightWrapper />} />
               <Route path={ROUTES.FINAL_REPORTS} element={<FinalReportsWrapper />} />
+              <Route path={ROUTES.FINAL_REJECTION_SCRAPPING} element={<FinalRejectionScrappingWrapper />} />
 
               {/* IC (Inspection Certificate) Routes */}
               <Route path={ROUTES.IC_RAW_MATERIAL} element={<RawMaterialCertificateWrapper />} />

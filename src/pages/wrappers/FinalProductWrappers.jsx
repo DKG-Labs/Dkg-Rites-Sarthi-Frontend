@@ -1,5 +1,6 @@
 import { useNavigate } from 'react-router-dom';
 import FinalProductDashboard from '../FinalProductDashboard';
+import RejectionScrappingPage from '../RejectionScrappingPage';
 import FinalCalibrationDocumentsPage from '../FinalCalibrationDocumentsPage';
 import FinalVisualDimensionalPage from '../FinalVisualDimensionalPage';
 import FinalChemicalAnalysisPage from '../FinalChemicalAnalysisPage';
@@ -11,6 +12,7 @@ import FinalWeightTestPage from '../FinalWeightTestPage';
 import FinalReportsPage from '../FinalReportsPage';
 import { useInspection } from '../../context/InspectionContext';
 import { ROUTES, FINAL_PRODUCT_SUBMODULE_ROUTES } from '../../routes';
+import { getStoredUser } from '../../services/authService';
 
 /**
  * Wrapper for FinalProductDashboard
@@ -229,6 +231,22 @@ export const FinalReportsWrapper = () => {
     <FinalReportsPage
       onBack={handleBack}
       onNavigateSubmodule={handleNavigateSubmodule}
+    />
+  );
+};
+
+/**
+ * Wrapper for Final IE — Rejection & Scrapping Page
+ */
+export const FinalRejectionScrappingWrapper = () => {
+  const user = getStoredUser();
+  const ieUserId = user?.userId ? parseInt(user.userId) : null;
+
+  return (
+    <RejectionScrappingPage
+      backRoute={ROUTES.FINAL_PRODUCT}
+      ieUserId={ieUserId}
+      ieType="MAIN_IE"
     />
   );
 };

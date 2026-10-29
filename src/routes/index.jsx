@@ -31,6 +31,7 @@ export const ROUTES = {
   PROCESS_OIL_TANK: '/process/oil-tank-counter',
   PROCESS_PARAMETERS: '/process/parameters-grid',
   PROCESS_SUMMARY: '/process/summary-reports',
+  PROCESS_REJECTION_SCRAPPING: '/process/rejection-scrapping',
 
   // Final Product Routes
   FINAL_PRODUCT: '/final-product',
@@ -43,6 +44,7 @@ export const ROUTES = {
   FINAL_TOE_LOAD: '/final-product/toe-load-test',
   FINAL_WEIGHT: '/final-product/weight-test',
   FINAL_REPORTS: '/final-product/reports',
+  FINAL_REJECTION_SCRAPPING: '/final-product/rejection-scrapping',
 
   // IC (Inspection Certificate) Routes
   IC_RAW_MATERIAL: '/ic/raw-material',
@@ -139,6 +141,7 @@ export const PROCESS_SUBMODULE_ROUTES = {
   'process-oil-tank-counter': ROUTES.PROCESS_OIL_TANK,
   'process-parameters-grid': ROUTES.PROCESS_PARAMETERS,
   'process-summary-reports': ROUTES.PROCESS_SUMMARY,
+  'process-rejection-scrapping': ROUTES.PROCESS_REJECTION_SCRAPPING,
 };
 
 export const FINAL_PRODUCT_SUBMODULE_ROUTES = {
@@ -151,6 +154,7 @@ export const FINAL_PRODUCT_SUBMODULE_ROUTES = {
   'final-toe-load-test': ROUTES.FINAL_TOE_LOAD,
   'final-weight-test': ROUTES.FINAL_WEIGHT,
   'final-reports': ROUTES.FINAL_REPORTS,
+  'rejection-scrapping': ROUTES.FINAL_REJECTION_SCRAPPING,
 };
 
 

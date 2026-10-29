@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import ProcessDashboard from '../ProcessDashboard';
+import RejectionScrappingPage from '../RejectionScrappingPage';
 import ProcessCalibrationDocumentsPage from '../ProcessCalibrationDocumentsPage';
 import ProcessStaticPeriodicCheckPage from '../ProcessStaticPeriodicCheckPage';
 import ProcessOilTankCounterPage from '../ProcessOilTankCounterPage';
@@ -10,6 +11,7 @@ import { useInspection } from '../../context/InspectionContext';
 import { ROUTES, PROCESS_SUBMODULE_ROUTES } from '../../routes';
 import { formatDate } from '../../utils/helpers';
 import { getStoredUser } from '../../services/authService';
+
 
 /**
  * Safe helper: reads & parses processCurrentLineData from sessionStorage.
@@ -377,4 +379,18 @@ export const ProcessSummaryWrapper = () => {
   );
 };
 
+/**
+ * Wrapper for Process IE — Rejection & Scrapping Page
+ */
+export const ProcessRejectionScrappingWrapper = () => {
+  const user = getStoredUser();
+  const ieUserId = user?.userId ? parseInt(user.userId) : null;
 
+  return (
+    <RejectionScrappingPage
+      backRoute={ROUTES.PROCESS}
+      ieUserId={ieUserId}
+      ieType="PROCESS_IE"
+    />
+  );
+};

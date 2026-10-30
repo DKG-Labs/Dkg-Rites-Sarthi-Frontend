@@ -452,8 +452,8 @@ const ProfessionalCardSection = ({
                     vendor: selectedVendorPlant,
                     zonalRailway: selectedZonalRailway,
                     zone: selectedZonalRailway,
-                    startDate: isPrimaryFilterApplied ? filterStartDate : '',
-                    endDate: isPrimaryFilterApplied ? filterEndDate : '',
+                    startDate: filterStartDate,
+                    endDate: filterEndDate,
                     product: isRailPad ? 'RailPad' : isSleeper ? 'Sleeper' : 'ERC',
                     _refresh: refreshTick
                 };
@@ -462,8 +462,8 @@ const ProfessionalCardSection = ({
                     ? reportService.getSleeperDashboardSummaryFiltered(
                         selectedVendorPlant,
                         selectedZonalRailway,
-                        isPrimaryFilterApplied ? filterStartDate : '',
-                        isPrimaryFilterApplied ? filterEndDate : ''
+                        filterStartDate,
+                        filterEndDate
                     ).catch(e => { console.error(e); return null; })
                     : Promise.resolve(null);
 
@@ -483,8 +483,8 @@ const ProfessionalCardSection = ({
                     reportService.getAvgProductionPerDay(
                         selectedVendorPlant,
                         selectedZonalRailway,
-                        isPrimaryFilterApplied ? filterStartDate : '',
-                        isPrimaryFilterApplied ? filterEndDate : ''
+                        filterStartDate,
+                        filterEndDate
                     ).catch(e => { console.error(e); return null; }),
                     reportService.getDashboardSummary(params).catch(e => { console.error(e); return null; }),
                     sleeperSummaryPromise,
@@ -560,8 +560,8 @@ const ProfessionalCardSection = ({
                 const params = {
                     zone: selectedZonalRailway,
                     vendor: selectedVendorPlant,
-                    startDate: isPrimaryFilterApplied ? filterStartDate : '',
-                    endDate: isPrimaryFilterApplied ? filterEndDate : '',
+                    startDate: filterStartDate,
+                    endDate: filterEndDate,
                     _refresh: refreshTick
                 };
                 const response = await reportService.getErcDashboardTotalCalls(params);
@@ -604,8 +604,8 @@ const ProfessionalCardSection = ({
                 itemCatDescr,
                 selectedVendorPlant || null,
                 selectedZonalRailway || null,
-                isPrimaryFilterApplied ? (filterStartDate || null) : null,
-                isPrimaryFilterApplied ? (filterEndDate || null) : null
+                filterStartDate || null,
+                filterEndDate || null
             );
             const data = response.responseData || response || [];
             setPoModalData(data);
@@ -636,8 +636,8 @@ const ProfessionalCardSection = ({
                 isSleeper: isSleeper,
                 vendor: selectedVendorPlant,
                 zone: selectedZonalRailway,
-                startDate: isPrimaryFilterApplied ? filterStartDate : '',
-                endDate: isPrimaryFilterApplied ? filterEndDate : ''
+                startDate: filterStartDate,
+                endDate: filterEndDate
             });
             const data = response.responseData || response || [];
             setIcModalData(data);
@@ -659,8 +659,8 @@ const ProfessionalCardSection = ({
             const filters = {
                 vendor: selectedVendorPlant,
                 zone: selectedZonalRailway,
-                startDate: isPrimaryFilterApplied ? filterStartDate : '',
-                endDate: isPrimaryFilterApplied ? filterEndDate : ''
+                startDate: filterStartDate,
+                endDate: filterEndDate
             };
             if (isRailPad) {
                 response = await reportService.getInspectionCallStatusDetails('ALL', type, {
@@ -1108,11 +1108,11 @@ const ProfessionalCardSection = ({
                                             <div style={{ flex: '1', minWidth: '150px', order: 3 }}>
                                                 <label style={{ display: 'block', fontSize: '11px', fontWeight: '700', color: '#64748b', marginBottom: '4px', textTransform: 'uppercase' }}>Date Range</label>
                                                 <Select
-                                                    value={isPrimaryFilterApplied ? dateFilterType : null}
+                                                    value={dateFilterType || null}
                                                     placeholder="Select Date Range"
                                                     onChange={(val) => setDateFilterType(val || 'current_fy')}
                                                     style={{ width: '100%', height: '36px' }}
-                                                    disabled={!isPrimaryFilterApplied}
+                                                    disabled={false}
                                                 >
                                                     <Option value="current_fy">Current Fin. Year</Option>
                                                     <Option value="last_1_month">Last 1 Month</Option>
@@ -1125,7 +1125,7 @@ const ProfessionalCardSection = ({
                                                 <label style={{ display: 'block', fontSize: '11px', fontWeight: '700', color: '#64748b', marginBottom: '4px', textTransform: 'uppercase' }}>From Date</label>
                                                 <input
                                                     type="date"
-                                                    value={isPrimaryFilterApplied ? (filterStartDate || '') : ''}
+                                                    value={filterStartDate || ''}
                                                     max={filterEndDate || undefined}
                                                     onChange={(e) => {
                                                         const newStart = e.target.value;
@@ -1136,12 +1136,12 @@ const ProfessionalCardSection = ({
                                                             setFilterEndDate(newStart);
                                                         }
                                                     }}
-                                                    disabled={!isPrimaryFilterApplied}
+                                                    disabled={false}
                                                     style={{
                                                         width: '100%', height: '36px', padding: '0 11px',
                                                         border: '1px solid #d9d9d9', borderRadius: '6px',
-                                                        backgroundColor: !isPrimaryFilterApplied ? '#f5f5f5' : '#fff',
-                                                        color: !isPrimaryFilterApplied ? '#bfbfbf' : 'rgba(0, 0, 0, 0.88)', fontSize: '14px'
+                                                        backgroundColor: '#fff',
+                                                        color: 'rgba(0, 0, 0, 0.88)', fontSize: '14px'
                                                     }}
                                                 />
                                             </div>
@@ -1149,7 +1149,7 @@ const ProfessionalCardSection = ({
                                                 <label style={{ display: 'block', fontSize: '11px', fontWeight: '700', color: '#64748b', marginBottom: '4px', textTransform: 'uppercase' }}>To Date</label>
                                                 <input
                                                     type="date"
-                                                    value={isPrimaryFilterApplied ? (filterEndDate || '') : ''}
+                                                    value={filterEndDate || ''}
                                                     min={filterStartDate || undefined}
                                                     onChange={(e) => {
                                                         const newEnd = e.target.value;
@@ -1160,12 +1160,12 @@ const ProfessionalCardSection = ({
                                                             setFilterStartDate(newEnd);
                                                         }
                                                     }}
-                                                    disabled={!isPrimaryFilterApplied}
+                                                    disabled={false}
                                                     style={{
                                                         width: '100%', height: '36px', padding: '0 11px',
                                                         border: '1px solid #d9d9d9', borderRadius: '6px',
-                                                        backgroundColor: !isPrimaryFilterApplied ? '#f5f5f5' : '#fff',
-                                                        color: !isPrimaryFilterApplied ? '#bfbfbf' : 'rgba(0, 0, 0, 0.88)', fontSize: '14px'
+                                                        backgroundColor: '#fff',
+                                                        color: 'rgba(0, 0, 0, 0.88)', fontSize: '14px'
                                                     }}
                                                 />
                                             </div>

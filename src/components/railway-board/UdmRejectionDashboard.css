@@ -682,7 +682,7 @@
 .udm-table {
     width: 100%;
     border-collapse: collapse;
-    font-size: 14px;
+    font-size: 15px;
     table-layout: auto;
 }
 
@@ -693,7 +693,7 @@
     background: #f8fafc;
     padding: 10px 12px;
     text-align: left;
-    font-size: 12px; font-weight: 800;
+    font-size: 13px; font-weight: 800;
     text-transform: uppercase; letter-spacing: 0.06em;
     color: #64748b;
     white-space: nowrap;
@@ -715,8 +715,8 @@
 .udm-table tbody tr:hover { background: #fbfcff; }
 
 .td-main     { font-weight: 700; color: #0f172a; }
-.td-sub      { font-size: 12px; color: #94a3b8; margin-top: 1px; }
-.td-muted    { color: #94a3b8; font-size: 13px; }
+.td-sub      { font-size: 13px; color: #94a3b8; margin-top: 1px; }
+.td-muted    { color: #94a3b8; font-size: 14px; }
 
 /* Column width helpers */
 .td-num      { width: 44px; text-align: center; }

@@ -9,7 +9,7 @@ import { PieChart, Pie, Cell } from 'recharts';
 import './ProcessInspectionQualityTable.css';
 
 // Reusable Drilldown Report Page Component
-export const ProcessQualityReportPage = ({ manufacturer, data }) => {
+export const ProcessQualityReportPage = ({ manufacturer, data, summaryRow }) => {
     const defectAgg = {
         'Shearing': 0, 'Turning': 0, 'Forging': 0, 'Finishing': 0, 'Quenching': 0, 'Tempering': 0
     };
@@ -26,16 +26,73 @@ export const ProcessQualityReportPage = ({ manufacturer, data }) => {
     const totalInspectedAllMonths = (data || []).reduce((acc, m) => acc + (m.inspected || 0), 0);
     const totalRejectedAllMonths = (data || []).reduce((acc, m) => acc + (m.processRejected || 0), 0);
 
-    const pieData = Object.entries(defectAgg)
-        .map(([name, value]) => ({
-            name,
-            value,
-            rate: totalInspectedAllMonths > 0 ? (value / totalInspectedAllMonths) * 100 : 0
-        }))
-        .filter(d => d.value > 0);
+    const totalInspected = summaryRow?.totalInspected != null ? Number(summaryRow.totalInspected) : totalInspectedAllMonths;
+    const totalRejected = summaryRow?.totalRejected != null ? Number(summaryRow.totalRejected) : totalRejectedAllMonths;
+    const avgRejPercent = summaryRow?.rejectionPercent != null
+        ? Number(summaryRow.rejectionPercent)
+        : (totalInspected > 0 ? (totalRejected * 100) / totalInspected : 0);
 
-    const totalDefects = pieData.reduce((acc, d) => acc + d.value, 0);
-    const COLORS = ['#0f172a', '#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6'];
+    let pieData = [];
+    if (summaryRow) {
+        const stageDefs = [
+            {
+                name: 'Tempering',
+                rate: Number(summaryRow.temperingRejectionPercent || 0),
+                value: summaryRow.temperingRejected != null
+                    ? Number(summaryRow.temperingRejected)
+                    : (defectAgg['Tempering'] || (totalInspected > 0 ? Math.round((Number(summaryRow.temperingRejectionPercent || 0) / 100) * totalInspected) : 0))
+            },
+            {
+                name: 'Turning',
+                rate: Number(summaryRow.turningRejectionPercent || 0),
+                value: summaryRow.turningRejected != null
+                    ? Number(summaryRow.turningRejected)
+                    : (defectAgg['Turning'] || (totalInspected > 0 ? Math.round((Number(summaryRow.turningRejectionPercent || 0) / 100) * totalInspected) : 0))
+            },
+            {
+                name: 'Shearing',
+                rate: Number(summaryRow.shearingRejectionPercent || 0),
+                value: summaryRow.shearingRejected != null
+                    ? Number(summaryRow.shearingRejected)
+                    : (defectAgg['Shearing'] || (totalInspected > 0 ? Math.round((Number(summaryRow.shearingRejectionPercent || 0) / 100) * totalInspected) : 0))
+            },
+            {
+                name: 'Forging',
+                rate: Number(summaryRow.forgingRejectionPercent || 0),
+                value: summaryRow.forgingRejected != null
+                    ? Number(summaryRow.forgingRejected)
+                    : (defectAgg['Forging'] || (totalInspected > 0 ? Math.round((Number(summaryRow.forgingRejectionPercent || 0) / 100) * totalInspected) : 0))
+            },
+            {
+                name: 'Quenching',
+                rate: Number(summaryRow.quenchingRejectionPercent || 0),
+                value: summaryRow.quenchingRejected != null
+                    ? Number(summaryRow.quenchingRejected)
+                    : (defectAgg['Quenching'] || (totalInspected > 0 ? Math.round((Number(summaryRow.quenchingRejectionPercent || 0) / 100) * totalInspected) : 0))
+            },
+            {
+                name: 'MPI',
+                rate: Number(summaryRow.mpiRejectionPercent || 0),
+                value: summaryRow.mpiRejected != null
+                    ? Number(summaryRow.mpiRejected)
+                    : (totalInspected > 0 ? Math.round((Number(summaryRow.mpiRejectionPercent || 0) / 100) * totalInspected) : 0)
+            }
+        ];
+        pieData = stageDefs
+            .filter(d => d.value > 0 || d.rate > 0)
+            .sort((a, b) => (b.rate !== a.rate ? b.rate - a.rate : b.value - a.value));
+    } else {
+        pieData = Object.entries(defectAgg)
+            .map(([name, value]) => ({
+                name,
+                value,
+                rate: totalInspected > 0 ? (value / totalInspected) * 100 : 0
+            }))
+            .filter(d => d.value > 0)
+            .sort((a, b) => (b.rate !== a.rate ? b.rate - a.rate : b.value - a.value));
+    }
+
+    const COLORS = ['#0f172a', '#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4'];
 
     return (
         <div id="mpia-report-content" className="piq-report-card">
@@ -98,7 +155,7 @@ export const ProcessQualityReportPage = ({ manufacturer, data }) => {
                             <div key={i} className="piq-legend-item">
                                 <span className="piq-legend-dot" style={{ background: COLORS[i % COLORS.length] }}></span>
                                 <span className="piq-legend-text">
-                                    {d.name}: <strong>{d.value}</strong> <span className="text-slate-400">({totalDefects > 0 ? ((d.value / totalDefects) * 100).toFixed(0) : 0}%)</span>
+                                    {d.name}: <strong>{Number(d.value).toLocaleString('en-IN')}</strong> <span className="text-slate-500 font-medium">({Number(d.rate || 0).toFixed(2)}%)</span>
                                 </span>
                             </div>
                         ))}
@@ -151,18 +208,16 @@ export const ProcessQualityReportPage = ({ manufacturer, data }) => {
                     <div className="piq-kpi-summary-grid">
                         <div className="piq-kpi-box box-inspected">
                             <span className="piq-kpi-label">Total Inspected</span>
-                            <span className="piq-kpi-val text-slate-800">{totalInspectedAllMonths.toLocaleString('en-IN')}</span>
+                            <span className="piq-kpi-val text-slate-800">{Number(totalInspected).toLocaleString('en-IN')}</span>
                         </div>
                         <div className="piq-kpi-box box-rejected">
                             <span className="piq-kpi-label">Total Rejected</span>
-                            <span className="piq-kpi-val text-rose-600">{totalRejectedAllMonths.toLocaleString('en-IN')}</span>
+                            <span className="piq-kpi-val text-rose-600">{Number(totalRejected).toLocaleString('en-IN')}</span>
                         </div>
                         <div className="piq-kpi-box box-rate">
                             <span className="piq-kpi-label">Avg Rej %</span>
                             <span className="piq-kpi-val text-amber-600">
-                                {totalInspectedAllMonths > 0
-                                    ? ((totalRejectedAllMonths * 100) / totalInspectedAllMonths).toFixed(2)
-                                    : '0.00'}%
+                                {avgRejPercent.toFixed(2)}%
                             </span>
                         </div>
                     </div>
@@ -208,6 +263,7 @@ const ProcessInspectionQualityTable = ({ refreshTick = 0 }) => {
 
     // Drilldown View: Dedicated Rejection Drilldown Page
     const [drilldownManufacturer, setDrilldownManufacturer] = useState(null);
+    const [drilldownRow, setDrilldownRow] = useState(null);
     const [drilldownData, setDrilldownData] = useState([]);
     const [drilldownLoading, setDrilldownLoading] = useState(false);
     const [isExporting, setIsExporting] = useState(false);
@@ -273,12 +329,14 @@ const ProcessInspectionQualityTable = ({ refreshTick = 0 }) => {
     };
 
     // Handle Rejection Drilldown Click
-    const handleOpenRejectionDrilldown = async (manufacturerName) => {
+    const handleOpenRejectionDrilldown = async (manufacturerName, row = null) => {
         setDrilldownManufacturer(manufacturerName);
+        const resolvedRow = row || tableData.find(item => item.manufacturerName === manufacturerName) || null;
+        setDrilldownRow(resolvedRow);
         setDrilldownLoading(true);
         try {
-            const start = new Date(new Date().setFullYear(new Date().getFullYear() - 1)).toISOString().split('T')[0];
-            const end = new Date().toISOString().split('T')[0];
+            const start = fromDate || new Date(new Date().setFullYear(new Date().getFullYear() - 1)).toISOString().split('T')[0];
+            const end = toDate || new Date().toISOString().split('T')[0];
             const res = await reportService.getCompanyMonthWiseData({
                 companyName: manufacturerName,
                 startDate: start,
@@ -387,9 +445,9 @@ const ProcessInspectionQualityTable = ({ refreshTick = 0 }) => {
                     });
                     const data = res.responseData?.content || res.content || res || [];
                     setBatchProgress(prev => prev + 1);
-                    return { manufacturer: m.manufacturerName, data: Array.isArray(data) ? data : [] };
+                    return { manufacturer: m.manufacturerName, data: Array.isArray(data) ? data : [], summaryRow: m };
                 } catch (e) {
-                    return { manufacturer: m.manufacturerName, data: [] };
+                    return { manufacturer: m.manufacturerName, data: [], summaryRow: m };
                 }
             }));
 
@@ -458,7 +516,10 @@ const ProcessInspectionQualityTable = ({ refreshTick = 0 }) => {
                 {/* Top Action Bar */}
                 <div className="piq-drilldown-topbar no-print">
                     <button
-                        onClick={() => setDrilldownManufacturer(null)}
+                        onClick={() => {
+                            setDrilldownManufacturer(null);
+                            setDrilldownRow(null);
+                        }}
                         className="piq-drilldown-back-btn"
                     >
                         <i className="fa-solid fa-arrow-left"></i>
@@ -514,7 +575,7 @@ const ProcessInspectionQualityTable = ({ refreshTick = 0 }) => {
                         <p className="font-semibold text-slate-600">Fetching Monthly Defect Analysis for {drilldownManufacturer}...</p>
                     </div>
                 ) : (
-                    <ProcessQualityReportPage manufacturer={drilldownManufacturer} data={drilldownData} />
+                    <ProcessQualityReportPage manufacturer={drilldownManufacturer} data={drilldownData} summaryRow={drilldownRow} />
                 )}
             </div>
         );
@@ -697,7 +758,7 @@ const ProcessInspectionQualityTable = ({ refreshTick = 0 }) => {
                                         <button
                                             className="piq-rej-badge"
                                             title="Click to view Monthly Performance & Defect Distribution"
-                                            onClick={() => handleOpenRejectionDrilldown(row.manufacturerName)}
+                                            onClick={() => handleOpenRejectionDrilldown(row.manufacturerName, row)}
                                         >
                                             {Number(row.rejectionPercent || 0).toFixed(2)}%
                                             <i className="fa-solid fa-arrow-up-right-from-square ml-1 text-[10px] opacity-70"></i>
@@ -770,7 +831,7 @@ const ProcessInspectionQualityTable = ({ refreshTick = 0 }) => {
             {/* MODAL 1: Manufacturer PO Details Modal */}
             {selectedManufacturerForPo && (
                 <div className="piq-modal-overlay" onClick={() => setSelectedManufacturerForPo(null)}>
-                    <div className="piq-modal-container" onClick={(e) => e.stopPropagation()}>
+                    <div className="piq-modal-container piq-po-details-modal" onClick={(e) => e.stopPropagation()}>
                         <div className="piq-modal-header">
                             <div>
                                 <h3 className="piq-modal-title">
@@ -790,14 +851,12 @@ const ProcessInspectionQualityTable = ({ refreshTick = 0 }) => {
                                 </div>
                             ) : (
                                 <div className="table-responsive">
-                                    <table className="piq-modal-table">
+                                    <table className="piq-modal-table piq-po-details-table">
                                         <thead>
                                             <tr>
-                                                <th>PO Number & PO Date</th>
+                                                <th className="text-left">PO Number & PO Date</th>
                                                 <th className="text-right">PO Quantity (Nos.)</th>
-                                                <th className="text-right">Total Final Inspected Qty</th>
                                                 <th className="text-center">Open Inspection Calls</th>
-                                                <th className="text-right">PO Balance Quantity</th>
                                             </tr>
                                         </thead>
                                         <tbody>
@@ -810,9 +869,6 @@ const ProcessInspectionQualityTable = ({ refreshTick = 0 }) => {
                                                     <td className="text-right font-medium text-slate-700">
                                                         {Number(po.poQuantity || 0).toLocaleString('en-IN')}
                                                     </td>
-                                                    <td className="text-right font-medium text-emerald-700">
-                                                        {Number(po.totalFinalInspected || 0).toLocaleString('en-IN')}
-                                                    </td>
                                                     <td className="text-center">
                                                         {Number(po.openInspectionCalls || 0) > 0 ? (
                                                             <button
@@ -820,21 +876,18 @@ const ProcessInspectionQualityTable = ({ refreshTick = 0 }) => {
                                                                 title="Click to view open inspection calls"
                                                                 onClick={() => handleOpenCallDetails(po.poNumber)}
                                                             >
-                                                                {po.openInspectionCalls} Calls
+                                                                {po.openInspectionCalls} {Number(po.openInspectionCalls) === 1 ? 'Call' : 'Calls'}
                                                                 <i className="fa-solid fa-chevron-right ml-1 text-[10px]"></i>
                                                             </button>
                                                         ) : (
                                                             <span className="text-xs text-slate-400 font-semibold">0</span>
                                                         )}
                                                     </td>
-                                                    <td className="text-right font-bold text-amber-700">
-                                                        {Number(po.poBalanceQuantity || 0).toLocaleString('en-IN')}
-                                                    </td>
                                                 </tr>
                                             ))}
                                             {poDetailsData.length === 0 && (
                                                 <tr>
-                                                    <td colSpan="5" className="p-8 text-center text-slate-400 italic">
+                                                    <td colSpan="3" className="p-8 text-center text-slate-400 italic">
                                                         No PO records found for this manufacturer.
                                                     </td>
                                                 </tr>
@@ -938,7 +991,7 @@ const ProcessInspectionQualityTable = ({ refreshTick = 0 }) => {
                 <div className="batch-print-area">
                     {batchReportData.map((item, idx) => (
                         <div key={idx} className="page-break" style={{ pageBreakAfter: 'always', padding: '20px' }}>
-                            <ProcessQualityReportPage manufacturer={item.manufacturer} data={item.data} />
+                            <ProcessQualityReportPage manufacturer={item.manufacturer} data={item.data} summaryRow={item.summaryRow} />
                         </div>
                     ))}
                 </div>

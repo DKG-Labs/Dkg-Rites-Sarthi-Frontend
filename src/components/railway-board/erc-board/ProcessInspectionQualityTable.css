@@ -778,6 +778,33 @@
     border-bottom: 1px solid #f1f5f9;
 }
 
+/* PO Wise Details: 3 columns, keep widths balanced and aligned with headers */
+.piq-po-details-table {
+    table-layout: fixed;
+}
+
+/* Only 3 short columns, so the modal doesn't need the full 960px */
+.piq-modal-container.piq-po-details-modal {
+    max-width: 680px;
+}
+
+.piq-po-details-table th:nth-child(1),
+.piq-po-details-table td:nth-child(1) {
+    width: 40%;
+    padding-left: 16px;
+}
+
+.piq-po-details-table th:nth-child(2),
+.piq-po-details-table td:nth-child(2) {
+    width: 30%;
+    padding-right: 24px;
+}
+
+.piq-po-details-table th:nth-child(3),
+.piq-po-details-table td:nth-child(3) {
+    width: 30%;
+}
+
 .piq-modal-footer,
 .piq-submodal-footer {
     padding: 12px 24px;

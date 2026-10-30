@@ -750,7 +750,15 @@ const FinalInspectionScreen = ({ call, onBack }) => {
 
                             const overlayMf = (overlay.mfTestedSleepers || []).filter(s => getSCode(s) !== '' && getSCode(s) !== '0');
                             const mbMf = (mb.mfTestedSleepers || []).filter(s => getSCode(s) !== '' && getSCode(s) !== '0');
-                            const finalMf = overlayMf.length > 0 ? overlay.mfTestedSleepers : mbMf;
+                            // A saved/draft MF list can be stale or hold samples of another sleeper type that shared the
+                            // batch number, so keep only samples that belong to this call's own sleepers.
+                            const ownCodes = new Set([
+                                ...finalAccepted, ...rejList, ...(mb.acceptedSleepers || []), ...(mb.rejectedSleepers || [])
+                            ].map(x => String(getSCode(x)).trim().toUpperCase()).filter(Boolean));
+                            const pickMf = overlayMf.length > 0 ? overlay.mfTestedSleepers : mbMf;
+                            const finalMf = ownCodes.size > 0
+                                ? pickMf.filter(x => ownCodes.has(String(getSCode(x)).trim().toUpperCase()))
+                                : pickMf;
 
                             return {
                                 ...mb,

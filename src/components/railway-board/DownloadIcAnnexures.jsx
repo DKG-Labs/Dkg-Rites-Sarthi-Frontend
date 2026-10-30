@@ -66,17 +66,11 @@ const getQuantityColumns = (record) => {
 
     const s = String(rawQty).trim();
 
-    // 2. Check if unit is MT (e.g. 30.879 MT)
+    // 2. Check if unit is MT (e.g. 30.879 MT): show MT only, Nos stays '-'
     if (s.toLowerCase().includes('mt')) {
-        const num = parseFloat(s.replace(/[^0-9.]/g, ''));
-        let nosVal = '-';
-        if (!isNaN(num) && num > 0) {
-            const approxNos = Math.round((num * 1000) / 1.088);
-            nosVal = `${approxNos.toLocaleString('en-IN')} Nos`;
-        }
         return {
             qtySet: s,
-            qtyNos: nosVal
+            qtyNos: '-'
         };
     }
 
@@ -92,19 +86,9 @@ const getQuantityColumns = (record) => {
     const cleanNumStr = s.replace(/nos\.?/gi, '').replace(/,/g, '').trim();
     const num = parseFloat(cleanNumStr);
     if (!isNaN(num) && num > 0) {
-        const callNo = (record.callNumber || '').toUpperCase();
         const formattedNos = `${Math.round(num).toLocaleString('en-IN')} Nos`;
 
-        // Only calculate MT conversion if it is explicitly an ERC call (EF-, EP-, ER-)
-        const isErc = callNo.startsWith('EF') || callNo.startsWith('EP') || callNo.startsWith('ER');
-        if (isErc && num >= 100) {
-            const mtVal = Math.round((num * 1.088 / 1000.0) * 1000.0) / 1000.0;
-            return {
-                qtySet: `${mtVal.toFixed(3)} MT`,
-                qtyNos: formattedNos
-            };
-        }
-
+        // Quantity in Nos: show Nos only, MT/Set stays '-'
         return {
             qtySet: '-',
             qtyNos: formattedNos
@@ -117,7 +101,7 @@ const getQuantityColumns = (record) => {
     };
 };
 
-const DownloadIcAnnexures = ({ selectedProduct = 'ERC', fromDate: initialFromDate = '', toDate: initialToDate = '', hideFilters = false, vendorPlantCode = '', zonalRailway = '' }) => {
+const DownloadIcAnnexures = ({ selectedProduct = 'ERC', fromDate: initialFromDate = '', toDate: initialToDate = '', hideFilters = false, vendorPlantCode = '', zonalRailway = '', poNumber = '', defaultStage = 'all' }) => {
     // 1. Backend Data State
     const [records, setRecords] = useState([]);
     const [loading, setLoading] = useState(false);
@@ -132,7 +116,7 @@ const DownloadIcAnnexures = ({ selectedProduct = 'ERC', fromDate: initialFromDat
     const [annexurePageModal, setAnnexurePageModal] = useState({ isOpen: false, callNo: '' });
 
     // 2. Local Filters state
-    const [stageFilter, setStageFilter] = useState('all');
+    const [stageFilter, setStageFilter] = useState(defaultStage);
     const [fromDate, setFromDate] = useState(initialFromDate || '2025-01-01');
     const [toDate, setToDate] = useState(initialToDate || new Date().toISOString().split('T')[0]);
     const [globalSearch, setGlobalSearch] = useState('');
@@ -141,7 +125,7 @@ const DownloadIcAnnexures = ({ selectedProduct = 'ERC', fromDate: initialFromDat
 
     // Active filters used for matching logic
     const [activeFilters, setActiveFilters] = useState({
-        stage: 'all',
+        stage: defaultStage,
         fromDate: initialFromDate || '2025-01-01',
         toDate: initialToDate || new Date().toISOString().split('T')[0],
         search: ''
@@ -285,6 +269,11 @@ const DownloadIcAnnexures = ({ selectedProduct = 'ERC', fromDate: initialFromDat
         const recordsSource = records || [];
         
         let result = recordsSource.filter(record => {
+            // Restrict to one PO when opened from the PO Issued list
+            if (poNumber && String(record.poNumberOnly || '').trim() !== String(poNumber).trim()) {
+                return false;
+            }
+
             // Stage match based on Call Number Prefix
             let matchStage = true;
             const currentStage = activeFilters.stage || stageFilter;
@@ -302,9 +291,11 @@ const DownloadIcAnnexures = ({ selectedProduct = 'ERC', fromDate: initialFromDat
                 }
             }
             
-            // Date range match
+            // Date range match. When the range comes from the dashboard (hideFilters), the server has already
+            // filtered by the date the call was sent to IBS, so do not re-filter on the IC edit date: an IC
+            // generated before the range but sent to IBS inside it would otherwise vanish from this list.
             let matchDate = true;
-            if (activeFilters.fromDate && activeFilters.toDate) {
+            if (!hideFilters && activeFilters.fromDate && activeFilters.toDate) {
                 const recordDate = new Date(record.icIssuedDate);
                 const start = new Date(activeFilters.fromDate);
                 const end = new Date(activeFilters.toDate);
@@ -392,7 +383,7 @@ const DownloadIcAnnexures = ({ selectedProduct = 'ERC', fromDate: initialFromDat
         }
 
         return result;
-    }, [activeFilters, stageFilter, sortConfig, records, searchQuery, searchType]);
+    }, [activeFilters, stageFilter, sortConfig, records, searchQuery, searchType, hideFilters, poNumber]);
 
 
 

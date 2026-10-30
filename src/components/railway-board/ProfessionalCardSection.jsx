@@ -1371,25 +1371,28 @@ const ProfessionalCardSection = ({
                                             <div className="prof-card">
                                                 <div className="sec-title">Production & Rejection</div>
                                                 {(() => {
-                                                    const activeDetails = localInspectionDetails?.length > 0 ? localInspectionDetails : (inspectionDetailsData?.length > 0 ? inspectionDetailsData : staticInspectionDetailsData);
+                                                    // Rejection % is for IC / calls closed (sent to IBS) in the selected filters only: use the
+                                                    // filtered Inspection Details and never the all-India, static or unfiltered backend values,
+                                                    // so a zone with no closed calls shows 0% instead of someone else's number.
+                                                    const activeDetails = localInspectionDetails || [];
 
                                                     const procData = activeDetails.find(x => x.name === 'Process');
                                                     const pAcc = procData?.accepted || 0;
                                                     const pRej = procData?.rejected || 0;
                                                     const pInsp = pAcc + pRej;
-                                                    const pRejPct = pInsp > 0 ? (pRej * 100) / pInsp : (s.processRejectionPercentage ?? 0);
+                                                    const pRejPct = pInsp > 0 ? (pRej * 100) / pInsp : 0;
 
                                                     const rmData = activeDetails.find(x => x.name === 'RM');
                                                     const rmAcc = rmData?.accepted || 0;
                                                     const rmRej = rmData?.rejected || 0;
                                                     const rmInsp = rmAcc + rmRej;
-                                                    const rmRejPct = rmInsp > 0 ? (rmRej * 100) / rmInsp : (s.rmRejectionPercentage ?? 0);
+                                                    const rmRejPct = rmInsp > 0 ? (rmRej * 100) / rmInsp : 0;
 
                                                     const finalData = activeDetails.find(x => x.name === 'Final');
                                                     const fAcc = finalData?.accepted || 0;
                                                     const fRej = finalData?.rejected || 0;
                                                     const fInsp = fAcc + fRej;
-                                                    const fRejPct = fInsp > 0 ? (fRej * 100) / fInsp : (s.finalRejectionPercentage ?? 0);
+                                                    const fRejPct = fInsp > 0 ? (fRej * 100) / fInsp : 0;
 
                                                     const avgProd = localAvgProduction !== null ? localAvgProduction : (s.avgProductionPerDay ?? 0);
 
@@ -2086,11 +2089,13 @@ const ProfessionalCardSection = ({
                                                                             onClick={() => downloadExcel(
                                                                                 displayMauData.map(row => ({
                                                                                     ...row,
-                                                                                    poQty: row.poQty !== undefined && row.poQty !== null ? `${row.poQty} ${row.uom || ''}`.trim() : '-'
+                                                                                    uom: row.uom || '-',
+                                                                                    poQty: row.poQty !== undefined && row.poQty !== null ? row.poQty : '-'
                                                                                 })),
                                                                                 [
                                                                                     { label: 'Manufacturer', key: 'manufacturer' },
                                                                                     { label: 'RITES RIO', key: 'rio' },
+                                                                                    { label: 'UoM', key: 'uom' },
                                                                                     { label: 'No. of PO', key: 'noOfPos' },
                                                                                     { label: 'PO Qty', key: 'poQty' },
                                                                                     { label: 'Manufactured', key: 'manufactured' },
@@ -2112,6 +2117,7 @@ const ProfessionalCardSection = ({
                                                                             <tr className="sortable-header">
                                                                                 <th onClick={() => handleMauSort('manufacturer')}>Manufacturer {renderSortIcon('manufacturer', mauSort)}</th>
                                                                                 <th onClick={() => handleMauSort('rio')}>RITES RIO {renderSortIcon('rio', mauSort)}</th>
+                                                                                <th onClick={() => handleMauSort('uom')}>UoM {renderSortIcon('uom', mauSort)}</th>
                                                                                 <th className="text-right" onClick={() => handleMauSort('noOfPos')}>No. of PO {renderSortIcon('noOfPos', mauSort)}</th>
                                                                                 <th className="text-right" onClick={() => handleMauSort('poQty')}>PO Qty {renderSortIcon('poQty', mauSort)}</th>
                                                                                 <th className="text-right" onClick={() => handleMauSort('manufactured')}>Manufactured {renderSortIcon('manufactured', mauSort)}</th>
@@ -2127,8 +2133,9 @@ const ProfessionalCardSection = ({
                                                                                 <tr key={idx} className={idx % 2 === 0 ? 'row-odd' : 'row-even'}>
                                                                                     <td>{row.manufacturer}</td>
                                                                                     <td>{row.rio || '-'}</td>
+                                                                                    <td>{row.uom || '-'}</td>
                                                                                     <td className="text-right">{row.noOfPos !== undefined && row.noOfPos !== null ? row.noOfPos : '-'}</td>
-                                                                                    <td className="text-right">{row.poQty !== undefined && row.poQty !== null ? `${row.poQty} ${row.uom || ''}`.trim() : '-'}</td>
+                                                                                    <td className="text-right">{row.poQty !== undefined && row.poQty !== null ? row.poQty : '-'}</td>
                                                                                     <td className="text-right">{row.manufactured}</td>
                                                                                     <td className="text-right">{row.inspected}</td>
                                                                                     <td className="text-right" style={{ color: '#dc2626' }}>{row.rejected}</td>

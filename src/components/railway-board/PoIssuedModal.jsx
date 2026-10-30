@@ -1,9 +1,12 @@
 import React, { useState, useMemo } from 'react';
+import { createPortal } from 'react-dom';
 import axios from 'axios';
 import { API_BASE_URL, getAuthHeaders } from '../../services/apiConfig';
 import './PoIssuedModal.css';
+import DownloadIcAnnexures from './DownloadIcAnnexures';
 
 const PoIssuedModal = ({ isOpen, onClose, data, title, isLoading }) => {
+    const [icListPo, setIcListPo] = useState(null);
     const [searchTerm, setSearchTerm] = useState('');
     const [selectedZone, setSelectedZone] = useState('all');
     const [downloadingPo, setDownloadingPo] = useState(null);
@@ -97,6 +100,9 @@ const PoIssuedModal = ({ isOpen, onClose, data, title, isLoading }) => {
         });
     }, [data, searchTerm, selectedZone]);
 
+    // The IC count and its list are only reported for ERC
+    const showIcCol = (title || '').toUpperCase().includes('ERC');
+
     if (!isOpen) return null;
 
     return (
@@ -156,6 +162,7 @@ const PoIssuedModal = ({ isOpen, onClose, data, title, isLoading }) => {
                                 <th className="text-right">PO Quantity</th>
                                 <th className="text-right">Accepted Qty After Final Inspection</th>
                                 <th className="text-right">Balance Quantity</th>
+                                {showIcCol && <th className="text-center">No. of IC Issued</th>}
                             </tr>
                         </thead>
                         <tbody>
@@ -170,6 +177,7 @@ const PoIssuedModal = ({ isOpen, onClose, data, title, isLoading }) => {
                                         <td className="text-right"><div className="skeleton-cell" style={{ width: '80px', marginLeft: 'auto' }}></div></td>
                                         <td className="text-right"><div className="skeleton-cell" style={{ width: '80px', marginLeft: 'auto' }}></div></td>
                                         <td className="text-right"><div className="skeleton-cell" style={{ width: '80px', marginLeft: 'auto' }}></div></td>
+                                        {showIcCol && <td className="text-center"><div className="skeleton-cell" style={{ width: '40px', margin: '0 auto' }}></div></td>}
                                     </tr>
                                 ))
                             ) : filteredData.length > 0 ? (
@@ -203,17 +211,74 @@ const PoIssuedModal = ({ isOpen, onClose, data, title, isLoading }) => {
                                         <td className="text-right">{item.poQuantity?.toLocaleString()} {item.uom}</td>
                                         <td className="text-right">{(item.acceptedQtyAfterFinalInspection ?? 0).toLocaleString()} {item.uom}</td>
                                         <td className="text-right">{(item.balanceQuantity ?? 0).toLocaleString()} {item.uom}</td>
+                                        {showIcCol && (
+                                            <td className="text-center">
+                                                {Number(item.icIssuedCount || 0) > 0 ? (
+                                                    <button
+                                                        type="button"
+                                                        className="po-download-link"
+                                                        onClick={() => setIcListPo(item.poNumber)}
+                                                        title="Click to view Final ICs issued for this PO"
+                                                    >
+                                                        <span>{item.icIssuedCount}</span>
+                                                        <i className="fa-solid fa-chevron-right" style={{ fontSize: '10px', opacity: 0.7 }}></i>
+                                                    </button>
+                                                ) : (
+                                                    <span>0</span>
+                                                )}
+                                            </td>
+                                        )}
                                     </tr>
                                 ))
                             ) : (
                                 <tr>
-                                    <td colSpan="8" className="text-center">No records found</td>
+                                    <td colSpan={showIcCol ? 9 : 8} className="text-center">No records found</td>
                                 </tr>
                             )}
                         </tbody>
                     </table>
                 </div>
                 
+                {icListPo && createPortal(
+                    <div
+                        onClick={() => setIcListPo(null)}
+                        style={{
+                            position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+                            backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center',
+                            justifyContent: 'center', zIndex: 1100
+                        }}
+                    >
+                        <div
+                            onClick={e => e.stopPropagation()}
+                            style={{
+                                background: '#f8fafc', borderRadius: '16px', overflow: 'hidden',
+                                width: '96vw', maxWidth: '1550px', height: '90vh',
+                                boxShadow: '0 20px 25px -5px rgba(0,0,0,0.1)', display: 'flex', flexDirection: 'column'
+                            }}
+                        >
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px 24px', borderBottom: '1px solid #e2e8f0', background: 'white' }}>
+                                <h3 style={{ margin: 0, color: '#1e293b', fontSize: '20px', fontWeight: 'bold' }}>
+                                    <i className="fa-solid fa-file-contract" style={{ marginRight: '8px', color: '#3b82f6' }}></i>
+                                    Final ICs Issued - PO {icListPo}
+                                </h3>
+                                <button
+                                    onClick={() => setIcListPo(null)}
+                                    style={{ background: 'none', border: 'none', fontSize: '24px', cursor: 'pointer', color: '#64748b', lineHeight: 1 }}
+                                >&times;</button>
+                            </div>
+                            <div style={{ flex: 1, overflow: 'auto', position: 'relative', padding: '20px' }}>
+                                <DownloadIcAnnexures
+                                    selectedProduct="ERC"
+                                    hideFilters={true}
+                                    poNumber={icListPo}
+                                    defaultStage="FINAL"
+                                />
+                            </div>
+                        </div>
+                    </div>,
+                    document.body
+                )}
+
                 {toastMessage && (
                     <div className={`modal-toast ${toastMessage.isError ? 'error' : 'success'}`}>
                         <i className={`fa-solid ${toastMessage.isError ? 'fa-circle-exclamation' : 'fa-circle-check'}`}></i>

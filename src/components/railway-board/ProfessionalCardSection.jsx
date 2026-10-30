@@ -443,8 +443,6 @@ const ProfessionalCardSection = ({
             setLocalSleeperSummaryData(null);
             setTotalCallsData(null);
             try {
-                const isPrimaryFilterApplied = filterMode === 'vendorwise' ? !!selectedVendorPlant : !!selectedZonalRailway;
-
                 const minLoadingPromise = new Promise(resolve => setTimeout(resolve, 500));
 
                 const params = {
@@ -555,7 +553,6 @@ const ProfessionalCardSection = ({
                     setTotalCallsData(null);
                     return;
                 }
-                const isPrimaryFilterApplied = filterMode === 'vendorwise' ? !!selectedVendorPlant : !!selectedZonalRailway;
 
                 const params = {
                     zone: selectedZonalRailway,
@@ -599,7 +596,6 @@ const ProfessionalCardSection = ({
             } else {
                 itemCatDescr = 'Elastic Rail Clips';
             }
-            const isPrimaryFilterApplied = filterMode === 'vendorwise' ? !!selectedVendorPlant : !!selectedZonalRailway;
             const response = await reportService.getPoIssuedDetails(
                 itemCatDescr,
                 selectedVendorPlant || null,
@@ -630,7 +626,6 @@ const ProfessionalCardSection = ({
             setIcModalData([]);
             setIsIcModalLoading(true);
             setIsIcModalOpen(true);
-            const isPrimaryFilterApplied = filterMode === 'vendorwise' ? !!selectedVendorPlant : !!selectedZonalRailway;
             const response = await reportService.getInspectionCallStatusDetails(stage, status, {
                 isRailPad: isRailPad,
                 isSleeper: isSleeper,
@@ -655,7 +650,6 @@ const ProfessionalCardSection = ({
             setIsIcModalLoading(true);
             setIsIcModalOpen(true);
             let response;
-            const isPrimaryFilterApplied = filterMode === 'vendorwise' ? !!selectedVendorPlant : !!selectedZonalRailway;
             const filters = {
                 vendor: selectedVendorPlant,
                 zone: selectedZonalRailway,

@@ -5,7 +5,7 @@ import ExcelJS from 'exceljs/dist/exceljs.min.js';
 
 const SCADA_MANUFACTURERS = [
     { label: 'Patil Rail Infrastructure Pvt. Ltd.', value: 'PRIL' },
-    //{ label: 'Track Innovations (India) Pvt. Ltd.', value: 'TIPL' }
+    { label: 'Track Innovations (India) Pvt. Ltd.', value: 'TIPL' }
 ];
 
 const SCADA_UNITS = [
@@ -20,7 +20,7 @@ const SCADA_UNITS = [
     { label: 'Kaipadar', value: 'Kaipadar', code: 'KPR', manufacturer: 'PRIL' },
     { label: 'Kargi', value: 'Kargi', code: 'KAR', manufacturer: 'PRIL' },
     { label: 'ACPL', value: 'ACPL', code: 'BUW', manufacturer: 'PRIL' },
-    //{ label: 'Chandigarh', value: 'Chandigarh', code: 'CDG', manufacturer: 'TIPL' }
+    { label: 'Chandigarh', value: 'Chandigarh', code: 'CDG', manufacturer: 'TIPL' }
 ];
 
 const SCADA_LINES = [

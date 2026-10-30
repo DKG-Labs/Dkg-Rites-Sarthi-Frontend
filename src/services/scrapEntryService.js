@@ -58,3 +58,18 @@ export const deleteScrapEntry = async (id, reason, actionBy) => {
     throw new Error(err.message || 'Failed to delete scrap entry');
   }
 };
+
+export const getBoardSummary = async (productType = 'ERC') => {
+  const res = await fetch(`${BASE}/board-summary?productType=${productType}`);
+  if (!res.ok) throw new Error('Failed to fetch board summary');
+  return res.json();
+};
+
+export const getRejectionBreakup = async (poiCode, date, stage, shift, lineName) => {
+  const params = new URLSearchParams({ poiCode, date, stage });
+  if (shift) params.set('shift', shift);
+  if (lineName) params.set('lineName', lineName);
+  const res = await fetch(`${BASE}/rejection-breakup?${params}`);
+  if (!res.ok) throw new Error('Failed to fetch rejection breakup');
+  return res.json();
+};

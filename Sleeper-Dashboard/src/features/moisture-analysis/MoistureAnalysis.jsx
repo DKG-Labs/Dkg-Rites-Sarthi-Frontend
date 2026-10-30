@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import MoistureEntryForm from './components/MoistureEntryForm';
 import { apiService } from '../../services/api';
 import TrendChart from '../../components/common/TrendChart';
+import PaginationBar, { usePagination } from '../../components/common/PaginationBar';
 import { useShift } from '../../context/ShiftContext';
 
 const formatDateForDisplay = (dateStr) => {
@@ -367,6 +368,8 @@ const MoistureAnalysis = ({ onBack, onSave, initialView = 'list', records = [], 
     });
 
     const displayRecords = groupRecordsByBatch(sortedRecords);
+    // The table shows one page at a time; stats and the trend chart keep using the full list
+    const pagination = usePagination(displayRecords);
 
     const content = (
         <div className={displayMode === 'modal' ? "modal-body" : "inline-container"} style={{ padding: displayMode === 'modal' ? '1.5rem' : '0', width: '100%' }}>
@@ -452,7 +455,7 @@ const MoistureAnalysis = ({ onBack, onSave, initialView = 'list', records = [], 
                             </tr>
                         </thead>
                         <tbody style={{ fontSize: '0.8rem' }}>
-                            {displayRecords.map((group, index) => (
+                            {pagination.pageItems.map((group, index) => (
                                 <tr key={index}>
                                     <td>{formatDateForDisplay(group.date)} ({group.shift})</td>
                                     <td><strong>{extractTime(group.timing)}</strong></td>
@@ -476,6 +479,7 @@ const MoistureAnalysis = ({ onBack, onSave, initialView = 'list', records = [], 
                             ))}
                         </tbody>
                     </table>
+                    <PaginationBar pagination={pagination} />
                 </div>
             </div>
             )}

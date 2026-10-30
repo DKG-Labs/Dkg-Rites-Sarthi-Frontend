@@ -56,7 +56,7 @@ const ManualDataEntry = ({ batches, witnessedRecords, onSave, hideHistory = fals
                 // We fetch all moisture analysis records because the endpoint
                 // /MoistureAnalysis/lastFiveMoisture does not return the 'plantId' field
                 // which is required for plant-specific filtering.
-                const res = await apiService.getAllMoistureAnalysis();
+                const res = await apiService.getAllMoistureAnalysis(dutyUnit);
                 const data = Array.isArray(res) ? res : (res?.responseData && Array.isArray(res.responseData) ? res.responseData : []);
                 
                 const plantSpecificBatches = data

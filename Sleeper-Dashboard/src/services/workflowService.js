@@ -158,6 +158,20 @@ export const getShedsByVendorCode = async (vendorId, plantId) => {
   }
 };
 
+// Limits list endpoints to the current duty plant and a history window (days)
+const getDutyPlantQuery = (days) => {
+  let plant = '';
+  try {
+    plant = localStorage.getItem('dutyUnit') || '';
+  } catch (e) {
+    plant = '';
+  }
+  const parts = [];
+  if (plant) parts.push(`plantId=${encodeURIComponent(plant)}`);
+  if (days) parts.push(`days=${days}`);
+  return parts.length ? `?${parts.join('&')}` : '';
+};
+
 let prodDeclsCache = null;
 let prodDeclsPromise = null;
 let lastProdDeclsTime = 0;
@@ -178,7 +192,7 @@ export const getProductionDeclarations = async (forceRefresh = false) => {
   prodDeclsPromise = (async () => {
     try {
       const token = getWorkflowToken();
-      const response = await fetch(`${API_BASE_URL}/production-declaration/getAll`, {
+      const response = await fetch(`${API_BASE_URL}/production-declaration/getAllLite${getDutyPlantQuery(60)}`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
@@ -941,7 +955,7 @@ export const getAllWaterCubeTests = async () => {
   allWaterCubeTestsPromise = (async () => {
     try {
       const token = getWorkflowToken();
-      const response = await fetch(`${API_BASE_URL}/water-cube-sample/getAllTests`, {
+      const response = await fetch(`${API_BASE_URL}/water-cube-sample/getAllTestsLite${getDutyPlantQuery(60)}`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',

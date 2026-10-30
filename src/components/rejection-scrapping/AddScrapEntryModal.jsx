@@ -7,7 +7,6 @@ const SHIFTS = ['A', 'B', 'C', 'General'];
 
 export default function AddScrapEntryModal({ poiCode, ieUserId, ieType, onClose, onSuccess }) {
   const [form, setForm] = useState({
-    unitLineShedNo: '',
     scrappingDate: new Date().toISOString().slice(0, 10),
     shift: '',
     noOfPiecesScrapped: '',
@@ -31,7 +30,6 @@ export default function AddScrapEntryModal({ poiCode, ieUserId, ieType, onClose,
   const piecesNum = Number(form.noOfPiecesScrapped);
 
   const canSubmit =
-    form.unitLineShedNo.trim() &&
     form.scrappingDate &&
     form.shift &&
     piecesNum > 0 &&
@@ -46,7 +44,6 @@ export default function AddScrapEntryModal({ poiCode, ieUserId, ieType, onClose,
     try {
       const result = await addScrapEntry({
         poiCode,
-        unitLineShedNo: form.unitLineShedNo.trim(),
         scrappingDate: form.scrappingDate,
         shift: form.shift,
         noOfPiecesScrapped: parseInt(form.noOfPiecesScrapped),
@@ -79,16 +76,6 @@ export default function AddScrapEntryModal({ poiCode, ieUserId, ieType, onClose,
           {error && <div className="rs-error-box"><span>⚠️</span>{error}</div>}
 
           <div className="rs-form-grid" style={{ marginBottom: 16 }}>
-            <div className="rs-field" style={{ gridColumn: '1 / -1' }}>
-              <label className="rs-field-label required">Unit / Line / Shed No.</label>
-              <input
-                className="rs-input"
-                value={form.unitLineShedNo}
-                onChange={e => set('unitLineShedNo', e.target.value)}
-                placeholder="e.g. Line-2 / Shed-A"
-              />
-            </div>
-
             <div className="rs-field">
               <label className="rs-field-label required">Scrapping Date</label>
               <input className="rs-input" type="date" value={form.scrappingDate} onChange={e => set('scrappingDate', e.target.value)} />

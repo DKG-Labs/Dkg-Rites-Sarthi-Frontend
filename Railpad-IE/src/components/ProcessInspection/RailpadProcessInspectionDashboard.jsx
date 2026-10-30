@@ -192,6 +192,10 @@ const RailpadProcessInspectionDashboard = ({ user, call, currentShift, onBack, o
             }
 
             if (savedLocalDraft.selectedBatches && typeof savedLocalDraft.selectedBatches === 'object') {
+              // localStorage is the authoritative source — clear server-draft selections first
+              // so that batches the user deselected locally don't re-appear
+              Object.keys(newSelectedBatches).forEach(id => delete newSelectedBatches[id]);
+
               Object.keys(savedLocalDraft.selectedBatches).forEach(batchId => {
                 const foundBatch = allBatches.find(b => b.declarationBatchId.toString() === batchId.toString());
                 if (foundBatch) {
@@ -922,104 +926,6 @@ const RailpadProcessInspectionDashboard = ({ user, call, currentShift, onBack, o
       <div className="dashboard-content">
         {/* Left Panel: Info, Master Table & Batch Selection */}
         <div className="left-panel">
-          {/* Daily Report Card (Annexure-A) */}
-          <div
-            className="daily-report-card"
-            style={{
-              background: 'linear-gradient(135deg, #f0fdfa 0%, #e6fffa 100%)',
-              border: '1.5px solid #5eead4',
-              borderRadius: '12px',
-              padding: '16px 20px',
-              marginBottom: '20px',
-              boxShadow: '0 2px 8px rgba(13, 148, 136, 0.08)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              flexWrap: 'wrap',
-              gap: '12px',
-              cursor: 'pointer',
-              transition: 'all 0.2s ease'
-            }}
-            onClick={() => setShowDailyReportModal(true)}
-          >
-            <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
-              <div style={{
-                width: '46px',
-                height: '46px',
-                borderRadius: '10px',
-                background: '#ffffff',
-                border: '1px solid #99f6e4',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                fontSize: '22px',
-                boxShadow: '0 2px 4px rgba(0,0,0,0.04)',
-                flexShrink: 0
-              }}>
-                📊
-              </div>
-              <div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-                  <h4 style={{ margin: 0, fontSize: '15px', fontWeight: '800', color: '#0f766e' }}>
-                    Daily Report
-                  </h4>
-                  <span style={{
-                    fontSize: '10.5px',
-                    fontWeight: '800',
-                    background: '#ccfbf1',
-                    color: '#0f766e',
-                    padding: '2px 8px',
-                    borderRadius: '9999px',
-                    border: '1px solid #99f6e4'
-                  }}>
-                    Annexure-A
-                  </span>
-                  <span style={{
-                    fontSize: '10.5px',
-                    fontWeight: '700',
-                    background: '#e0f2fe',
-                    color: '#0369a1',
-                    padding: '2px 8px',
-                    borderRadius: '9999px',
-                    border: '1px solid #bae6fd'
-                  }}>
-                    IRS-T-55-2025
-                  </span>
-                </div>
-                <div style={{ fontSize: '12px', color: '#475569', marginTop: '3px' }}>
-                  Process Inspection Order for Rail Pads – Activity Report (7 Checkpoint Activities)
-                </div>
-              </div>
-            </div>
-
-            <button
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation();
-                setShowDailyReportModal(true);
-              }}
-              style={{
-                padding: '9px 18px',
-                borderRadius: '8px',
-                border: 'none',
-                background: '#0d9488',
-                color: '#ffffff',
-                fontWeight: '700',
-                fontSize: '13px',
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '8px',
-                boxShadow: '0 2px 6px rgba(13, 148, 136, 0.25)',
-                transition: 'all 0.2s ease'
-              }}
-              onMouseEnter={(e) => e.currentTarget.style.background = '#0f766e'}
-              onMouseLeave={(e) => e.currentTarget.style.background = '#0d9488'}
-            >
-              <span>👁️</span> View Daily Report
-            </button>
-          </div>
-
           {/* Call Information Card */}
           <div className="info-card">
             <h3>Information Displayed to Main IE</h3>

@@ -13,6 +13,7 @@ import DashboardGraph from '../components/railway-board/DashboardGraph';
 import ProfessionalCardSection from '../components/railway-board/ProfessionalCardSection';
 import UdmRejectionDashboard from '../components/railway-board/UdmRejectionDashboard';
 import ActiveLoginDashboard from '../components/railway-board/ActiveLoginDashboard';
+import RailwayBoardRejectionScrap from '../components/railway-board/RailwayBoardRejectionScrap';
 import { exportDashboardScreenToPdf } from '../utils/dashboardPdfExport';
 
 
@@ -598,7 +599,7 @@ const RailwayBoardDashboard = () => {
                     <div style={{ padding: '0 0 20px', flex: 1, overflowY: 'auto' }}>
                         {isRitesAdmin ? (
                             <>
-                                <div className={`nav-item ${['summary', 'quality', 'lifecycle', 'performance', 'reports', 'sqc', 'scada', 'feedback', 'udm', 'active-login'].includes(activeMainCard) ? 'active' : ''}`} onClick={() => {
+                                <div className={`nav-item ${['summary', 'quality', 'lifecycle', 'performance', 'reports', 'sqc', 'scada', 'feedback', 'udm', 'active-login', 'rejection-scrap'].includes(activeMainCard) ? 'active' : ''}`} onClick={() => {
                                     setIsRailwayNavOpen(!isRailwayNavOpen);
                                     if (!isRailwayNavOpen) setIsCmDropdownOpen(false);
                                 }}>
@@ -658,6 +659,9 @@ const RailwayBoardDashboard = () => {
                                         </div>
                                         <div className={`report-link ${activeMainCard === 'feedback' ? 'active' : ''}`} onClick={() => handleSwitchTab('feedback')} style={{ fontSize: '15px' }}>
                                             <i className="fa-solid fa-comment-dots" style={{ marginRight: '8px' }}></i>Feedback
+                                        </div>
+                                        <div className={`report-link ${activeMainCard === 'rejection-scrap' ? 'active' : ''}`} onClick={() => handleSwitchTab('rejection-scrap')} style={{ fontSize: '15px' }}>
+                                            <i className="fa-solid fa-trash-can-arrow-up" style={{ marginRight: '8px' }}></i>Rejection &amp; Scrapping
                                         </div>
                                         <div className={`report-link ${activeMainCard === 'udm' ? 'active' : ''}`} onClick={() => handleSwitchTab('udm')} style={{ fontSize: '15px' }}>
                                             <i className="fa-solid fa-triangle-exclamation" style={{ marginRight: '8px' }}></i>UDM Rejections
@@ -787,6 +791,9 @@ const RailwayBoardDashboard = () => {
                                 <div className={`nav-item ${activeMainCard === 'feedback' ? 'active' : ''}`} onClick={() => handleSwitchTab('feedback')}>
                                     <i className="fa-solid fa-comment-dots"></i> {!isSidebarCollapsed && <span>Feedback</span>}
                                 </div>
+                                <div className={`nav-item ${activeMainCard === 'rejection-scrap' ? 'active' : ''}`} onClick={() => handleSwitchTab('rejection-scrap')}>
+                                    <i className="fa-solid fa-trash-can-arrow-up"></i> {!isSidebarCollapsed && <span>Rejection &amp; Scrapping</span>}
+                                </div>
                                 <div className={`nav-item ${activeMainCard === 'udm' ? 'active' : ''}`} onClick={() => handleSwitchTab('udm')}>
                                     <i className="fa-solid fa-triangle-exclamation"></i> {!isSidebarCollapsed && <span>UDM Rejections</span>}
                                 </div>
@@ -895,7 +902,7 @@ const RailwayBoardDashboard = () => {
                     )}
 
                     {/* TOPBAR / FILTERS - Hidden on Dashboard (summary), Quality, Lifecycle, Feedback, Scada Monitor, SQC tabs, and ERC/Sleeper SWP Reports, and Lot Wise Closed Loop Reports, and IC Annexures */}
-                    {activeMainCard !== 'cm-module' && activeMainCard !== 'summary' && activeMainCard !== 'quality' && activeMainCard !== 'lifecycle' && activeMainCard !== 'feedback' && activeMainCard !== 'udm' && activeMainCard !== 'scada' && activeMainCard !== 'sqc' && activeMainCard !== 'sleeper-anomaly' && !(activeMainCard === 'reports' && activeReport === 'swp' && (selectedProduct === 'ERC' || selectedProduct === 'Sleeper')) && !(activeMainCard === 'reports' && activeReport === 'lwcl') && !(activeMainCard === 'reports' && activeReport === 'ic_annexures') && (
+                    {activeMainCard !== 'cm-module' && activeMainCard !== 'summary' && activeMainCard !== 'quality' && activeMainCard !== 'lifecycle' && activeMainCard !== 'feedback' && activeMainCard !== 'udm' && activeMainCard !== 'scada' && activeMainCard !== 'sqc' && activeMainCard !== 'sleeper-anomaly' && activeMainCard !== 'rejection-scrap' && !(activeMainCard === 'reports' && activeReport === 'swp' && (selectedProduct === 'ERC' || selectedProduct === 'Sleeper')) && !(activeMainCard === 'reports' && activeReport === 'lwcl') && !(activeMainCard === 'reports' && activeReport === 'ic_annexures') && (
                         <div id="prof-topbar">
                             <label>From</label>
                             <input type="date" value={fromDate} onChange={(e) => setFromDate(e.target.value)} />
@@ -954,6 +961,8 @@ const RailwayBoardDashboard = () => {
                                 <UdmRejectionDashboard />
                             ) : activeMainCard === 'active-login' ? (
                                 <ActiveLoginDashboard />
+                            ) : activeMainCard === 'rejection-scrap' ? (
+                                <RailwayBoardRejectionScrap selectedProduct={selectedProduct} />
                             ) : activeMainCard === 'cm-module' ? (
                                 <CMDashboardPage isEmbedded={true} activeTabFromProps={cmActiveTab} activeCallFilterFromProps={cmActiveCallFilter} />
                             ) : (

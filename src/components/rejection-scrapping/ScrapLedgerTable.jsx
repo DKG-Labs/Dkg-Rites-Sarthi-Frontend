@@ -3,7 +3,8 @@ import EditScrapEntryModal from './EditScrapEntryModal';
 import { deleteScrapEntry } from '../../services/scrapEntryService';
 import './RejectionScrapping.css';
 
-const COLUMNS = ['Type', 'Date', 'Shift', 'Unit / Line / Shed', 'Stage', 'Rejected', 'Scrapped', 'Balance', 'IE Name', 'SV ID', 'Photos', 'Actions'];
+const ALL_COLUMNS = ['Type', 'Date', 'Shift', 'Unit / Line / Shed', 'Stage', 'Rejected', 'Scrapped', 'Balance', 'IE Name', 'SV ID', 'Photos', 'Actions'];
+const RO_COLUMNS  = ['Type', 'Date', 'Shift', 'Unit / Line / Shed', 'Stage', 'Rejected', 'Scrapped', 'Balance', 'IE Name', 'SV ID', 'Photos'];
 const PAGE_SIZES = [10, 20, 30];
 
 const RowTypeBadge = ({ type }) => (
@@ -12,11 +13,11 @@ const RowTypeBadge = ({ type }) => (
   </span>
 );
 
-const SkeletonRows = () => (
+const SkeletonRows = ({ colCount }) => (
   <>
     {[1, 2, 3, 4].map(i => (
       <tr key={i} className="rs-skel-row">
-        {COLUMNS.map((_, j) => (
+        {Array.from({ length: colCount }).map((_, j) => (
           <td key={j}><div className="rs-skeleton" style={{ width: j === 0 ? 80 : j === 8 ? 120 : 60 }} /></td>
         ))}
       </tr>
@@ -24,7 +25,8 @@ const SkeletonRows = () => (
   </>
 );
 
-export default function ScrapLedgerTable({ rows, loading, ieUserId, onRefresh }) {
+export default function ScrapLedgerTable({ rows, loading, ieUserId, onRefresh, readOnly = false, onRejectionClick }) {
+  const COLUMNS = readOnly ? RO_COLUMNS : ALL_COLUMNS;
   const [editEntry, setEditEntry] = useState(null);
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [deleteReason, setDeleteReason] = useState('');
@@ -39,7 +41,9 @@ export default function ScrapLedgerTable({ rows, loading, ieUserId, onRefresh })
   useEffect(() => { setPage(1); }, [rows, pageSize, typeFilter]);
 
   const filteredRows = rows
-    ? (typeFilter === 'ALL' ? rows : rows.filter(r => r.rowType === typeFilter))
+    ? (typeFilter === 'ALL'
+        ? rows.filter(r => !(r.rowType === 'REJECTION' && r.rejectedQty === 0))
+        : rows.filter(r => r.rowType === typeFilter && !(r.rowType === 'REJECTION' && r.rejectedQty === 0)))
     : [];
   const totalRows = filteredRows.length;
   const totalPages = Math.max(1, Math.ceil(totalRows / pageSize));
@@ -94,7 +98,7 @@ export default function ScrapLedgerTable({ rows, loading, ieUserId, onRefresh })
           </thead>
           <tbody>
             {loading ? (
-              <SkeletonRows />
+              <SkeletonRows colCount={COLUMNS.length} />
             ) : !rows || rows.length === 0 ? (
               <tr>
                 <td colSpan={COLUMNS.length}>
@@ -119,10 +123,14 @@ export default function ScrapLedgerTable({ rows, loading, ieUserId, onRefresh })
               pageRows.map((row, idx) => (
                 <tr key={`${row.rowType}-${row.entryId}-${idx}`}>
                   <td><RowTypeBadge type={row.rowType} /></td>
-                  <td>{row.entryDate || '—'}</td>
+                  <td
+                    className={onRejectionClick && row.rowType === 'REJECTION' && row.rejectedQty > 0 ? 'rs-date-link' : ''}
+                    onClick={onRejectionClick && row.rowType === 'REJECTION' && row.rejectedQty > 0
+                      ? () => onRejectionClick(row) : undefined}
+                  >{row.entryDate || '—'}</td>
                   <td>{row.shift || '—'}</td>
                   <td>{row.unitLineShedNo || '—'}</td>
-                  <td>{row.stageOfInspection || '—'}</td>
+                  <td>{row.rowType === 'REJECTION' ? (row.stageOfInspection || '—') : '—'}</td>
                   <td style={{ color: row.rejectedQty > 0 ? '#dc2626' : '#94a3b8', fontWeight: row.rejectedQty > 0 ? 600 : 400 }}>
                     {row.rowType === 'REJECTION' ? (row.rejectedQty ?? '—') : <span style={{ color: '#cbd5e1' }}>—</span>}
                   </td>
@@ -145,18 +153,20 @@ export default function ScrapLedgerTable({ rows, loading, ieUserId, onRefresh })
                       </button>
                     ) : <span style={{ color: '#cbd5e1' }}>—</span>}
                   </td>
-                  <td>
-                    {row.rowType === 'SCRAP' && (
-                      row.editable ? (
-                        <div style={{ display: 'flex', gap: 6 }}>
-                          <button className="rs-icon-btn edit" onClick={() => setEditEntry(row)} title="Edit within 1 hour">✏️</button>
-                          <button className="rs-icon-btn del" onClick={() => { setDeleteTarget(row); setDeleteReason(''); setDeleteError(''); }} title="Delete within 1 hour">🗑️</button>
-                        </div>
-                      ) : (
-                        <span className="rs-lock-icon" title="Edit window expired (1 hour)">🔒</span>
-                      )
-                    )}
-                  </td>
+                  {!readOnly && (
+                    <td>
+                      {row.rowType === 'SCRAP' && (
+                        row.editable ? (
+                          <div style={{ display: 'flex', gap: 6 }}>
+                            <button className="rs-icon-btn edit" onClick={() => setEditEntry(row)} title="Edit within 1 hour">✏️</button>
+                            <button className="rs-icon-btn del" onClick={() => { setDeleteTarget(row); setDeleteReason(''); setDeleteError(''); }} title="Delete within 1 hour">🗑️</button>
+                          </div>
+                        ) : (
+                          <span className="rs-lock-icon" title="Edit window expired (1 hour)">🔒</span>
+                        )
+                      )}
+                    </td>
+                  )}
                 </tr>
               ))
             )}

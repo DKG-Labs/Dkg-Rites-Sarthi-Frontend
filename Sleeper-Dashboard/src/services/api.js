@@ -95,6 +95,11 @@ const getDutyPlant = () => {
         return undefined;
     }
 };
+// An explicit casting-date range (yyyy-MM-dd) replaces the default history window
+const windowParams = (range, defaultDays) =>
+    range && (range.fromDate || range.toDate)
+        ? { fromDate: range.fromDate || undefined, toDate: range.toDate || undefined }
+        : { days: defaultDays };
 if (typeof window !== 'undefined') {
     window.addEventListener('sarthi:session_expired', () => recentListCache.clear());
 }
@@ -196,7 +201,7 @@ export const apiService = {
         getTestResultsByUser: (userId) => api.get(`/water-cube-sample/test-results/user/${userId}`),
         getAllTests: () => getWithCache('/water-cube-sample/getAllTestsLite', { params: { plantId: getDutyPlant(), days: WATER_CUBE_WINDOW_DAYS } })
     },
-    getAllWaterCubeTests: () => getWithCache('/water-cube-sample/getAllTestsLite', { params: { plantId: getDutyPlant(), days: WATER_CUBE_WINDOW_DAYS } }),
+    getAllWaterCubeTests: (range) => getWithCache('/water-cube-sample/getAllTestsLite', { params: { plantId: getDutyPlant(), ...windowParams(range, WATER_CUBE_WINDOW_DAYS) } }),
 
     // ================= Water Quality Testing =================
     waterQuality: {
@@ -395,9 +400,9 @@ export const apiService = {
     getDowelRecordById: (id) => api.get(`/dowel/${id}`),
 
     getProductionDeclarationRecordById: (id) => api.get(`/production-declaration/${id}`),
-    getAllProductionDeclarations: () => getWithCache('/production-declaration/getAllLite', { params: { plantId: getDutyPlant(), days: PRODUCTION_WINDOW_DAYS } }),
+    getAllProductionDeclarations: (range) => getWithCache('/production-declaration/getAllLite', { params: { plantId: getDutyPlant(), ...windowParams(range, PRODUCTION_WINDOW_DAYS) } }),
     getVerifiedProductionDeclarations: () => getWithCache('/production-declaration/verified-declarations'),
-    getAllVerifedWaterBatchs: (params = {}) => getWithCache('/production-declaration/getAllVerifedWaterBatchsLite', { params: { plantId: params.plantId || getDutyPlant(), days: PRODUCTION_WINDOW_DAYS } }),
+    getAllVerifedWaterBatchs: (params = {}) => getWithCache('/production-declaration/getAllVerifedWaterBatchsLite', { params: { plantId: params.plantId || getDutyPlant(), ...windowParams(params, PRODUCTION_WINDOW_DAYS) } }),
     getAllProductionBatches: (vendorId, castingDate, plantId, productionUnit) =>
         api.get('/production-declaration/getAll/batches', {
             params: { vendorId, castingDate, plantId, productionUnit }

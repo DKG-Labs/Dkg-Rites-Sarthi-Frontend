@@ -107,8 +107,14 @@ const ErcRmIC = ({ data = {}, isEditing = false, isBusy = false, onChange = () =
   const isQtyClearedNill = !clearedQty || clearedQty.toLowerCase().includes("total qty - nill") || clearedQty.toLowerCase().trim() === "nil" || clearedQty.toLowerCase().includes("total qty - 0.00");
   const isQtyRejectedNill = !qtyRejected || qtyRejected.toLowerCase().includes("total qty - nill") || qtyRejected.toLowerCase().trim() === "nil" || qtyRejected.toLowerCase().includes("total qty - 0.00");
 
+  // A result the user typed in (or one that is not the standard specification wording) is kept as it is
+  const isCustomResult = data?.resultEdited === true
+    || (String(result || "").trim() !== "" && !/CONFIRMING TO THE SPECIFICATION IRS/i.test(result));
+
   let computedResult = result;
-  if (!isQtyClearedNill && isQtyRejectedNill) {
+  if (isCustomResult) {
+    computedResult = result;
+  } else if (!isQtyClearedNill && isQtyRejectedNill) {
     computedResult = "CONFIRMING TO THE SPECIFICATION IRS T–31-2025, GRADE 55SI7";
   } else if (isQtyClearedNill && !isQtyRejectedNill) {
     computedResult = "Non -CONFIRMING TO THE SPECIFICATION IRS T–31-2025, GRADE 55SI7";
@@ -378,7 +384,7 @@ const ErcRmIC = ({ data = {}, isEditing = false, isBusy = false, onChange = () =
               <EditableField isEditing={isEditing} type="textarea" value={chpClause} onChange={(val) => onChange("chpClause", val)} className="border-r border-black py-1 px-2 break-words dynamic-text" />
               <EditableField isEditing={false} type="textarea" value={contractChpReq} onChange={(val) => onChange("contractChpReq", val)} className="border-r border-black py-1 px-2 break-words dynamic-text" />
               <EditableField isEditing={false} type="textarea" value={inspectionDetails} onChange={(val) => onChange("inspectionDetails", val)} className="border-r border-black py-1 px-2 break-words dynamic-text" />
-              <EditableField isEditing={false} type="textarea" value={computedResult} onChange={(val) => onChange("result", val)} className="border-r border-black py-1 px-2 break-words whitespace-pre-wrap" />
+              <EditableField isEditing={isEditing} type="textarea" value={computedResult} onChange={(val) => { onChange("result", val); onChange("resultEdited", true); }} className="border-r border-black py-1 px-2 break-words whitespace-pre-wrap" />
               <EditableField isEditing={false} type="textarea" value={clearedQty} onChange={(val) => onChange("clearedQty", val)} className="border-r border-black py-1 px-2 break-words whitespace-pre-wrap text-[10px] leading-tight" />
               <EditableField isEditing={false} type="textarea" value={qtyRejected} onChange={(val) => onChange("qtyRejected", val)} className="py-1 px-2 break-words whitespace-pre-wrap" />
             </div>

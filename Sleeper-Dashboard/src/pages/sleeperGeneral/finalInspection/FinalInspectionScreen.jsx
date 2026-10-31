@@ -1993,6 +1993,7 @@ const FinalInspectionScreen = ({ call, onBack }) => {
                                                 <option value="Broken Edge">Broken Edge</option>
                                                 <option value="END DAMAGE">END DAMAGE</option>
                                                 <option value="Insert Misalignment">Insert Misalignment</option>
+                                                <option value="Rail seat slope">Rail seat slope</option>
                                             </select>
                                         </div>
                                         <button className="btn-submit-verdict btn-red" onClick={handleAddRejection}>

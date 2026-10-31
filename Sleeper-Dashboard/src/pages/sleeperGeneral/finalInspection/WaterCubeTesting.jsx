@@ -1,14 +1,15 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import EnhancedDataTable from '../../../components/common/EnhancedDataTable';
 import WaterCuredCubeForm from './WaterCuredCubeForm';
-import { 
-    getProductionDeclarations, 
-    saveWaterCubeSample, 
-    getWaterCubeSamples, 
+import CastingDateRangeFilter, { getDefaultCastingRange, inCastingRange } from '../../../components/common/CastingDateRangeFilter';
+import {
+    getProductionDeclarationsInRange,
+    saveWaterCubeSample,
+    getWaterCubeSamples,
     deleteWaterCubeSample,
     saveWaterCubeTestResult,
     getWaterCubeTestResultsByUser,
-    getAllWaterCubeTests,
+    getAllWaterCubeTestsInRange,
     deleteWaterCubeTest,
     updateWaterCubeTest,
     getProductionDeclarationById
@@ -114,6 +115,7 @@ export const WaterCubeStats = () => {
 const WaterCubeTesting = () => {
     const [activeTab, setActiveTab] = useState('pending'); // 'declaration', 'pending', 'done'
     const [isModifying, setIsModifying] = useState(false);
+    const [castingRange, setCastingRange] = useState(getDefaultCastingRange);
     const { selectedShift, dutyLocation, dutyUnit, vendorCode } = useShift();
     
     // Live Data State
@@ -142,14 +144,15 @@ const WaterCubeTesting = () => {
 
             // 1. Fetch all 3 endpoints concurrently
             const [prodData, sampleData, testData] = await Promise.all([
-                getProductionDeclarations().catch(() => []),
+                getProductionDeclarationsInRange(castingRange).catch(() => []),
                 getWaterCubeSamples().catch(() => []),
-                getAllWaterCubeTests().catch(() => [])
+                getAllWaterCubeTestsInRange(castingRange).catch(() => [])
             ]);
 
             // Filter strictly by current plant (normalizing colons and preventing null plantId from leaking to all plants)
             const plantTests = (testData || []).filter(t => isSamePlant(t.plantId, currentPlant));
-            const plantSamples = (sampleData || []).filter(s => isSamePlant(s.plantId, currentPlant));
+            // Declared samples come unfiltered from the server, so apply the casting-date range here
+            const plantSamples = (sampleData || []).filter(s => isSamePlant(s.plantId, currentPlant) && inCastingRange(s.castingDate, castingRange));
             const plantProds = (prodData || []).filter(p => isSamePlant(p.plantId, currentPlant));
 
             // ==========================================
@@ -283,8 +286,10 @@ const WaterCubeTesting = () => {
     };
 
     useEffect(() => {
+        if (castingRange.fromDate && castingRange.toDate && castingRange.fromDate > castingRange.toDate) return;
         fetchAllData();
-    }, [dutyUnit]);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [dutyUnit, castingRange]);
 
     const handleFinalizeSample = async (formData) => {
         try {
@@ -524,6 +529,12 @@ const WaterCubeTesting = () => {
             </header>
 
             <WaterCubeStats />
+
+            <CastingDateRangeFilter
+                range={castingRange}
+                onChange={setCastingRange}
+                disabled={loadingDeclarations || loadingActive}
+            />
 
             <div className="nav-tabs" style={{
                 marginBottom: '32px',

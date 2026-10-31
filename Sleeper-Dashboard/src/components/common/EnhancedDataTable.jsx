@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 
 const EnhancedDataTable = ({
   columns,
@@ -32,6 +32,11 @@ const EnhancedDataTable = ({
   }, [filteredData, currentPage, perPage]);
 
   const totalPages = Math.ceil(filteredData.length / perPage) || 1;
+
+  // When the data shrinks (e.g. a date filter) the current page may no longer exist
+  useEffect(() => {
+    if (currentPage > totalPages) setCurrentPage(totalPages);
+  }, [currentPage, totalPages]);
 
   const toggleSelectAll = () => {
     const isAllSelected = paginatedData.length > 0 && paginatedData.every(row => selectedRows.includes(row));

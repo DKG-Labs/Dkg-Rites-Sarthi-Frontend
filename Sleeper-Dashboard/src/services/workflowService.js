@@ -980,6 +980,44 @@ export const getAllWaterCubeTests = async () => {
   return allWaterCubeTestsPromise;
 };
 
+// Fetches a list endpoint for an explicit casting-date range (yyyy-MM-dd), instead of the default 60-day window
+const fetchCastingRange = async (path, range) => {
+  try {
+    const token = getWorkflowToken();
+    const parts = [];
+    let plant = '';
+    try {
+      plant = localStorage.getItem('dutyUnit') || '';
+    } catch (e) {
+      plant = '';
+    }
+    if (plant) parts.push(`plantId=${encodeURIComponent(plant)}`);
+    if (range?.fromDate) parts.push(`fromDate=${range.fromDate}`);
+    if (range?.toDate) parts.push(`toDate=${range.toDate}`);
+    const response = await fetch(`${API_BASE_URL}${path}${parts.length ? `?${parts.join('&')}` : ''}`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      }
+    });
+    if (!response.ok) {
+      throw new Error(`Failed to fetch ${path}`);
+    }
+    const result = await response.json();
+    return result.responseData || result;
+  } catch (error) {
+    console.error(`Error fetching ${path}:`, error);
+    return [];
+  }
+};
+
+export const getProductionDeclarationsInRange = (range) =>
+  fetchCastingRange('/production-declaration/getAllLite', range);
+
+export const getAllWaterCubeTestsInRange = (range) =>
+  fetchCastingRange('/water-cube-sample/getAllTestsLite', range);
+
 /**
  * Delete Water Cube Test Result
  * @param {number|string} id - Test ID

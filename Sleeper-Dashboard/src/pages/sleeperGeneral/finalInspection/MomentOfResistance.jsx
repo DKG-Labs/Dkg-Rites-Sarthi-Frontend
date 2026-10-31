@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import EnhancedDataTable from '../../../components/common/EnhancedDataTable';
+import CastingDateRangeFilter, { getDefaultCastingRange, inCastingRange } from '../../../components/common/CastingDateRangeFilter';
 import { useShift } from '../../../context/ShiftContext';
 import { apiService } from '../../../services/api';
 import { useToast } from '../../../context/ToastContext';
@@ -142,6 +143,7 @@ const MomentOfResistance = () => {
     const [batches, setBatches] = useState([]);
     const [declaredRecords, setDeclaredRecords] = useState([]);
     const [historicalTests, setHistoricalTests] = useState([]);
+    const [castingRange, setCastingRange] = useState(getDefaultCastingRange);
     const [loading, setLoading] = useState(false);
     const [showDeclareModal, setShowDeclareModal] = useState(false);
     const [showTestModal, setShowTestModal] = useState(false);
@@ -172,9 +174,9 @@ const MomentOfResistance = () => {
 
             // 1. Fetch all data in parallel
             const [vResponse, allProdResponse, waterTestsResponse, mrResponse, testResponse] = await Promise.all([
-                apiService.getAllVerifedWaterBatchs(params).catch(() => []),
-                apiService.getAllProductionDeclarations().catch(() => []),
-                apiService.getAllWaterCubeTests().catch(() => []),
+                apiService.getAllVerifedWaterBatchs({ ...params, fromDate: castingRange.fromDate, toDate: castingRange.toDate }).catch(() => []),
+                apiService.getAllProductionDeclarations(castingRange).catch(() => []),
+                apiService.getAllWaterCubeTests(castingRange).catch(() => []),
                 apiService.getAllMRRecords().catch(() => []),
                 apiService.getAllMRTests().catch(() => [])
             ]);
@@ -655,17 +657,24 @@ const MomentOfResistance = () => {
         } finally {
             setLoading(false);
         }
-    }, [getCommonParams, toast]);
+    }, [getCommonParams, toast, castingRange]);
 
     useEffect(() => {
+        if (castingRange.fromDate && castingRange.toDate && castingRange.fromDate > castingRange.toDate) return;
         fetchMRData();
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, []);
+    }, [castingRange]);
+
+    // A grouped row lists several casting dates ("a, b"); it stays when any of them is inside the range
+    const rowInCastingRange = useCallback(
+        (row) => String(row.castingDate || '').split(',').some(part => inCastingRange(part.trim(), castingRange)),
+        [castingRange]
+    );
 
     // Filtered lists for tabs
-    const declarationList = useMemo(() => batches.filter(b => b.status === 'Pending Declaration' && b.waterCubeStatus !== 'Rejected'), [batches]);
-    const testingList = useMemo(() => declaredRecords, [declaredRecords]);
-    const historicalList = useMemo(() => historicalTests, [historicalTests]);
+    const declarationList = useMemo(() => batches.filter(b => b.status === 'Pending Declaration' && b.waterCubeStatus !== 'Rejected' && rowInCastingRange(b)), [batches, rowInCastingRange]);
+    const testingList = useMemo(() => declaredRecords.filter(rowInCastingRange), [declaredRecords, rowInCastingRange]);
+    const historicalList = useMemo(() => historicalTests.filter(rowInCastingRange), [historicalTests, rowInCastingRange]);
 
     const handleDeclareSamples = async (target, samplesData) => {
         setLoading(true);
@@ -1017,6 +1026,12 @@ const MomentOfResistance = () => {
                 <h2 style={{ fontSize: '20px', fontWeight: '700', color: '#13343b', margin: 0 }}>Moment of Resistance (Final Inspection)</h2>
                 <p style={{ fontSize: '12px', color: '#64748b', margin: '4px 0 0 0' }}>Structural integrity testing for concrete sleepers</p>
             </header>
+
+            <CastingDateRangeFilter
+                range={castingRange}
+                onChange={setCastingRange}
+                disabled={loading}
+            />
 
             <div className="nav-tabs" style={{
                 marginBottom: '32px',

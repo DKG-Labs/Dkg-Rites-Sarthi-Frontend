@@ -1250,7 +1250,7 @@ const ProfessionalCardSection = ({
                                                             <div className="kpi-sub" style={{ fontSize: '11px', opacity: 0.9 }}>Nos.</div>
                                                         </div>
                                                         <div style={{ paddingLeft: '4px' }}>
-                                                            <div className="kpi-val" style={{ fontSize: '26px' }}>{(s.finalInspectionQuantityMt || 0)}</div>
+                                                            <div className="kpi-val" style={{ fontSize: '26px' }}>{Number((s.finalInspectionQuantityMt || 0).toFixed(3))}</div>
                                                             <div className="kpi-sub" style={{ fontSize: '11px', opacity: 0.9 }}>MT</div>
                                                         </div>
                                                     </div>

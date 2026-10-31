@@ -291,9 +291,8 @@ const DownloadIcAnnexures = ({ selectedProduct = 'ERC', fromDate: initialFromDat
                 }
             }
             
-            // Date range match. When the range comes from the dashboard (hideFilters), the server has already
-            // filtered by the date the call was sent to IBS, so do not re-filter on the IC edit date: an IC
-            // generated before the range but sent to IBS inside it would otherwise vanish from this list.
+            // Date range match on the IC date. When the range comes from the dashboard (hideFilters), the
+            // server has already filtered on the same IC date, so it is not applied again here.
             let matchDate = true;
             if (!hideFilters && activeFilters.fromDate && activeFilters.toDate) {
                 const recordDate = new Date(record.icIssuedDate);

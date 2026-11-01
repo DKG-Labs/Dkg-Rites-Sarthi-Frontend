@@ -254,16 +254,36 @@ const WaterCubeTesting = () => {
             // ==========================================
             // SECTION 1: DECLARE SAMPLES FOR TESTING (Pending Declaration)
             // ==========================================
+            // Why a batch in the selected casting range is not offered for sample declaration (shown in the console)
+            const skippedBatches = (prodData || [])
+                .filter(p => !isSamePlant(p.plantId, currentPlant))
+                .map(p => ({ batch: p.batchNumber, id: p.id, cast: p.castingDate, reason: `other plant (${p.plantId})` }));
+
             const pendingProdBatches = plantProds.filter(p => {
                 const prodId = String(p.id);
 
                 // Exclude if already in Section 3 (Tested)
-                if (testedProdDeclIds.has(prodId)) return false;
+                if (testedProdDeclIds.has(prodId)) {
+                    skippedBatches.push({ batch: p.batchNumber, id: p.id, cast: p.castingDate, reason: 'water cube test already done' });
+                    return false;
+                }
 
                 // Exclude if already in Section 2 (Declared)
-                if (activeProdDeclIds.has(prodId)) return false;
+                if (activeProdDeclIds.has(prodId)) {
+                    skippedBatches.push({ batch: p.batchNumber, id: p.id, cast: p.castingDate, reason: 'sample already declared' });
+                    return false;
+                }
 
                 return true;
+            });
+
+            console.info('[Water cube casting filter]', {
+                range: castingRange,
+                batchesReturnedByServer: (prodData || []).length,
+                offeredForDeclaration: pendingProdBatches.length,
+                declaredSamplesInRange: activeSamplesRaw.length,
+                testsInRange: plantTests.length,
+                notOffered: skippedBatches
             });
 
             const mappedPending = pendingProdBatches.map(d => ({

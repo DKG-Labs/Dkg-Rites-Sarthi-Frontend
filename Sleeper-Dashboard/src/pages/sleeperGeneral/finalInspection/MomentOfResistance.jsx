@@ -144,6 +144,7 @@ const MomentOfResistance = () => {
     const [declaredRecords, setDeclaredRecords] = useState([]);
     const [historicalTests, setHistoricalTests] = useState([]);
     const [castingRange, setCastingRange] = useState(getDefaultCastingRange);
+    const [notOfferedBatches, setNotOfferedBatches] = useState([]);
     const [loading, setLoading] = useState(false);
     const [showDeclareModal, setShowDeclareModal] = useState(false);
     const [showTestModal, setShowTestModal] = useState(false);
@@ -266,7 +267,23 @@ const MomentOfResistance = () => {
                 const bNo = String(record?.batchNumber || declaredMatch?.batchNumber || '').trim();
                 if (!bNo) return null;
 
-                const candidates = declByBatchNo.get(bNo) || [];
+                const allCandidates = declByBatchNo.get(bNo) || [];
+                if (allCandidates.length === 0) return null;
+
+                // A batch number is not unique: the same number is reused for other sleeper types and months.
+                // Only keep candidates whose drawing / casting date / plant do not contradict the record.
+                const recDwg = normalizeDwg(extractDrawingNo(record, declaredMatch) || record?.sleeperType || declaredMatch?.sleeperType);
+                const recCast = normDate(extractCastDate(record) || extractCastDate(declaredMatch));
+                const recPlant = String(record?.plantId || declaredMatch?.plantId || '').replace(':', '').trim();
+                const candidates = allCandidates.filter(cand => {
+                    const cDwg = normalizeDwg(extractDrawingNo(cand) || cand?.sleeperType);
+                    const cCast = normDate(cand.castingDate || cand.dateOfCasting || cand.date);
+                    const cPlant = String(cand.plantId || '').replace(':', '').trim();
+                    const dwgOk = !recDwg || !cDwg || cDwg === recDwg || cDwg.includes(recDwg) || recDwg.includes(cDwg);
+                    const castOk = !recCast || !cCast || recCast === cCast;
+                    const plantOk = !recPlant || !cPlant || recPlant === cPlant;
+                    return dwgOk && castOk && plantOk;
+                });
                 if (candidates.length === 0) return null;
                 if (candidates.length === 1) return candidates[0];
 
@@ -398,8 +415,14 @@ const MomentOfResistance = () => {
 
             // Map Verified Batches (Pending Declaration for this plant)
             const seenDeclarationIds = new Set();
+            // Why a batch in the selected casting range is not offered for MR declaration (shown in the console)
+            const skippedBatches = [];
             const mappedVerified = vData
-                .filter(item => isSamePlant(item.plantId, params.plantId))
+                .filter(item => {
+                    const ok = isSamePlant(item.plantId, params.plantId);
+                    if (!ok) skippedBatches.push({ batch: item.batchNumber, id: item.id, cast: item.castingDate, reason: `other plant (${item.plantId})` });
+                    return ok;
+                })
                 .filter(item => {
                     const bNo = String(item.batchNumber || '').trim();
                     if (!bNo) return false;
@@ -407,6 +430,11 @@ const MomentOfResistance = () => {
                     const pId = item.id ? String(item.id) : '';
                     if (pId) {
                         if (completedDeclIds.has(pId) || declaredDeclIds.has(pId) || seenDeclarationIds.has(pId)) {
+                            skippedBatches.push({
+                                batch: bNo, id: pId, cast: item.castingDate,
+                                reason: completedDeclIds.has(pId) ? 'MR test already done'
+                                    : declaredDeclIds.has(pId) ? 'MR sample already declared' : 'duplicate declaration'
+                            });
                             return false;
                         }
                         seenDeclarationIds.add(pId);
@@ -648,6 +676,13 @@ const MomentOfResistance = () => {
             });
             const uniqueRetestBatches = Array.from(uniqueRetestMap.values());
 
+            console.info('[MR casting filter]', {
+                range: castingRange,
+                batchesReturnedByServer: vData.length,
+                offeredForDeclaration: mappedVerified.length,
+                notOffered: skippedBatches
+            });
+            setNotOfferedBatches(skippedBatches);
             setBatches([...uniqueRetestBatches, ...mappedVerified]);
             setDeclaredRecords(mappedDeclared);
             setHistoricalTests(mappedHistorical);
@@ -1116,6 +1151,33 @@ const MomentOfResistance = () => {
                             selectable={true}
                             onSelectionChange={setSelectedDeclRows}
                         />
+                        {notOfferedBatches.length > 0 && (
+                            <details style={{ marginTop: '16px', fontSize: '12px', color: '#475569' }}>
+                                <summary style={{ cursor: 'pointer', fontWeight: 700 }}>
+                                    {notOfferedBatches.length} batch(es) in this date range are not listed above - see why
+                                </summary>
+                                <table style={{ marginTop: '8px', borderCollapse: 'collapse', width: '100%' }}>
+                                    <thead>
+                                        <tr style={{ textAlign: 'left', background: '#f1f5f9' }}>
+                                            <th style={{ padding: '6px 10px' }}>Batch</th>
+                                            <th style={{ padding: '6px 10px' }}>Declaration id</th>
+                                            <th style={{ padding: '6px 10px' }}>Date of casting</th>
+                                            <th style={{ padding: '6px 10px' }}>Reason</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {notOfferedBatches.map((b, i) => (
+                                            <tr key={`${b.id}-${i}`} style={{ borderTop: '1px solid #e2e8f0' }}>
+                                                <td style={{ padding: '6px 10px' }}>{b.batch}</td>
+                                                <td style={{ padding: '6px 10px' }}>{b.id}</td>
+                                                <td style={{ padding: '6px 10px' }}>{b.cast}</td>
+                                                <td style={{ padding: '6px 10px' }}>{b.reason}</td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </details>
+                        )}
                     </div>
                 )}
                 {activeTab === 'testing' && (

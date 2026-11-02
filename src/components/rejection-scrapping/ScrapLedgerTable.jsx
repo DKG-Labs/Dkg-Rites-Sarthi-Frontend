@@ -1,10 +1,12 @@
 import { useState, useEffect } from 'react';
 import EditScrapEntryModal from './EditScrapEntryModal';
-import { deleteScrapEntry, scrapImageProxyUrl } from '../../services/scrapEntryService';
+import { deleteScrapEntry, scrapImageProxyUrl, AuthedImg } from '../../services/scrapEntryService';
 import './RejectionScrapping.css';
 
-const ALL_COLUMNS = ['Type', 'Date', 'Shift', 'Unit / Line / Shed', 'Stage', 'Rejected', 'Disposed', 'Balance', 'IE Name', 'SV ID', 'Photos', 'Actions'];
-const RO_COLUMNS  = ['Type', 'Date', 'Shift', 'Unit / Line / Shed', 'Stage', 'Rejected', 'Disposed', 'Balance', 'IE Name', 'SV ID', 'Photos'];
+const ALL_COLUMNS    = ['Type', 'Date', 'Shift', 'Unit / Line / Shed', 'Stage', 'Rejected', 'Disposed', 'Balance', 'IE Name', 'SV ID', 'Photos', 'Actions'];
+const RO_COLUMNS     = ['Type', 'Date', 'Shift', 'Unit / Line / Shed', 'Stage', 'Rejected', 'Disposed', 'Balance', 'IE Name', 'SV ID', 'Photos'];
+const DISPOSAL_COLS  = ['Type', 'Date', 'Shift', 'Unit / Line / Shed', 'Disposed', 'Balance', 'IE Name', 'SV ID', 'Photos', 'Actions'];
+const RO_DISP_COLS   = ['Type', 'Date', 'Shift', 'Unit / Line / Shed', 'Disposed', 'Balance', 'IE Name', 'SV ID', 'Photos'];
 const PAGE_SIZES = [10, 20, 30];
 
 const RowTypeBadge = ({ type }) => (
@@ -26,7 +28,6 @@ const SkeletonRows = ({ colCount }) => (
 );
 
 export default function ScrapLedgerTable({ rows, loading, ieUserId, onRefresh, readOnly = false, onRejectionClick }) {
-  const COLUMNS = readOnly ? RO_COLUMNS : ALL_COLUMNS;
   const [editEntry, setEditEntry] = useState(null);
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [deleteReason, setDeleteReason] = useState('');
@@ -36,6 +37,11 @@ export default function ScrapLedgerTable({ rows, loading, ieUserId, onRefresh, r
   const [pageSize, setPageSize] = useState(10);
   const [page, setPage] = useState(1);
   const [typeFilter, setTypeFilter] = useState('ALL'); // ALL | REJECTION | SCRAP
+
+  const isDisposalOnly = typeFilter === 'SCRAP';
+  const COLUMNS = isDisposalOnly
+    ? (readOnly ? RO_DISP_COLS : DISPOSAL_COLS)
+    : (readOnly ? RO_COLUMNS   : ALL_COLUMNS);
 
   // Reset to page 1 whenever rows, pageSize or typeFilter changes
   useEffect(() => { setPage(1); }, [rows, pageSize, typeFilter]);
@@ -130,10 +136,12 @@ export default function ScrapLedgerTable({ rows, loading, ieUserId, onRefresh, r
                   >{row.entryDate || '—'}</td>
                   <td>{row.shift || '—'}</td>
                   <td>{row.unitLineShedNo || '—'}</td>
-                  <td>{row.rowType === 'REJECTION' ? (row.stageOfInspection || '—') : '—'}</td>
-                  <td style={{ color: row.rejectedQty > 0 ? '#dc2626' : '#94a3b8', fontWeight: row.rejectedQty > 0 ? 600 : 400 }}>
-                    {row.rowType === 'REJECTION' ? (row.rejectedQty ?? '—') : <span style={{ color: '#cbd5e1' }}>—</span>}
-                  </td>
+                  {!isDisposalOnly && <td>{row.rowType === 'REJECTION' ? (row.stageOfInspection || '—') : '—'}</td>}
+                  {!isDisposalOnly && (
+                    <td style={{ color: row.rejectedQty > 0 ? '#dc2626' : '#94a3b8', fontWeight: row.rejectedQty > 0 ? 600 : 400 }}>
+                      {row.rowType === 'REJECTION' ? (row.rejectedQty ?? '—') : <span style={{ color: '#cbd5e1' }}>—</span>}
+                    </td>
+                  )}
                   <td style={{ color: row.scrappedQty > 0 ? '#16a34a' : '#94a3b8', fontWeight: row.scrappedQty > 0 ? 600 : 400 }}>
                     {row.rowType === 'SCRAP' ? (row.scrappedQty ?? '—') : <span style={{ color: '#cbd5e1' }}>—</span>}
                   </td>
@@ -149,7 +157,8 @@ export default function ScrapLedgerTable({ rows, loading, ieUserId, onRefresh, r
                   <td>
                     {row.imageUrls && row.imageUrls.length > 0 ? (
                       <button className="rs-photo-btn" onClick={() => setLightboxUrls(row.imageUrls.map(scrapImageProxyUrl))}>
-                        📷 {row.imageUrls.length}
+                        <i className="fa-solid fa-camera" style={{ fontSize: 11 }}></i>
+                        {row.imageUrls.length}
                       </button>
                     ) : <span style={{ color: '#cbd5e1' }}>—</span>}
                   </td>
@@ -276,7 +285,7 @@ export default function ScrapLedgerTable({ rows, loading, ieUserId, onRefresh, r
         <div className="rs-lightbox" onClick={() => setLightboxUrls(null)}>
           <button className="rs-lightbox-close" onClick={() => setLightboxUrls(null)} title="Close">✕</button>
           {lightboxUrls.map((url, i) => (
-            <img key={i} src={url} alt={`${i + 1} of ${lightboxUrls.length}`} onClick={e => e.stopPropagation()} />
+            <AuthedImg key={i} src={url} alt={`${i + 1} of ${lightboxUrls.length}`} onClick={e => e.stopPropagation()} />
           ))}
         </div>
       )}

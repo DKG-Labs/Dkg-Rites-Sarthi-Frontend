@@ -149,7 +149,7 @@ const DownloadIcAnnexures = ({ selectedProduct = 'ERC', fromDate: initialFromDat
     const [rowsPerPage, setRowsPerPage] = useState(10);
 
     // 3. Sorting state
-    const [sortConfig, setSortConfig] = useState({ key: 'icIssuedDate', direction: 'desc' });
+    const [sortConfig, setSortConfig] = useState({ key: 'poWise', direction: 'asc' });
 
     // 4. Download Dialog animation state
     const [isDownloading, setIsDownloading] = useState(false);
@@ -342,6 +342,23 @@ const DownloadIcAnnexures = ({ selectedProduct = 'ERC', fromDate: initialFromDat
         // Sorting
         if (sortConfig.key) {
             result.sort((a, b) => {
+                if (sortConfig.key === 'poWise') {
+                    const poA = formatPoNumber(a).toLowerCase();
+                    const poB = formatPoNumber(b).toLowerCase();
+                    if (poA !== poB) return poA < poB ? -1 : 1;
+                    const stageOrder = s => {
+                        const u = (s || '').toUpperCase();
+                        if (u === 'PROCESS') return 0;
+                        if (u === 'FINAL') return 1;
+                        return 2;
+                    };
+                    const stageDiff = stageOrder(a.stage) - stageOrder(b.stage);
+                    if (stageDiff !== 0) return stageDiff;
+                    const dateA = new Date(a.callSubmissionDateTime || 0);
+                    const dateB = new Date(b.callSubmissionDateTime || 0);
+                    return dateA - dateB;
+                }
+
                 if (sortConfig.key === 'callQtySet') {
                     const aSet = getQuantityColumns(a).qtySet;
                     const bSet = getQuantityColumns(b).qtySet;

@@ -100,8 +100,10 @@ const PoIssuedModal = ({ isOpen, onClose, data, title, isLoading }) => {
         });
     }, [data, searchTerm, selectedZone]);
 
-    // The IC count and its list are only reported for ERC
-    const showIcCol = (title || '').toUpperCase().includes('ERC');
+    // The IC count and its list are reported for ERC and Rail Pad
+    const titleUpper = (title || '').toUpperCase();
+    const showIcCol = titleUpper.includes('ERC') || titleUpper.includes('RAIL PAD') || titleUpper.includes('RAILPAD');
+    const icProduct = titleUpper.includes('RAIL PAD') || titleUpper.includes('RAILPAD') ? 'Rail Pad' : 'ERC';
 
     if (!isOpen) return null;
 
@@ -268,7 +270,7 @@ const PoIssuedModal = ({ isOpen, onClose, data, title, isLoading }) => {
                             </div>
                             <div style={{ flex: 1, overflow: 'auto', position: 'relative', padding: '20px' }}>
                                 <DownloadIcAnnexures
-                                    selectedProduct="ERC"
+                                    selectedProduct={icProduct}
                                     hideFilters={true}
                                     poNumber={icListPo}
                                     defaultStage="FINAL"

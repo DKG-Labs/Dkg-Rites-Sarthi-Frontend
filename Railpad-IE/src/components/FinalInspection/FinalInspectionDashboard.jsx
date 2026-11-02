@@ -904,8 +904,9 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
       const minA = parseFloat((apprSgA - 0.03).toFixed(3));
       const maxA = parseFloat(Math.min(apprSgA + 0.03, 1.27).toFixed(3));
 
+      const sgBCap = rawType.includes('ncr') ? 1.27 : 1.17;
       const minB = apprSgB != null ? parseFloat((apprSgB - 0.03).toFixed(3)) : parseFloat((apprSgA - 0.03).toFixed(3));
-      const maxB = apprSgB != null ? parseFloat(Math.min(apprSgB + 0.03, 1.17).toFixed(3)) : 1.17;
+      const maxB = apprSgB != null ? parseFloat(Math.min(apprSgB + 0.03, sgBCap).toFixed(3)) : sgBCap;
 
       return {
         hasApproved: true,
@@ -940,7 +941,8 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
 
       // Ash content - Approved value + 5, For Compound ‘A’ 27% (Max), For Compound ‘B’ 20% (Max)
       const maxA = parseFloat(Math.min(apprAshA + 5, 27).toFixed(2));
-      const maxB = apprAshB != null ? parseFloat(Math.min(apprAshB + 5, 20).toFixed(2)) : 20;
+      const ashBCap = rawType.includes('ncr') ? 27 : 20;
+      const maxB = apprAshB != null ? parseFloat(Math.min(apprAshB + 5, ashBCap).toFixed(2)) : ashBCap;
 
       return {
         hasApproved: true,

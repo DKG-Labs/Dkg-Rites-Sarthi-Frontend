@@ -125,7 +125,7 @@ const UnderDevelopmentBanner = ({ product }) => (
     <div className="rbrs-under-dev-icon">🚧</div>
     <h3 className="rbrs-under-dev-title">Under Development</h3>
     <p className="rbrs-under-dev-sub">
-      Rejection &amp; Scrapping Monitoring for <strong>{product}</strong> is coming soon.
+      Rejection &amp; Disposal Monitoring for <strong>{product}</strong> is coming soon.
     </p>
   </div>
 );
@@ -282,7 +282,7 @@ export default function RailwayBoardRejectionScrap({ selectedProduct }) {
               Back
             </button>
             <nav className="rbrs-breadcrumb">
-              <span className="rbrs-bc-root">Rejection &amp; Scrapping</span>
+              <span className="rbrs-bc-root">Rejection &amp; Disposal</span>
               <span className="rbrs-bc-sep">›</span>
               <span className="rbrs-bc-current">
                 {selectedPoi.companyName || selectedPoi.poiCode}
@@ -334,7 +334,7 @@ export default function RailwayBoardRejectionScrap({ selectedProduct }) {
                 </svg>
               </div>
               <div className="rbrs-stat-body">
-                <div className="rbrs-stat-label">Total Scrapped</div>
+                <div className="rbrs-stat-label">Total Disposed</div>
                 <div className="rbrs-stat-value">{(selectedPoi.totalScrapped || 0).toLocaleString()}</div>
                 <div className="rbrs-stat-unit">pieces</div>
               </div>
@@ -357,7 +357,7 @@ export default function RailwayBoardRejectionScrap({ selectedProduct }) {
               <div className="rbrs-stat-body">
                 <div className="rbrs-stat-label">Balance Pending</div>
                 <div className="rbrs-stat-value">{(selectedPoi.pendingBalance || 0).toLocaleString()}</div>
-                <div className="rbrs-stat-unit">{selectedPoi.pendingBalance > 0 ? 'awaiting scrapping' : 'fully scrapped'}</div>
+                <div className="rbrs-stat-unit">{selectedPoi.pendingBalance > 0 ? 'awaiting disposal' : 'fully disposed'}</div>
               </div>
             </div>
 
@@ -370,9 +370,9 @@ export default function RailwayBoardRejectionScrap({ selectedProduct }) {
                   </svg>
                 </div>
                 <div className="rbrs-stat-body">
-                  <div className="rbrs-stat-label">Last Scrapping</div>
+                  <div className="rbrs-stat-label">Last Disposal</div>
                   <div className="rbrs-stat-value rbrs-stat-date-val">{selectedPoi.lastScrappingDate}</div>
-                  <div className="rbrs-stat-unit">scrapping date</div>
+                  <div className="rbrs-stat-unit">disposal date</div>
                 </div>
               </div>
             )}
@@ -383,7 +383,7 @@ export default function RailwayBoardRejectionScrap({ selectedProduct }) {
         <div className="rbrs-ledger-section">
           <div className="rbrs-ledger-section-header">
             <div>
-              <span className="rbrs-ledger-section-title">Rejection &amp; Scrapping Ledger</span>
+              <span className="rbrs-ledger-section-title">Rejection &amp; Disposal Ledger</span>
               <span className="rbrs-ledger-section-sub">Full history for this plant · Read-only</span>
             </div>
             <div className="rbrs-ledger-section-badge">
@@ -426,7 +426,7 @@ export default function RailwayBoardRejectionScrap({ selectedProduct }) {
   return (
     <div className="rbrs-wrap">
       <div className="rbrs-header">
-        <h2 className="rbrs-title">Rejection &amp; Scrapping Monitoring</h2>
+        <h2 className="rbrs-title">Rejection &amp; Disposal Monitoring</h2>
         <p className="rbrs-subtitle">ERC — All Plants Overview</p>
       </div>
 
@@ -454,7 +454,7 @@ export default function RailwayBoardRejectionScrap({ selectedProduct }) {
               </div>
               <div className="rbrs-kpi-body">
                 <div className="rbrs-kpi-val">{totalScrapped.toLocaleString()}</div>
-                <div className="rbrs-kpi-lbl">Total Scrapped</div>
+                <div className="rbrs-kpi-lbl">Total Disposed</div>
               </div>
             </div>
             <div className="rbrs-kpi-card">
@@ -510,9 +510,9 @@ export default function RailwayBoardRejectionScrap({ selectedProduct }) {
               <th style={{ width: 48 }}>S.No</th>
               <SortTh col="companyName" label="Manufacturer & Plant" sortCol={sortCol} sortDir={sortDir} onSort={handleSort} />
               <SortTh col="totalRejected" label="Total Rejected" sortCol={sortCol} sortDir={sortDir} onSort={handleSort} />
-              <SortTh col="totalScrapped" label="Total Scrapped" sortCol={sortCol} sortDir={sortDir} onSort={handleSort} />
+              <SortTh col="totalScrapped" label="Total Disposed" sortCol={sortCol} sortDir={sortDir} onSort={handleSort} />
               <SortTh col="pendingBalance" label="Balance Pending" sortCol={sortCol} sortDir={sortDir} onSort={handleSort} />
-              <SortTh col="lastScrappingDate" label="Last Scrapping" sortCol={sortCol} sortDir={sortDir} onSort={handleSort} />
+              <SortTh col="lastScrappingDate" label="Last Disposal" sortCol={sortCol} sortDir={sortDir} onSort={handleSort} />
               <SortTh col="status" label="Status" sortCol={sortCol} sortDir={sortDir} onSort={handleSort} />
               <th style={{ width: 32 }}></th>
             </tr>
@@ -526,7 +526,7 @@ export default function RailwayBoardRejectionScrap({ selectedProduct }) {
                   <div className="rbrs-empty">
                     <div className="rbrs-empty-icon">📋</div>
                     <p className="rbrs-empty-title">No data found</p>
-                    <p className="rbrs-empty-sub">No rejection or scrapping records match the current filters</p>
+                    <p className="rbrs-empty-sub">No rejection or disposal records match the current filters</p>
                   </div>
                 </td>
               </tr>

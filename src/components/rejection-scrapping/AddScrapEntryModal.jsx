@@ -5,7 +5,7 @@ import './RejectionScrapping.css';
 
 const SHIFTS = ['A', 'B', 'C', 'General'];
 
-export default function AddScrapEntryModal({ poiCode, ieUserId, ieType, onClose, onSuccess }) {
+export default function AddScrapEntryModal({ poiCode, unitLineShedNo, ieUserId, ieType, onClose, onSuccess }) {
   const [form, setForm] = useState({
     scrappingDate: new Date().toISOString().slice(0, 10),
     shift: '',
@@ -44,6 +44,7 @@ export default function AddScrapEntryModal({ poiCode, ieUserId, ieType, onClose,
     try {
       const result = await addScrapEntry({
         poiCode,
+        unitLineShedNo: unitLineShedNo || '',
         scrappingDate: form.scrappingDate,
         shift: form.shift,
         noOfPiecesScrapped: parseInt(form.noOfPiecesScrapped),
@@ -67,7 +68,7 @@ export default function AddScrapEntryModal({ poiCode, ieUserId, ieType, onClose,
       <div className="rs-modal">
         <div className="rs-modal-header">
           <div className="rs-modal-title">
-            <span>🗑️</span> Add Scrapping Entry
+            <span>🗑️</span> Add Disposal Entry
           </div>
           <button className="rs-modal-close" onClick={onClose}>✕</button>
         </div>
@@ -77,7 +78,7 @@ export default function AddScrapEntryModal({ poiCode, ieUserId, ieType, onClose,
 
           <div className="rs-form-grid" style={{ marginBottom: 16 }}>
             <div className="rs-field">
-              <label className="rs-field-label required">Scrapping Date</label>
+              <label className="rs-field-label required">Disposal Date</label>
               <input className="rs-input" type="date" value={form.scrappingDate} onChange={e => set('scrappingDate', e.target.value)} />
             </div>
 
@@ -105,7 +106,7 @@ export default function AddScrapEntryModal({ poiCode, ieUserId, ieType, onClose,
             </div>
 
             <div className="rs-field">
-              <label className="rs-field-label required">Pieces Scrapped</label>
+              <label className="rs-field-label required">Pieces Disposed</label>
               <input
                 className="rs-input"
                 type="number"
@@ -123,13 +124,13 @@ export default function AddScrapEntryModal({ poiCode, ieUserId, ieType, onClose,
                 placeholder="0"
               />
               {pendingQty !== null && pendingQty === 0 && (
-                <div className="rs-field-error">No pending pieces available for scrapping</div>
+                <div className="rs-field-error">No pending pieces available for disposal</div>
               )}
             </div>
           </div>
 
           <div className="rs-field" style={{ marginBottom: 16 }}>
-            <label className="rs-field-label">After-Scrap Photos</label>
+            <label className="rs-field-label">After-Disposal Photos</label>
             <ScrapImageUploader
               images={images}
               onAdd={img => setImages(p => [...p, img])}
@@ -149,8 +150,8 @@ export default function AddScrapEntryModal({ poiCode, ieUserId, ieType, onClose,
                 checked={form.declarationAccepted}
                 onChange={e => set('declarationAccepted', e.target.checked)}
               />
-              I declare that the information provided about the scrapped pieces is true and accurate to the best
-              of my knowledge, and the scrapping has been carried out as per RITES guidelines.
+              I declare that the information provided about the disposed pieces is true and accurate to the best
+              of my knowledge, and the disposal has been carried out as per RITES guidelines.
             </label>
           </div>
         </div>

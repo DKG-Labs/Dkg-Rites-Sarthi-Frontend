@@ -3,13 +3,13 @@ import EditScrapEntryModal from './EditScrapEntryModal';
 import { deleteScrapEntry } from '../../services/scrapEntryService';
 import './RejectionScrapping.css';
 
-const ALL_COLUMNS = ['Type', 'Date', 'Shift', 'Unit / Line / Shed', 'Stage', 'Rejected', 'Scrapped', 'Balance', 'IE Name', 'SV ID', 'Photos', 'Actions'];
-const RO_COLUMNS  = ['Type', 'Date', 'Shift', 'Unit / Line / Shed', 'Stage', 'Rejected', 'Scrapped', 'Balance', 'IE Name', 'SV ID', 'Photos'];
+const ALL_COLUMNS = ['Type', 'Date', 'Shift', 'Unit / Line / Shed', 'Stage', 'Rejected', 'Disposed', 'Balance', 'IE Name', 'SV ID', 'Photos', 'Actions'];
+const RO_COLUMNS  = ['Type', 'Date', 'Shift', 'Unit / Line / Shed', 'Stage', 'Rejected', 'Disposed', 'Balance', 'IE Name', 'SV ID', 'Photos'];
 const PAGE_SIZES = [10, 20, 30];
 
 const RowTypeBadge = ({ type }) => (
   <span className={`rs-badge ${type === 'REJECTION' ? 'rejection' : 'scrap'}`}>
-    {type === 'REJECTION' ? '✕ Rejection' : '✓ Scrap'}
+    {type === 'REJECTION' ? '✕ Rejection' : '✓ Disposal'}
   </span>
 );
 
@@ -76,7 +76,7 @@ export default function ScrapLedgerTable({ rows, loading, ieUserId, onRefresh, r
           {[
             { key: 'ALL',       label: 'All',         count: rows.length },
             { key: 'REJECTION', label: 'Rejection',   count: rejectionCount },
-            { key: 'SCRAP',     label: 'Scrap',       count: scrapCount },
+            { key: 'SCRAP',     label: 'Disposal',    count: scrapCount },
           ].map(({ key, label, count }) => (
             <button
               key={key}
@@ -105,7 +105,7 @@ export default function ScrapLedgerTable({ rows, loading, ieUserId, onRefresh, r
                   <div className="rs-empty">
                     <div className="rs-empty-icon">📋</div>
                     <p className="rs-empty-title">No entries for this plant yet</p>
-                    <p className="rs-empty-sub">Rejection and scrapping records will appear here</p>
+                    <p className="rs-empty-sub">Rejection and disposal records will appear here</p>
                   </div>
                 </td>
               </tr>
@@ -114,7 +114,7 @@ export default function ScrapLedgerTable({ rows, loading, ieUserId, onRefresh, r
                 <td colSpan={COLUMNS.length}>
                   <div className="rs-empty">
                     <div className="rs-empty-icon">🔍</div>
-                    <p className="rs-empty-title">No {typeFilter === 'REJECTION' ? 'rejection' : 'scrap'} entries found</p>
+                    <p className="rs-empty-title">No {typeFilter === 'REJECTION' ? 'rejection' : 'disposal'} entries found</p>
                     <p className="rs-empty-sub">Try switching the filter above</p>
                   </div>
                 </td>

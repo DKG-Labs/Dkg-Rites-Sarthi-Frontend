@@ -255,7 +255,7 @@ const IELandingPage = ({ onStartInspection, onStartMultipleInspections, setSelec
       tooltip: signedCallsCount > 0 ? 'Kindly send present calls to IBS' : undefined
     },
     { id: 'closed', label: 'Closed Calls', description: `${closedCallsCount} closed` },
-    { id: 'rejection-scrapping', label: 'Rejection & Scrapping', description: 'Scrap rejected pieces' },
+    { id: 'rejection-scrapping', label: 'Rejection & Disposal', description: 'Dispose rejected pieces' },
     ...(showDefectSummary ? [{ id: 'defect-summary', label: 'Process Defect Summary', description: 'Call-wise defect data' }] : []),
     { id: 'feedback-discrepancy', label: 'Process Inspection Feedback module', description: 'Manage discrepancies' },
   ];

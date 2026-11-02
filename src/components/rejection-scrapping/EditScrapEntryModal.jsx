@@ -48,7 +48,7 @@ export default function EditScrapEntryModal({ entry, ieUserId, onClose, onSucces
     <div className="rs-overlay" onClick={e => e.target === e.currentTarget && onClose()}>
       <div className="rs-modal">
         <div className="rs-modal-header">
-          <div className="rs-modal-title"><span>✏️</span> Edit Scrapping Entry</div>
+          <div className="rs-modal-title"><span>✏️</span> Edit Disposal Entry</div>
           <button className="rs-modal-close" onClick={onClose}>✕</button>
         </div>
 
@@ -61,7 +61,7 @@ export default function EditScrapEntryModal({ entry, ieUserId, onClose, onSucces
 
           <div className="rs-form-grid" style={{ marginBottom: 16 }}>
             <div className="rs-field">
-              <label className="rs-field-label">Scrapping Date</label>
+              <label className="rs-field-label">Disposal Date</label>
               <input className="rs-input" type="date" value={form.scrappingDate} onChange={e => set('scrappingDate', e.target.value)} />
             </div>
             <div className="rs-field">
@@ -71,7 +71,7 @@ export default function EditScrapEntryModal({ entry, ieUserId, onClose, onSucces
               </select>
             </div>
             <div className="rs-field">
-              <label className="rs-field-label">Pieces Scrapped</label>
+              <label className="rs-field-label">Pieces Disposed</label>
               <input className="rs-input" type="number" min={1} value={form.noOfPiecesScrapped} onChange={e => set('noOfPiecesScrapped', e.target.value)} />
             </div>
           </div>

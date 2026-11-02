@@ -183,14 +183,16 @@ const reportService = {
     },
 
     getRailPadClosedLoopPlants: async (vendorCode) => {
-        const response = await fetch(`${API_ENDPOINTS.REPORTS}/railpad/closed-loop/plants?vendorCode=${vendorCode}`, {
+        const cleanVendorCode = String(vendorCode || '').replace(/^:/, '');
+        const response = await fetch(`${API_ENDPOINTS.REPORTS}/railpad/closed-loop/plants?vendorCode=${encodeURIComponent(cleanVendorCode)}`, {
             headers: getAuthHeaders(),
         });
         return handleResponse(response);
     },
 
     getRailPadClosedLoopLots: async (plantId, year) => {
-        const response = await fetch(`${API_ENDPOINTS.REPORTS}/railpad/closed-loop/lots?plantId=${plantId}&year=${year}`, {
+        const cleanPlantId = String(plantId || '').replace(/^:/, '');
+        const response = await fetch(`${API_ENDPOINTS.REPORTS}/railpad/closed-loop/lots?plantId=${encodeURIComponent(cleanPlantId)}&year=${year}`, {
             headers: getAuthHeaders(),
         });
         return handleResponse(response);

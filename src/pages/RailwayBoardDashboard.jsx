@@ -960,7 +960,7 @@ const RailwayBoardDashboard = () => {
                             {activeMainCard === 'udm' ? (
                                 <UdmRejectionDashboard />
                             ) : activeMainCard === 'active-login' ? (
-                                <ActiveLoginDashboard />
+                                <ActiveLoginDashboard fromDate={debouncedFromDate} toDate={debouncedToDate} />
                             ) : activeMainCard === 'rejection-scrap' ? (
                                 <RailwayBoardRejectionScrap selectedProduct={selectedProduct} />
                             ) : activeMainCard === 'cm-module' ? (

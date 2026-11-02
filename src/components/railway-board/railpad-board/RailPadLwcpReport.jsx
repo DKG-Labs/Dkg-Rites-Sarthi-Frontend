@@ -1,7 +1,117 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import reportService from '../../../services/reportService';
 import { ExportButton, downloadExcel } from '../SharedComponents';
 import './RailPadSummary.css';
+
+// Searchable, scrollable dropdown for the filter bar
+const SearchableSelect = ({ options = [], value, onChange, placeholder = 'Select...', labelKey = 'label', valueKey = 'value', disabled = false }) => {
+    const [open, setOpen] = useState(false);
+    const [search, setSearch] = useState('');
+    const ref = useRef(null);
+    const inputRef = useRef(null);
+
+    const selected = useMemo(() => options.find(o => String(o[valueKey]) === String(value)), [options, value, valueKey]);
+
+    const filtered = useMemo(() => {
+        const q = search.toLowerCase();
+        return q ? options.filter(o => String(o[labelKey] || '').toLowerCase().includes(q)) : options;
+    }, [options, search, labelKey]);
+
+    useEffect(() => {
+        const handler = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
+        document.addEventListener('mousedown', handler);
+        return () => document.removeEventListener('mousedown', handler);
+    }, []);
+
+    useEffect(() => { if (open && inputRef.current) inputRef.current.focus(); }, [open]);
+
+    const handleSelect = (val) => { onChange(val); setSearch(''); setOpen(false); };
+    const handleClear = (e) => { e.stopPropagation(); onChange(''); setSearch(''); };
+
+    return (
+        <div ref={ref} style={{ position: 'relative', width: '100%' }}>
+            {/* Trigger */}
+            <div
+                onClick={() => { if (!disabled) setOpen(o => !o); }}
+                style={{
+                    display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                    borderRadius: 10, border: `2px solid ${disabled ? '#e2e8f0' : '#10b981'}`,
+                    padding: '8px 12px', background: disabled ? '#f8fafc' : '#fff',
+                    fontSize: 13, fontWeight: 500, cursor: disabled ? 'not-allowed' : 'pointer',
+                    minHeight: 38, color: selected ? '#1e293b' : '#94a3b8',
+                    transition: 'border-color 0.15s', boxSizing: 'border-box',
+                    ...(open ? { borderColor: '#059669', boxShadow: '0 0 0 3px rgba(16,185,129,0.15)' } : {})
+                }}
+            >
+                <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>
+                    {selected ? selected[labelKey] : placeholder}
+                </span>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 4, flexShrink: 0 }}>
+                    {selected && !disabled && (
+                        <span onClick={handleClear} style={{ fontSize: 11, color: '#94a3b8', cursor: 'pointer', lineHeight: 1, padding: '0 2px' }}>✕</span>
+                    )}
+                    <span style={{ fontSize: 10, color: '#64748b', transform: open ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s' }}>▼</span>
+                </div>
+            </div>
+
+            {/* Dropdown panel */}
+            {open && (
+                <div style={{
+                    position: 'absolute', top: 'calc(100% + 4px)', left: 0, right: 0,
+                    background: '#fff', border: '1.5px solid #d1fae5', borderRadius: 12,
+                    boxShadow: '0 8px 24px rgba(0,0,0,0.12)', zIndex: 1000,
+                    overflow: 'hidden'
+                }}>
+                    {/* Search input */}
+                    <div style={{ padding: '8px 10px', borderBottom: '1px solid #f0fdf4', background: '#f8fffc' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 6, background: '#fff', border: '1.5px solid #a7f3d0', borderRadius: 8, padding: '5px 10px' }}>
+                            <span style={{ fontSize: 12, color: '#10b981' }}>🔍</span>
+                            <input
+                                ref={inputRef}
+                                type="text"
+                                value={search}
+                                onChange={e => setSearch(e.target.value)}
+                                onClick={e => e.stopPropagation()}
+                                placeholder="Search..."
+                                style={{ border: 'none', outline: 'none', flex: 1, fontSize: 12, color: '#1e293b', background: 'transparent' }}
+                            />
+                            {search && (
+                                <span onClick={() => setSearch('')} style={{ fontSize: 11, color: '#94a3b8', cursor: 'pointer' }}>✕</span>
+                            )}
+                        </div>
+                    </div>
+
+                    {/* Options list */}
+                    <div style={{ maxHeight: 220, overflowY: 'auto' }}>
+                        {filtered.length === 0 ? (
+                            <div style={{ padding: '14px 16px', textAlign: 'center', color: '#94a3b8', fontSize: 12 }}>No results found</div>
+                        ) : filtered.map((o, i) => {
+                            const isSelected = String(o[valueKey]) === String(value);
+                            return (
+                                <div
+                                    key={i}
+                                    onClick={() => handleSelect(String(o[valueKey]))}
+                                    style={{
+                                        padding: '9px 14px', fontSize: 13, cursor: 'pointer',
+                                        background: isSelected ? '#ecfdf5' : 'transparent',
+                                        color: isSelected ? '#059669' : '#1e293b',
+                                        fontWeight: isSelected ? 600 : 400,
+                                        borderLeft: isSelected ? '3px solid #10b981' : '3px solid transparent',
+                                        transition: 'background 0.1s',
+                                    }}
+                                    onMouseEnter={e => { if (!isSelected) e.currentTarget.style.background = '#f0fdf4'; }}
+                                    onMouseLeave={e => { if (!isSelected) e.currentTarget.style.background = 'transparent'; }}
+                                >
+                                    {o[labelKey]}
+                                </div>
+                            );
+                        })}
+                    </div>
+                </div>
+            )}
+        </div>
+    );
+};
 
 const RailPadLwcpReport = () => {
     const [filters, setFilters] = useState({
@@ -154,34 +264,24 @@ const RailPadLwcpReport = () => {
                     {/* Manufacturer */}
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                         <label style={{ fontSize: '10px', fontWeight: '800', color: '#64748b', letterSpacing: '0.05em', textTransform: 'uppercase' }}>Manufacturer</label>
-                        <select
-                            className="prof-select"
-                            style={{ width: '100%', borderRadius: '10px', border: '2px solid #10b981', padding: '8px 12px', background: '#fff', fontSize: '13px', fontWeight: '500', height: '38px' }}
+                        <SearchableSelect
+                            options={manufacturers.map(m => ({ label: m.companyName, value: m.vendorCode }))}
                             value={filters.manufacturer}
-                            onChange={(e) => handleManufacturerChange(e.target.value)}
-                        >
-                            <option value="">Select Manufacturer</option>
-                            {manufacturers.map(m => (
-                                <option key={m.vendorCode} value={m.vendorCode}>{m.companyName}</option>
-                            ))}
-                        </select>
+                            onChange={handleManufacturerChange}
+                            placeholder="Select Manufacturer"
+                        />
                     </div>
 
                     {/* Plant */}
                     {filters.manufacturer && (
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                             <label style={{ fontSize: '10px', fontWeight: '800', color: '#64748b', letterSpacing: '0.05em', textTransform: 'uppercase' }}>Plant</label>
-                            <select
-                                className="prof-select"
-                                style={{ width: '100%', borderRadius: '10px', border: '2px solid #10b981', padding: '8px 12px', background: '#fff', fontSize: '13px', fontWeight: '500', height: '38px' }}
+                            <SearchableSelect
+                                options={plants.map(p => ({ label: p.plantName, value: String(p.plantId) }))}
                                 value={filters.plant}
-                                onChange={(e) => handlePlantChange(e.target.value)}
-                            >
-                                <option value="">Select Plant</option>
-                                {plants.map(p => (
-                                    <option key={p.plantId} value={p.plantId}>{p.plantName}</option>
-                                ))}
-                            </select>
+                                onChange={handlePlantChange}
+                                placeholder="Select Plant"
+                            />
                         </div>
                     )}
 
@@ -189,16 +289,12 @@ const RailPadLwcpReport = () => {
                     {filters.plant && (
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                             <label style={{ fontSize: '10px', fontWeight: '800', color: '#64748b', letterSpacing: '0.05em', textTransform: 'uppercase' }}>Year of Production</label>
-                            <select
-                                className="prof-select"
-                                style={{ width: '100%', borderRadius: '10px', border: '2px solid #10b981', padding: '8px 12px', background: '#fff', fontSize: '13px', fontWeight: '500', height: '38px' }}
+                            <SearchableSelect
+                                options={[{label:'2026',value:'2026'},{label:'2025',value:'2025'},{label:'2024',value:'2024'}]}
                                 value={filters.year}
-                                onChange={(e) => handleYearChange(e.target.value)}
-                            >
-                                <option value="2026">2026</option>
-                                <option value="2025">2025</option>
-                                <option value="2024">2024</option>
-                            </select>
+                                onChange={handleYearChange}
+                                placeholder="Select Year"
+                            />
                         </div>
                     )}
 
@@ -206,19 +302,12 @@ const RailPadLwcpReport = () => {
                     {filters.plant && (
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                             <label style={{ fontSize: '10px', fontWeight: '800', color: '#64748b', letterSpacing: '0.05em', textTransform: 'uppercase' }}>Lot Number</label>
-                            <select
-                                className="prof-select"
-                                style={{ width: '100%', borderRadius: '10px', border: '2px solid #10b981', padding: '8px 12px', background: '#fff', fontSize: '13px', fontWeight: '500', height: '38px' }}
+                            <SearchableSelect
+                                options={lots.map(l => ({ label: `${l.lotNo} (${l.callNo})`, value: String(l.lotId) }))}
                                 value={filters.lotId}
-                                onChange={(e) => handleLotChange(e.target.value)}
-                            >
-                                <option value="">Select Lot Number</option>
-                                {lots.map(l => (
-                                    <option key={l.lotId} value={l.lotId}>
-                                        {l.lotNo} ({l.callNo})
-                                    </option>
-                                ))}
-                            </select>
+                                onChange={handleLotChange}
+                                placeholder="Select Lot Number"
+                            />
                         </div>
                     )}
                 </div>

@@ -84,7 +84,9 @@ export const UserForm = ({ user, roles = [], rolesLoading = false, existingUsers
             contactPersonNumber: '',
             plantId: '',
             ibsVendorCode: '',
-            status: 'Active'
+            status: 'Active',
+            latitude: '',
+            longitude: ''
         }
     ]);
 
@@ -117,7 +119,9 @@ export const UserForm = ({ user, roles = [], rolesLoading = false, existingUsers
             contactPersonNumber: '',
             plantId: '',
             ibsVendorCode: '',
-            status: 'Active'
+            status: 'Active',
+            latitude: '',
+            longitude: ''
         }
     ]);
 
@@ -135,7 +139,9 @@ export const UserForm = ({ user, roles = [], rolesLoading = false, existingUsers
             poiCode: '',
             ibsVendorCode: '',
             rio: '',
-            status: ''
+            status: '',
+            latitude: '',
+            longitude: ''
         }
     ]);
     const [formData, setFormData] = useState({
@@ -384,7 +390,9 @@ export const UserForm = ({ user, roles = [], rolesLoading = false, existingUsers
                     poiCode: '',
                     ibsVendorCode: '',
                     rio: '',
-                    status: ''
+                    status: '',
+                    latitude: '',
+                    longitude: ''
                 }
             ]);
             setSleeperPlants([
@@ -403,7 +411,9 @@ export const UserForm = ({ user, roles = [], rolesLoading = false, existingUsers
                     contactPersonNumber: '',
                     plantId: '',
                     ibsVendorCode: '',
-                    status: 'Active'
+                    status: 'Active',
+                    latitude: '',
+                    longitude: ''
                 }
             ]);
             setRailpadPlants([
@@ -422,7 +432,9 @@ export const UserForm = ({ user, roles = [], rolesLoading = false, existingUsers
                     contactPersonNumber: '',
                     plantId: '',
                     ibsVendorCode: '',
-                    status: 'Active'
+                    status: 'Active',
+                    latitude: '',
+                    longitude: ''
                 }
             ]);
             setRailpadUnit({
@@ -454,7 +466,9 @@ export const UserForm = ({ user, roles = [], rolesLoading = false, existingUsers
                 poiCode: '',
                 ibsVendorCode: '',
                 rio: '',
-                status: ''
+                status: '',
+                latitude: '',
+                longitude: ''
             }
         ]);
     };
@@ -493,7 +507,9 @@ export const UserForm = ({ user, roles = [], rolesLoading = false, existingUsers
                 contactPersonNumber: '',
                 plantId: '',
                 ibsVendorCode: '',
-                status: 'Active'
+                status: 'Active',
+                latitude: '',
+                longitude: ''
             }
         ]);
     };
@@ -592,7 +608,9 @@ export const UserForm = ({ user, roles = [], rolesLoading = false, existingUsers
                 contactPersonNumber: '',
                 plantId: '',
                 ibsVendorCode: '',
-                status: 'Active'
+                status: 'Active',
+                latitude: '',
+                longitude: ''
             }
         ]);
     };
@@ -1545,6 +1563,34 @@ export const UserForm = ({ user, roles = [], rolesLoading = false, existingUsers
                                                             style={{ borderColor: '#60a5fa' }}
                                                         />
                                                     </div>
+                                                    <div className="form-group" style={{ background: '#fefce8', padding: '10px', borderRadius: '8px', border: '1.5px solid #fde047' }}>
+                                                        <label className="form-label" style={{ color: '#713f12', fontWeight: 700 }}>
+                                                            📍 Latitude
+                                                        </label>
+                                                        <input
+                                                            type="number"
+                                                            className="form-control"
+                                                            placeholder="e.g. 28.6139"
+                                                            value={plant.latitude || ''}
+                                                            onChange={(e) => handleRailpadPlantChange(idx, 'latitude', e.target.value)}
+                                                            step="any"
+                                                            style={{ borderColor: '#fde047' }}
+                                                        />
+                                                    </div>
+                                                    <div className="form-group" style={{ background: '#fefce8', padding: '10px', borderRadius: '8px', border: '1.5px solid #fde047' }}>
+                                                        <label className="form-label" style={{ color: '#713f12', fontWeight: 700 }}>
+                                                            📍 Longitude
+                                                        </label>
+                                                        <input
+                                                            type="number"
+                                                            className="form-control"
+                                                            placeholder="e.g. 77.2090"
+                                                            value={plant.longitude || ''}
+                                                            onChange={(e) => handleRailpadPlantChange(idx, 'longitude', e.target.value)}
+                                                            step="any"
+                                                            style={{ borderColor: '#fde047' }}
+                                                        />
+                                                    </div>
                                                 </div>
                                             </div>
                                         ))}
@@ -1825,6 +1871,34 @@ export const UserForm = ({ user, roles = [], rolesLoading = false, existingUsers
                                                             style={{ borderColor: '#60a5fa' }}
                                                         />
                                                     </div>
+                                                    <div className="form-group" style={{ background: '#fefce8', padding: '10px', borderRadius: '8px', border: '1.5px solid #fde047' }}>
+                                                        <label className="form-label" style={{ color: '#713f12', fontWeight: 700 }}>
+                                                            📍 Latitude
+                                                        </label>
+                                                        <input
+                                                            type="number"
+                                                            className="form-control"
+                                                            placeholder="e.g. 28.6139"
+                                                            value={plant.latitude || ''}
+                                                            onChange={(e) => handlePlantChange(idx, 'latitude', e.target.value)}
+                                                            step="any"
+                                                            style={{ borderColor: '#fde047' }}
+                                                        />
+                                                    </div>
+                                                    <div className="form-group" style={{ background: '#fefce8', padding: '10px', borderRadius: '8px', border: '1.5px solid #fde047' }}>
+                                                        <label className="form-label" style={{ color: '#713f12', fontWeight: 700 }}>
+                                                            📍 Longitude
+                                                        </label>
+                                                        <input
+                                                            type="number"
+                                                            className="form-control"
+                                                            placeholder="e.g. 77.2090"
+                                                            value={plant.longitude || ''}
+                                                            onChange={(e) => handlePlantChange(idx, 'longitude', e.target.value)}
+                                                            step="any"
+                                                            style={{ borderColor: '#fde047' }}
+                                                        />
+                                                    </div>
                                                 </div>
                                             </div>
                                         ))}
@@ -2036,6 +2110,34 @@ export const UserForm = ({ user, roles = [], rolesLoading = false, existingUsers
                                                 inputMode="numeric"
                                                 pattern="[0-9]{10}"
                                                 style={{ borderColor: '#60a5fa' }}
+                                            />
+                                        </div>
+                                        <div className="form-group" style={{ background: '#fefce8', padding: '10px', borderRadius: '8px', border: '1.5px solid #fde047' }}>
+                                            <label className="form-label" style={{ color: '#713f12', fontWeight: 700 }}>
+                                                📍 Latitude
+                                            </label>
+                                            <input
+                                                type="number"
+                                                className="form-control"
+                                                placeholder="e.g. 28.6139"
+                                                value={unit.latitude || ''}
+                                                onChange={(e) => handleUnitChange(idx, 'latitude', e.target.value)}
+                                                step="any"
+                                                style={{ borderColor: '#fde047' }}
+                                            />
+                                        </div>
+                                        <div className="form-group" style={{ background: '#fefce8', padding: '10px', borderRadius: '8px', border: '1.5px solid #fde047' }}>
+                                            <label className="form-label" style={{ color: '#713f12', fontWeight: 700 }}>
+                                                📍 Longitude
+                                            </label>
+                                            <input
+                                                type="number"
+                                                className="form-control"
+                                                placeholder="e.g. 77.2090"
+                                                value={unit.longitude || ''}
+                                                onChange={(e) => handleUnitChange(idx, 'longitude', e.target.value)}
+                                                step="any"
+                                                style={{ borderColor: '#fde047' }}
                                             />
                                         </div>
                                     </div>

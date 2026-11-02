@@ -215,7 +215,7 @@ const ErcRmIC = ({ data = {}, isEditing = false, isBusy = false, onChange = () =
               <span>{data?.region || "RITES LIMITED, NORTHERN REGION, DELHI"}</span>
               {isDiverted && (
                 <span className="ml-2 font-bold text-[13px] normal-case text-black">
-                  (Diverted IC)
+                  {data?.diversionType === 'PARTIAL' ? '(Partial Diversion IC)' : '(Diverted IC)'}
                 </span>
               )}
             </div>

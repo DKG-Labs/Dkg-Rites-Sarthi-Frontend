@@ -455,6 +455,7 @@ export default function FinalProductCertificate({ call = {}, onBack }) {
         (typeof c.remarks === 'string' && c.remarks.toLowerCase().includes('diversion')) ||
         (typeof c.reference === 'string' && c.reference.toLowerCase().includes('diverted from'))
       ),
+      diversionType: c.diversionType || null,
     };
   };
 

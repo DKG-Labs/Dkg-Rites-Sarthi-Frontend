@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import reportService from '../../../services/reportService';
 import {
     PieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer,
@@ -99,7 +99,7 @@ const SleeperQuality = ({ qualityData, refreshTick }) => {
             'Final (Non-Critical)': '#8b5cf6'
         };
 
-        // Fallback palette — ensures colors even for unknown category names
+        // Fallback palette â€” ensures colors even for unknown category names
         const FALLBACK_PALETTE = [
             '#10b981', '#3b82f6', '#f59e0b', '#ef4444',
             '#8b5cf6', '#06b6d4', '#ec4899', '#f97316',
@@ -290,7 +290,8 @@ const SleeperQuality = ({ qualityData, refreshTick }) => {
                             }}>
                                 <div className="loading-spinner"></div>
                             </div>
-                        ) : paretoWithPercentage.length === 0 ? (
+                        )}
+                        {paretoWithPercentage.length === 0 ? (
                             <div style={{
                                 height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center',
                                 color: '#64748b', fontSize: '14px'
@@ -298,59 +299,6 @@ const SleeperQuality = ({ qualityData, refreshTick }) => {
                                 No pareto defect data available for selected range
                             </div>
                         ) : (
-                            <ResponsiveContainer>
-                                <ComposedChart data={paretoWithPercentage} margin={{ top: 20, right: 30, left: 20, bottom: 100 }}>
-                                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                                    <XAxis
-                                        dataKey="name"
-                                        interval={0}
-                                        height={100}
-                                        tick={({ x, y, payload }) => (
-                                            <g transform={`translate(${x},${y + 10})`}>
-                                                <text
-                                                    x={0}
-                                                    y={0}
-                                                    dy={0}
-                                                    transform="rotate(-45)"
-                                                    textAnchor="end"
-                                                    fill="#1e293b"
-                                                    style={{ fontSize: '11px', fontWeight: 'bold' }}
-                                                >
-                                                    {payload.value}
-                                                </text>
-                                            </g>
-                                        )}
-                                    />
-                                    <YAxis
-                                        yAxisId="left"
-                                        label={{ value: 'Count', angle: -90, position: 'insideLeft', style: { fill: '#64748b', fontSize: 12 } }}
-                                        tick={{ fontSize: 11, fill: '#64748b' }}
-                                    />
-                                    <YAxis
-                                        yAxisId="right"
-                                        orientation="right"
-                                        domain={[0, 100]}
-                                        label={{ value: 'Cumulative %', angle: 90, position: 'insideRight', style: { fill: '#8b5cf6', fontSize: 12 } }}
-                                        tick={{ fontSize: 11, fill: '#8b5cf6' }}
-                                    />
-                                    <Tooltip
-                                        contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}
-                                    />
-                                    <Bar yAxisId="left" dataKey="count" fill="#10b981" radius={[4, 4, 0, 0]} barSize={40}>
-                                        <LabelList dataKey="count" position="top" style={{ fill: '#065f46', fontSize: 11, fontWeight: 700 }} />
-                                    </Bar>
-                                    <Line
-                                        yAxisId="right"
-                                        type="monotone"
-                                        dataKey="percentage"
-                                        stroke="#8b5cf6"
-                                        strokeWidth={3}
-                                        dot={{ r: 5, fill: '#8b5cf6', strokeWidth: 2, stroke: '#fff' }}
-                                    />
-                                    <Legend verticalAlign="top" align="right" height={36} />
-                                </ComposedChart>
-                            </ResponsiveContainer>
-                        )}
                         <ResponsiveContainer>
                             {/* Horizontal bars: every reason is readable in full, longest bar on top */}
                             <ComposedChart layout="vertical" data={paretoWithPercentage} margin={{ top: 10, right: 50, left: 10, bottom: 10 }}>
@@ -377,6 +325,7 @@ const SleeperQuality = ({ qualityData, refreshTick }) => {
                                 </Bar>
                             </ComposedChart>
                         </ResponsiveContainer>
+                        )}
                     </div>
                 </div>
             </div>

@@ -89,6 +89,16 @@ const RailwayBoardDashboard = () => {
     });
 
 
+    // Top-bar filters are drafts until Apply is clicked; only then do they reach the reports (and their APIs)
+    const [draftFromDate, setDraftFromDate] = useState(fromDate);
+    const [draftToDate, setDraftToDate] = useState(toDate);
+    const [draftZone, setDraftZone] = useState(selectedZone);
+    const [draftRio, setDraftRio] = useState(selectedRio);
+    React.useEffect(() => { setDraftFromDate(fromDate); }, [fromDate]);
+    React.useEffect(() => { setDraftToDate(toDate); }, [toDate]);
+    React.useEffect(() => { setDraftZone(selectedZone); }, [selectedZone]);
+    React.useEffect(() => { setDraftRio(selectedRio); }, [selectedRio]);
+
     // Save Filters
     React.useEffect(() => { localStorage.setItem('dash_selectedProduct', selectedProduct); }, [selectedProduct]);
     React.useEffect(() => {
@@ -628,7 +638,7 @@ const RailwayBoardDashboard = () => {
 
                                         {reportSubmenuOpen && (
                                             <div style={{ display: 'flex', flexDirection: 'column' }}>
-                                                <div className={`report-link ${activeReport === 'mpr' && activeMainCard === 'reports' ? 'active' : ''}`} onClick={() => handleReportLink('mpr')} style={{ padding: '6px 8px', paddingLeft: '28px', fontSize: '14px' }}>{selectedProduct === 'ERC' || selectedProduct === 'Rail Pad' ? 'PO Wise Monthly Progress Report' : 'Monthly Progress Report'}</div>
+                                                <div className={`report-link ${activeReport === 'mpr' && activeMainCard === 'reports' ? 'active' : ''}`} onClick={() => handleReportLink('mpr')} style={{ padding: '6px 8px', paddingLeft: '28px', fontSize: '14px' }}>PO Wise Monthly Progress Report</div>
                                                 <div className={`report-link ${activeReport === 'mau' && activeMainCard === 'reports' ? 'active' : ''}`} onClick={() => handleReportLink('mau')} style={{ padding: '6px 8px', paddingLeft: '28px', fontSize: '14px' }}>Monthly Analysis of Units</div>
                                                 <div className={`report-link ${activeReport === 'lwcl' && activeMainCard === 'reports' ? 'active' : ''}`} onClick={() => handleReportLink('lwcl')} style={{ padding: '6px 8px', paddingLeft: '28px', fontSize: '14px' }}>Lot Wise Closed Loop</div>
                                                 <div className={`report-link ${activeReport === 'swp' && activeMainCard === 'reports' ? 'active' : ''}`} onClick={() => handleReportLink('swp')} style={{ padding: '6px 8px', paddingLeft: '28px', fontSize: '14px' }}>Shift Wise Production Report</div>
@@ -758,7 +768,7 @@ const RailwayBoardDashboard = () => {
                                 </div>
                                 {reportSubmenuOpen && !isSidebarCollapsed && (
                                     <div className="report-submenu open">
-                                        <div className={`report-link ${activeReport === 'mpr' && activeMainCard === 'reports' ? 'active' : ''}`} onClick={() => handleReportLink('mpr')}>{selectedProduct === 'ERC' || selectedProduct === 'Rail Pad' ? 'PO Wise Monthly Progress Report' : 'Monthly Progress Report'}</div>
+                                        <div className={`report-link ${activeReport === 'mpr' && activeMainCard === 'reports' ? 'active' : ''}`} onClick={() => handleReportLink('mpr')}>PO Wise Monthly Progress Report</div>
                                         <div className={`report-link ${activeReport === 'mau' && activeMainCard === 'reports' ? 'active' : ''}`} onClick={() => handleReportLink('mau')}>Monthly Analysis of Units</div>
                                         <div className={`report-link ${activeReport === 'lwcl' && activeMainCard === 'reports' ? 'active' : ''}`} onClick={() => handleReportLink('lwcl')}>Lot Wise Closed Loop</div>
                                         {!isRailwayBoard && (
@@ -905,9 +915,9 @@ const RailwayBoardDashboard = () => {
                     {activeMainCard !== 'cm-module' && activeMainCard !== 'summary' && activeMainCard !== 'quality' && activeMainCard !== 'lifecycle' && activeMainCard !== 'feedback' && activeMainCard !== 'udm' && activeMainCard !== 'scada' && activeMainCard !== 'sqc' && activeMainCard !== 'sleeper-anomaly' && activeMainCard !== 'rejection-scrap' && !(activeMainCard === 'reports' && activeReport === 'swp' && (selectedProduct === 'ERC' || selectedProduct === 'Sleeper')) && !(activeMainCard === 'reports' && activeReport === 'lwcl') && !(activeMainCard === 'reports' && activeReport === 'ic_annexures') && (
                         <div id="prof-topbar">
                             <label>From</label>
-                            <input type="date" value={fromDate} onChange={(e) => setFromDate(e.target.value)} />
+                            <input type="date" value={draftFromDate} onChange={(e) => setDraftFromDate(e.target.value)} />
                             <label>To</label>
-                            <input type="date" value={toDate} onChange={(e) => setToDate(e.target.value)} />
+                            <input type="date" value={draftToDate} onChange={(e) => setDraftToDate(e.target.value)} />
 
                             {!(activeMainCard === 'reports' && (activeReport === 'mpia' || activeReport === 'vwpqr')) && (
                                 (activeMainCard === 'reports' && activeReport === 'mau') || activeMainCard === 'performance' ? (
@@ -915,8 +925,8 @@ const RailwayBoardDashboard = () => {
                                         <label>RIO</label>
                                         <select 
                                             className="prof-input"
-                                            value={selectedRio} 
-                                            onChange={(e) => setSelectedRio(e.target.value || 'all')}
+                                            value={draftRio} 
+                                            onChange={(e) => setDraftRio(e.target.value || 'all')}
                                             style={{ width: '110px', marginLeft: '4px', marginRight: '16px' }}
                                         >
                                             <option value="all">All RIOs</option>
@@ -930,8 +940,8 @@ const RailwayBoardDashboard = () => {
                                         <label>Zone</label>
                                         <select 
                                             className="prof-input"
-                                            value={selectedZone} 
-                                            onChange={(e) => setSelectedZone(e.target.value || 'all')}
+                                            value={draftZone} 
+                                            onChange={(e) => setDraftZone(e.target.value || 'all')}
                                             style={{ width: '110px', marginLeft: '4px', marginRight: '16px' }}
                                         >
                                             <option value="all">All Zones</option>
@@ -943,7 +953,12 @@ const RailwayBoardDashboard = () => {
                                 )
                             )}
 
-                            <button className="btn-apply"><i className="fa-solid fa-magnifying-glass" style={{ marginRight: '4px' }}></i>Apply</button>
+                            <button className="btn-apply" onClick={() => {
+                                setFromDate(draftFromDate);
+                                setToDate(draftToDate);
+                                setSelectedZone(draftZone);
+                                setSelectedRio(draftRio);
+                            }}><i className="fa-solid fa-magnifying-glass" style={{ marginRight: '4px' }}></i>Apply</button>
                             <button className="btn-reset" onClick={() => {
                                 const d = new Date();
                                 d.setMonth(d.getMonth() - 3);

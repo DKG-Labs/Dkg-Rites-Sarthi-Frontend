@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import reportService from '../../../services/reportService';
 import {
     PieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer,
-    Bar, XAxis, YAxis, CartesianGrid, ComposedChart, Line, LabelList
+    Bar, XAxis, YAxis, CartesianGrid, ComposedChart, LabelList
 } from 'recharts';
 import './SleeperSummary.css'; // Reusing some base styles
 
@@ -116,11 +116,11 @@ const SleeperQuality = ({ qualityData, refreshTick }) => {
 
     const defectDistributionData = aggregatedData;
 
-    const paretoWithPercentage = (paretoApiData && paretoApiData.length > 0) ? paretoApiData.map(item => ({
-        name: item.defectCategory,
+    const paretoWithPercentage = paretoApiData.length > 0 ? paretoApiData.map(item => ({
+        name: String(item.defectCategory || '').trim().replace(/[:\s]+$/, ''),
         count: item.defectCount,
         percentage: item.cumulativePercentage
-    })).sort((a, b) => b.count - a.count) : [];
+    })) : [];
 
     return (
         <div className="sleeper-summary-container fade-in">
@@ -281,8 +281,8 @@ const SleeperQuality = ({ qualityData, refreshTick }) => {
                 {/* Pareto Chart for Defect Types */}
                 <div className="prof-card">
                     <h3 className="card-title-sm">Pareto Analysis (Defect Types)</h3>
-                    <div style={{ width: '100%', height: 400, position: 'relative' }}>
-                        {paretoLoading ? (
+                    <div style={{ width: '100%', height: Math.max(320, paretoWithPercentage.length * 32 + 60), position: 'relative' }}>
+                        {paretoLoading && (
                             <div style={{
                                 position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
                                 background: 'rgba(255,255,255,0.7)', zIndex: 10,
@@ -351,6 +351,32 @@ const SleeperQuality = ({ qualityData, refreshTick }) => {
                                 </ComposedChart>
                             </ResponsiveContainer>
                         )}
+                        <ResponsiveContainer>
+                            {/* Horizontal bars: every reason is readable in full, longest bar on top */}
+                            <ComposedChart layout="vertical" data={paretoWithPercentage} margin={{ top: 10, right: 50, left: 10, bottom: 10 }}>
+                                <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#f1f5f9" />
+                                <XAxis
+                                    type="number"
+                                    allowDecimals={false}
+                                    tick={{ fontSize: 11, fill: '#64748b' }}
+                                />
+                                <YAxis
+                                    type="category"
+                                    dataKey="name"
+                                    width={200}
+                                    interval={0}
+                                    tickLine={false}
+                                    tick={{ fontSize: 11, fill: '#1e293b', fontWeight: 600 }}
+                                />
+                                <Tooltip
+                                    cursor={{ fill: 'rgba(16,185,129,0.08)' }}
+                                    contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}
+                                />
+                                <Bar dataKey="count" name="Rejected sleepers" fill="#10b981" radius={[0, 4, 4, 0]} barSize={18}>
+                                    <LabelList dataKey="count" position="right" style={{ fill: '#065f46', fontSize: 11, fontWeight: 700 }} />
+                                </Bar>
+                            </ComposedChart>
+                        </ResponsiveContainer>
                     </div>
                 </div>
             </div>

@@ -122,6 +122,13 @@
     transform: translateY(0);
 }
 
+.sqr-top-scroll {
+    overflow-x: auto;
+    overflow-y: hidden;
+    height: 14px;
+    margin-bottom: 4px;
+}
+
 .sqr-table-wrapper {
     overflow-x: auto;
     border-radius: 16px;

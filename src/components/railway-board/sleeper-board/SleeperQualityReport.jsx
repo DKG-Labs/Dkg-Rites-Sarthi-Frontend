@@ -1,14 +1,17 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { downloadExcel } from '../SharedComponents';
 import './SleeperQualityReport.css';
 import reportService from '../../../services/reportService';
 
-const SleeperQualityReport = ({ fromDate, toDate }) => {
+const SleeperQualityReport = ({ fromDate, toDate, zone }) => {
     const [searchQuery, setSearchQuery] = useState('');
     const [selectedTypeFilter, setSelectedTypeFilter] = useState('All');
     const [data, setData] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
+    const topScrollRef = useRef(null);
+    const tableWrapRef = useRef(null);
+    const [tableWidth, setTableWidth] = useState(0);
 
     // Fetch Quality of PSC Sleepers Report Data from API
     useEffect(() => {
@@ -18,23 +21,25 @@ const SleeperQualityReport = ({ fromDate, toDate }) => {
                 setError(null);
                 const response = await reportService.getSleeperQualityReport({
                     startDate: fromDate,
-                    endDate: toDate
+                    endDate: toDate,
+                    zone
                 });
-                
+
                 const rawList = response.responseData || response || [];
                 const mappedData = rawList.map((row, idx) => {
-                    const cleanCspName = row.plantId ? row.plantId.replace(/^:\d+\//, '') : 'Unknown CSP';
+                    // The server sends the plant name; the number after the slash is only a fallback
+                    const cleanCspName = row.cspName || (row.plantId ? row.plantId.replace(/^:\d+\//, '') : 'Unknown CSP');
                     return {
                         sNo: idx + 1,
-                        railway: row.railwayZone || 'Others',
+                        railway: row.railwayZone || '-',
                         csp: cleanCspName,
                         type: row.sleeperType || 'Mainline',
                         produced: row.totalProducedSleepers ?? 0,
                         inspected: row.noOfSleeperInspectedInProcess ?? 0,
                         rejectedInProcess: row.noOfSleeperRejectedInProcess ?? 0,
-                        icIssuedQty: 0,
-                        icIssuedCount: 0,
-                        lastIcDate: '-',
+                        icIssuedQty: row.icIssuedQty ?? 0,
+                        icIssuedCount: row.icIssuedCount ?? 0,
+                        lastIcDate: row.lastIcDate || '-',
                         totalNosRej: row.totalRejectedDefects ?? 0,
                         rejDimension: row.forDimensionToeGauge ?? 0,
                         rejEndDamage: row.forEndDamage ?? 0,
@@ -56,7 +61,20 @@ const SleeperQualityReport = ({ fromDate, toDate }) => {
         if (fromDate && toDate) {
             fetchQualityReportData();
         }
-    }, [fromDate, toDate]);
+    }, [fromDate, toDate, zone]);
+
+    // Keep the scroll bar above the table in step with the one below it
+    useEffect(() => {
+        if (tableWrapRef.current) setTableWidth(tableWrapRef.current.scrollWidth);
+    }, [data, loading, searchQuery, selectedTypeFilter]);
+    const syncScroll = (from, to) => {
+        if (from.current && to.current && to.current.scrollLeft !== from.current.scrollLeft) {
+            to.current.scrollLeft = from.current.scrollLeft;
+        }
+    };
+
+    // Unit of the quantities: turnouts are counted in sets, everything else in numbers
+    const uomOf = (type) => ((type || '').toLowerCase().includes('turnout') ? 'Set' : 'Nos.');
 
     // Filter and group data dynamically
     const filteredAndGroupedData = useMemo(() => {
@@ -85,7 +103,7 @@ const SleeperQualityReport = ({ fromDate, toDate }) => {
         let rlyIndex = 1;
 
         list.forEach(item => {
-            const rly = item.railway || 'Others';
+            const rly = item.railway || '-';
             if (!railwayGroups[rly]) {
                 railwayGroups[rly] = {
                     railway: rly,
@@ -229,7 +247,10 @@ const SleeperQualityReport = ({ fromDate, toDate }) => {
                 </div>
             </div>
 
-            <div className="sqr-table-wrapper">
+            <div ref={topScrollRef} className="sqr-top-scroll" onScroll={() => syncScroll(topScrollRef, tableWrapRef)}>
+                <div style={{ width: tableWidth, height: 1 }}></div>
+            </div>
+            <div ref={tableWrapRef} className="sqr-table-wrapper" onScroll={() => syncScroll(tableWrapRef, topScrollRef)}>
                 <table className="sqr-table">
                     <thead>
                         <tr>
@@ -300,7 +321,7 @@ const SleeperQualityReport = ({ fromDate, toDate }) => {
                                                     <td className="text-right font-medium">{item.produced.toLocaleString()}</td>
                                                     <td className="text-right text-slate-700">{item.inspected.toLocaleString()}</td>
                                                     <td className="text-right text-red-500 font-medium">{item.rejectedInProcess.toLocaleString()}</td>
-                                                    <td className="text-right text-blue-600 font-bold bg-blue-50/20">{item.icIssuedQty.toLocaleString()}</td>
+                                                    <td className="text-right text-blue-600 font-bold bg-blue-50/20">{item.icIssuedQty.toLocaleString()} <span className="text-slate-500 font-normal">{uomOf(item.type)}</span></td>
                                                     <td className="text-center text-blue-800 bg-blue-50/10">{item.icIssuedCount}</td>
                                                     <td className="text-center text-emerald-800 font-medium whitespace-nowrap">{item.lastIcDate}</td>
                                                     <td className="text-right font-bold text-red-600 bg-red-50/10">{item.totalNosRej.toLocaleString()}</td>

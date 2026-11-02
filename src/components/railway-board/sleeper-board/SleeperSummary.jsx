@@ -57,6 +57,7 @@ const SleeperSummary = ({
     const [pendingCalls, setPendingCalls] = useState(0);
     const [underInspectionCalls, setUnderInspectionCalls] = useState(0);
     const [totalProduction, setTotalProduction] = useState(0);
+    const [sleeperAvgPerDay, setSleeperAvgPerDay] = useState(0);
     const [sleeperIcIssued, setSleeperIcIssued] = useState(0);
     const [finalAcceptedNos, setFinalAcceptedNos] = useState(0);
     const [finalAcceptedSet, setFinalAcceptedSet] = useState(0);
@@ -70,6 +71,7 @@ const SleeperSummary = ({
             setPendingCalls(extractNumber(filterData.pendingCalls));
             setUnderInspectionCalls(extractNumber(filterData.underInspectionCalls));
             setTotalProduction(extractNumber(filterData.totalProduction));
+            setSleeperAvgPerDay(extractNumber(filterData.sleeperAvgProductionPerDay));
             setSleeperIcIssued(extractNumber(filterData.sleeperIcIssued));
             setFinalAcceptedNos(extractNumber(filterData.finalAcceptedNos));
             setFinalAcceptedSet(extractNumber(filterData.finalAcceptedSet));
@@ -85,6 +87,7 @@ const SleeperSummary = ({
                 setPendingCalls(cachedSleeperSummary.pendingCalls);
                 setUnderInspectionCalls(cachedSleeperSummary.underInspectionCalls);
                 setTotalProduction(cachedSleeperSummary.totalProduction || 0);
+                setSleeperAvgPerDay(cachedSleeperSummary.sleeperAvgPerDay || 0);
                 setSleeperIcIssued(cachedSleeperSummary.sleeperIcIssued || 0);
                 setFinalAcceptedNos(cachedSleeperSummary.finalAcceptedNos || 0);
                 setFinalAcceptedSet(cachedSleeperSummary.finalAcceptedSet || 0);
@@ -113,6 +116,8 @@ const SleeperSummary = ({
                     setPendingCalls(pCalls);
                     setUnderInspectionCalls(uCalls);
                     setTotalProduction(tProd);
+                    const sAvg = extractNumber(data.sleeperAvgProductionPerDay);
+                    setSleeperAvgPerDay(sAvg);
                     setSleeperIcIssued(sIc);
                     setFinalAcceptedNos(fAccNos);
                     setFinalAcceptedSet(fAccSet);
@@ -126,6 +131,7 @@ const SleeperSummary = ({
                             pendingCalls: pCalls,
                             underInspectionCalls: uCalls,
                             totalProduction: tProd,
+                            sleeperAvgPerDay: sAvg,
                             sleeperIcIssued: sIc,
                             finalAcceptedNos: fAccNos,
                             finalAcceptedSet: fAccSet,
@@ -163,7 +169,10 @@ const SleeperSummary = ({
     const finalRejectedTotal = finalRejectedNos + finalRejectedSet;
 
     // Production & Rejections
-    const avgProductionPerDay = extractNumber(actualSummary.sleeperAvgProductionPerDay ?? (prodTotal > 0 ? Math.round(prodTotal / 30) : 0));
+    // Production of the ICs in the range divided by the days on which ICs were issued (calculated on the server)
+    const avgProductionPerDay = sleeperAvgPerDay > 0
+        ? sleeperAvgPerDay
+        : extractNumber(actualSummary.sleeperAvgProductionPerDay ?? (prodTotal > 0 ? Math.round(prodTotal / 30) : 0));
     const processRejectionPercentage = prodTotal > 0
         ? ((processRejectedNos / prodTotal) * 100).toFixed(2)
         : '0.00';

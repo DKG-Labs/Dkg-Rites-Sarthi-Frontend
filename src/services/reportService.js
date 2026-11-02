@@ -243,6 +243,7 @@ const reportService = {
             if (params.endDate) queryParams.append('endDate', params.endDate);
             if (params.vendor && params.vendor !== 'all') queryParams.append('vendorPlantCode', params.vendor);
             if (params.zone && params.zone !== 'all') queryParams.append('zonalRailway', params.zone);
+            if (params.product) queryParams.append('product', params.product);
             if (queryParams.toString()) url += `?${queryParams.toString()}`;
         }
 
@@ -781,7 +782,7 @@ const reportService = {
      * @param {Object} params - { startDate, endDate }
      */
     getSleeperQualityReport: async (params) => {
-        const { startDate, endDate } = params || {};
+        const { startDate, endDate, zone } = params || {};
 
         const formatDate = (dateStr) => {
             if (!dateStr || !dateStr.includes('-')) return dateStr;
@@ -792,6 +793,7 @@ const reportService = {
         const url = new URL(`${API_ENDPOINTS.SLEEPER_DASHBOARD}/quality-sleeper`);
         if (startDate) url.searchParams.append('startDate', formatDate(startDate));
         if (endDate) url.searchParams.append('endDate', formatDate(endDate));
+        if (zone && zone !== 'all') url.searchParams.append('zone', zone);
 
         const response = await fetch(url.toString(), {
             headers: getAuthHeaders(),

@@ -69,7 +69,7 @@ const SleeperMprReport = ({ mprData = [], loading = false }) => {
     return (
         <div className="sleeper-report-container animate-up">
             <div className="sec-title" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px' }}>
-                <span>Monthly Progress Report (Sleeper)</span>
+                <span>PO Wise Monthly Progress Report (Sleeper)</span>
                 <div style={{ display: 'flex', gap: '12px' }}>
                     <button className="btn-export" style={{ padding: '8px 16px', background: '#1e293b', color: 'white', borderRadius: '8px', border: 'none', cursor: 'pointer', fontSize: '13px', fontWeight: '500' }}>
                         📥 Export Excel
@@ -78,7 +78,8 @@ const SleeperMprReport = ({ mprData = [], loading = false }) => {
                 </div>
             </div>
 
-            <div className="table-responsive prof-card">
+            {/* The long list scrolls inside its own box so the sticky header stays at the top of the table */}
+            <div className="table-responsive prof-card" style={{ maxHeight: '70vh', overflowY: 'auto', padding: 0 }}>
                 <table className="prof-table">
                     <thead>
                         <tr>
@@ -86,9 +87,10 @@ const SleeperMprReport = ({ mprData = [], loading = false }) => {
                             <th onClick={() => requestSort('rly')} style={{ cursor: 'pointer' }}>RLY {getSortIndicator('rly')}</th>
                             <th onClick={() => requestSort('poNo')} style={{ cursor: 'pointer' }}>PO NUMBER {getSortIndicator('poNo')}</th>
                             <th onClick={() => requestSort('manufacturer')} style={{ cursor: 'pointer' }}>MANUFACTURER {getSortIndicator('manufacturer')}</th>
+                            <th onClick={() => requestSort('uom')} style={{ cursor: 'pointer' }}>UOM {getSortIndicator('uom')}</th>
                             <th onClick={() => requestSort('poQty')} className="text-right" style={{ cursor: 'pointer' }}>PO QTY {getSortIndicator('poQty')}</th>
-                            <th onClick={() => requestSort('dispatchedInPeriod')} className="text-right" style={{ cursor: 'pointer' }}>DISPATCHED (MONTH) {getSortIndicator('dispatchedInPeriod')}</th>
-                            <th onClick={() => requestSort('totalDispatched')} className="text-right" style={{ cursor: 'pointer' }}>TOTAL DISPATCHED {getSortIndicator('totalDispatched')}</th>
+                            <th onClick={() => requestSort('dispatchedInPeriod')} className="text-right" style={{ cursor: 'pointer' }}>ACCEPTED QTY {getSortIndicator('dispatchedInPeriod')}</th>
+                            <th onClick={() => requestSort('totalDispatched')} className="text-right" style={{ cursor: 'pointer' }}>TOTAL ACCEPTED {getSortIndicator('totalDispatched')}</th>
                             <th onClick={() => requestSort('balance')} className="text-right" style={{ cursor: 'pointer' }}>BALANCE {getSortIndicator('balance')}</th>
                         </tr>
                     </thead>
@@ -100,8 +102,9 @@ const SleeperMprReport = ({ mprData = [], loading = false }) => {
                                     <td><span className="prof-badge" style={{ background: '#f1f5f9', color: '#475569' }}>{row.rly}</span></td>
                                     <td className="font-bold text-blue-700">{row.poNo}</td>
                                     <td>{formatManufacturer(row.manufacturer)}</td>
+                                    <td>{row.uom || '-'}</td>
                                     <td className="text-right">{row.poQty?.toLocaleString()}</td>
-                                    <td className="text-right text-emerald-600 font-medium">+{row.dispatchedInPeriod?.toLocaleString() || 0}</td>
+                                    <td className="text-right text-emerald-600 font-medium">{row.dispatchedInPeriod?.toLocaleString() || 0}</td>
                                     <td className="text-right font-bold">{row.totalDispatched?.toLocaleString() || 0}</td>
                                     <td className="text-right">
                                         <span
@@ -115,7 +118,7 @@ const SleeperMprReport = ({ mprData = [], loading = false }) => {
                             ))
                         ) : (
                             <tr>
-                                <td colSpan="8" className="text-center p-8 text-slate-400">No report data found for the selected period.</td>
+                                <td colSpan="9" className="text-center p-8 text-slate-400">No report data found for the selected period.</td>
                             </tr>
                         )}
                     </tbody>
@@ -132,7 +135,7 @@ const SleeperMprReport = ({ mprData = [], loading = false }) => {
                     </div>
                     <div style={{ width: '1px', height: '30px', background: '#cbd5e1' }}></div>
                     <div className="text-center">
-                        <div style={{ color: '#64748b', fontSize: '12px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Total Dispatched</div>
+                        <div style={{ color: '#64748b', fontSize: '12px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Total Accepted</div>
                         <div style={{ fontSize: '20px', fontWeight: '700', color: '#10b981' }}>
                             {data.reduce((acc, curr) => acc + (curr.totalDispatched || 0), 0).toLocaleString()}
                         </div>

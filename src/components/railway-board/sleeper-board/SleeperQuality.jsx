@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import reportService from '../../../services/reportService';
 import {
     PieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer,
-    Bar, XAxis, YAxis, CartesianGrid, ComposedChart, Line, LabelList
+    Bar, XAxis, YAxis, CartesianGrid, ComposedChart, LabelList
 } from 'recharts';
 import './SleeperSummary.css'; // Reusing some base styles
 
@@ -117,18 +117,10 @@ const SleeperQuality = ({ qualityData, refreshTick }) => {
     ];
 
     const paretoWithPercentage = paretoApiData.length > 0 ? paretoApiData.map(item => ({
-        name: item.defectCategory,
+        name: String(item.defectCategory || '').trim().replace(/[:\s]+$/, ''),
         count: item.defectCount,
         percentage: item.cumulativePercentage
-    })) : [
-        { name: 'Visual (Dem)', count: 450, percentage: 34.6 },
-        { name: 'Dimension (Dem)', count: 300, percentage: 57.7 },
-        { name: 'Final (Visual)', count: 200, percentage: 73.1 },
-        { name: 'Final (Non-Crit)', count: 150, percentage: 84.6 },
-        { name: 'Final (Crit)', count: 100, percentage: 92.3 },
-        { name: 'MR Deficiency', count: 80, percentage: 98.5 },
-        { name: 'Cube Strength', count: 50, percentage: 100 },
-    ].sort((a, b) => b.count - a.count);
+    })) : [];
 
     return (
         <div className="sleeper-summary-container fade-in">
@@ -279,7 +271,7 @@ const SleeperQuality = ({ qualityData, refreshTick }) => {
                 {/* Pareto Chart for Defect Types */}
                 <div className="prof-card">
                     <h3 className="card-title-sm">Pareto Analysis (Defect Types)</h3>
-                    <div style={{ width: '100%', height: 400, position: 'relative' }}>
+                    <div style={{ width: '100%', height: Math.max(320, paretoWithPercentage.length * 32 + 60), position: 'relative' }}>
                         {paretoLoading && (
                             <div style={{
                                 position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
@@ -298,55 +290,29 @@ const SleeperQuality = ({ qualityData, refreshTick }) => {
                             </div>
                         )}
                         <ResponsiveContainer>
-                            <ComposedChart data={paretoWithPercentage} margin={{ top: 20, right: 30, left: 20, bottom: 100 }}>
-                                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                            {/* Horizontal bars: every reason is readable in full, longest bar on top */}
+                            <ComposedChart layout="vertical" data={paretoWithPercentage} margin={{ top: 10, right: 50, left: 10, bottom: 10 }}>
+                                <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#f1f5f9" />
                                 <XAxis
-                                    dataKey="name"
-                                    interval={0}
-                                    height={100}
-                                    tick={({ x, y, payload }) => (
-                                        <g transform={`translate(${x},${y + 10})`}>
-                                            <text
-                                                x={0}
-                                                y={0}
-                                                dy={0}
-                                                transform="rotate(-45)"
-                                                textAnchor="end"
-                                                fill="#1e293b"
-                                                style={{ fontSize: '11px', fontWeight: 'bold' }}
-                                            >
-                                                {payload.value}
-                                            </text>
-                                        </g>
-                                    )}
-                                />
-                                <YAxis
-                                    yAxisId="left"
-                                    label={{ value: 'Count', angle: -90, position: 'insideLeft', style: { fill: '#64748b', fontSize: 12 } }}
+                                    type="number"
+                                    allowDecimals={false}
                                     tick={{ fontSize: 11, fill: '#64748b' }}
                                 />
                                 <YAxis
-                                    yAxisId="right"
-                                    orientation="right"
-                                    domain={[0, 100]}
-                                    label={{ value: 'Cumulative %', angle: 90, position: 'insideRight', style: { fill: '#8b5cf6', fontSize: 12 } }}
-                                    tick={{ fontSize: 11, fill: '#8b5cf6' }}
+                                    type="category"
+                                    dataKey="name"
+                                    width={200}
+                                    interval={0}
+                                    tickLine={false}
+                                    tick={{ fontSize: 11, fill: '#1e293b', fontWeight: 600 }}
                                 />
                                 <Tooltip
+                                    cursor={{ fill: 'rgba(16,185,129,0.08)' }}
                                     contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}
                                 />
-                                <Bar yAxisId="left" dataKey="count" fill="#10b981" radius={[4, 4, 0, 0]} barSize={40}>
-                                    <LabelList dataKey="count" position="top" style={{ fill: '#065f46', fontSize: 11, fontWeight: 700 }} />
+                                <Bar dataKey="count" name="Rejected sleepers" fill="#10b981" radius={[0, 4, 4, 0]} barSize={18}>
+                                    <LabelList dataKey="count" position="right" style={{ fill: '#065f46', fontSize: 11, fontWeight: 700 }} />
                                 </Bar>
-                                <Line
-                                    yAxisId="right"
-                                    type="monotone"
-                                    dataKey="percentage"
-                                    stroke="#8b5cf6"
-                                    strokeWidth={3}
-                                    dot={{ r: 5, fill: '#8b5cf6', strokeWidth: 2, stroke: '#fff' }}
-                                />
-                                <Legend verticalAlign="top" align="right" height={36} />
                             </ComposedChart>
                         </ResponsiveContainer>
                     </div>

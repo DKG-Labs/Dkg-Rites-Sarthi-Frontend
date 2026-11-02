@@ -483,11 +483,12 @@ const ProfessionalCardSection = ({
                     summaryRes,
                     sleeperSummaryRes
                 ] = await Promise.all([
-                    reportService.getIcIssuedCounts(params).catch(e => { console.error(e); return null; }),
+                    // The Sleeper tab shows its own summary, so the ERC-only calls below are not loaded for it
+                    isSleeper ? Promise.resolve(null) : reportService.getIcIssuedCounts(params).catch(e => { console.error(e); return null; }),
                     reportService.getInspectionCallStatus(params).catch(e => { console.error(e); return null; }),
-                    reportService.getInspectionDetails(params).catch(e => { console.error(e); return null; }),
-                    reportService.getProcessOverallRejection().catch(e => { console.error(e); return null; }),
-                    reportService.getAvgProductionPerDay(
+                    isSleeper ? Promise.resolve(null) : reportService.getInspectionDetails(params).catch(e => { console.error(e); return null; }),
+                    isSleeper ? Promise.resolve(null) : reportService.getProcessOverallRejection().catch(e => { console.error(e); return null; }),
+                    isSleeper ? Promise.resolve(null) : reportService.getAvgProductionPerDay(
                         selectedVendorPlant,
                         selectedZonalRailway,
                         filterStartDate,
@@ -2006,7 +2007,7 @@ const ProfessionalCardSection = ({
                                                     case 'mau': return <SleeperMauReport mauData={mauData} loading={mauLoading} startDate={fromDate} endDate={toDate} />;
                                                     case 'lwcl': return <SleeperLwclReport lwclData={lwclData} loading={lwclLoading} callNo={lwclCallNo} setCallNo={setLwclCallNo} lotNo={lwclLotNo} setLotNo={setLwclLotNo} requestIds={lwclRequestIds} lotNumbers={lwclLotNumbers} />;
                                                     case 'swp': return <SleeperShiftWiseProductionReport />;
-                                                    case 'sqr': return <SleeperQualityReport fromDate={fromDate} toDate={toDate} />;
+                                                    case 'sqr': return <SleeperQualityReport fromDate={fromDate} toDate={toDate} zone={selectedZonalRailway} />;
                                                     case 'ic_annexures': return <DownloadIcAnnexures selectedProduct="Sleeper" fromDate={fromDate} toDate={toDate} />;
                                                     default: return <SleeperMprReport mprData={mprData} />;
                                                 }

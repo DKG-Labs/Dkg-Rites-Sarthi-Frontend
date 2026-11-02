@@ -58,6 +58,15 @@ const formatPoDate = (dateStr) => {
     }
 };
 
+// PO Wise Monthly Progress quantities: up to 3 decimals, no trailing zeros
+const mprQty = (v) => {
+    const n = Number(v);
+    return Number.isFinite(n) ? Number(n.toFixed(3)) : 0;
+};
+
+// Raw material is always accepted in MT (the column header says so)
+const mprRmText = (row) => mprQty(row?.monthlyRm);
+
 // --- Static Data moved outside component to fix ESLint re-render warnings ---
 const staticInspectionCallsData = [
     { name: 'Total', under: 0, pending: 0 },
@@ -2015,18 +2024,26 @@ const ProfessionalCardSection = ({
                                                                             onClick={() => downloadExcel(
                                                                                 displayMprData.map(v => ({
                                                                                     ...v,
-                                                                                    poDateFormatted: formatPoDate(v.poDate)
+                                                                                    poDateFormatted: formatPoDate(v.poDate),
+                                                                                    uom: v.uom || '-',
+                                                                                    poQty: mprQty(v.poQty),
+                                                                                    monthlyRm: mprRmText(v),
+                                                                                    monthlyProcess: mprQty(v.monthlyProcess),
+                                                                                    monthlyFinal: mprQty(v.monthlyFinal),
+                                                                                    totalFinalInspected: mprQty(v.totalFinalInspected),
+                                                                                    poBalance: mprQty(v.poBalance)
                                                                                 })),
                                                                                 [
                                                                                     { label: 'Rly', key: 'rly' },
                                                                                     { label: 'PO Number', key: 'poNumber' },
                                                                                     { label: 'PO Date', key: 'poDateFormatted' },
                                                                                     { label: 'Manufacturer', key: 'manufacturer' },
+                                                                                    { label: 'UoM', key: 'uom' },
                                                                                     { label: 'PO Qty', key: 'poQty' },
-                                                                                    { label: 'RM', key: 'monthlyRm' },
-                                                                                    { label: 'Process', key: 'monthlyProcess' },
-                                                                                    { label: 'Final', key: 'monthlyFinal' },
-                                                                                    { label: 'Total Final Inspected', key: 'totalFinalInspected' },
+                                                                                    { label: 'RM Accepted (MT)', key: 'monthlyRm' },
+                                                                                    { label: 'Process Accepted (Nos)', key: 'monthlyProcess' },
+                                                                                    { label: 'Final Accepted', key: 'monthlyFinal' },
+                                                                                    { label: 'Total Final Accepted Quantity', key: 'totalFinalInspected' },
                                                                                     { label: 'Balance', key: 'poBalance' }
                                                                                 ],
                                                                                 'PO_Wise_Monthly_Progress_Report'
@@ -2043,11 +2060,12 @@ const ProfessionalCardSection = ({
                                                                                 <th onClick={() => handleMprSort('poNumber')}>PO Number {renderSortIcon('poNumber', mprSort)}</th>
                                                                                 <th onClick={() => handleMprSort('poDate')}>PO Date {renderSortIcon('poDate', mprSort)}</th>
                                                                                 <th onClick={() => handleMprSort('manufacturer')}>Manufacturer {renderSortIcon('manufacturer', mprSort)}</th>
+                                                                                <th className="text-center" onClick={() => handleMprSort('uom')}>UoM {renderSortIcon('uom', mprSort)}</th>
                                                                                 <th className="text-center" onClick={() => handleMprSort('poQty')}>PO Qty {renderSortIcon('poQty', mprSort)}</th>
-                                                                                <th className="text-center" onClick={() => handleMprSort('monthlyRm')}>RM {renderSortIcon('monthlyRm', mprSort)}</th>
-                                                                                <th className="text-center" onClick={() => handleMprSort('monthlyProcess')}>Process {renderSortIcon('monthlyProcess', mprSort)}</th>
-                                                                                <th className="text-center" onClick={() => handleMprSort('monthlyFinal')}>Final {renderSortIcon('monthlyFinal', mprSort)}</th>
-                                                                                <th className="text-center" onClick={() => handleMprSort('totalFinalInspected')}>Total Final Inspected {renderSortIcon('totalFinalInspected', mprSort)}</th>
+                                                                                <th className="text-center" onClick={() => handleMprSort('monthlyRm')}>RM Accepted (MT) {renderSortIcon('monthlyRm', mprSort)}</th>
+                                                                                <th className="text-center" onClick={() => handleMprSort('monthlyProcess')}>Process Accepted (Nos) {renderSortIcon('monthlyProcess', mprSort)}</th>
+                                                                                <th className="text-center" onClick={() => handleMprSort('monthlyFinal')}>Final Accepted {renderSortIcon('monthlyFinal', mprSort)}</th>
+                                                                                <th className="text-center" onClick={() => handleMprSort('totalFinalInspected')}>Total Final Accepted Quantity {renderSortIcon('totalFinalInspected', mprSort)}</th>
                                                                                 <th className="text-center" onClick={() => handleMprSort('poBalance')}>Balance {renderSortIcon('poBalance', mprSort)}</th>
                                                                             </tr>
                                                                         </thead>
@@ -2058,12 +2076,13 @@ const ProfessionalCardSection = ({
                                                                                     <td>{row.poNumber}</td>
                                                                                     <td>{formatPoDate(row.poDate)}</td>
                                                                                     <td>{row.manufacturer}</td>
-                                                                                    <td className="text-center">{row.poQty}</td>
-                                                                                    <td className="text-center">{row.monthlyRm}</td>
-                                                                                    <td className="text-center">{row.monthlyProcess}</td>
-                                                                                    <td className="text-center">{row.monthlyFinal}</td>
-                                                                                    <td className="text-center">{row.totalFinalInspected}</td>
-                                                                                    <td className="text-center font-bold" style={{ color: '#16a34a' }}>{row.poBalance}</td>
+                                                                                    <td className="text-center">{row.uom || '-'}</td>
+                                                                                    <td className="text-center">{mprQty(row.poQty)}</td>
+                                                                                    <td className="text-center">{mprRmText(row)}</td>
+                                                                                    <td className="text-center">{mprQty(row.monthlyProcess)}</td>
+                                                                                    <td className="text-center">{mprQty(row.monthlyFinal)}</td>
+                                                                                    <td className="text-center">{mprQty(row.totalFinalInspected)}</td>
+                                                                                    <td className="text-center font-bold" style={{ color: '#16a34a' }}>{mprQty(row.poBalance)}</td>
                                                                                 </tr>
                                                                             ))}
                                                                         </tbody>
@@ -2100,10 +2119,7 @@ const ProfessionalCardSection = ({
                                                                                     { label: 'PO Qty', key: 'poQty' },
                                                                                     { label: 'Manufactured', key: 'manufactured' },
                                                                                     { label: 'Inspected', key: 'inspected' },
-                                                                                    { label: 'Rejected', key: 'rejected' },
-                                                                                    { label: 'RM %', key: 'rmRejPercent' },
-                                                                                    { label: 'Process %', key: 'processRejPercent' },
-                                                                                    { label: 'Final %', key: 'finalRejPercent' }
+                                                                                    { label: 'Rejected', key: 'rejected' }
                                                                                 ],
                                                                                 'Monthly_Analysis_of_Units'
                                                                             )}
@@ -2123,9 +2139,6 @@ const ProfessionalCardSection = ({
                                                                                 <th className="text-right" onClick={() => handleMauSort('manufactured')}>Manufactured {renderSortIcon('manufactured', mauSort)}</th>
                                                                                 <th className="text-right" onClick={() => handleMauSort('inspected')}>Inspected {renderSortIcon('inspected', mauSort)}</th>
                                                                                 <th className="text-right" onClick={() => handleMauSort('rejected')}>Rejected {renderSortIcon('rejected', mauSort)}</th>
-                                                                                <th className="text-right" onClick={() => handleMauSort('rmRejPercent')}>RM % {renderSortIcon('rmRejPercent', mauSort)}</th>
-                                                                                <th className="text-right" onClick={() => handleMauSort('processRejPercent')}>Process % {renderSortIcon('processRejPercent', mauSort)}</th>
-                                                                                <th className="text-right" onClick={() => handleMauSort('finalRejPercent')}>Final % {renderSortIcon('finalRejPercent', mauSort)}</th>
                                                                             </tr>
                                                                         </thead>
                                                                         <tbody>
@@ -2139,9 +2152,6 @@ const ProfessionalCardSection = ({
                                                                                     <td className="text-right">{row.manufactured}</td>
                                                                                     <td className="text-right">{row.inspected}</td>
                                                                                     <td className="text-right" style={{ color: '#dc2626' }}>{row.rejected}</td>
-                                                                                    <td className="text-right">{formatDecimal(row.rmRejPercent)}%</td>
-                                                                                    <td className="text-right text-red-600">{formatDecimal(row.processRejPercent)}%</td>
-                                                                                    <td className="text-right">{formatDecimal(row.finalRejPercent)}%</td>
                                                                                 </tr>
                                                                             ))}
                                                                         </tbody>

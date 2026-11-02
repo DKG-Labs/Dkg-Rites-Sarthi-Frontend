@@ -273,19 +273,16 @@ const MomentOfResistance = () => {
                 // A batch number is not unique: the same number is reused for other sleeper types and months.
                 // Only keep candidates whose drawing / casting date / plant do not contradict the record.
                 const recDwg = normalizeDwg(extractDrawingNo(record, declaredMatch) || record?.sleeperType || declaredMatch?.sleeperType);
-                const recCast = normDate(extractCastDate(record) || extractCastDate(declaredMatch));
                 const recPlant = String(record?.plantId || declaredMatch?.plantId || '').replace(':', '').trim();
                 const candidates = allCandidates.filter(cand => {
                     const cDwg = normalizeDwg(extractDrawingNo(cand) || cand?.sleeperType);
-                    const cCast = normDate(cand.castingDate || cand.dateOfCasting || cand.date);
                     const cPlant = String(cand.plantId || '').replace(':', '').trim();
                     const dwgKnown = Boolean(recDwg && cDwg);
                     const dwgOk = dwgKnown && (cDwg === recDwg || cDwg.includes(recDwg) || recDwg.includes(cDwg));
-                    const castOk = !recCast || !cCast || recCast === cCast;
                     const plantOk = !recPlant || !cPlant || recPlant === cPlant;
-                    // When both drawings are known they decide (the casting date stored on older records can be wrong);
-                    // otherwise the casting date has to agree
-                    return plantOk && (dwgKnown ? dwgOk : castOk);
+                    // When both drawings are known they decide. The casting date stored on a test record is not
+                    // used here: older records hold the date of testing in it.
+                    return plantOk && (!dwgKnown || dwgOk);
                 });
                 if (candidates.length === 0) return null;
                 if (candidates.length === 1) return candidates[0];
@@ -386,6 +383,14 @@ const MomentOfResistance = () => {
                 });
             const completedItemKeys = new Set([...passedItemKeys, ...failedItemKeys]);
 
+            // A test is the result of a declaration only if it was entered after the declaration was made. Batch and
+            // sleeper numbers are reused, so an old test with the same numbers must not hide a newer declaration.
+            const testedAfterDeclaration = (t, d) => {
+                const tTime = Date.parse(t.createdDate);
+                const dTime = Date.parse(d.createdDate);
+                return Number.isNaN(tTime) || Number.isNaN(dTime) || tTime >= dTime;
+            };
+
             // Track declared records in MR for THIS plant (Pending Test) by declaration ID and fallback keys
             const declaredDeclIds = new Set();
             const declaredItemKeys = new Set();
@@ -394,13 +399,14 @@ const MomentOfResistance = () => {
                 .filter(d => {
                     const res = String(d.testResult || '').toLowerCase();
                     if (res === 'retest') return false;
-                    const hasTest = testData.some(t => 
+                    const hasTest = testData.some(t =>
                         isSamePlant(t.plantId, params.plantId) && (
                             (t.monmentOfResistanceId && Number(d.id) === Number(t.monmentOfResistanceId)) ||
                             (
                                 String(t.batchNumber || '').trim().toLowerCase() === String(d.batchNumber || '').trim().toLowerCase() &&
                                 String(t.sleeperNo || '').trim().toLowerCase() === String(d.sleeperNo || '').trim().toLowerCase() &&
-                                (String(t.testResult || '').toLowerCase() === 'pass' || String(t.testResult || '').toLowerCase() === 'fail')
+                                (String(t.testResult || '').toLowerCase() === 'pass' || String(t.testResult || '').toLowerCase() === 'fail') &&
+                                testedAfterDeclaration(t, d)
                             )
                         )
                     );
@@ -476,13 +482,14 @@ const MomentOfResistance = () => {
                 .filter(item => isSamePlant(item.plantId, params.plantId))
                 .filter(item => {
                     // Check if there is an existing completed test for THIS SPECIFIC sample
-                    const hasCompletedTest = testData.some(t => 
+                    const hasCompletedTest = testData.some(t =>
                         isSamePlant(t.plantId, params.plantId) && (
                             (t.monmentOfResistanceId && Number(t.monmentOfResistanceId) === Number(item.id)) ||
                             (
                                 String(t.batchNumber || '').trim().toLowerCase() === String(item.batchNumber || '').trim().toLowerCase() &&
                                 String(t.sleeperNo || '').trim().toLowerCase() === String(item.sleeperNo || '').trim().toLowerCase() &&
-                                (String(t.testResult || '').toLowerCase() === 'pass' || String(t.testResult || '').toLowerCase() === 'fail')
+                                (String(t.testResult || '').toLowerCase() === 'pass' || String(t.testResult || '').toLowerCase() === 'fail') &&
+                                testedAfterDeclaration(t, item)
                             )
                         )
                     );
@@ -498,7 +505,21 @@ const MomentOfResistance = () => {
             const groupMap = new Map();
             const singleDeclaredItems = [];
 
+            // The same sample can be declared again and again (e.g. repeated clicks): list it once, the latest declaration
+            const latestDeclaration = new Map();
             pendingDeclaredItems.forEach(item => {
+                const declTag = (String(item.remarks || '').match(/\[DeclId:\s*([^\]]+)\]/i) || [])[1] || '';
+                const key = [
+                    String(item.batchNumber || '').trim().toLowerCase(),
+                    String(item.sleeperNo || '').trim().toLowerCase(),
+                    declTag.trim(),
+                    item.mrTestType || ''
+                ].join('|');
+                const prev = latestDeclaration.get(key);
+                if (!prev || Number(item.id) > Number(prev.id)) latestDeclaration.set(key, item);
+            });
+
+            [...latestDeclaration.values()].forEach(item => {
                 const m = String(item.remarks || '').match(/\[MRGroup:\s*([^\]]+)\]/i);
                 if (m && m[1]) {
                     const gId = m[1].trim();
@@ -714,7 +735,8 @@ const MomentOfResistance = () => {
 
     // Filtered lists for tabs
     const declarationList = useMemo(() => batches.filter(b => b.status === 'Pending Declaration' && b.waterCubeStatus !== 'Rejected' && rowInCastingRange(b)), [batches, rowInCastingRange]);
-    const testingList = useMemo(() => declaredRecords.filter(rowInCastingRange), [declaredRecords, rowInCastingRange]);
+    // Samples already declared and waiting for results are always listed, whatever their casting date
+    const testingList = useMemo(() => declaredRecords, [declaredRecords]);
     const historicalList = useMemo(() => historicalTests.filter(rowInCastingRange), [historicalTests, rowInCastingRange]);
 
     const handleDeclareSamples = async (target, samplesData) => {
@@ -1069,11 +1091,13 @@ const MomentOfResistance = () => {
                 <p style={{ fontSize: '12px', color: '#64748b', margin: '4px 0 0 0' }}>Structural integrity testing for concrete sleepers</p>
             </header>
 
-            <CastingDateRangeFilter
-                range={castingRange}
-                onChange={setCastingRange}
-                disabled={loading}
-            />
+            {activeTab !== 'testing' && (
+                <CastingDateRangeFilter
+                    range={castingRange}
+                    onChange={setCastingRange}
+                    disabled={loading}
+                />
+            )}
 
             <div className="nav-tabs" style={{
                 marginBottom: '32px',

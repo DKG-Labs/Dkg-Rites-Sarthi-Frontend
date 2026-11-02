@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import ScrapImageUploader from './ScrapImageUploader';
-import { updateScrapEntry } from '../../services/scrapEntryService';
+import { updateScrapEntry, scrapImageProxyUrl } from '../../services/scrapEntryService';
 import './RejectionScrapping.css';
 
 const SHIFTS = ['A', 'B', 'C', 'General'];
@@ -13,7 +13,11 @@ export default function EditScrapEntryModal({ entry, ieUserId, onClose, onSucces
     remarks: entry.remarks || '',
     reason: '',
   });
-  const [newImages, setNewImages] = useState([]);
+
+  // Initialise uploader with existing Azure Blob URLs so thumbnails are visible immediately
+  const [images, setImages] = useState(() =>
+    (entry.imageUrls || []).map((url, i) => ({ fileName: `photo-${i + 1}.jpg`, url: scrapImageProxyUrl(url) }))
+  );
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
@@ -25,6 +29,9 @@ export default function EditScrapEntryModal({ entry, ieUserId, onClose, onSucces
     setLoading(true);
     setError('');
     try {
+      // Images with base64Data are new uploads; images with only url are kept existing ones.
+      const newUploads = images.filter(img => img.base64Data);
+      const keptUrls = images.filter(img => !img.base64Data).map(img => img.url);
       const result = await updateScrapEntry(entry.entryId, {
         scrappingDate: form.scrappingDate,
         shift: form.shift,
@@ -32,9 +39,10 @@ export default function EditScrapEntryModal({ entry, ieUserId, onClose, onSucces
         remarks: form.remarks,
         reason: form.reason,
         actionBy: String(ieUserId),
-        images: newImages.length > 0
-          ? newImages.map(img => ({ fileName: img.fileName, base64Data: img.base64Data }))
+        images: newUploads.length > 0
+          ? newUploads.map(img => ({ fileName: img.fileName, base64Data: img.base64Data }))
           : undefined,
+        keptImageUrls: keptUrls.length > 0 ? keptUrls : undefined,
       });
       onSuccess(result);
     } catch (e) {
@@ -82,15 +90,15 @@ export default function EditScrapEntryModal({ entry, ieUserId, onClose, onSucces
           </div>
 
           <div className="rs-field" style={{ marginBottom: 16 }}>
-            <label className="rs-field-label">Replace Photos (leave empty to keep existing)</label>
+            <label className="rs-field-label">After-Disposal Photos</label>
             <ScrapImageUploader
-              images={newImages}
-              onAdd={img => setNewImages(p => [...p, img])}
-              onRemove={idx => setNewImages(p => p.filter((_, i) => i !== idx))}
+              images={images}
+              onAdd={img => setImages(p => [...p, img])}
+              onRemove={idx => setImages(p => p.filter((_, i) => i !== idx))}
             />
-            {(entry.imageUrls || []).length > 0 && newImages.length === 0 && (
+            {images.some(img => !img.base64Data) && (
               <div style={{ fontSize: 12, color: '#64748b', marginTop: 6 }}>
-                📎 {entry.imageUrls.length} existing photo(s) will be kept
+                📎 Existing photos shown above — remove to replace, or add new ones
               </div>
             )}
           </div>

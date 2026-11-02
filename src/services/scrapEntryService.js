@@ -2,6 +2,17 @@ import { API_BASE_URL } from './apiConfig';
 
 const BASE = `${API_BASE_URL}/api/scrap-entry`;
 
+/**
+ * Converts a direct Azure Blob URL for a scrap image into a backend proxy URL.
+ * Required because the scrap-images container has public access disabled (409).
+ */
+export const scrapImageProxyUrl = (blobUrl) => {
+  if (!blobUrl) return blobUrl;
+  // Already a proxy URL — don't double-wrap
+  if (blobUrl.startsWith('/') || blobUrl.includes('/api/scrap-entry/image-proxy')) return blobUrl;
+  return `${BASE}/image-proxy?url=${encodeURIComponent(blobUrl)}`;
+};
+
 export const getMappedPlants = async (ieUserId, ieType) => {
   const res = await fetch(`${BASE}/plants?ieUserId=${ieUserId}&ieType=${ieType}`);
   if (!res.ok) throw new Error('Failed to fetch mapped plants');

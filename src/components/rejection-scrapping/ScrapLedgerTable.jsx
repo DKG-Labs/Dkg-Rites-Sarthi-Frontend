@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import EditScrapEntryModal from './EditScrapEntryModal';
-import { deleteScrapEntry } from '../../services/scrapEntryService';
+import { deleteScrapEntry, scrapImageProxyUrl } from '../../services/scrapEntryService';
 import './RejectionScrapping.css';
 
 const ALL_COLUMNS = ['Type', 'Date', 'Shift', 'Unit / Line / Shed', 'Stage', 'Rejected', 'Disposed', 'Balance', 'IE Name', 'SV ID', 'Photos', 'Actions'];
@@ -148,7 +148,7 @@ export default function ScrapLedgerTable({ rows, loading, ieUserId, onRefresh, r
                   </td>
                   <td>
                     {row.imageUrls && row.imageUrls.length > 0 ? (
-                      <button className="rs-photo-btn" onClick={() => setLightboxUrls(row.imageUrls)}>
+                      <button className="rs-photo-btn" onClick={() => setLightboxUrls(row.imageUrls.map(scrapImageProxyUrl))}>
                         📷 {row.imageUrls.length}
                       </button>
                     ) : <span style={{ color: '#cbd5e1' }}>—</span>}

@@ -768,6 +768,24 @@ const MFSampleDeclarationModal = ({ sample, isModifying, onClose, onSave, saving
         sampleType: 'Fresh'
     });
 
+    // The default list only holds the last 60 days of batches, so also load the batches cast on the chosen date
+    useEffect(() => {
+        if (!formData.castingDate) return;
+        let cancelled = false;
+        apiService.getAllProductionDeclarations({ fromDate: formData.castingDate, toDate: formData.castingDate })
+            .then(res => {
+                const data = res?.responseData || res?.data?.responseData || res?.data || (Array.isArray(res) ? res : []);
+                if (cancelled || !Array.isArray(data) || data.length === 0) return;
+                setLocalDeclarations(prev => {
+                    const known = new Set((prev || []).map(p => String(p.id)));
+                    const extra = data.filter(d => !known.has(String(d.id)));
+                    return extra.length > 0 ? [...(prev || []), ...extra] : prev;
+                });
+            })
+            .catch(err => console.error("Error fetching batches for the casting date:", err));
+        return () => { cancelled = true; };
+    }, [formData.castingDate, productionDeclarations]);
+
     // Batches filtered by Date of Casting if date is provided
     const batchOptions = useMemo(() => {
         if (!localDeclarations || !Array.isArray(localDeclarations)) return [];
@@ -921,6 +939,14 @@ const MFSampleDeclarationModal = ({ sample, isModifying, onClose, onSave, saving
 
         setFormData(updated);
     };
+
+    // A batch typed before its declaration was loaded: fill grade / drawing once the list has it
+    useEffect(() => {
+        if (formData.batchNo && (!formData.concreteGrade || !formData.sleeperType)) {
+            handleBatchChange(formData.batchNo);
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [localDeclarations]);
 
     const handleSleeperIdSelect = (val) => {
         const selectedObj = availableSleepers.find(s => String(s.no) === String(val));

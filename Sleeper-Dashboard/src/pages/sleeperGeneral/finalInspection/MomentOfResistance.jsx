@@ -279,10 +279,13 @@ const MomentOfResistance = () => {
                     const cDwg = normalizeDwg(extractDrawingNo(cand) || cand?.sleeperType);
                     const cCast = normDate(cand.castingDate || cand.dateOfCasting || cand.date);
                     const cPlant = String(cand.plantId || '').replace(':', '').trim();
-                    const dwgOk = !recDwg || !cDwg || cDwg === recDwg || cDwg.includes(recDwg) || recDwg.includes(cDwg);
+                    const dwgKnown = Boolean(recDwg && cDwg);
+                    const dwgOk = dwgKnown && (cDwg === recDwg || cDwg.includes(recDwg) || recDwg.includes(cDwg));
                     const castOk = !recCast || !cCast || recCast === cCast;
                     const plantOk = !recPlant || !cPlant || recPlant === cPlant;
-                    return dwgOk && castOk && plantOk;
+                    // When both drawings are known they decide (the casting date stored on older records can be wrong);
+                    // otherwise the casting date has to agree
+                    return plantOk && (dwgKnown ? dwgOk : castOk);
                 });
                 if (candidates.length === 0) return null;
                 if (candidates.length === 1) return candidates[0];
@@ -602,7 +605,10 @@ const MomentOfResistance = () => {
                     const pId = decl ? String(decl.id) : (item.productionDeclarationId || declaredMatch?.productionDeclarationId);
                     const bench = item.benchNumber || declaredMatch?.benchNumber || 'N/A';
                     const sleeper = item.sleeperNo || declaredMatch?.sleeperNo || 'N/A';
-                    const actualCastingDate = extractCastDate(item, decl, declaredMatch) || 'N/A';
+                    // The batch's own production declaration is the source of truth for the casting date; the date
+                    // stored on the test can be wrong (older saves fell back to the day the result was entered)
+                    const declCastingDate = decl?.castingDate && decl.castingDate !== 'N/A' ? decl.castingDate : '';
+                    const actualCastingDate = declCastingDate || extractCastDate(item, decl, declaredMatch) || 'N/A';
                     const actualSleeperType = extractDrawingNo(item, decl || declaredMatch);
 
                     return {
@@ -808,7 +814,8 @@ const MomentOfResistance = () => {
                     sleeperType: item.sleeperType || record.sleeperType,
                     benchNumber: String(item.benchNumber || item.declaredSamples?.[0]?.bench || results.results?.[0]?.bench || ''),
                     sleeperNo: String(item.sleeperNo || item.declaredSamples?.map(s => s.no).join(', ') || results.results?.[0]?.no || ''),
-                    castingDate: actualCastDate || params.date,
+                    // Never fall back to the duty date: that is the day the result is entered, not the casting date
+                    castingDate: actualCastDate || 'N/A',
                     dateOfTesting: results.dateOfTesting || item.dateOfTesting || params.date || new Date().toISOString().split('T')[0],
                     remarks: `${declTag}${castTag}MR Test ${testResultStatus}`,
                     testResult: testResultStatus,

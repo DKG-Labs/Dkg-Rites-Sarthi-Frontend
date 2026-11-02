@@ -61,13 +61,13 @@ export default function RejectionScrappingCard({ ieUserId, ieType }) {
         <div className="rs-title-block">
           <h2 className="rs-title">
             <span className="rs-title-icon">🗑️</span>
-            Rejection &amp; Scrapping
+            Rejection &amp; Disposal
           </h2>
-          <p className="rs-subtitle">{ieLabel} — Track and record the scrapping of rejected pieces</p>
+          <p className="rs-subtitle">{ieLabel} — Track and record the disposal of rejected pieces</p>
         </div>
         {selectedPlant && (
           <button className="rs-add-btn" onClick={() => setShowAddModal(true)}>
-            + Add Scrapping Entry
+            + Add Disposal Entry
           </button>
         )}
       </div>
@@ -115,7 +115,7 @@ export default function RejectionScrappingCard({ ieUserId, ieType }) {
                 </div>
               </div>
               <div className="rs-kpi">
-                <div className="rs-kpi-label">Total Scrapped</div>
+                <div className="rs-kpi-label">Total Disposed</div>
                 <div className="rs-kpi-value green">{ledger.totalScrapped ?? 0}</div>
               </div>
               <div className="rs-kpi">
@@ -134,7 +134,7 @@ export default function RejectionScrappingCard({ ieUserId, ieType }) {
         {!selectedPlant ? (
           <div className="rs-prompt">
             <span className="rs-prompt-icon">🏭</span>
-            <span className="rs-prompt-text">Select a plant above to view the rejection &amp; scrapping ledger</span>
+            <span className="rs-prompt-text">Select a plant above to view the rejection &amp; disposal ledger</span>
           </div>
         ) : (
           <ScrapLedgerTable
@@ -150,6 +150,7 @@ export default function RejectionScrappingCard({ ieUserId, ieType }) {
       {showAddModal && (
         <AddScrapEntryModal
           poiCode={selectedPlant}
+          unitLineShedNo={plants.find(p => p.poiCode === selectedPlant)?.unitName || ''}
           ieUserId={ieUserId}
           ieType={ieType}
           onClose={() => setShowAddModal(false)}

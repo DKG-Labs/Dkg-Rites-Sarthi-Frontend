@@ -661,7 +661,7 @@ const RailwayBoardDashboard = () => {
                                             <i className="fa-solid fa-comment-dots" style={{ marginRight: '8px' }}></i>Feedback
                                         </div>
                                         <div className={`report-link ${activeMainCard === 'rejection-scrap' ? 'active' : ''}`} onClick={() => handleSwitchTab('rejection-scrap')} style={{ fontSize: '15px' }}>
-                                            <i className="fa-solid fa-trash-can-arrow-up" style={{ marginRight: '8px' }}></i>Rejection &amp; Scrapping
+                                            <i className="fa-solid fa-trash-can-arrow-up" style={{ marginRight: '8px' }}></i>Rejection &amp; Disposal
                                         </div>
                                         <div className={`report-link ${activeMainCard === 'udm' ? 'active' : ''}`} onClick={() => handleSwitchTab('udm')} style={{ fontSize: '15px' }}>
                                             <i className="fa-solid fa-triangle-exclamation" style={{ marginRight: '8px' }}></i>UDM Rejections
@@ -792,7 +792,7 @@ const RailwayBoardDashboard = () => {
                                     <i className="fa-solid fa-comment-dots"></i> {!isSidebarCollapsed && <span>Feedback</span>}
                                 </div>
                                 <div className={`nav-item ${activeMainCard === 'rejection-scrap' ? 'active' : ''}`} onClick={() => handleSwitchTab('rejection-scrap')}>
-                                    <i className="fa-solid fa-trash-can-arrow-up"></i> {!isSidebarCollapsed && <span>Rejection &amp; Scrapping</span>}
+                                    <i className="fa-solid fa-trash-can-arrow-up"></i> {!isSidebarCollapsed && <span>Rejection &amp; Disposal</span>}
                                 </div>
                                 <div className={`nav-item ${activeMainCard === 'udm' ? 'active' : ''}`} onClick={() => handleSwitchTab('udm')}>
                                     <i className="fa-solid fa-triangle-exclamation"></i> {!isSidebarCollapsed && <span>UDM Rejections</span>}

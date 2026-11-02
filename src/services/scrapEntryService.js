@@ -24,6 +24,9 @@ export const getPendingQty = async (poiCode, date) => {
   return res.json();
 };
 
+const extractErrorMessage = (err, fallback) =>
+  err?.responseStatus?.message || err?.message || fallback;
+
 export const addScrapEntry = async (payload) => {
   const res = await fetch(`${BASE}/add`, {
     method: 'POST',
@@ -32,7 +35,7 @@ export const addScrapEntry = async (payload) => {
   });
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
-    throw new Error(err.message || 'Failed to add scrap entry');
+    throw new Error(extractErrorMessage(err, 'Failed to add disposal entry'));
   }
   return res.json();
 };
@@ -45,7 +48,7 @@ export const updateScrapEntry = async (id, payload) => {
   });
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
-    throw new Error(err.message || 'Failed to update scrap entry');
+    throw new Error(extractErrorMessage(err, 'Failed to update disposal entry'));
   }
   return res.json();
 };
@@ -55,7 +58,7 @@ export const deleteScrapEntry = async (id, reason, actionBy) => {
   const res = await fetch(`${BASE}/${id}?${params}`, { method: 'DELETE' });
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
-    throw new Error(err.message || 'Failed to delete scrap entry');
+    throw new Error(extractErrorMessage(err, 'Failed to delete disposal entry'));
   }
 };
 

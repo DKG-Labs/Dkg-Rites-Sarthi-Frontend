@@ -687,7 +687,7 @@ export const CMDashboardPage = ({ isEmbedded = false, activeTabFromProps = null,
   );
 
   // Fetch IE Wise Call Status Data
-  const cmEmpId = localStorage.getItem('employeeCode') || localStorage.getItem('loginId') || localStorage.getItem('userId') || '10431';
+  const cmEmpId = (localStorage.getItem('employeeCode') || localStorage.getItem('loginId') || localStorage.getItem('userId') || '10431').replace(/^:/, '');
   const cmDbUserId = localStorage.getItem('userId') || localStorage.getItem('loginId') || cmEmpId;
 
   // Accordion row togglers
@@ -1023,7 +1023,7 @@ export const CMDashboardPage = ({ isEmbedded = false, activeTabFromProps = null,
   const [searchQuery, setSearchQuery] = useState('');
   const [startDate, setStartDate] = useState(() => {
     const d = new Date();
-    d.setMonth(d.getMonth() - 3);
+    d.setFullYear(d.getFullYear() - 1);
     return d.toISOString().split('T')[0];
   });
   const [endDate, setEndDate] = useState(() => {

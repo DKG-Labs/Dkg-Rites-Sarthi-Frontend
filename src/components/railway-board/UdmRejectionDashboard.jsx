@@ -89,7 +89,6 @@ const fmtVal = val => {
 
 const cleanVCode = v => v ? v.replace(/^:/, '') : null;
 
-
 const CACHE_KEY = 'udm_cache';
 
 const saveCache = (rows, appliedDate) => {
@@ -269,7 +268,7 @@ export default function UdmRejectionDashboard() {
     const safePage   = Math.min(page, totalPages);
     const pageRows   = visible.slice((safePage - 1) * pageSize, safePage * pageSize);
 
-    const handleSearch = v => { setSearch(v); setPage(1); };
+    const handleSearch   = v => { setSearch(v); setPage(1); };
     const handlePageSize = v => { setPageSize(Number(v)); setPage(1); };
 
     return (

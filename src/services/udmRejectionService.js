@@ -17,3 +17,4 @@ export const getUdmSummary = (rejDate) => {
     return fetch(`${API_BASE_URL}/api/udm-rejections/summary${params}`,
         { headers: getAuthHeaders() }).then(handleResponse);
 };
+

@@ -109,7 +109,8 @@ export default function ProcessMaterialCertificate({ call = {}, onBack }) {
         c.diversionRequestNo ||
         (typeof c.remarks === 'string' && c.remarks.toLowerCase().includes('diversion')) ||
         (typeof c.reference === 'string' && c.reference.toLowerCase().includes('diverted from'))
-      )
+      ),
+      diversionType: c.diversionType || null,
     };
   };
 

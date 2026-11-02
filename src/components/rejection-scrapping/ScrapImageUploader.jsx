@@ -1,4 +1,5 @@
 import { useRef } from 'react';
+import { AuthedImg } from '../../services/scrapEntryService';
 import './RejectionScrapping.css';
 
 const MAX_SIZE_BYTES = 2 * 1024 * 1024;
@@ -88,7 +89,7 @@ export default function ScrapImageUploader({ images, onAdd, onRemove, disabled }
         <div className="rs-thumbs">
           {images.map((img, idx) => (
             <div key={idx} className="rs-thumb">
-              <img src={img.base64Data || img.url} alt={img.fileName} />
+              <AuthedImg src={img.base64Data || img.url} alt={img.fileName} />
               {!disabled && (
                 <button type="button" className="rs-thumb-remove" onClick={() => onRemove(idx)}>✕</button>
               )}

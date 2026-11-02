@@ -291,21 +291,27 @@
 .rs-icon-btn.del:hover  { background: #fee2e2; }
 .rs-lock-icon { color: #cbd5e1; font-size: 15px; }
 
-/* Photo link */
+/* Photo button */
 .rs-photo-btn {
-  background: none;
-  border: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: #eff6ff;
+  border: 1px solid #bfdbfe;
+  border-radius: 20px;
+  padding: 3px 10px 3px 8px;
   cursor: pointer;
   color: #2563eb;
   font-size: 12px;
   font-weight: 600;
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  padding: 3px 0;
-  transition: color 0.15s;
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
+  white-space: nowrap;
 }
-.rs-photo-btn:hover { color: #1d4ed8; text-decoration: underline; }
+.rs-photo-btn:hover {
+  background: #dbeafe;
+  border-color: #93c5fd;
+  color: #1d4ed8;
+}
 
 /* Skeleton rows */
 .rs-skel-row td { padding: 14px; }

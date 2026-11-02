@@ -1,4 +1,5 @@
-import { API_BASE_URL } from './apiConfig';
+import { useEffect, useState } from 'react';
+import { API_BASE_URL, getAuthHeaders } from './apiConfig';
 
 const BASE = `${API_BASE_URL}/api/scrap-entry`;
 
@@ -12,6 +13,35 @@ export const scrapImageProxyUrl = (blobUrl) => {
   if (blobUrl.startsWith('/') || blobUrl.includes('/api/scrap-entry/image-proxy')) return blobUrl;
   return `${BASE}/image-proxy?url=${encodeURIComponent(blobUrl)}`;
 };
+
+/**
+ * <img> replacement that fetches the scrap image-proxy URL with an auth token.
+ * Browser <img> tags cannot send Authorization headers, causing 401 on protected endpoints.
+ */
+export function AuthedImg({ src, alt, ...props }) {
+  const [blobSrc, setBlobSrc] = useState(null);
+
+  useEffect(() => {
+    if (!src) return;
+    // base64 data URIs and local blobs don't need auth — render directly
+    if (src.startsWith('data:') || src.startsWith('blob:')) {
+      setBlobSrc(src);
+      return;
+    }
+    let objectUrl;
+    fetch(src, { headers: getAuthHeaders() })
+      .then(r => r.ok ? r.blob() : Promise.reject(r.status))
+      .then(blob => {
+        objectUrl = URL.createObjectURL(blob);
+        setBlobSrc(objectUrl);
+      })
+      .catch(() => setBlobSrc(null));
+    return () => { if (objectUrl) URL.revokeObjectURL(objectUrl); };
+  }, [src]);
+
+  if (!blobSrc) return null;
+  return <img src={blobSrc} alt={alt} {...props} />;
+}
 
 export const getMappedPlants = async (ieUserId, ieType) => {
   const res = await fetch(`${BASE}/plants?ieUserId=${ieUserId}&ieType=${ieType}`);

@@ -746,7 +746,7 @@ const FinalInspectionScreen = ({ call, onBack }) => {
                             const offeredNow = Math.max(mb.offeredNow || 0, mb.acceptedSleepers.length + (mb.rejectedSleepers || []).length);
                             const overlayEt = (overlay.etSleepers || []).filter(s => getSCode(s) !== '' && getSCode(s) !== '0');
                             const mbEt = (mb.etSleepers || []).filter(s => getSCode(s) !== '' && getSCode(s) !== '0');
-                            const finalEt = overlayEt.length > 0 ? overlay.etSleepers : mbEt;
+                            const pickEt = overlayEt.length > 0 ? overlay.etSleepers : mbEt;
 
                             const overlayMf = (overlay.mfTestedSleepers || []).filter(s => getSCode(s) !== '' && getSCode(s) !== '0');
                             const mbMf = (mb.mfTestedSleepers || []).filter(s => getSCode(s) !== '' && getSCode(s) !== '0');
@@ -755,6 +755,10 @@ const FinalInspectionScreen = ({ call, onBack }) => {
                             const ownCodes = new Set([
                                 ...finalAccepted, ...rejList, ...(mb.acceptedSleepers || []), ...(mb.rejectedSleepers || [])
                             ].map(x => String(getSCode(x)).trim().toUpperCase()).filter(Boolean));
+                            // Same for ET: a saved/draft list can carry ET sleepers of another batch sharing the number
+                            const finalEt = ownCodes.size > 0
+                                ? pickEt.filter(x => ownCodes.has(String(getSCode(x)).trim().toUpperCase()))
+                                : pickEt;
                             const pickMf = overlayMf.length > 0 ? overlay.mfTestedSleepers : mbMf;
                             const finalMf = ownCodes.size > 0
                                 ? pickMf.filter(x => ownCodes.has(String(getSCode(x)).trim().toUpperCase()))

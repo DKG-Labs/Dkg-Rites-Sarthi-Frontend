@@ -470,7 +470,8 @@ const ProfessionalCardSection = ({
                         selectedVendorPlant,
                         selectedZonalRailway,
                         filterStartDate,
-                        filterEndDate
+                        filterEndDate,
+                        refreshTick > 0 // Refresh Data bypasses the backend's cached summary
                     ).catch(e => { console.error(e); return null; })
                     : Promise.resolve(null);
 
@@ -2007,7 +2008,7 @@ const ProfessionalCardSection = ({
                                                     case 'mau': return <SleeperMauReport mauData={mauData} loading={mauLoading} startDate={fromDate} endDate={toDate} />;
                                                     case 'lwcl': return <SleeperLwclReport lwclData={lwclData} loading={lwclLoading} callNo={lwclCallNo} setCallNo={setLwclCallNo} lotNo={lwclLotNo} setLotNo={setLwclLotNo} requestIds={lwclRequestIds} lotNumbers={lwclLotNumbers} />;
                                                     case 'swp': return <SleeperShiftWiseProductionReport />;
-                                                    case 'sqr': return <SleeperQualityReport fromDate={fromDate} toDate={toDate} zone={selectedZonalRailway} />;
+                                                    case 'sqr': return <SleeperQualityReport fromDate={fromDate} toDate={toDate} selectedZone={selectedZone} onZonesUpdate={onZonesUpdate} />;
                                                     case 'ic_annexures': return <DownloadIcAnnexures selectedProduct="Sleeper" fromDate={fromDate} toDate={toDate} />;
                                                     default: return <SleeperMprReport mprData={mprData} />;
                                                 }

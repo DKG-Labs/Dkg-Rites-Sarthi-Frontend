@@ -130,7 +130,10 @@
 }
 
 .sqr-table-wrapper {
-    overflow-x: auto;
+    /* Scrolls in both directions inside a bounded box, so the sticky header stays visible while scrolling down */
+    overflow: auto;
+    max-height: calc(100vh - 240px);
+    min-height: 320px;
     border-radius: 16px;
     border: 1px solid #e2e8f0;
     background: #ffffff;
@@ -161,6 +164,40 @@
     color: #1e293b;
 }
 
+/*
+ * Sticky header and frozen columns.
+ * Collapsed borders do not travel with sticky cells (neighbouring content shows through next to them), so the table
+ * uses separated borders and draws one line per cell: right and bottom edge only.
+ */
+.sqr-table {
+    border-collapse: separate;
+    border-spacing: 0;
+}
+
+.sqr-table th,
+.sqr-table td {
+    border-width: 0 1px 1px 0;
+}
+
+/* Every header cell sticks to the top; rows 2 and 3 stick below the rows above them (offsets measured in JS) */
+.sqr-table thead th {
+    position: sticky;
+    top: 0;
+    z-index: 3;
+}
+
+.sqr-table thead tr:nth-child(2) th {
+    top: var(--sqr-head-1, 0px);
+}
+
+.sqr-table thead tr:nth-child(3) th {
+    top: var(--sqr-head-12, 0px);
+}
+
+/* S.No., Railway and CSPs header cells are frozen on horizontal scroll too, above every other cell */
+.sqr-table thead th.sticky-col {
+    z-index: 6;
+}
 .rejection-main-header {
     background: #fef2f2 !important;
     color: #991b1b !important;
@@ -198,33 +235,51 @@
     background: rgba(241, 245, 249, 0.6) !important;
 }
 
-/* Sticky columns */
-.sticky-col {
+/*
+ * Sticky columns.
+ * PoWiseMonthlyReport.css defines global .sticky-col / .col-sno / .col-railway / .col-type rules (z-index 10, white
+ * !important background, other widths) that apply to this table too, so everything here is scoped under .sqr-table
+ * to win over them.
+ */
+.sqr-table .sticky-col {
     position: sticky;
     background: inherit;
     z-index: 2;
 }
 
-.col-sno {
+/* Body cells take the stripe colour of their row; header cells keep the header colour */
+.sqr-table td.sticky-col {
+    background: inherit !important;
+    z-index: 2;
+}
+
+.sqr-table th.sticky-col {
+    background: #f1f5f9 !important;
+}
+
+.sqr-table .col-sno {
     left: 0;
     width: 50px;
+    min-width: 50px;
     border-right: 2px solid #cbd5e1 !important;
 }
 
-.col-railway {
+.sqr-table .col-railway {
     left: 50px;
     width: 70px;
+    min-width: 70px;
     border-right: 2px solid #cbd5e1 !important;
 }
 
-.col-csp {
+.sqr-table .col-csp {
     left: 120px;
     width: 140px;
+    min-width: 140px;
     border-right: 2px solid #cbd5e1 !important;
 }
 
 /* Ensure background remains solid when sticky columns scroll over others */
-tr:hover .sticky-col {
+.sqr-table tbody tr:hover .sticky-col {
     background: #f1f5f9 !important;
 }
 

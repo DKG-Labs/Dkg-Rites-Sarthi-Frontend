@@ -1120,20 +1120,21 @@ const reportService = {
      * @param {string} startDate - optional start date (YYYY-MM-DD)
      * @param {string} endDate - optional end date (YYYY-MM-DD)
      */
-    getSleeperDashboardSummaryFiltered: async (vendor, zone, startDate, endDate) => {
+    getSleeperDashboardSummaryFiltered: async (vendor, zone, startDate, endDate, forceRefresh = false) => {
         // Share one in-flight request between callers with identical params
         const key = JSON.stringify([vendor, zone, startDate, endDate]);
         const inflight = (reportService._summaryInflight ||= new Map());
         if (inflight.has(key)) return inflight.get(key);
-        const promise = reportService._fetchSleeperSummaryFiltered(vendor, zone, startDate, endDate)
+        const promise = reportService._fetchSleeperSummaryFiltered(vendor, zone, startDate, endDate, forceRefresh)
             .finally(() => inflight.delete(key));
         inflight.set(key, promise);
         return promise;
     },
 
-    _fetchSleeperSummaryFiltered: async (vendor, zone, startDate, endDate) => {
+    _fetchSleeperSummaryFiltered: async (vendor, zone, startDate, endDate, forceRefresh = false) => {
         try {
             const url = new URL(`${API_ENDPOINTS.SLEEPER_DASHBOARD}/summary`);
+            if (forceRefresh) url.searchParams.append('refresh', 'true');
             if (vendor) url.searchParams.append('vendor', vendor);
             if (zone) url.searchParams.append('zone', zone);
             if (startDate) url.searchParams.append('startDate', startDate);

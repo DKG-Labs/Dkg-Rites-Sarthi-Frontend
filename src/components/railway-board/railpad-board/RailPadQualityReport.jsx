@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { ExportButton, downloadExcel, SearchableDropdown } from '../SharedComponents';
 import reportService from '../../../services/reportService';
+import '../erc-board/ProcessInspectionQualityTable.css';
 
 const RailPadQualityReport = () => {
     const [loading, setLoading] = useState(false);
@@ -8,16 +9,11 @@ const RailPadQualityReport = () => {
     const [selectedVendor, setSelectedVendor] = useState('All Manufacturers');
     const [startDate, setStartDate] = useState(() => {
         const d = new Date();
-        d.setDate(d.getDate() - 365); // Default to past 1 year for this report
+        d.setDate(d.getDate() - 365);
         return d.toISOString().split('T')[0];
     });
     const [endDate, setEndDate] = useState(new Date().toISOString().split('T')[0]);
     const [searchQuery, setSearchQuery] = useState('');
-
-    useEffect(() => {
-        // We now derive vendors directly from the fetched report data
-        // so that the dropdown only shows manufacturers active in the date range.
-    }, []);
 
     useEffect(() => {
         const fetchReportData = async () => {
@@ -34,7 +30,6 @@ const RailPadQualityReport = () => {
                 setLoading(false);
             }
         };
-
         fetchReportData();
     }, [startDate, endDate]);
 
@@ -52,8 +47,6 @@ const RailPadQualityReport = () => {
             { label: 'Qty Accepted (Process)', key: 'qtyAccepted' },
             { label: 'IC Issued Qty (Final)', key: 'icIssuedQty' },
             { label: 'Last Date of IC', key: 'lastDateIcIssued' },
-            
-            // Process defects
             { label: 'Total Process Rejections', key: 'totalProcessRejections' },
             { label: 'Raw Material Check', key: 'rawMaterialCheck' },
             { label: 'Compounding', key: 'compounding' },
@@ -61,9 +54,7 @@ const RailPadQualityReport = () => {
             { label: 'Curing', key: 'curing' },
             { label: 'Cutting', key: 'cutting' },
             { label: 'Rheometer', key: 'rheometer' },
-            { label: 'Visual Check / Finishing (Short moulding, Bubbles/blisters, Uneven edges, Surface roughness, Improper side cut)', key: 'visualCheckFinishing' },
-
-            // Acceptance defects
+            { label: 'Visual Check / Finishing', key: 'visualCheckFinishing' },
             { label: 'Hardness', key: 'hardness' },
             { label: 'Specific Gravity', key: 'specificGravity' },
             { label: 'Rubber Content', key: 'rubberContent' },
@@ -75,12 +66,10 @@ const RailPadQualityReport = () => {
             { label: 'Compression Set', key: 'compressionSet' },
             { label: 'Visual Test', key: 'visualTest' },
             { label: 'Other Rejections', key: 'otherRejection' },
-
             { label: 'Remarks', key: 'remarks' },
             { label: 'Rejection %', key: 'rejectionPercent' }
         ];
 
-        // Format data to match export keys
         const exportData = filteredRecords.map((r, idx) => ({
             ...r,
             sNo: idx + 1,
@@ -90,21 +79,17 @@ const RailPadQualityReport = () => {
         downloadExcel(exportData, headers, 'Quality_of_Rubber_Pad_Report');
     };
 
-    // Filter local records based on manufacturer selection and search query
     const filteredRecords = reportData.filter(row => {
-        const vendorMatch = selectedVendor === 'All Manufacturers' || 
-                            row.vendor?.toLowerCase().includes(selectedVendor.toLowerCase()) ||
-                            row.vendorName?.toLowerCase().includes(selectedVendor.toLowerCase());
-        
-        const searchMatch = !searchQuery || 
-                            row.poNo?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                            row.zonalRailway?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                            row.vendor?.toLowerCase().includes(searchQuery.toLowerCase());
-        
+        const vendorMatch = selectedVendor === 'All Manufacturers' ||
+            row.vendor?.toLowerCase().includes(selectedVendor.toLowerCase()) ||
+            row.vendorName?.toLowerCase().includes(selectedVendor.toLowerCase());
+        const searchMatch = !searchQuery ||
+            row.poNo?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+            row.zonalRailway?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+            row.vendor?.toLowerCase().includes(searchQuery.toLowerCase());
         return vendorMatch && searchMatch;
     });
 
-    // Deduplicate and format vendors for searchable dropdown from report data
     const dropdownOptions = [{ label: 'All Manufacturers', value: 'All Manufacturers' }];
     const seenNames = new Set();
     reportData.forEach(row => {
@@ -113,181 +98,187 @@ const RailPadQualityReport = () => {
             const trimmedName = name.trim();
             if (!seenNames.has(trimmedName)) {
                 seenNames.add(trimmedName);
-                dropdownOptions.push({
-                    label: trimmedName,
-                    value: trimmedName
-                });
+                dropdownOptions.push({ label: trimmedName, value: trimmedName });
             }
         }
     });
 
     return (
-        <div className="report-content fade-in">
-            <div className="prof-card" style={{ marginBottom: '20px', padding: '20px' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-                    <div className="sec-title" style={{ color: '#166534', fontWeight: 'bold', fontSize: '16px', margin: 0 }}>
+        <div className="piq-container">
+            {/* Top Toolbar */}
+            <div className="piq-topbar">
+                <div className="piq-title-area">
+                    <h2 className="piq-heading">
                         Quality of Rubber Pad Report
-                    </div>
-                    <ExportButton onClick={handleExport} />
+                    </h2>
+                    <span className="piq-badge">{filteredRecords.length} Records</span>
                 </div>
 
-                {/* Filters */}
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '20px', marginBottom: '20px' }}>
-                    <div>
-                        <label style={{ display: 'block', fontSize: '12px', fontWeight: 'bold', color: '#64748b', marginBottom: '8px' }}>Manufacturer</label>
-                        <SearchableDropdown 
-                            value={selectedVendor}
-                            onChange={(val) => setSelectedVendor(val)}
-                            options={dropdownOptions}
-                        />
+                {/* Filters & Actions */}
+                <div className="piq-controls-row">
+                    <div className="piq-filters-inline">
+                        <div className="piq-date-field">
+                            <label>Manufacturer</label>
+                            <SearchableDropdown
+                                value={selectedVendor}
+                                onChange={(val) => setSelectedVendor(val)}
+                                options={dropdownOptions}
+                            />
+                        </div>
+                        <div className="piq-date-field">
+                            <label>From</label>
+                            <input
+                                type="date"
+                                className="piq-input"
+                                value={startDate}
+                                onChange={(e) => setStartDate(e.target.value)}
+                            />
+                        </div>
+                        <div className="piq-date-field">
+                            <label>To</label>
+                            <input
+                                type="date"
+                                className="piq-input"
+                                value={endDate}
+                                onChange={(e) => setEndDate(e.target.value)}
+                            />
+                        </div>
                     </div>
-                    <div>
-                        <label style={{ display: 'block', fontSize: '12px', fontWeight: 'bold', color: '#64748b', marginBottom: '8px' }}>From Date</label>
-                        <input 
-                            type="date" 
-                            className="prof-search" 
-                            style={{ width: '100%', height: '38px' }}
-                            value={startDate}
-                            onChange={(e) => setStartDate(e.target.value)}
-                        />
-                    </div>
-                    <div>
-                        <label style={{ display: 'block', fontSize: '12px', fontWeight: 'bold', color: '#64748b', marginBottom: '8px' }}>To Date</label>
-                        <input 
-                            type="date" 
-                            className="prof-search" 
-                            style={{ width: '100%', height: '38px' }}
-                            value={endDate}
-                            onChange={(e) => setEndDate(e.target.value)}
-                        />
-                    </div>
-                    <div>
-                        <label style={{ display: 'block', fontSize: '12px', fontWeight: 'bold', color: '#64748b', marginBottom: '8px' }}>Search PO / Zone</label>
-                        <input 
-                            type="text" 
-                            placeholder="Search..."
-                            className="prof-search" 
-                            style={{ width: '100%', height: '38px' }}
-                            value={searchQuery}
-                            onChange={(e) => setSearchQuery(e.target.value)}
-                        />
+
+                    <div className="piq-actions-inline">
+                        <div className="piq-search-box">
+                            <i className="fa-solid fa-search piq-search-icon"></i>
+                            <input
+                                type="text"
+                                placeholder="Search PO / Zone..."
+                                className="piq-search-input"
+                                value={searchQuery}
+                                onChange={(e) => setSearchQuery(e.target.value)}
+                            />
+                            {searchQuery && (
+                                <button className="piq-search-clear" onClick={() => setSearchQuery('')}>×</button>
+                            )}
+                        </div>
+                        <ExportButton onClick={handleExport} label="Download Excel" />
                     </div>
                 </div>
+            </div>
 
-                {/* Table Responsive Scroll */}
-                <div className="table-responsive" style={{ maxHeight: '600px', overflowY: 'auto' }}>
-                    <table className="prof-table" style={{ borderCollapse: 'collapse', width: '100%', fontSize: '12px' }}>
-                        <thead style={{ position: 'sticky', top: 0, zIndex: 10, background: '#f8fafc' }}>
+            {/* Main Table */}
+            <div className="piq-table-wrapper" style={{ overflowX: 'auto', maxHeight: '620px', overflowY: 'auto' }}>
+                {loading ? (
+                    <div className="piq-loading-state">
+                        <div className="piq-spinner"></div>
+                        <p>Loading Quality of Rubber Pad Data...</p>
+                    </div>
+                ) : (
+                    <table style={{ width: '100%', borderCollapse: 'separate', borderSpacing: 0, fontSize: '12px' }}>
+                        <thead style={{ position: 'sticky', top: 0, zIndex: 10 }}>
+                            {/* Row 1: Main groups */}
                             <tr>
-                                <th rowSpan="3" className="th-blue-bg" style={{ border: '1px solid #cbd5e1', verticalAlign: 'middle', textAlign: 'center', fontWeight: 'bold' }}>S.No.</th>
-                                <th rowSpan="3" className="th-blue-bg" style={{ border: '1px solid #cbd5e1', verticalAlign: 'middle', textAlign: 'center', fontWeight: 'bold' }}>Zonal Railway</th>
-                                <th rowSpan="3" className="th-blue-bg" style={{ border: '1px solid #cbd5e1', verticalAlign: 'middle', textAlign: 'center', fontWeight: 'bold' }}>Vendor</th>
-                                <th rowSpan="3" className="th-blue-bg" style={{ border: '1px solid #cbd5e1', verticalAlign: 'middle', textAlign: 'center', fontWeight: 'bold' }}>Type of Rubber Pad</th>
-                                <th rowSpan="3" className="th-blue-bg" style={{ border: '1px solid #cbd5e1', verticalAlign: 'middle', textAlign: 'center', fontWeight: 'bold' }}>P.O. No. & Date</th>
-                                <th rowSpan="3" className="th-blue-bg" style={{ border: '1px solid #cbd5e1', verticalAlign: 'middle', textAlign: 'center', fontWeight: 'bold' }}>Specification</th>
-                                <th rowSpan="3" className="th-blue-bg" style={{ border: '1px solid #cbd5e1', verticalAlign: 'middle', textAlign: 'center', fontWeight: 'bold' }}>Total P.O. Qty</th>
-                                <th colSpan="2" style={{ border: '1px solid #cbd5e1', textAlign: 'center', background: '#ecfdf5', color: '#065f46', fontWeight: 'bold' }}>Process Inspection</th>
-                                <th colSpan="2" style={{ border: '1px solid #cbd5e1', textAlign: 'center', background: '#eff6ff', color: '#1e40af', fontWeight: 'bold' }}>Final Inspection</th>
-                                <th colSpan="19" style={{ border: '1px solid #cbd5e1', textAlign: 'center', background: '#fff7ed', color: '#9a3412', fontWeight: 'bold' }}>No. of Rubber Pads rejected & reasons for rejection</th>
-                                <th rowSpan="3" className="th-blue-bg" style={{ border: '1px solid #cbd5e1', verticalAlign: 'middle', textAlign: 'center', fontWeight: 'bold' }}>Remarks</th>
-                                <th rowSpan="3" className="th-blue-bg" style={{ border: '1px solid #cbd5e1', verticalAlign: 'middle', textAlign: 'center', fontWeight: 'bold' }}>%age Rejection</th>
+                                <th rowSpan="3" style={thBase}>S.No.</th>
+                                <th rowSpan="3" style={thBase}>Zonal Railway</th>
+                                <th rowSpan="3" style={thBase}>Vendor</th>
+                                <th rowSpan="3" style={thBase}>Type of Rubber Pad</th>
+                                <th rowSpan="3" style={thBase}>P.O. No. &amp; Date</th>
+                                <th rowSpan="3" style={thBase}>Specification</th>
+                                <th rowSpan="3" style={thBase}>Total P.O. Qty</th>
+                                <th colSpan="2" style={thGreen}>Process Inspection</th>
+                                <th colSpan="2" style={thBlue}>Final Inspection</th>
+                                <th colSpan="19" style={thOrange}>No. of Rubber Pads Rejected &amp; Reasons for Rejection</th>
+                                <th rowSpan="3" style={thBase}>Remarks</th>
+                                <th rowSpan="3" style={thBase}>%age Rejection</th>
                             </tr>
+                            {/* Row 2: Sub-groups */}
                             <tr>
-                                <th rowSpan="2" style={{ border: '1px solid #cbd5e1', textAlign: 'center', background: '#ecfdf5', color: '#065f46', fontWeight: 'bold' }}>Inspected</th>
-                                <th rowSpan="2" style={{ border: '1px solid #cbd5e1', textAlign: 'center', background: '#ecfdf5', color: '#065f46', fontWeight: 'bold' }}>Accepted</th>
-                                <th rowSpan="2" style={{ border: '1px solid #cbd5e1', textAlign: 'center', background: '#eff6ff', color: '#1e40af', fontWeight: 'bold' }}>IC Issued Qty</th>
-                                <th rowSpan="2" style={{ border: '1px solid #cbd5e1', textAlign: 'center', background: '#eff6ff', color: '#1e40af', fontWeight: 'bold' }}>Last Date of IC</th>
-                                
-                                <th colSpan="8" style={{ border: '1px solid #cbd5e1', textAlign: 'center', background: '#fffaf2', color: '#b45309', fontWeight: 'bold' }}>Process</th>
-                                <th colSpan="11" style={{ border: '1px solid #cbd5e1', textAlign: 'center', background: '#fffbeb', color: '#b45309', fontWeight: 'bold' }}>Acceptance</th>
+                                <th rowSpan="2" style={thGreenSub}>Inspected</th>
+                                <th rowSpan="2" style={thGreenSub}>Accepted</th>
+                                <th rowSpan="2" style={thBlueSub}>IC Issued Qty</th>
+                                <th rowSpan="2" style={thBlueSub}>Last Date of IC</th>
+                                <th colSpan="8" style={thRed}>Process</th>
+                                <th colSpan="11" style={thBrown}>Acceptance</th>
                             </tr>
+                            {/* Row 3: Individual columns */}
                             <tr>
-                                {/* Process defect list */}
-                                <th style={{ border: '1px solid #cbd5e1', textAlign: 'center', background: '#fffaf2', color: '#b45309', fontWeight: 'bold' }}>TOTAL</th>
-                                <th style={{ border: '1px solid #cbd5e1', textAlign: 'center', background: '#fffaf2', color: '#78350f' }}>RAW<br/>MATERIAL</th>
-                                <th style={{ border: '1px solid #cbd5e1', textAlign: 'center', background: '#fffaf2', color: '#78350f' }}>COMPOUNDING</th>
-                                <th style={{ border: '1px solid #cbd5e1', textAlign: 'center', background: '#fffaf2', color: '#78350f' }}>MIXING</th>
-                                <th style={{ border: '1px solid #cbd5e1', textAlign: 'center', background: '#fffaf2', color: '#78350f' }}>CURING</th>
-                                <th style={{ border: '1px solid #cbd5e1', textAlign: 'center', background: '#fffaf2', color: '#78350f' }}>CUTTING</th>
-                                <th style={{ border: '1px solid #cbd5e1', textAlign: 'center', background: '#fffaf2', color: '#78350f' }}>RHEOMETER</th>
-                                <th style={{ border: '1px solid #cbd5e1', textAlign: 'center', background: '#fffaf2', color: '#78350f' }}>VISUAL /<br/>FINISHING</th>
-
-                                {/* Acceptance defect list */}
-                                <th style={{ border: '1px solid #cbd5e1', textAlign: 'center', background: '#fffbeb', color: '#78350f' }}>Hardness</th>
-                                <th style={{ border: '1px solid #cbd5e1', textAlign: 'center', background: '#fffbeb', color: '#78350f' }}>Specific Gravity</th>
-                                <th style={{ border: '1px solid #cbd5e1', textAlign: 'center', background: '#fffbeb', color: '#78350f' }}>Rubber Content</th>
-                                <th style={{ border: '1px solid #cbd5e1', textAlign: 'center', background: '#fffbeb', color: '#78350f' }}>Ash Content</th>
-                                <th style={{ border: '1px solid #cbd5e1', textAlign: 'center', background: '#fffbeb', color: '#78350f' }}>Rebound Resilience</th>
-                                <th style={{ border: '1px solid #cbd5e1', textAlign: 'center', background: '#fffbeb', color: '#78350f' }}>Dimension</th>
-                                <th style={{ border: '1px solid #cbd5e1', textAlign: 'center', background: '#fffbeb', color: '#78350f' }}>Weight</th>
-                                <th style={{ border: '1px solid #cbd5e1', textAlign: 'center', background: '#fffbeb', color: '#78350f' }}>Surface Defect</th>
-                                <th style={{ border: '1px solid #cbd5e1', textAlign: 'center', background: '#fffbeb', color: '#78350f' }}>Compression Set</th>
-                                <th style={{ border: '1px solid #cbd5e1', textAlign: 'center', background: '#fffbeb', color: '#78350f' }}>Visual Test</th>
-                                <th style={{ border: '1px solid #cbd5e1', textAlign: 'center', background: '#fffbeb', color: '#78350f' }}>Other Clause</th>
+                                <th style={thRed}>TOTAL</th>
+                                <th style={thRed}>RAW<br />MATERIAL</th>
+                                <th style={thRed}>COMPOUNDING</th>
+                                <th style={thRed}>MIXING</th>
+                                <th style={thRed}>CURING</th>
+                                <th style={thRed}>CUTTING</th>
+                                <th style={thRed}>RHEOMETER</th>
+                                <th style={thRed}>VISUAL /<br />FINISHING</th>
+                                <th style={thBrown}>Hardness</th>
+                                <th style={thBrown}>Specific Gravity</th>
+                                <th style={thBrown}>Rubber Content</th>
+                                <th style={thBrown}>Ash Content</th>
+                                <th style={thBrown}>Rebound Resilience</th>
+                                <th style={thBrown}>Dimension</th>
+                                <th style={thBrown}>Weight</th>
+                                <th style={thBrown}>Surface Defect</th>
+                                <th style={thBrown}>Compression Set</th>
+                                <th style={thBrown}>Visual Test</th>
+                                <th style={thBrown}>Other Clause</th>
                             </tr>
                         </thead>
                         <tbody>
-                            {loading ? (
+                            {filteredRecords.length === 0 ? (
                                 <tr>
-                                    <td colSpan="33" className="text-center p-8 text-slate-400">Loading records...</td>
-                                </tr>
-                            ) : filteredRecords.length === 0 ? (
-                                <tr>
-                                    <td colSpan="33" className="text-center p-8 text-slate-400">No records found.</td>
+                                    <td colSpan="33" className="piq-empty-cell">
+                                        No records found for the selected criteria.
+                                    </td>
                                 </tr>
                             ) : (
                                 filteredRecords.map((row, i) => {
-                                    const totalProcRej = row.rawMaterialCheck + row.compounding + row.mixing + row.curing + row.cutting + row.rheometer + row.visualCheckFinishing;
+                                    const totalProcRej = (row.rawMaterialCheck || 0) + (row.compounding || 0) + (row.mixing || 0) + (row.curing || 0) + (row.cutting || 0) + (row.rheometer || 0) + (row.visualCheckFinishing || 0);
                                     return (
-                                        <tr key={i} className={i % 2 === 0 ? 'row-odd' : 'row-even'}>
-                                            <td style={{ border: '1px solid #cbd5e1', textAlign: 'center' }}>{i + 1}</td>
-                                            <td style={{ border: '1px solid #cbd5e1', fontWeight: 'bold', textAlign: 'center' }}>{row.zonalRailway}</td>
-                                            <td style={{ border: '1px solid #cbd5e1', textAlign: 'center' }}>{row.vendor}</td>
-                                            <td style={{ border: '1px solid #cbd5e1', fontSize: '11px', color: '#475569', textAlign: 'center' }}>{row.typeOfRubberPad}</td>
-                                            <td style={{ border: '1px solid #cbd5e1', whiteSpace: 'nowrap', textAlign: 'center' }}>
-                                                <div><strong>{row.zonalRailway}-{row.poNo}</strong></div>
+                                        <tr key={i} className="piq-row">
+                                            <td style={tdCenter}>{i + 1}</td>
+                                            <td style={{ ...tdCenter, fontWeight: '600', color: '#0f172a' }}>{row.zonalRailway}</td>
+                                            <td style={{ ...tdCenter, fontWeight: '600', color: '#1d4ed8' }}>{row.vendor}</td>
+                                            <td style={{ ...tdCenter, fontSize: '11px', color: '#475569' }}>{row.typeOfRubberPad}</td>
+                                            <td style={{ ...tdCenter, whiteSpace: 'nowrap' }}>
+                                                <div style={{ fontWeight: '700', color: '#0f172a' }}>{row.zonalRailway}-{row.poNo}</div>
                                                 <div style={{ fontSize: '10px', color: '#64748b' }}>{row.poDate}</div>
                                             </td>
-                                            <td style={{ border: '1px solid #cbd5e1', fontSize: '11px', textAlign: 'center' }}></td>
-                                            <td style={{ border: '1px solid #cbd5e1', textAlign: 'center', fontWeight: '500' }}>{row.totalPoQty.toLocaleString()} {row.uom || ''}</td>
-                                            
-                                            <td style={{ border: '1px solid #cbd5e1', textAlign: 'center', background: '#f0fdf4' }}>{row.qtyInspected.toLocaleString()}</td>
-                                            <td style={{ border: '1px solid #cbd5e1', textAlign: 'center', background: '#f0fdf4', color: '#16a34a', fontWeight: 'bold' }}>{row.qtyAccepted.toLocaleString()}</td>
-                                            
-                                            <td style={{ border: '1px solid #cbd5e1', textAlign: 'center', background: '#f0f9ff' }}>{row.icIssuedQty.toLocaleString()}</td>
-                                            <td style={{ border: '1px solid #cbd5e1', textAlign: 'center', background: '#f0f9ff', fontSize: '11px' }}>{row.lastDateIcIssued || '-'}</td>
-                                            
-                                            {/* Process defects breakdown */}
-                                            <td style={{ border: '1px solid #cbd5e1', textAlign: 'center', background: '#fffaf2', fontWeight: 'bold', color: '#ea580c' }}>{totalProcRej.toLocaleString()}</td>
-                                            <td style={{ border: '1px solid #cbd5e1', textAlign: 'center', background: '#fffaf2' }}>{row.rawMaterialCheck || '-'}</td>
-                                            <td style={{ border: '1px solid #cbd5e1', textAlign: 'center', background: '#fffaf2' }}>{row.compounding || '-'}</td>
-                                            <td style={{ border: '1px solid #cbd5e1', textAlign: 'center', background: '#fffaf2' }}>{row.mixing || '-'}</td>
-                                            <td style={{ border: '1px solid #cbd5e1', textAlign: 'center', background: '#fffaf2' }}>{row.curing || '-'}</td>
-                                            <td style={{ border: '1px solid #cbd5e1', textAlign: 'center', background: '#fffaf2' }}>{row.cutting || '-'}</td>
-                                            <td style={{ border: '1px solid #cbd5e1', textAlign: 'center', background: '#fffaf2' }}>{row.rheometer || '-'}</td>
-                                            <td style={{ border: '1px solid #cbd5e1', textAlign: 'center', background: '#fffaf2' }}>{row.visualCheckFinishing || '-'}</td>
+                                            <td style={{ ...tdCenter, fontSize: '11px' }}>{row.specification || ''}</td>
+                                            <td style={{ ...tdCenter, fontWeight: '600' }}>{(row.totalPoQty || 0).toLocaleString()} {row.uom || ''}</td>
 
-                                            {/* Acceptance defects breakdown */}
-                                            <td style={{ border: '1px solid #cbd5e1', textAlign: 'center', background: '#fffbeb' }}>{row.hardness || '-'}</td>
-                                            <td style={{ border: '1px solid #cbd5e1', textAlign: 'center', background: '#fffbeb' }}>{row.specificGravity || '-'}</td>
-                                            <td style={{ border: '1px solid #cbd5e1', textAlign: 'center', background: '#fffbeb' }}>{row.rubberContent || '-'}</td>
-                                            <td style={{ border: '1px solid #cbd5e1', textAlign: 'center', background: '#fffbeb' }}>{row.ashContent || '-'}</td>
-                                            <td style={{ border: '1px solid #cbd5e1', textAlign: 'center', background: '#fffbeb' }}>{row.reboundResilience || '-'}</td>
-                                            <td style={{ border: '1px solid #cbd5e1', textAlign: 'center', background: '#fffbeb' }}>{row.dimension || '-'}</td>
-                                            <td style={{ border: '1px solid #cbd5e1', textAlign: 'center', background: '#fffbeb' }}>{row.weight || '-'}</td>
-                                            <td style={{ border: '1px solid #cbd5e1', textAlign: 'center', background: '#fffbeb' }}>{row.surfaceDefect || '-'}</td>
-                                            <td style={{ border: '1px solid #cbd5e1', textAlign: 'center', background: '#fffbeb' }}>{row.compressionSet || '-'}</td>
-                                            <td style={{ border: '1px solid #cbd5e1', textAlign: 'center', background: '#fffbeb' }}>{row.visualTest || '-'}</td>
-                                            <td style={{ border: '1px solid #cbd5e1', textAlign: 'center', background: '#fffbeb' }}>{row.otherRejection || '-'}</td>
+                                            {/* Process Inspection */}
+                                            <td style={{ ...tdCenter, background: '#f0fdf4', color: '#15803d' }}>{(row.qtyInspected || 0).toLocaleString()}</td>
+                                            <td style={{ ...tdCenter, background: '#f0fdf4', color: '#15803d', fontWeight: '700' }}>{(row.qtyAccepted || 0).toLocaleString()}</td>
 
-                                            <td style={{ border: '1px solid #cbd5e1', fontStyle: 'italic', fontSize: '11px', color: '#475569', textAlign: 'center' }}></td>
-                                            <td style={{ border: '1px solid #cbd5e1', textAlign: 'center' }}>
-                                                <span className="prof-badge" style={{ 
-                                                    background: row.rejectionPercent > 5 ? '#fef2f2' : '#f0fdf4', 
-                                                    color: row.rejectionPercent > 5 ? '#dc2626' : '#16a34a',
-                                                    fontWeight: 'bold' 
-                                                }}>
-                                                    {row.rejectionPercent.toFixed(2)}%
+                                            {/* Final Inspection */}
+                                            <td style={{ ...tdCenter, background: '#eff6ff', color: '#1d4ed8' }}>{(row.icIssuedQty || 0).toLocaleString()}</td>
+                                            <td style={{ ...tdCenter, background: '#eff6ff', color: '#1d4ed8', fontSize: '11px' }}>{row.lastDateIcIssued || '-'}</td>
+
+                                            {/* Process Rejections */}
+                                            <td style={{ ...tdCenter, background: '#fff7ed', fontWeight: '700', color: '#ea580c' }}>{totalProcRej.toLocaleString()}</td>
+                                            <td style={{ ...tdCenter, background: '#fff7ed' }}>{row.rawMaterialCheck || '-'}</td>
+                                            <td style={{ ...tdCenter, background: '#fff7ed' }}>{row.compounding || '-'}</td>
+                                            <td style={{ ...tdCenter, background: '#fff7ed' }}>{row.mixing || '-'}</td>
+                                            <td style={{ ...tdCenter, background: '#fff7ed' }}>{row.curing || '-'}</td>
+                                            <td style={{ ...tdCenter, background: '#fff7ed' }}>{row.cutting || '-'}</td>
+                                            <td style={{ ...tdCenter, background: '#fff7ed' }}>{row.rheometer || '-'}</td>
+                                            <td style={{ ...tdCenter, background: '#fff7ed' }}>{row.visualCheckFinishing || '-'}</td>
+
+                                            {/* Acceptance Rejections */}
+                                            <td style={{ ...tdCenter, background: '#fffbeb' }}>{row.hardness || '-'}</td>
+                                            <td style={{ ...tdCenter, background: '#fffbeb' }}>{row.specificGravity || '-'}</td>
+                                            <td style={{ ...tdCenter, background: '#fffbeb' }}>{row.rubberContent || '-'}</td>
+                                            <td style={{ ...tdCenter, background: '#fffbeb' }}>{row.ashContent || '-'}</td>
+                                            <td style={{ ...tdCenter, background: '#fffbeb' }}>{row.reboundResilience || '-'}</td>
+                                            <td style={{ ...tdCenter, background: '#fffbeb' }}>{row.dimension || '-'}</td>
+                                            <td style={{ ...tdCenter, background: '#fffbeb' }}>{row.weight || '-'}</td>
+                                            <td style={{ ...tdCenter, background: '#fffbeb' }}>{row.surfaceDefect || '-'}</td>
+                                            <td style={{ ...tdCenter, background: '#fffbeb' }}>{row.compressionSet || '-'}</td>
+                                            <td style={{ ...tdCenter, background: '#fffbeb' }}>{row.visualTest || '-'}</td>
+                                            <td style={{ ...tdCenter, background: '#fffbeb' }}>{row.otherRejection || '-'}</td>
+
+                                            <td style={{ ...tdCenter, fontStyle: 'italic', fontSize: '11px', color: '#475569' }}></td>
+                                            <td style={tdCenter}>
+                                                <span className="piq-rej-badge" style={{ cursor: 'default', transform: 'none' }}>
+                                                    {(row.rejectionPercent || 0).toFixed(2)}%
                                                 </span>
                                             </td>
                                         </tr>
@@ -296,10 +287,76 @@ const RailPadQualityReport = () => {
                             )}
                         </tbody>
                     </table>
-                </div>
+                )}
             </div>
         </div>
     );
+};
+
+/* Shared header cell styles */
+const thBase = {
+    padding: '10px 8px',
+    fontWeight: '700',
+    fontSize: '11px',
+    textTransform: 'uppercase',
+    letterSpacing: '0.3px',
+    textAlign: 'center',
+    verticalAlign: 'middle',
+    whiteSpace: 'nowrap',
+    border: '1px solid #0f172a',
+    background: '#1e293b',
+    color: '#ffffff',
+};
+
+const thGreen = {
+    ...thBase,
+    background: '#047857',
+    border: '1px solid #065f46',
+};
+
+const thGreenSub = {
+    ...thBase,
+    background: '#059669',
+    border: '1px solid #047857',
+};
+
+const thBlue = {
+    ...thBase,
+    background: '#1d4ed8',
+    border: '1px solid #1e40af',
+};
+
+const thBlueSub = {
+    ...thBase,
+    background: '#2563eb',
+    border: '1px solid #1d4ed8',
+};
+
+const thOrange = {
+    ...thBase,
+    background: '#b45309',
+    border: '1px solid #92400e',
+};
+
+const thRed = {
+    ...thBase,
+    background: '#c2410c',
+    border: '1px solid #9a3412',
+};
+
+const thBrown = {
+    ...thBase,
+    background: '#92400e',
+    border: '1px solid #78350f',
+};
+
+const tdCenter = {
+    padding: '10px 8px',
+    textAlign: 'center',
+    borderBottom: '1px solid #f1f5f9',
+    borderRight: '1px solid #e2e8f0',
+    whiteSpace: 'nowrap',
+    fontSize: '12px',
 };
 
 export default RailPadQualityReport;

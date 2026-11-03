@@ -437,6 +437,19 @@ export const isAuthenticated = () => {
  * so storeAuthData can purge caches if a different user logs in next.
  */
 export const logoutUser = () => {
+  // Tell the backend so this user drops off the Active Login list.
+  // Fire-and-forget: logout must never wait on or fail because of this call.
+  const token = localStorage.getItem('authToken');
+  if (token) {
+    try {
+      fetch(`${API_BASE_URL}/api/active-logins/logout`, {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        keepalive: true,
+      }).catch(() => {});
+    } catch (e) { /* ignore */ }
+  }
+
   try {
     sessionStorage.clear();
   } catch (e) {

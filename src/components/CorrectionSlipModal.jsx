@@ -282,6 +282,12 @@ const generateQuantityRemarks = (c) => {
     stageIcText += `${stageIcText ? ", " : ""}Note: Process Inspection carried out by RITES as per the Railway Board Letter No. 2024/RS(G)/779/12`;
   }
 
+  // Diverted material: show the source IC, as the process certificate does
+  const sourceIcMatch = typeof c.remarks === 'string' ? c.remarks.match(/Material diverted from Source IC:\s*([^\]]+)/i) : null;
+  if (c.isDivertedMaterial && sourceIcMatch) {
+    stageIcText += `${stageIcText ? ", " : ""}Note: Material diverted from Source IC: ${sourceIcMatch[1].trim()}`;
+  }
+
   if (stageIcText) {
     text += `${stageIcText} `;
   }

@@ -7,7 +7,7 @@ const RitesAdminDashboard = () => {
   const navigate = useNavigate();
   const [activeToast, setActiveToast] = useState(null);
 
-  const handleCardClick = (cardName, status, route) => {
+  const handleCardClick = (cardName, status, route, product = null, activeTab = null) => {
     if (status === 'under-construction') {
       setActiveToast(`"${cardName}" is under construction. It will be available soon!`);
       setTimeout(() => {
@@ -16,9 +16,15 @@ const RitesAdminDashboard = () => {
       return;
     }
 
+    if (product) {
+      localStorage.setItem('dash_selectedProduct', product);
+    }
+    if (activeTab) {
+      sessionStorage.setItem('rb_activeTab', activeTab);
+    }
+
     if (route) {
-      // Set local storage key to select the ERC tab when loading the Railway Board Dashboard
-      if (route === ROUTES.RAILWAY_BOARD_DASHBOARD) {
+      if (route === ROUTES.RAILWAY_BOARD_DASHBOARD && !product) {
         localStorage.setItem('dash_selectedProduct', 'ERC');
       }
       navigate(route);
@@ -147,6 +153,60 @@ const RitesAdminDashboard = () => {
           </p>
           <div className="card-footer">
             <span className="footer-action-text">Manage Certificates</span>
+            <svg viewBox="0 0 24 24" className="footer-arrow-icon" fill="none" stroke="currentColor" strokeWidth="2.5">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3" />
+            </svg>
+          </div>
+        </div>
+
+        {/* Card 5: UDM Rejections (Active) */}
+        <div 
+          className="rites-admin-card active-card"
+          style={{ cursor: 'pointer' }}
+          onClick={() => handleCardClick('UDM Rejections', 'active', ROUTES.RAILWAY_BOARD_DASHBOARD, null, 'udm')}
+        >
+          <div className="card-status-badge active-badge">
+            <span className="badge-dot pulse"></span>
+            Active Now
+          </div>
+          <div className="card-icon-container">
+            <svg viewBox="0 0 24 24" className="card-svg-icon" fill="none" stroke="currentColor" strokeWidth="2.2">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+            </svg>
+          </div>
+          <h2 className="card-title">UDM Rejections</h2>
+          <p className="card-description">
+            Synced daily from CRIS IREPS. Consignee rejections for ERC, PSC Sleepers &amp; Rail Pads.
+          </p>
+          <div className="card-footer">
+            <span className="footer-action-text">View UDM Rejections</span>
+            <svg viewBox="0 0 24 24" className="footer-arrow-icon" fill="none" stroke="currentColor" strokeWidth="2.5">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3" />
+            </svg>
+          </div>
+        </div>
+
+        {/* Card 6: Rail Pad Rejection Basket (Active) */}
+        <div 
+          className="rites-admin-card active-card"
+          style={{ cursor: 'pointer' }}
+          onClick={() => handleCardClick('Rail Pad Rejection Basket', 'active', ROUTES.RAILWAY_BOARD_DASHBOARD, 'Rail Pad', 'rejection-scrap')}
+        >
+          <div className="card-status-badge active-badge">
+            <span className="badge-dot pulse"></span>
+            Active Now
+          </div>
+          <div className="card-icon-container">
+            <svg viewBox="0 0 24 24" className="card-svg-icon" fill="none" stroke="currentColor" strokeWidth="2.2">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+            </svg>
+          </div>
+          <h2 className="card-title">Rail Pad Rejection Basket</h2>
+          <p className="card-description">
+            Rejected pads awaiting witnessed destruction and scrap verification ledger as per IRS T-55.
+          </p>
+          <div className="card-footer">
+            <span className="footer-action-text">View Rejection Basket</span>
             <svg viewBox="0 0 24 24" className="footer-arrow-icon" fill="none" stroke="currentColor" strokeWidth="2.5">
               <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3" />
             </svg>

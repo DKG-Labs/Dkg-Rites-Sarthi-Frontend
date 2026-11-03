@@ -13,10 +13,15 @@ async function throttledFetch(items, limit, fetchFn) {
     await Promise.all(Array.from({ length: Math.min(limit, items.length) }, worker));
 }
 
+// Always show login times in IST, whatever the viewer's computer time zone is.
+// The API sends an offset (e.g. "+05:30"); a value without one is treated as IST.
+const HAS_ZONE = /(Z|[+-]\d{2}:?\d{2})$/;
 const fmtDateTime = str => {
     if (!str) return '—';
-    const d = new Date(str);
-    return isNaN(d) ? str : d.toLocaleString('en-IN', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+    const d = new Date(HAS_ZONE.test(str) ? str : `${str}+05:30`);
+    return isNaN(d) ? str : d.toLocaleString('en-IN', {
+        timeZone: 'Asia/Kolkata', day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit',
+    });
 };
 
 const th = { padding: '10px 12px', textAlign: 'left', fontSize: '13px', fontWeight: 600, background: '#166534', color: '#fff', whiteSpace: 'nowrap' };
@@ -24,13 +29,31 @@ const td = { padding: '10px 12px', fontSize: '13px', borderBottom: '1px solid #e
 
 const PAGE_SIZES = [5, 10, 20, 25];
 
+// Shimmer placeholder used while rows / plant info load
+const SKELETON_CSS = `
+@keyframes al-shimmer { 0% { background-position: -400px 0; } 100% { background-position: 400px 0; } }
+.al-skel { display: inline-block; height: 12px; border-radius: 6px;
+  background: linear-gradient(90deg, #eef2ef 0px, #dfe7e2 120px, #eef2ef 240px);
+  background-size: 800px 100%; animation: al-shimmer 1.2s linear infinite; }
+`;
+const Skel = ({ w = '80%', h = 12, r }) => (
+    <span className="al-skel" style={{ width: w, height: h, borderRadius: r ?? h / 2 }} />
+);
+// Widths per column so placeholder rows look like the real table
+const SKELETON_COLS = [
+    <Skel w={18} />, <Skel w="70%" />, <Skel w={64} h={18} />, <Skel w="80%" />,
+    <Skel w="60%" />, <Skel w="60%" />,
+    <><Skel w={90} /><div style={{ marginTop: 6 }}><Skel w={150} h={10} /></div></>,
+    <Skel w={48} h={24} r={6} />,
+];
+
 const typeBadge = t => {
     const map = { ERC: ['#fef3c7', '#92400e'], SLEEPER: ['#dbeafe', '#1e40af'], RAIL_PAD: ['#f3e8ff', '#6b21a8'] };
     const [bg, col] = map[t] || ['#f3f4f6', '#374151'];
     return <span style={{ background: bg, color: col, padding: '2px 6px', borderRadius: '999px', fontSize: '10px', fontWeight: 700 }}>{t}</span>;
 };
 
-export default function ActiveLoginDashboard({ fromDate, toDate }) {
+export default function ActiveLoginDashboard() {
     const [rows, setRows] = useState([]);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
@@ -50,7 +73,7 @@ export default function ActiveLoginDashboard({ fromDate, toDate }) {
         setLoading(true);
         setError(null);
         setPlantMap({});
-        getActiveLogins({ page, size, search: query, from: fromDate, to: toDate })
+        getActiveLogins({ page, size, search: query })
             .then(data => {
                 const content = data.content || [];
                 setRows(content);
@@ -78,7 +101,7 @@ export default function ActiveLoginDashboard({ fromDate, toDate }) {
             })
             .catch(e => setError(e.message || 'Failed to load active logins'))
             .finally(() => setLoading(false));
-    }, [page, size, query, fromDate, toDate]);
+    }, [page, size, query]);
 
     useEffect(() => { load(); }, [load]);
 
@@ -112,6 +135,7 @@ export default function ActiveLoginDashboard({ fromDate, toDate }) {
 
     return (
         <div style={{ padding: '24px' }}>
+            <style>{SKELETON_CSS}</style>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', gap: '12px', flexWrap: 'wrap' }}>
                 <h2 style={{ margin: 0, fontSize: '20px' }}>
                     <i className="fa-solid fa-id-card" style={{ marginRight: '8px' }}></i>
@@ -125,7 +149,8 @@ export default function ActiveLoginDashboard({ fromDate, toDate }) {
                         style={{ padding: '8px 12px', border: '1px solid #d1d5db', borderRadius: '8px', minWidth: '260px' }}
                     />
                     <button className="sub-tab-btn active" onClick={load} disabled={loading}>
-                        <i className="fa-solid fa-rotate" style={{ marginRight: '6px' }}></i>Refresh
+                        <i className={`fa-solid fa-rotate${loading ? ' fa-spin' : ''}`} style={{ marginRight: '6px' }}></i>
+                        {loading ? 'Loading…' : 'Refresh'}
                     </button>
                 </div>
             </div>
@@ -136,12 +161,25 @@ export default function ActiveLoginDashboard({ fromDate, toDate }) {
                 <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                     <thead>
                         <tr>
-                            {['#', 'Name', 'Status', 'Login Time', 'Latitude', 'Longitude', 'Accuracy (m)', 'Plant', 'Selfie'].map(h => <th key={h} style={th}>{h}</th>)}
+                            {['#', 'Name', 'Status', 'Login Time', 'Latitude', 'Longitude', 'Plant', 'Selfie'].map(h => <th key={h} style={th}>{h}</th>)}
                         </tr>
                     </thead>
                     <tbody>
-                        {loading && <tr><td style={td} colSpan={9}>Loading…</td></tr>}
-                        {!loading && rows.length === 0 && <tr><td style={td} colSpan={9}>No active logins found</td></tr>}
+                        {loading && Array.from({ length: Math.min(size, 10) }, (_, i) => (
+                            <tr key={`skel-${i}`} aria-hidden="true">
+                                {SKELETON_COLS.map((cell, c) => <td key={c} style={td}>{cell}</td>)}
+                            </tr>
+                        ))}
+                        {!loading && rows.length === 0 && (
+                            <tr>
+                                <td colSpan={8} style={{ ...td, textAlign: 'center', padding: '40px 12px', color: '#6b7280' }}>
+                                    <i className="fa-solid fa-user-clock" style={{ fontSize: '28px', color: '#86efac', marginBottom: '10px', display: 'block' }}></i>
+                                    <div style={{ fontWeight: 600, color: '#374151' }}>
+                                        {query ? `No active users match "${query}"` : 'No users are logged in right now'}
+                                    </div>
+                                </td>
+                            </tr>
+                        )}
                         {!loading && rows.map((r, i) => {
                             const uid = String(r.userId);
                             const pm = plantMap[uid];
@@ -155,10 +193,12 @@ export default function ActiveLoginDashboard({ fromDate, toDate }) {
                                     <td style={td}>{fmtDateTime(r.verifiedAt)}</td>
                                     <td style={td}>{r.latitude ?? '—'}</td>
                                     <td style={td}>{r.longitude ?? '—'}</td>
-                                    <td style={td}>{r.accuracyMeters != null ? Number(r.accuracyMeters).toFixed(2) : '—'}</td>
                                     <td style={{ ...td, minWidth: '200px' }}>
                                         {r.latitude == null ? '—' : !pm || pm.loading ? (
-                                            <span style={{ color: '#9ca3af', fontSize: '12px' }}>⏳ Loading…</span>
+                                            <div aria-label="Finding nearest plant">
+                                                <Skel w={90} />
+                                                <div style={{ marginTop: 6 }}><Skel w={150} h={10} /></div>
+                                            </div>
                                         ) : pm.np ? (
                                             <button
                                                 onClick={() => openModal(r.userId, r.userName)}

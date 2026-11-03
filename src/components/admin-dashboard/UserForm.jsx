@@ -5,6 +5,8 @@ import VisibilityOff from '@mui/icons-material/VisibilityOff';
 import { REGIONS, DESIGNATIONS, DISCIPLINES } from './utils/mockData';
 import { API_BASE_URL, getAuthHeaders } from '../../services/apiConfig';
 
+const LOCKED_INPUT_STYLE = { backgroundColor: '#f1f5f9', color: '#64748b', cursor: 'not-allowed' };
+
 export const UserForm = ({ user, roles = [], rolesLoading = false, existingUsers = [], onSubmit, onCancel, formError, isSubmitting = false }) => {
     const [roleAddPrompt, setRoleAddPrompt] = useState(null);
     const [showPassword, setShowPassword] = useState(false);
@@ -1271,6 +1273,9 @@ export const UserForm = ({ user, roles = [], rolesLoading = false, existingUsers
                                     value={formData.employeeCode}
                                     onChange={handleChange}
                                     onBlur={handleVendorCodeBlur}
+                                    readOnly={!!user}
+                                    title={user ? 'Vendor Code cannot be changed after the vendor is created' : undefined}
+                                    style={user ? LOCKED_INPUT_STYLE : undefined}
                                     required
                                 />
                             </div>
@@ -1459,6 +1464,9 @@ export const UserForm = ({ user, roles = [], rolesLoading = false, existingUsers
                                                             placeholder="e.g. :41647/Kargi"
                                                             value={plant.plantId || ''}
                                                             onChange={(e) => handleRailpadPlantChange(idx, 'plantId', e.target.value)}
+                                                            readOnly={!!plant.id}
+                                                            title={plant.id ? 'Plant ID cannot be changed after the plant is saved' : undefined}
+                                                            style={plant.id ? LOCKED_INPUT_STYLE : undefined}
                                                             required
                                                         />
                                                     </div>
@@ -1766,6 +1774,9 @@ export const UserForm = ({ user, roles = [], rolesLoading = false, existingUsers
                                                             placeholder="e.g. :41647/Kargi"
                                                             value={plant.plantId || ''}
                                                             onChange={(e) => handlePlantChange(idx, 'plantId', e.target.value)}
+                                                            readOnly={!!plant.id}
+                                                            title={plant.id ? 'Plant ID cannot be changed after the plant is saved' : undefined}
+                                                            style={plant.id ? LOCKED_INPUT_STYLE : undefined}
                                                             required
                                                         />
                                                     </div>

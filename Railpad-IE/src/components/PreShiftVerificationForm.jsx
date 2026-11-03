@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import Notification from './Notification';
 
 const PreShiftVerificationForm = ({ type, onSubmit, onCancel, editData, currentShift, isViewOnly, isSubmitting }) => {
@@ -15,6 +15,7 @@ const PreShiftVerificationForm = ({ type, onSubmit, onCancel, editData, currentS
   });
 
   const [error, setError] = useState('');
+  const submittingRef = useRef(false);
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -43,34 +44,45 @@ const PreShiftVerificationForm = ({ type, onSubmit, onCancel, editData, currentS
     setFormData(prev => ({ ...prev, status: isOk ? 'OK' : 'Not OK' }));
   }, [formData.dimensionalAccuracy, formData.freedomFromDefects]);
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    if (isViewOnly) return;
-    
+    // Block a second tap while the first save is still running (common on mobile)
+    if (isViewOnly || submittingRef.current) return;
+
     // Validate required fields
-    if (!formData.mouldNumber || formData.mouldNumber.trim() === '') {
+    if (String(formData.mouldNumber ?? '').trim() === '') {
       setError('Mould / Drawing Number is required.');
       return;
     }
-    if (!formData.timeOfCheck || formData.timeOfCheck.trim() === '') {
+    if (String(formData.timeOfCheck ?? '').trim() === '') {
       setError('Time of Check is required.');
       return;
     }
-    // Time regex validation HH:MM
-    const timeRegex = /^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/;
-    if (!timeRegex.test(formData.timeOfCheck)) {
+    // Time validation HH:MM (some mobile browsers add seconds, e.g. 14:15:00)
+    const timeMatch = String(formData.timeOfCheck).trim().match(/^([0-1]?[0-9]|2[0-3]):([0-5][0-9])(:[0-5][0-9](\.\d+)?)?$/);
+    if (!timeMatch) {
       setError('Please enter a valid time (HH:MM).');
       return;
     }
+    const timeOfCheck = `${timeMatch[1].padStart(2, '0')}:${timeMatch[2]}`;
 
     setError(''); // Clear error if validation passes
 
-    onSubmit({
-      ...formData,
-      date: currentShift.date,
-      shift: currentShift.shift,
-      timestamp: formData.timestamp || new Date().toLocaleString()
-    });
+    submittingRef.current = true;
+    try {
+      await onSubmit({
+        ...formData,
+        mouldNumber: String(formData.mouldNumber).trim(),
+        timeOfCheck,
+        date: currentShift.date,
+        shift: currentShift.shift,
+        timestamp: formData.timestamp || new Date().toLocaleString()
+      });
+    } catch (err) {
+      // Failure pop-up is shown by App; the form stays open so the user can retry
+    } finally {
+      submittingRef.current = false;
+    }
   };
 
   if (isFormLoading) {

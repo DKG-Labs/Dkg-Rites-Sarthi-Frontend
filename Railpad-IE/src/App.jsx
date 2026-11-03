@@ -20,6 +20,7 @@ import LoginPage from './pages/LoginPage';
 import { isAuthenticated, logoutUser, getStoredUser, getAuthToken } from './services/authService';
 import { getBaseUrl } from './services/apiConfig';
 import ConfirmationModal from './components/common/ConfirmationModal';
+import Notification from './components/Notification';
 import RawMaterialVerificationList from './components/RawMaterialVerificationList';
 import ProductionVerificationDashboard from './components/ProductionVerification/ProductionVerificationDashboard';
 import PortalHome from './components/PortalHome';
@@ -117,6 +118,10 @@ const App = () => {
   const [editIndex, setEditIndex] = useState(-1);
   const [isViewOnly, setIsViewOnly] = useState(false);
   const [isSubmittingForm, setIsSubmittingForm] = useState(false);
+  // Pop-up message for save / update / delete results (works on mobile too, unlike alert())
+  const [toast, setToast] = useState(null);
+  const notify = (message, type = 'success') => setToast({ message, type, key: Date.now() });
+  const clearToast = React.useCallback(() => setToast(null), []);
   const [isShiftActive, setIsShiftActive] = useState(() => {
     return localStorage.getItem('railpad_ie_shift_active') === 'true';
   });
@@ -670,6 +675,7 @@ const App = () => {
 
   const handleAddEntry = async (newData) => {
     setIsSubmittingForm(true);
+    const isEditing = editIndex > -1;
     try {
       const currentActiveCard = activeCard;
     if (currentActiveCard === 'raw-material') {
@@ -732,7 +738,7 @@ const App = () => {
         closeForm();
       } catch (error) {
         console.error('Error saving raw material weighment:', error);
-        alert('Error saving raw material weighment: ' + error.message);
+        throw error;
       }
     } else if (currentActiveCard === 'mixing') {
       try {
@@ -788,7 +794,7 @@ const App = () => {
         closeForm();
       } catch (error) {
         console.error('Error saving mixing record:', error);
-        alert('Error saving mixing record: ' + error.message);
+        throw error;
       }
     } else if (currentActiveCard === 'hydraulic-press') {
       try {
@@ -844,7 +850,7 @@ const App = () => {
         closeForm();
       } catch (error) {
         console.error('Error saving hydraulic press record:', error);
-        alert('Error saving hydraulic press record: ' + error.message);
+        throw error;
       }
     } else if (currentActiveCard === 'sheeting') {
       try {
@@ -990,6 +996,10 @@ const App = () => {
       }
       closeForm();
     }
+      notify(isEditing ? 'Entry updated successfully.' : 'Entry saved successfully.', 'success');
+    } catch (error) {
+      notify(`${isEditing ? 'Update' : 'Save'} failed: ${error?.message || 'Please check your connection and try again.'}`, 'error');
+      throw error; // the form stays open so the user can retry
     } finally {
       setIsSubmittingForm(false);
     }
@@ -1020,6 +1030,7 @@ const App = () => {
       confirmText: 'Delete',
       onConfirm: async () => {
         const currentActiveCard = activeCard;
+        let deleteFailed = false;
         if (currentActiveCard === 'raw-material') {
           try {
             await rawMaterialWeighmentService.delete(item.id);
@@ -1027,7 +1038,8 @@ const App = () => {
             setEntries(prev => ({ ...prev, 'raw-material': newEntries }));
           } catch (error) {
             console.error('Error deleting raw material weighment:', error);
-            alert('Error deleting record: ' + error.message);
+            deleteFailed = true;
+            notify(`Delete failed: ${error.message}`, 'error');
           }
         } else if (currentActiveCard === 'mixing') {
           try {
@@ -1038,7 +1050,8 @@ const App = () => {
             setEntries(prev => ({ ...prev, 'mixing': newEntries }));
           } catch (error) {
             console.error('Error deleting mixing record:', error);
-            alert('Error deleting record: ' + error.message);
+            deleteFailed = true;
+            notify(`Delete failed: ${error.message}`, 'error');
           }
         } else if (currentActiveCard === 'hydraulic-press') {
           try {
@@ -1049,7 +1062,8 @@ const App = () => {
             setEntries(prev => ({ ...prev, 'hydraulic-press': newEntries }));
           } catch (error) {
             console.error('Error deleting hydraulic press record:', error);
-            alert('Error deleting record: ' + error.message);
+            deleteFailed = true;
+            notify(`Delete failed: ${error.message}`, 'error');
           }
         } else if (currentActiveCard === 'mould-verification') {
           try {
@@ -1060,7 +1074,8 @@ const App = () => {
             setEntries(prev => ({ ...prev, 'mould-verification': newEntries }));
           } catch (error) {
             console.error('Error deleting mould verification record:', error);
-            alert('Error deleting record: ' + error.message);
+            deleteFailed = true;
+            notify(`Delete failed: ${error.message}`, 'error');
           }
         } else if (currentActiveCard === 'visual-inspection') {
           try {
@@ -1071,12 +1086,14 @@ const App = () => {
             setEntries(prev => ({ ...prev, 'visual-inspection': newEntries }));
           } catch (error) {
             console.error('Error deleting visual inspection record:', error);
-            alert('Error deleting record: ' + error.message);
+            deleteFailed = true;
+            notify(`Delete failed: ${error.message}`, 'error');
           }
         } else {
           const newEntries = entries[currentActiveCard].filter((_, idx) => idx !== index);
           setEntries(prev => ({ ...prev, [currentActiveCard]: newEntries }));
         }
+        if (!deleteFailed) notify('Entry deleted successfully.', 'success');
         setConfirmConfig(prev => ({ ...prev, isOpen: false }));
       }
     });
@@ -1548,9 +1565,9 @@ const App = () => {
           }}
         />
       ) : (
-        <div className="dashboard-container" style={{ padding: '24px', background: '#f8fafc', minHeight: '100vh', width: '100%' }}>
-          <header style={{ marginBottom: '32px', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-            <div>
+        <div className="dashboard-container ie-dashboard" style={{ padding: '24px', background: '#f8fafc', minHeight: '100vh', width: '100%' }}>
+          <header className="ie-header" style={{ marginBottom: '32px', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '16px' }}>
+            <div className="ie-header-title" style={{ minWidth: 0 }}>
               <h1 style={{
                 fontSize: '32px',
                 fontWeight: '800',
@@ -1564,7 +1581,7 @@ const App = () => {
                 Quality assurance and production management system
               </p>
             </div>
-            <div style={{
+            <div className="ie-shift-status" style={{
               background: isShiftActive ? '#ecfdf5' : '#fef2f2',
               border: `1px solid ${isShiftActive ? '#10b981' : '#ef4444'}`,
               padding: '12px 20px',
@@ -1584,6 +1601,7 @@ const App = () => {
               </div>
               {isShiftActive && (
                 <button
+                  className="ie-complete-btn"
                   onClick={handleCompleteShift}
                   style={{
                     background: '#10b981',
@@ -2287,6 +2305,16 @@ const App = () => {
         currentShift={currentShift}
         entries={entries}
       />
+      {toast && (
+        <Notification
+          key={toast.key}
+          message={toast.message}
+          type={toast.type}
+          autoClose
+          autoCloseDelay={toast.type === 'error' ? 6000 : 3000}
+          onClose={clearToast}
+        />
+      )}
     </MainLayout>
   );
 };

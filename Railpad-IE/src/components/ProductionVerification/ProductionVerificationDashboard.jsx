@@ -623,26 +623,7 @@ const ProductionVerificationDashboard = ({ activeCard, setActiveCard, currentShi
             <span className="pv-badge">{verifiedDeclarations.length}</span>
           </button>
         </div>
-        <button
-          className="pv-tab-btn"
-          style={{
-            background: 'linear-gradient(135deg, #0f766e 0%, #0d9488 100%)',
-            color: '#ffffff',
-            borderColor: '#0f766e',
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: '6px',
-            marginLeft: 'auto',
-            padding: '8px 16px',
-            borderRadius: '8px',
-            fontWeight: '700',
-            fontSize: '13px',
-            boxShadow: '0 2px 4px rgba(15, 118, 110, 0.2)'
-          }}
-          onClick={() => setShowAnnexureModal(true)}
-        >
-          <span>📊</span> Daily Report (Annexure-A)
-        </button>
+        {/* Daily Report (Annexure-A) button removed from this page; the report is still available from Portal Home */}
       </div>
 
       <div className="pv-content">

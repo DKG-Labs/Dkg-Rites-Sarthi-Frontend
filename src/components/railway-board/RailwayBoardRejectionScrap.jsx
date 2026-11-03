@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useMemo } from 'react';
 import { getBoardSummary, getLedger, getRejectionBreakup } from '../../services/scrapEntryService';
 import ScrapLedgerTable from '../rejection-scrapping/ScrapLedgerTable';
 import RejectionBreakupModal from './RejectionBreakupModal';
+import RailpadRejectionBasket from '../railpad-rejection-basket/RejectionBasket';
 import './RailwayBoardRejectionScrap.css';
 
 function SearchableSelect({ label, value, onChange, options, placeholder = 'All', disabled = false, searchable = true }) {
@@ -263,6 +264,10 @@ export default function RailwayBoardRejectionScrap({ selectedProduct }) {
     }
   };
 
+  if (selectedProduct === 'Rail Pad') {
+    // Rail Pad Rejection Basket (read-only for Railway Board)
+    return <RailpadRejectionBasket readOnly />;
+  }
   if (selectedProduct !== 'ERC') {
     return <UnderDevelopmentBanner product={selectedProduct} />;
   }

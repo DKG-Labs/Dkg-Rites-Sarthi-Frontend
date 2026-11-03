@@ -14,6 +14,7 @@ import { API_BASE_URL, getAuthHeaders } from '../../services/apiConfig';
 import { getStoredUser } from '../../services/authService';
 import { Snackbar, Alert } from '@mui/material';
 import './admin.css';
+import ProcessDefectSummaryCard from '../ProcessDefectSummaryCard';
 
 export const parseUserFriendlyErrorMessage = (rawErrorMsg) => {
     if (!rawErrorMsg) return 'Failed to save user. Please try again.';
@@ -67,7 +68,12 @@ export const AdminDashboard = () => {
     });
 
     const [activeModule, setActiveModule] = useState(() => {
-        return localStorage.getItem('adminActiveModule') || 'users';
+        const saved = localStorage.getItem('adminActiveModule') || 'users';
+        if (saved === 'udm-rejections' || saved === 'railpad-rejection-basket') {
+            localStorage.setItem('adminActiveModule', 'users');
+            return 'users';
+        }
+        return saved;
     });
     const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
 
@@ -535,6 +541,16 @@ export const AdminDashboard = () => {
                             <span>IBS Call Inspection Data</span>
                         </button>
                     </li>
+                    <li className="nav-item">
+                        <button
+                            className={`nav-link ${activeModule === 'process-defect-summary' ? 'active' : ''}`}
+                            onClick={() => handleModuleSelect('process-defect-summary')}
+                        >
+                            <span>🧾</span>
+                            <span>Process Defect Summary</span>
+                        </button>
+                    </li>
+
                 </ul>
             </aside>
 
@@ -556,6 +572,7 @@ export const AdminDashboard = () => {
                         {activeModule === 'mapping' && '🗺️ IE Mapping'}
                         {activeModule === 'certificates' && '🛡️ Inspection Certificates'}
                         {activeModule === 'ibs-data' && '📋 IBS Inspection Data'}
+                        {activeModule === 'process-defect-summary' && '🧾 Process Defect Summary'}
                     </div>
                 </div>
 
@@ -612,6 +629,9 @@ export const AdminDashboard = () => {
                             onNotify={(msg, severity) => setSnackbar({ open: true, message: msg, severity: severity || 'info' })}
                         />
                     )}
+                    {/* Process Defect Summary: all EP calls, edit/delete without the Process IE limits */}
+                    {activeModule === 'process-defect-summary' && <ProcessDefectSummaryCard adminMode />}
+
                 </div>
             </div>
 

@@ -178,93 +178,159 @@ export const downloadPdf = (data, headers, filename, title) => {
 export const SearchableDropdown = ({ value, onChange, options, placeholder = "Select option..." }) => {
     const [isOpen, setIsOpen] = React.useState(false);
     const [search, setSearch] = React.useState('');
+    const [focusedIdx, setFocusedIdx] = React.useState(-1);
     const containerRef = React.useRef(null);
+    const listRef = React.useRef(null);
+    const searchRef = React.useRef(null);
 
+    // Close on outside click
     React.useEffect(() => {
-        const handleClickOutside = (event) => {
-            if (containerRef.current && !containerRef.current.contains(event.target)) {
+        const handleClickOutside = (e) => {
+            if (containerRef.current && !containerRef.current.contains(e.target)) {
                 setIsOpen(false);
+                setSearch('');
+                setFocusedIdx(-1);
             }
         };
         document.addEventListener('mousedown', handleClickOutside);
         return () => document.removeEventListener('mousedown', handleClickOutside);
     }, []);
 
-    // Filter options based on search input
-    const filteredOptions = options.filter(opt => 
+    // Reset focus index when search changes
+    React.useEffect(() => { setFocusedIdx(-1); }, [search]);
+
+    // Filter options based on search
+    const filteredOptions = options.filter(opt =>
         (opt.label || '').toLowerCase().includes(search.toLowerCase())
     );
+
+    const handleOpen = () => {
+        setIsOpen(!isOpen);
+        setSearch('');
+        setFocusedIdx(-1);
+        if (!isOpen) {
+            setTimeout(() => searchRef.current?.focus(), 50);
+        }
+    };
 
     const handleSelect = (val) => {
         onChange(val);
         setIsOpen(false);
         setSearch('');
+        setFocusedIdx(-1);
     };
 
-    // Find active option label
+    // Keyboard navigation
+    const handleKeyDown = (e) => {
+        if (!isOpen) {
+            if (e.key === 'Enter' || e.key === ' ' || e.key === 'ArrowDown') {
+                e.preventDefault();
+                setIsOpen(true);
+                setTimeout(() => searchRef.current?.focus(), 50);
+            }
+            return;
+        }
+        if (e.key === 'Escape') {
+            setIsOpen(false);
+            setSearch('');
+            setFocusedIdx(-1);
+        } else if (e.key === 'ArrowDown') {
+            e.preventDefault();
+            setFocusedIdx(i => Math.min(i + 1, filteredOptions.length - 1));
+        } else if (e.key === 'ArrowUp') {
+            e.preventDefault();
+            setFocusedIdx(i => Math.max(i - 1, 0));
+        } else if (e.key === 'Enter' && focusedIdx >= 0 && filteredOptions[focusedIdx]) {
+            e.preventDefault();
+            handleSelect(filteredOptions[focusedIdx].value);
+        }
+    };
+
+    // Scroll focused item into view
+    React.useEffect(() => {
+        if (focusedIdx >= 0 && listRef.current) {
+            const items = listRef.current.querySelectorAll('.searchable-dropdown-option');
+            if (items[focusedIdx]) {
+                items[focusedIdx].scrollIntoView({ block: 'nearest' });
+            }
+        }
+    }, [focusedIdx]);
+
+    const generatedId = React.useId();
+    const listboxId = `sd-listbox-${generatedId}`;
     const selectedOption = options.find(opt => opt.value === value);
-    const displayLabel = selectedOption ? selectedOption.label : value || placeholder;
+    const displayLabel = selectedOption ? selectedOption.label : placeholder;
+    const isPlaceholder = !selectedOption;
 
     return (
-        <div ref={containerRef} className="searchable-dropdown-container">
-            {/* Display Box */}
-            <div 
-                onClick={() => setIsOpen(!isOpen)}
-                className={`searchable-dropdown-trigger ${isOpen ? 'open' : ''}`}
+        <div ref={containerRef} className="searchable-dropdown-container" onKeyDown={handleKeyDown}>
+            {/* Trigger */}
+            <div
+                onClick={handleOpen}
+                className={`searchable-dropdown-trigger${isOpen ? ' open' : ''}`}
+                tabIndex={0}
+                role="combobox"
+                aria-expanded={isOpen}
+                aria-haspopup="listbox"
+                aria-controls={listboxId}
             >
-                <span className={`searchable-dropdown-text ${!selectedOption ? 'placeholder' : ''}`}>
+                <span className={`searchable-dropdown-text${isPlaceholder ? ' placeholder' : ''}`}>
                     {displayLabel}
                 </span>
-                <span className="searchable-dropdown-icon">
-                    ▼
-                </span>
+                <span className="searchable-dropdown-icon">▼</span>
             </div>
 
-            {/* Dropdown Popover */}
+            {/* Popover */}
             {isOpen && (
-                <div className="searchable-dropdown-popover">
-                    {/* Search Field */}
+                <div id={listboxId} className="searchable-dropdown-popover" role="listbox">
+                    {/* Search bar */}
                     <div className="searchable-dropdown-search-wrapper">
                         <span className="searchable-dropdown-search-icon">🔍</span>
-                        <input 
+                        <input
+                            ref={searchRef}
                             type="text"
-                            placeholder="Type to search..."
+                            placeholder="Search..."
                             value={search}
                             onChange={(e) => setSearch(e.target.value)}
                             className="searchable-dropdown-search-input"
                             autoFocus
                         />
+                        {filteredOptions.length > 0 && (
+                            <span className="searchable-dropdown-count">
+                                {filteredOptions.length}
+                            </span>
+                        )}
                         {search && (
-                            <button 
+                            <button
                                 onClick={(e) => { e.stopPropagation(); setSearch(''); }}
                                 className="searchable-dropdown-clear-btn"
+                                tabIndex={-1}
                             >
                                 ✕
                             </button>
                         )}
                     </div>
 
-                    {/* Options List */}
-                    <div className="searchable-dropdown-options-list">
+                    {/* Options list */}
+                    <div className="searchable-dropdown-options-list" ref={listRef}>
                         {filteredOptions.length === 0 ? (
                             <div className="searchable-dropdown-no-results">
-                                No matches found
+                                No matches for "{search}"
                             </div>
                         ) : (
                             filteredOptions.map((opt, i) => {
                                 const isSelected = opt.value === value;
+                                const isFocused = i === focusedIdx;
                                 return (
-                                    <div 
+                                    <div
                                         key={i}
                                         onClick={() => handleSelect(opt.value)}
-                                        className={`searchable-dropdown-option ${isSelected ? 'selected' : ''}`}
+                                        onMouseEnter={() => setFocusedIdx(i)}
+                                        className={`searchable-dropdown-option${isSelected ? ' selected' : ''}${isFocused ? ' focused' : ''}`}
+                                        role="option"
+                                        aria-selected={isSelected}
                                     >
-                                        <span style={{
-                                            whiteSpace: 'nowrap',
-                                            overflow: 'hidden',
-                                            textOverflow: 'ellipsis',
-                                            maxWidth: '90%'
-                                        }}>
+                                        <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                                             {opt.label}
                                         </span>
                                         {isSelected && (

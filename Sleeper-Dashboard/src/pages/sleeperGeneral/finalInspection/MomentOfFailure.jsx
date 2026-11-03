@@ -1,5 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import EnhancedDataTable from '../../../components/common/EnhancedDataTable';
+import ModernSearchableSelect from '../../../components/common/ModernSearchableSelect';
 import { apiService } from '../../../services/api';
 import { useShift } from '../../../context/ShiftContext';
 
@@ -1106,18 +1107,15 @@ const MFSampleDeclarationModal = ({ sample, isModifying, onClose, onSave, saving
                         <div className="input-group">
                             <label>7. Sleeper ID <span style={{ color: '#ef4444' }}>*</span></label>
                             {availableSleepers.length > 0 ? (
-                                <select
+                                <ModernSearchableSelect
                                     value={formData.sleeperId}
-                                    onChange={e => handleSleeperIdSelect(e.target.value)}
-                                    style={{ fontWeight: '600' }}
-                                >
-                                    <option value="">Select Sleeper ID</option>
-                                    {availableSleepers.map((s, idx) => (
-                                        <option key={idx} value={s.no}>
-                                            {s.no}{s.bench ? ` (Bench/Gang: ${s.bench}${s.mould ? `, Mould: ${s.mould}` : ''})` : ''}
-                                        </option>
-                                    ))}
-                                </select>
+                                    onChange={handleSleeperIdSelect}
+                                    placeholder="Select Sleeper ID"
+                                    options={availableSleepers.map(s => ({
+                                        value: s.no,
+                                        label: `${s.no}${s.bench ? ` (Bench/Gang: ${s.bench}${s.mould ? `, Mould: ${s.mould}` : ''})` : ''}`
+                                    }))}
+                                />
                             ) : (
                                 <input
                                     type="text"

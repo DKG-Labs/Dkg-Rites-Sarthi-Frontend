@@ -3,7 +3,7 @@ import { downloadExcel } from '../SharedComponents';
 import './SleeperQualityReport.css';
 import reportService from '../../../services/reportService';
 
-const SleeperQualityReport = ({ fromDate, toDate, zone }) => {
+const SleeperQualityReport = ({ fromDate, toDate, selectedZone = 'all', onZonesUpdate }) => {
     const [searchQuery, setSearchQuery] = useState('');
     const [selectedTypeFilter, setSelectedTypeFilter] = useState('All');
     const [data, setData] = useState([]);
@@ -19,10 +19,11 @@ const SleeperQualityReport = ({ fromDate, toDate, zone }) => {
             try {
                 setLoading(true);
                 setError(null);
+                // All zones are loaded and the page's Zone dropdown filters them below, so the dropdown can list every
+                // zone that has data (a zone filtered on the server would leave it with only the chosen zone)
                 const response = await reportService.getSleeperQualityReport({
                     startDate: fromDate,
-                    endDate: toDate,
-                    zone
+                    endDate: toDate
                 });
 
                 const rawList = response.responseData || response || [];
@@ -61,12 +62,40 @@ const SleeperQualityReport = ({ fromDate, toDate, zone }) => {
         if (fromDate && toDate) {
             fetchQualityReportData();
         }
-    }, [fromDate, toDate, zone]);
+    }, [fromDate, toDate]);
+
+    // Tell the page which zones this report has, for its Zone dropdown
+    useEffect(() => {
+        if (!onZonesUpdate) return;
+        const zones = new Set();
+        data.forEach(item => {
+            if (item.railway && item.railway !== '-') zones.add(item.railway.trim());
+        });
+        onZonesUpdate(Array.from(zones).sort());
+    }, [data, onZonesUpdate]);
 
     // Keep the scroll bar above the table in step with the one below it
     useEffect(() => {
         if (tableWrapRef.current) setTableWidth(tableWrapRef.current.scrollWidth);
     }, [data, loading, searchQuery, selectedTypeFilter]);
+
+    // The header has three rows that wrap onto different numbers of lines, so measure them to give each row its
+    // sticky offset (row 2 sticks below row 1, row 3 below rows 1 + 2)
+    useEffect(() => {
+        const wrap = tableWrapRef.current;
+        if (!wrap) return undefined;
+        const measure = () => {
+            const rows = wrap.querySelectorAll('thead tr');
+            const h1 = rows[0] ? rows[0].offsetHeight : 0;
+            const h2 = rows[1] ? rows[1].offsetHeight : 0;
+            wrap.style.setProperty('--sqr-head-1', `${h1}px`);
+            wrap.style.setProperty('--sqr-head-12', `${h1 + h2}px`);
+        };
+        measure();
+        window.addEventListener('resize', measure);
+        return () => window.removeEventListener('resize', measure);
+    }, [data, loading, error]);
+
     const syncScroll = (from, to) => {
         if (from.current && to.current && to.current.scrollLeft !== from.current.scrollLeft) {
             to.current.scrollLeft = from.current.scrollLeft;
@@ -79,6 +108,10 @@ const SleeperQualityReport = ({ fromDate, toDate, zone }) => {
     // Filter and group data dynamically
     const filteredAndGroupedData = useMemo(() => {
         let list = [...data];
+
+        if (selectedZone && selectedZone !== 'all') {
+            list = list.filter(item => (item.railway || '').trim().toLowerCase() === selectedZone.trim().toLowerCase());
+        }
 
         if (searchQuery) {
             const q = searchQuery.toLowerCase();
@@ -140,7 +173,7 @@ const SleeperQualityReport = ({ fromDate, toDate, zone }) => {
             const cspsList = Object.entries(group.csps).map(([cspName, items]) => ({ cspName, items }));
             return { ...group, cspsList };
         });
-    }, [data, searchQuery, selectedTypeFilter]);
+    }, [data, searchQuery, selectedTypeFilter, selectedZone]);
 
     const grandTotal = useMemo(() => {
         const total = { produced: 0, inspected: 0, rejectedInProcess: 0, icIssuedQty: 0, icIssuedCount: 0, totalNosRej: 0, rejDimension: 0, rejEndDamage: 0, rejHoneyCombing: 0, rejMissingDowel: 0, rejOther: 0 };

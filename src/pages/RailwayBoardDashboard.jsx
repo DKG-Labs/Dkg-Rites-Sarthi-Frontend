@@ -380,7 +380,7 @@ const RailwayBoardDashboard = () => {
             if (activeReport === 'mpr') dataset = mprData;
             else if (activeReport === 'mpia' || activeReport === 'vwpqr') dataset = mpiaData;
             else if (activeReport === 'lwcl') dataset = lwclData;
-            else if (activeReport === 'pwmr' && pwmrZones && pwmrZones.length > 0) {
+            else if ((activeReport === 'pwmr' || activeReport === 'sqr') && pwmrZones && pwmrZones.length > 0) {
                 zones = new Set(pwmrZones);
             }
         } else if (activeMainCard === 'performance') {

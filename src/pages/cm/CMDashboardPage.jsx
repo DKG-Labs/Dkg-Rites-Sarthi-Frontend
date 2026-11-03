@@ -8,6 +8,7 @@ import { Level1Row } from '../../components/railway-board/LevelRows';
 import Pagination from '../../components/Pagination';
 import { formatDate } from '../../utils/helpers';
 import CMDiversionApprovalsTab from './tabs/CMDiversionApprovalsTab';
+import UdmRejectionDashboard from '../../components/railway-board/UdmRejectionDashboard';
 import SBUDiversionApprovalsTab from './tabs/SBUDiversionApprovalsTab';
 
 const REPORT_NAME_TO_SLUG = {
@@ -1943,6 +1944,23 @@ export const CMDashboardPage = ({ isEmbedded = false, activeTabFromProps = null,
             </div>
           </div>
 
+          {/* UDM / IMMS Consignee Rejections (same page as Railway Board) */}
+          <div className="cm-menu-group">
+            <div
+              className={`cm-menu-item ${activeTab === 'UDM Rejections' ? 'active' : ''}`}
+              onClick={() => {
+                setActiveTab('UDM Rejections');
+                setCallMenuOpen(false);
+                setIeMenuOpen(false);
+                setVendorMenuOpen(false);
+                setReportsMenuOpen(false);
+              }}
+            >
+              <i className="cm-menu-item-icon fa-solid fa-triangle-exclamation"></i>
+              {!isSidebarCollapsed && <span>UDM Rejections</span>}
+            </div>
+          </div>
+
           {/* Notification & Approval (Direct Item) */}
           <div className="cm-menu-group">
             <div
@@ -3540,6 +3558,9 @@ export const CMDashboardPage = ({ isEmbedded = false, activeTabFromProps = null,
             </div>
           </div>
         )}
+
+        {/* UDM / IMMS Consignee Rejections */}
+        {activeTab === 'UDM Rejections' && <UdmRejectionDashboard />}
 
         {/* 8. All Reports view */}
         {activeTab === 'All Reports' && (

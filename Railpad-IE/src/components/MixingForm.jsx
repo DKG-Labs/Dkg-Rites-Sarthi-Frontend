@@ -169,11 +169,11 @@ const MixingForm = ({ onSubmit, onCancel, editData, plantId, isViewOnly, isSubmi
     const isValid = validateOnSubmit();
     const status = (isValid && formData.waterCirculation === 'Yes' && formData.dustCollector === 'Yes') ? 'OK' : 'Not OK';
 
-    onSubmit({
+    Promise.resolve(onSubmit({
       ...formData,
       status,
       timestamp: formData.timestamp || new Date().toLocaleString()
-    });
+    })).catch(() => {}); // failure pop-up is shown by App
   };
 
   const limitsBannerStyle = {

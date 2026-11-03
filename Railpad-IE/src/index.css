@@ -2039,3 +2039,298 @@ textarea:focus {
   animation: skeleton-shimmer 1.5s infinite linear;
 }
 
+
+/* Mobile: keep the form's footer (Submit / Cancel) on screen.
+   90vh counts the space under the phone browser's address bar and toolbar, which pushed
+   the Submit button under the browser bar. dvh = the height actually visible. */
+@media (max-width: 640px) {
+    .modal-overlay,
+    .form-modal-overlay {
+        padding: 0.5rem !important;
+        align-items: flex-start !important;
+        padding-top: max(0.5rem, env(safe-area-inset-top)) !important;
+    }
+
+    /* The pop-up is a flex item; without min-width: 0 its content could stretch it wider
+       than the screen, so it overflowed on both sides and cut off the Submit button. */
+    .modal-content,
+    .form-modal-container {
+        min-width: 0 !important;
+        width: 100% !important;
+        max-width: 100% !important;
+        max-height: calc(100vh - 1rem) !important;
+        max-height: calc(100dvh - 1rem) !important;
+    }
+
+    .form-modal-header {
+        padding: 0.75rem 1rem !important;
+    }
+
+    .form-modal-body,
+    .modal-body {
+        padding: 1rem !important;
+        overflow-x: hidden;
+        min-width: 0;
+    }
+
+    .form-footer,
+    .modal-footer {
+        flex-shrink: 0;
+        padding: 0.75rem 1rem !important;
+        padding-bottom: max(0.75rem, env(safe-area-inset-bottom)) !important;
+        gap: 0.75rem;
+    }
+
+    .form-footer .btn-submit,
+    .form-footer .btn-secondary {
+        flex: 1 1 0;
+        min-width: 0;
+        min-height: 44px;
+        padding: 0.6rem 1rem !important;
+        touch-action: manipulation;
+    }
+}
+
+/* Desktop tables: same side padding for headers and cells, and room at the table edges
+   (cells had 0.25rem, so the first column touched the border and didn't line up with its header). */
+@media (min-width: 769px) {
+    .data-table th,
+    .data-table td {
+        padding-left: 0.75rem;
+        padding-right: 0.75rem;
+    }
+
+    .data-table th:first-child,
+    .data-table td:first-child {
+        padding-left: 1.25rem;
+    }
+
+    .data-table th:last-child,
+    .data-table td:last-child {
+        padding-right: 1.25rem;
+    }
+}
+
+/* Row action buttons (View / Edit / Delete) */
+.row-actions {
+    display: flex;
+    gap: 6px;
+    align-items: center;
+    justify-content: flex-start;
+}
+
+/* Mobile: tables become cards with "Label ........ value" lines (labels come from data-label) */
+@media (max-width: 768px) {
+    .data-table td {
+        max-width: none !important;
+        gap: 0.75rem;
+    }
+
+    .data-table td::before {
+        flex: 0 0 42%;
+        white-space: normal;
+    }
+
+    /* Value side: allow wrapping of long mould numbers etc. */
+    .data-table td {
+        white-space: normal;
+        word-break: break-word;
+    }
+
+    /* Status: keep the badge its natural size instead of stretching across the card */
+    .data-table td.cell-status .status-badge {
+        flex: 0 0 auto;
+        display: inline-flex;
+        word-break: normal;
+    }
+
+    /* Actions: no label, buttons share the full width */
+    .data-table td.cell-actions {
+        padding-top: 0.75rem;
+    }
+
+    .data-table td.cell-actions::before {
+        display: none;
+    }
+
+    .data-table td.cell-actions .row-actions {
+        display: flex;
+        flex: 1;
+        gap: 0.5rem;
+        justify-content: stretch;
+    }
+
+    .data-table td.cell-actions .row-actions button {
+        flex: 1 1 0;
+        min-height: 40px;
+        justify-content: center;
+        touch-action: manipulation;
+    }
+
+    /* Search box on its own line above the Add button */
+    .action-bar-row {
+        flex-wrap: wrap;
+        padding: 12px !important;
+        gap: 10px !important;
+    }
+
+    .action-bar-row .search-input-wrapper {
+        width: 100% !important;
+        flex: 1 1 100%;
+    }
+
+    .action-bar-row .export-btn {
+        width: 100%;
+    }
+}
+
+/* Table pagination (TableView) */
+.tv-pager {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 10px 16px;
+    padding: 12px 16px;
+    border-top: 1px solid #e2e8f0;
+    font-size: 13px;
+    color: #475569;
+}
+
+.tv-pager-controls,
+.tv-pager-pages,
+.tv-pager-size {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.tv-pager-controls {
+    gap: 14px;
+    flex-wrap: wrap;
+}
+
+.tv-pager-size {
+    font-size: 13px;
+    font-weight: 600;
+    color: #475569;
+    white-space: nowrap;
+}
+
+/* Override the global select look (40px tall, big arrow padding) so it matches the page buttons */
+.tv-pager-size select {
+    width: auto !important;
+    min-width: 64px;
+    height: 34px !important;
+    line-height: normal !important;
+    padding: 0 26px 0 10px !important;
+    border: 1px solid #cbd5e1;
+    border-radius: 8px;
+    font-size: 13px;
+    background-position: right 8px center;
+    background-size: 12px;
+}
+
+.tv-page-btn {
+    min-width: 34px;
+    height: 34px;
+    padding: 0 10px;
+    border: 1px solid #cbd5e1;
+    border-radius: 8px;
+    background: #fff;
+    color: #334155;
+    font-size: 13px;
+    font-weight: 600;
+    line-height: 1;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    touch-action: manipulation;
+}
+
+.tv-page-btn.active {
+    background: #1f7f8c;
+    border-color: #1f7f8c;
+    color: #fff;
+}
+
+.tv-page-btn:disabled {
+    color: #cbd5e1;
+    cursor: not-allowed;
+}
+
+.tv-page-gap {
+    padding: 0 4px;
+}
+
+/* Mobile: info on top, then Rows on the left and page buttons on the right */
+@media (max-width: 768px) {
+    .tv-pager {
+        flex-direction: column;
+        align-items: stretch;
+        padding: 12px;
+        background: #fff;
+        border: 1px solid var(--border-color);
+        border-radius: 12px;
+    }
+
+    .tv-pager-info {
+        text-align: center;
+    }
+
+    .tv-pager-controls {
+        justify-content: space-between;
+        flex-wrap: wrap;
+        gap: 8px;
+    }
+
+    .tv-pager-pages {
+        flex-wrap: wrap;
+        justify-content: flex-end;
+    }
+
+    .tv-page-btn {
+        min-width: 38px;
+        height: 38px;
+    }
+
+    .tv-pager-size select {
+        height: 38px !important;
+    }
+}
+
+/* RailPad IE header: title + Shift Status card (inline styles in App.jsx, hence !important) */
+@media (max-width: 768px) {
+    .ie-dashboard {
+        padding: 16px 12px !important;
+    }
+
+    .ie-header {
+        flex-direction: column;
+        align-items: stretch !important;
+        margin-bottom: 20px !important;
+    }
+
+    .ie-header-title h1 {
+        font-size: 26px !important;
+    }
+
+    .ie-header-title p {
+        font-size: 14px !important;
+    }
+
+    /* Status text on the left, button on the right, full width under the title */
+    .ie-shift-status {
+        width: 100%;
+        justify-content: space-between;
+        padding: 12px 14px !important;
+    }
+
+    .ie-complete-btn {
+        flex-shrink: 0;
+        min-height: 40px;
+        white-space: nowrap;
+        touch-action: manipulation;
+    }
+}

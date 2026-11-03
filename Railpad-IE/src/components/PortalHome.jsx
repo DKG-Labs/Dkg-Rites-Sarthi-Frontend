@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import ShiftDutyForm from './ShiftDutyForm';
 import PlantDeclarationDashboard from './PlantDeclaration/PlantDeclarationDashboard';
 import AttendingCallsDashboard from './AttendingCallsDashboard';
+import RejectionBasket from './RejectionBasket/RejectionBasket';
 import RailpadProcessAnnexureA, { RailpadProcessAnnexureAModal } from './ProcessInspection/RailpadProcessAnnexureA';
 import { 
   fetchPendingWorkflowTransitions, 
@@ -73,7 +74,9 @@ const PortalHome = ({
   const [loadingCounts, setLoadingCounts] = useState(false);
   const [selectedMainTab, setSelectedMainTab] = useState(() => {
     return sessionStorage.getItem('railpad_portal_active_tab') || 'pending';
-  }); // 'pending' | 'certificates' | 'completed' | 'closed' | 'plant'
+  }); // 'pending' | 'certificates' | 'completed' | 'closed' | 'plant' | 'rejection'
+  // Process-only IEs: Rejection Basket opens below the Duty Management cards
+  const [showRejectionBasket, setShowRejectionBasket] = useState(false);
 
   // Persist active tab so refresh and post-action returns land on the same tab
   useEffect(() => {
@@ -888,6 +891,22 @@ const PortalHome = ({
                 </div>
               </div>
 
+              {/* Card 6: Rejection Basket & Scrap Verification */}
+              <div
+                className={`ph-card ${selectedMainTab === 'rejection' ? 'ph-card--active-plant' : ''}`}
+                onClick={() => setSelectedMainTab('rejection')}
+              >
+                <div className="ph-card-text">
+                  <div className="ph-card-title-row">
+                    <span className="ph-card-title">Rejection Basket</span>
+                  </div>
+                  <span className="ph-card-sub">Pending scrap, scrap verification &amp; ledger</span>
+                </div>
+                <div className="ph-card-icon-wrap">
+                  <div className="ph-card-icon ph-card-icon--purple" style={{ fontSize: '18px' }}>🗑️</div>
+                </div>
+              </div>
+
             </div>
           </div>
 
@@ -896,6 +915,11 @@ const PortalHome = ({
             {selectedMainTab === 'plant' ? (
               <div style={{ padding: '24px' }}>
                 <PlantDeclarationDashboard dutyPlantId={dutyPlantId} />
+              </div>
+            ) : selectedMainTab === 'rejection' ? (
+              <div style={{ padding: '24px' }}>
+                {/* The backend allows scrap verification only where this user is the mapped Process IE */}
+                <RejectionBasket />
               </div>
             ) : (
               <AttendingCallsDashboard
@@ -983,7 +1007,38 @@ const PortalHome = ({
                 </div>
               </div>
             </div>
+
+            {/* Rejection Basket & Scrap Verification */}
+            <div
+              className="ph-card ph-card--clickable"
+              onClick={() => setShowRejectionBasket(v => !v)}
+            >
+              <div className="ph-card-text">
+                <div className="ph-card-title-row">
+                  <span className="ph-card-title">Rejection Basket</span>
+                </div>
+                <span className="ph-card-sub">
+                  Pending scrap, scrap verification &amp; scrap ledger
+                </span>
+              </div>
+              <div className="ph-card-icon-wrap">
+                <div className="ph-card-icon" style={{
+                  background: '#faf5ff',
+                  color: '#7c3aed',
+                  border: '1px solid #ede9fe',
+                  fontSize: '18px'
+                }}>
+                  🗑️
+                </div>
+              </div>
+            </div>
           </div>
+
+          {showRejectionBasket && (
+            <div style={{ marginTop: '20px' }}>
+              <RejectionBasket />
+            </div>
+          )}
         </div>
       )}
 

@@ -1,10 +1,26 @@
 import React from 'react';
+import { SearchableDropdown } from './SharedComponents';
 
 const VENDORS = ['Prakash Metallics', 'Kalimata', 'Royal'];
 const RITES_RIOS = ['CRIO', 'NRIO', 'ERIO', 'WRIO', 'SRIO'];
 const RAIL_ZONES = [
     'CR', 'ER', 'ECR', 'ECoR', 'NR', 'NCR', 'NER', 'NFR', 'NWR', 'RDSO',
     'SR', 'SCR', 'SER', 'SECR', 'SWR', 'WR', 'WCR', 'Metro', 'SCoR', 'KR'
+];
+
+const zoneOptions = [
+    { label: 'All Zones', value: 'all' },
+    ...RAIL_ZONES.map(z => ({ label: z, value: z }))
+];
+
+const vendorOptions = [
+    { label: 'All Vendors', value: 'all' },
+    ...VENDORS.map(v => ({ label: v, value: v }))
+];
+
+const rioOptions = [
+    { label: 'All RITES RIOs', value: 'all' },
+    ...RITES_RIOS.map(r => ({ label: r, value: r }))
 ];
 
 const FilterBar = ({
@@ -16,7 +32,7 @@ const FilterBar = ({
 }) => {
     return (
         <div className="filter-bar">
-            {/* Date Filters - Refined UI */}
+            {/* Date Filters */}
             <div className="filter-group">
                 <label className="filter-label">Date Range</label>
                 <div className="date-picker-card">
@@ -42,51 +58,37 @@ const FilterBar = ({
                 </div>
             </div>
 
-
-
             {/* Zone Dropdown */}
             <div className="filter-group">
                 <label className="filter-label">Zone</label>
-                <select
-                    className="dashboard-select"
+                <SearchableDropdown
                     value={selectedZone}
-                    onChange={(e) => setSelectedZone(e.target.value)}
-                >
-                    <option value="all">All Zones</option>
-                    {RAIL_ZONES.map(zone => (
-                        <option key={zone} value={zone}>{zone}</option>
-                    ))}
-                </select>
+                    onChange={setSelectedZone}
+                    options={zoneOptions}
+                    placeholder="All Zones"
+                />
             </div>
 
-            {/* Vendor Name Dropdown */}
+            {/* Vendor Dropdown */}
             <div className="filter-group">
                 <label className="filter-label">Vendor</label>
-                <select
-                    className="dashboard-select"
+                <SearchableDropdown
                     value={selectedVendor}
-                    onChange={(e) => setSelectedVendor(e.target.value)}
-                >
-                    <option value="all">All Vendors</option>
-                    {VENDORS.map(vendor => (
-                        <option key={vendor} value={vendor}>{vendor}</option>
-                    ))}
-                </select>
+                    onChange={setSelectedVendor}
+                    options={vendorOptions}
+                    placeholder="All Vendors"
+                />
             </div>
 
             {/* RITES RIO Dropdown */}
             <div className="filter-group">
                 <label className="filter-label">RITES RIO</label>
-                <select
-                    className="dashboard-select"
+                <SearchableDropdown
                     value={selectedRio}
-                    onChange={(e) => setSelectedRio(e.target.value)}
-                >
-                    <option value="all">All RITES RIOs</option>
-                    {RITES_RIOS.map(rio => (
-                        <option key={rio} value={rio}>{rio}</option>
-                    ))}
-                </select>
+                    onChange={setSelectedRio}
+                    options={rioOptions}
+                    placeholder="All RITES RIOs"
+                />
             </div>
         </div>
     );

@@ -164,7 +164,11 @@ const SECTION_DEFECT_FIELDS = {
     ]
 };
 
-export default function ProcessDefectSummaryPage() {
+/**
+ * adminMode (RITES Admin): lists every process (EP) call and lets the admin edit/delete any shift
+ * regardless of who recorded it or when. The backend re-checks the admin role from the login token.
+ */
+export default function ProcessDefectSummaryPage({ adminMode = false }) {
     const [callNoInput, setCallNoInput] = useState('');
     const [submittedCallNo, setSubmittedCallNo] = useState('');
     const [data, setData] = useState([]);
@@ -216,10 +220,13 @@ export default function ProcessDefectSummaryPage() {
     // Fetch IC numbers list for the logged-in user
     const fetchIcNumbersList = async () => {
         const userId = localStorage.getItem('userId');
-        if (!userId) return;
+        if (!adminMode && !userId) return;
         setFetchingIcNumbers(true);
         try {
-            const res = await fetch(`${API_ENDPOINTS.REPORTS}/process/ic-numbers/${userId}`, { headers: getAuthHeaders() });
+            const url = adminMode
+                ? `${API_ENDPOINTS.REPORTS}/process/ic-numbers-all`
+                : `${API_ENDPOINTS.REPORTS}/process/ic-numbers/${userId}`;
+            const res = await fetch(url, { headers: getAuthHeaders() });
             const json = await handleResponse(res);
             setIcNumbers(Array.isArray(json) ? json : []);
         } catch (e) {
@@ -232,6 +239,7 @@ export default function ProcessDefectSummaryPage() {
     // Load IC numbers on mount
     useEffect(() => {
         fetchIcNumbersList();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
     const fetchData = async (callNo) => {
@@ -425,6 +433,7 @@ export default function ProcessDefectSummaryPage() {
     // Helper to check if record was created today or yesterday (e.g. 30 and 29)
     const isCreatedToday = (record) => {
         if (!record) return false;
+        if (adminMode) return true;
         const raw = record?.basicDetails?.createdAt || record?.createdAt;
         if (raw) return isSameDateAsToday(raw);
         const alt = record?.basicDetails?.date || record?.date || record?.dateOfInspection;
@@ -435,6 +444,7 @@ export default function ProcessDefectSummaryPage() {
     // Helper to check if record was created/inspected by the currently logged-in user
     const isUserShift = (record) => {
         if (!record) return false;
+        if (adminMode) return true;
 
         const currentUserId = String(localStorage.getItem('userId') || '').trim().toLowerCase();
         const currentEmpCode = String(localStorage.getItem('employeeCode') || '').trim().toLowerCase();
@@ -538,13 +548,11 @@ export default function ProcessDefectSummaryPage() {
             d.engineer = eng;
             if (!d.createdBy) d.createdBy = shiftRow.basicDetails?.createdBy || '';
 
-            // Shift and Stage production quantities
+            // Shift and Stage production quantities (Accepted Qty is strictly Tempering - Tempering Rejections)
             const tMfg = Number(shiftRow.processQty?.temperingProductionQty ?? d.temperingManufactured ?? 0);
             const tRej = Number(shiftRow.processQty?.temperingRejectionQty ?? d.temperingRejected ?? 0);
 
-            if (d.totalAccepted == null || d.totalAccepted === 0) {
-                d.totalAccepted = (tMfg === 0 && tRej === 0) ? 0 : Math.max(0, tMfg - tRej);
-            }
+            d.totalAccepted = (tMfg === 0 && tRej === 0) ? 0 : Math.max(0, tMfg - tRej);
             if (d.totalManufactured == null) {
                 d.totalManufactured = tMfg;
             }
@@ -803,7 +811,7 @@ export default function ProcessDefectSummaryPage() {
         const numVal = val === '' ? 0 : parseInt(val, 10);
         const safeAccepted = isNaN(numVal) ? 0 : Math.max(0, numVal);
 
-        const effProd = Number(hourlyDetails.temperingManufactured || hourlyDetails.totalManufactured || 0);
+        const effProd = Number(hourlyDetails.temperingManufactured || 0);
         const targetTemperingRej = Math.max(0, effProd - safeAccepted);
         const currentTemperingRej = sectionTotals.temperingStage || 0;
         const diff = targetTemperingRej - currentTemperingRej;
@@ -876,9 +884,10 @@ export default function ProcessDefectSummaryPage() {
             engineer: hourlyDetails.engineer || hourlyDetails.createdBy || '',
             totalManufactured: Number(hourlyDetails.totalManufactured || 0),
             totalAccepted: (() => {
-                const effProd = Number(hourlyDetails.temperingManufactured || hourlyDetails.totalManufactured || 0);
+                const tMfg = Number(hourlyDetails.temperingManufactured || 0);
                 const tRej = sectionTotals.temperingStage || 0;
-                return effProd > 0 ? Math.max(0, effProd - tRej) : Number(hourlyDetails.totalAccepted || 0);
+                if (tMfg === 0 && tRej === 0) return 0;
+                return Math.max(0, tMfg - tRej);
             })(),
             totalRejected: sectionTotals.totalShiftRej,
             shearingManufactured: Number(hourlyDetails.shearingManufactured || 0),
@@ -2157,16 +2166,11 @@ export default function ProcessDefectSummaryPage() {
                                                         onWheel={e => e.currentTarget.blur()}
                                                         onChange={e => {
                                                             const val = Math.max(0, parseInt(e.target.value, 10) || 0);
-                                                            const temperingRej = sectionTotals.temperingStage || 0;
-                                                            setHourlyDetails(p => {
-                                                                const effProd = (Number(p.temperingManufactured) > 0) ? Number(p.temperingManufactured) : val;
-                                                                return {
-                                                                    ...p,
-                                                                    totalManufactured: val,
-                                                                    shearingManufactured: val,
-                                                                    totalAccepted: Math.max(0, effProd - temperingRej)
-                                                                };
-                                                            });
+                                                            setHourlyDetails(p => ({
+                                                                ...p,
+                                                                totalManufactured: val,
+                                                                shearingManufactured: val
+                                                            }));
                                                         }}
                                                         style={{
                                                             width: '56px',
@@ -2239,7 +2243,7 @@ export default function ProcessDefectSummaryPage() {
                                                 <span style={{ fontSize: '9px', fontWeight: 800, color: '#475569', textTransform: 'uppercase' }}>Yield:</span>
                                                 <strong style={{ fontSize: '11px', fontWeight: 900, color: '#334155' }}>
                                                     {(() => {
-                                                        const mfg = Number(hourlyDetails.totalManufactured) || (Number(hourlyDetails.totalAccepted || 0) + sectionTotals.totalShiftRej);
+                                                        const mfg = Number(hourlyDetails.temperingManufactured || 0);
                                                         const acc = Number(hourlyDetails.totalAccepted || 0);
                                                         return mfg > 0 ? ((acc / mfg) * 100).toFixed(1) : '0.0';
                                                     })()}%
@@ -2314,16 +2318,14 @@ export default function ProcessDefectSummaryPage() {
                                                                             return {
                                                                                 ...p,
                                                                                 [stage.prodField]: val,
-                                                                                totalAccepted: Math.max(0, val - temperingRej)
+                                                                                totalAccepted: (val === 0 && temperingRej === 0) ? 0 : Math.max(0, val - temperingRej)
                                                                             };
                                                                         }
                                                                         if (stage.key === 'shearing') {
-                                                                            const effProd = (Number(p.temperingManufactured) > 0) ? Number(p.temperingManufactured) : val;
                                                                             return {
                                                                                 ...p,
                                                                                 [stage.prodField]: val,
-                                                                                totalManufactured: val,
-                                                                                totalAccepted: Math.max(0, effProd - temperingRej)
+                                                                                totalManufactured: val
                                                                             };
                                                                         }
                                                                         return { ...p, [stage.prodField]: val };

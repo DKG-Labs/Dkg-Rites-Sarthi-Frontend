@@ -4,7 +4,7 @@ import * as XLSX from 'xlsx';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import './UdmRejectionDashboard.css';
-import { getUdmRejections, syncUdmRejections } from '../../services/udmRejectionService';
+import { getUdmRejections, syncUdmRejections, getUdmSyncHistory } from '../../services/udmRejectionService';
 
 const IREPS_BASE = 'https://ireps.gov.in';
 
@@ -121,6 +121,7 @@ export default function UdmRejectionDashboard() {
     const [syncNoData,    setSyncNoData]    = useState(false);
     const [page,          setPage]          = useState(1);
     const [pageSize,      setPageSize]      = useState(10);
+    const [showHistory,   setShowHistory]   = useState(false);
 
     const fetchData = useCallback(async () => {
         setLoading(true); setError(null);
@@ -151,7 +152,10 @@ export default function UdmRejectionDashboard() {
         try {
             const res = await syncUdmRejections(syncDate);
             const saved = res.recordsSaved ?? 0;
-            if (saved === 0) {
+            if (res.status === 'FAILED') {
+                // Show why it failed (CRIS login, CRIS down, save error...) instead of "no data"
+                setError(`Sync failed: ${res.errorMessage || 'unknown reason'}`);
+            } else if (saved === 0) {
                 setSyncNoData(true);
             } else {
                 setShowSyncModal(false);
@@ -330,6 +334,8 @@ export default function UdmRejectionDashboard() {
                         <button className="btn-udm-sync" onClick={openSyncModal} disabled={syncing || loading}>
                             <i className="fa-solid fa-rotate" /> Manual Sync
                         </button>
+                        {/* Sync History button hidden for now; runs are still recorded in udm_sync_log.
+                            To show it again, render a button that calls setShowHistory(true). */}
                         {visible.length > 0 && (<>
                             <button className="btn-udm-pdf" onClick={downloadPdf}>
                                 <i className="fa-solid fa-file-pdf" /> Download PDF
@@ -492,6 +498,8 @@ export default function UdmRejectionDashboard() {
             </div>
 
             {detail && <DetailModal r={detail} onClose={() => setDetail(null)} />}
+
+            {showHistory && <SyncHistoryModal onClose={() => setShowHistory(false)} />}
 
             {showSyncModal && (
                 <div className="udm-overlay" onClick={e => { if (e.target === e.currentTarget && !syncing) setShowSyncModal(false); }}>
@@ -744,3 +752,136 @@ Dropdown.propTypes   = {
     onChange: PropTypes.func.isRequired, options: PropTypes.array.isRequired,
     placeholder: PropTypes.string, minWidth: PropTypes.number,
 };
+
+/* ─── Sync history (daily scheduler + manual syncs) ──────────── */
+const SYNC_STATUS = {
+    SUCCESS: { label: 'Success', bg: '#dcfce7', color: '#166534' },
+    NO_DATA: { label: 'No data', bg: '#f1f5f9', color: '#475569' },
+    PARTIAL: { label: 'Partial', bg: '#fef3c7', color: '#92400e' },
+    FAILED:  { label: 'Failed',  bg: '#fee2e2', color: '#991b1b' },
+    RUNNING: { label: 'Running', bg: '#dbeafe', color: '#1e40af' },
+};
+
+// Times come with their offset; always show them in IST
+const fmtIst = s => {
+    if (!s) return '—';
+    const d = new Date(/(Z|[+-]\d{2}:?\d{2})$/.test(s) ? s : `${s}+05:30`);
+    return isNaN(d) ? s : d.toLocaleString('en-IN', {
+        timeZone: 'Asia/Kolkata', day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit',
+    });
+};
+
+const thS = { padding: '10px 12px', textAlign: 'left', fontSize: 11, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.04em', background: '#f8fafc', borderBottom: '1px solid #e2e8f0', whiteSpace: 'nowrap', position: 'sticky', top: 0 };
+const tdS = { padding: '10px 12px', fontSize: 13, color: '#1e293b', borderBottom: '1px solid #f1f5f9', verticalAlign: 'top' };
+
+function SyncHistoryModal({ onClose }) {
+    const [runs, setRuns]       = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [error, setError]     = useState(null);
+
+    const load = useCallback(() => {
+        setLoading(true); setError(null);
+        getUdmSyncHistory(50)
+            .then(d => setRuns(Array.isArray(d) ? d : []))
+            .catch(e => setError(e.message || 'Failed to load sync history.'))
+            .finally(() => setLoading(false));
+    }, []);
+
+    useEffect(() => { load(); }, [load]);
+
+    return (
+        <div className="udm-overlay" onClick={e => { if (e.target === e.currentTarget) onClose(); }}>
+            <div className="udm-modal" style={{ maxWidth: 1100, width: '100%' }}>
+                <div className="udm-mhead">
+                    <div className="udm-mhead-top">
+                        <div className="udm-mhead-text">
+                            <h3>
+                                <i className="fa-solid fa-clock-rotate-left" style={{ marginRight: 8, fontSize: 15 }} />
+                                Sync History
+                            </h3>
+                            <p style={{ color: '#94a3b8', fontSize: 12, marginTop: 4 }}>
+                                Every CRIS sync: the daily 02:00 run and manual syncs, latest first (times in IST).
+                            </p>
+                        </div>
+                        <div style={{ display: 'flex', gap: 8 }}>
+                            <button className="btn-mclose" onClick={load} title="Refresh" disabled={loading}>
+                                <i className={`fa-solid fa-rotate${loading ? ' fa-spin' : ''}`} />
+                            </button>
+                            <button className="btn-mclose" onClick={onClose} title="Close">
+                                <i className="fa-solid fa-xmark" />
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <div className="udm-mbody" style={{ padding: 0, maxHeight: '65vh', overflow: 'auto' }}>
+                    {error && (
+                        <div className="udm-error" style={{ margin: 16 }}>
+                            <i className="fa-solid fa-circle-exclamation" /> {error}
+                        </div>
+                    )}
+                    {!error && loading && runs.length === 0 && (
+                        <div style={{ padding: 32, textAlign: 'center', color: '#64748b' }}>Loading sync history…</div>
+                    )}
+                    {!error && !loading && runs.length === 0 && (
+                        <div style={{ padding: 32, textAlign: 'center', color: '#64748b' }}>
+                            No sync runs recorded yet. The next daily run (02:00) or a Manual Sync will appear here.
+                        </div>
+                    )}
+                    {runs.length > 0 && (
+                        <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 900 }}>
+                            <thead>
+                                <tr>
+                                    <th style={thS}>Started</th>
+                                    <th style={thS}>Rejection Date</th>
+                                    <th style={thS}>Triggered By</th>
+                                    <th style={thS}>Status</th>
+                                    <th style={{ ...thS, textAlign: 'right' }}>Received</th>
+                                    <th style={{ ...thS, textAlign: 'right' }}>New</th>
+                                    <th style={{ ...thS, textAlign: 'right' }}>Updated</th>
+                                    <th style={{ ...thS, textAlign: 'right' }}>Failed</th>
+                                    <th style={thS}>Reason / Note</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {runs.map(r => {
+                                    const st = SYNC_STATUS[r.status] || { label: r.status || '—', bg: '#f1f5f9', color: '#475569' };
+                                    return (
+                                        <tr key={r.id}>
+                                            <td style={{ ...tdS, whiteSpace: 'nowrap' }}>
+                                                {fmtIst(r.startedAt)}
+                                                {r.durationMs != null && (
+                                                    <div style={{ fontSize: 11, color: '#94a3b8' }}>{(r.durationMs / 1000).toFixed(1)} s</div>
+                                                )}
+                                            </td>
+                                            <td style={{ ...tdS, whiteSpace: 'nowrap' }}>{r.syncDate || '—'}</td>
+                                            <td style={tdS}>
+                                                {r.triggerType === 'SCHEDULER'
+                                                    ? <span><i className="fa-solid fa-robot" style={{ marginRight: 6, color: '#64748b' }} />Daily scheduler</span>
+                                                    : <span><i className="fa-solid fa-user" style={{ marginRight: 6, color: '#64748b' }} />{r.triggeredBy || 'Manual'}</span>}
+                                            </td>
+                                            <td style={tdS}>
+                                                <span style={{ background: st.bg, color: st.color, padding: '2px 10px', borderRadius: 999, fontSize: 12, fontWeight: 700, whiteSpace: 'nowrap' }}>
+                                                    {st.label}
+                                                </span>
+                                            </td>
+                                            <td style={{ ...tdS, textAlign: 'right' }}>{r.recordsReceived ?? '—'}</td>
+                                            <td style={{ ...tdS, textAlign: 'right' }}>{r.recordsNew ?? '—'}</td>
+                                            <td style={{ ...tdS, textAlign: 'right' }}>{r.recordsUpdated ?? '—'}</td>
+                                            <td style={{ ...tdS, textAlign: 'right', color: r.recordsFailed ? '#b91c1c' : undefined }}>{r.recordsFailed ?? '—'}</td>
+                                            <td style={{ ...tdS, maxWidth: 360, wordBreak: 'break-word', color: r.status === 'FAILED' ? '#b91c1c' : '#475569' }}>
+                                                {r.errorMessage || '—'}
+                                            </td>
+                                        </tr>
+                                    );
+                                })}
+                            </tbody>
+                        </table>
+                    )}
+                </div>
+            </div>
+        </div>
+    );
+}
+
+SyncHistoryModal.propTypes = { onClose: PropTypes.func.isRequired };

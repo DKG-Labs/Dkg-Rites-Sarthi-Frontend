@@ -46,12 +46,12 @@ const VisualInspectionForm = ({ onSubmit, onCancel, editData, currentShift, isVi
     }
 
     setError('');
-    onSubmit({
+    Promise.resolve(onSubmit({
       ...formData,
       date: currentShift.date,
       shift: currentShift.shift,
       timestamp: formData.timestamp || new Date().toLocaleString()
-    });
+    })).catch(() => {}); // failure pop-up is shown by App
   };
 
   if (isFormLoading) {

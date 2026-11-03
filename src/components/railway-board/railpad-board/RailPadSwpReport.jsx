@@ -131,17 +131,15 @@ const RailPadSwpReport = () => {
                     </div>
                     <div>
                         <label style={{ display: 'block', fontSize: '12px', fontWeight: 'bold', color: '#64748b', marginBottom: '8px' }}>Place of Inspection</label>
-                        <select 
-                            className="prof-select" 
-                            style={{ width: '100%' }}
+                        <SearchableDropdown
                             value={selectedPlant}
-                            onChange={(e) => setSelectedPlant(e.target.value)}
-                        >
-                            <option value="All Places">All Places</option>
-                            {plants.map(p => (
-                                <option key={p} value={p}>{p}</option>
-                            ))}
-                        </select>
+                            onChange={(val) => setSelectedPlant(val)}
+                            options={[
+                                { label: 'All Places', value: 'All Places' },
+                                ...plants.map(p => ({ label: p, value: p }))
+                            ]}
+                            placeholder="All Places"
+                        />
                     </div>
                     <div>
                         <label style={{ display: 'block', fontSize: '12px', fontWeight: 'bold', color: '#64748b', marginBottom: '8px' }}>From Date</label>

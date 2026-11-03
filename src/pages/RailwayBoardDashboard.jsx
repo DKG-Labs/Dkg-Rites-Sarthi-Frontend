@@ -912,7 +912,7 @@ const RailwayBoardDashboard = () => {
                     )}
 
                     {/* TOPBAR / FILTERS - Hidden on Dashboard (summary), Quality, Lifecycle, Feedback, Scada Monitor, SQC tabs, and ERC/Sleeper SWP Reports, and Lot Wise Closed Loop Reports, and IC Annexures */}
-                    {activeMainCard !== 'cm-module' && activeMainCard !== 'summary' && activeMainCard !== 'quality' && activeMainCard !== 'lifecycle' && activeMainCard !== 'feedback' && activeMainCard !== 'udm' && activeMainCard !== 'scada' && activeMainCard !== 'sqc' && activeMainCard !== 'sleeper-anomaly' && activeMainCard !== 'rejection-scrap' && !(activeMainCard === 'reports' && activeReport === 'swp' && (selectedProduct === 'ERC' || selectedProduct === 'Sleeper')) && !(activeMainCard === 'reports' && activeReport === 'lwcl') && !(activeMainCard === 'reports' && activeReport === 'ic_annexures') && (
+                    {activeMainCard !== 'cm-module' && activeMainCard !== 'active-login' && activeMainCard !== 'summary' && activeMainCard !== 'quality' && activeMainCard !== 'lifecycle' && activeMainCard !== 'feedback' && activeMainCard !== 'udm' && activeMainCard !== 'scada' && activeMainCard !== 'sqc' && activeMainCard !== 'sleeper-anomaly' && activeMainCard !== 'rejection-scrap' && !(activeMainCard === 'reports' && activeReport === 'swp' && (selectedProduct === 'ERC' || selectedProduct === 'Sleeper')) && !(activeMainCard === 'reports' && activeReport === 'lwcl') && !(activeMainCard === 'reports' && activeReport === 'ic_annexures') && (
                         <div id="prof-topbar">
                             <label>From</label>
                             <input type="date" value={draftFromDate} onChange={(e) => setDraftFromDate(e.target.value)} />
@@ -975,7 +975,7 @@ const RailwayBoardDashboard = () => {
                             {activeMainCard === 'udm' ? (
                                 <UdmRejectionDashboard />
                             ) : activeMainCard === 'active-login' ? (
-                                <ActiveLoginDashboard fromDate={debouncedFromDate} toDate={debouncedToDate} />
+                                <ActiveLoginDashboard />
                             ) : activeMainCard === 'rejection-scrap' ? (
                                 <RailwayBoardRejectionScrap selectedProduct={selectedProduct} />
                             ) : activeMainCard === 'cm-module' ? (

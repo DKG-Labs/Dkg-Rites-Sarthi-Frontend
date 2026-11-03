@@ -159,12 +159,12 @@ const RawMaterialForm = ({ onSubmit, onCancel, editData, isViewOnly, isSubmittin
     const status = (formData.acceptedMaterials === 'Yes' &&
       (formData.contract === 'IRS T-55-2023' ? hasRubber : parseFloat(rubberPercentage) >= 50)) ? 'OK' : 'Not OK';
 
-    onSubmit({
+    Promise.resolve(onSubmit({
       ...formData,
       rubberPercentage,
       status,
       timestamp: formData.timestamp || new Date().toLocaleString()
-    });
+    })).catch(() => {}); // failure pop-up is shown by App
   };
 
   if (isFormLoading) {

@@ -44,10 +44,7 @@ const RheometerForm = ({ onSubmit, onCancel, editData, isViewOnly, isSubmitting 
       });
       // form is closed by parent on success
     } catch (error) {
-      setNotification({ 
-        type: 'error', 
-        message: error.message || 'Failed to save entry. Please try again.' 
-      });
+      // failure pop-up is shown by App; the form stays open so the user can retry
     }
   };
 

@@ -197,12 +197,12 @@ const HydraulicPressForm = ({ onSubmit, onCancel, editData, currentShift, isView
       }
     }
     
-    onSubmit({
+    Promise.resolve(onSubmit({
       ...formData,
       date: currentShift.date,
       shift: currentShift.shift,
       timestamp: formData.timestamp || new Date().toLocaleString()
-    });
+    })).catch(() => {}); // failure pop-up is shown by App
   };
 
   const timeError = formData.curingTime && activeLimits && (

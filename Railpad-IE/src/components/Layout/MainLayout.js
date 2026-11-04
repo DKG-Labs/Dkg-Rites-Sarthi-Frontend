@@ -15,17 +15,13 @@ const MainLayout = ({ children, activeItem, onItemClick, onLogout, user, isShift
             const uId = user?.userId || localStorage.getItem('userId');
             if (uId) {
                 try {
-                    const [mainPlants, processPlants, allPlants] = await Promise.all([
+                    const [mainPlants, processPlants] = await Promise.all([
                         fetchMappedPlantIds(uId, 'Main IE').catch(() => []),
-                        fetchMappedPlantIds(uId, 'Process IE').catch(() => []),
-                        fetchMappedPlantIds(uId, 'ALL').catch(() => [])
+                        fetchMappedPlantIds(uId, 'Process IE').catch(() => [])
                     ]);
-                    if ((mainPlants && mainPlants.length > 0) || (allPlants && allPlants.length > 0)) {
-                        setIsMainMapped(true);
-                    }
-                    if (processPlants && processPlants.length > 0) {
-                        setIsProcessMapped(true);
-                    }
+                    // Show "Main IE" only for a real MAIN_IE mapping, not for any mapping
+                    setIsMainMapped(!!(mainPlants && mainPlants.length > 0));
+                    setIsProcessMapped(!!(processPlants && processPlants.length > 0));
                 } catch (err) {}
             }
         };
@@ -208,10 +204,12 @@ const MainLayout = ({ children, activeItem, onItemClick, onLogout, user, isShift
                                     });
                                     const railpadRoles = formatted.filter(r => r.includes('Railpad') || r.includes('Main IE') || r.includes('Process IE'));
                                     const finalRoles = railpadRoles.length > 0 ? [...railpadRoles] : [...formatted];
-                                    if (isMainMapped && !finalRoles.includes('Railpad Main IE')) {
+                                    // The login role decides; mappings only fill in when the role is not Main/Process specific
+                                    const roleIsSpecific = finalRoles.some(r => /main ie|process ie/i.test(r));
+                                    if (!roleIsSpecific && isMainMapped && !finalRoles.includes('Railpad Main IE')) {
                                         finalRoles.push('Railpad Main IE');
                                     }
-                                    if (isProcessMapped && !finalRoles.includes('Railpad Process IE')) {
+                                    if (!roleIsSpecific && isProcessMapped && !finalRoles.includes('Railpad Process IE')) {
                                         finalRoles.push('Railpad Process IE');
                                     }
                                     return Array.from(new Set(finalRoles)).join(' & ') || 'Railpad IE';

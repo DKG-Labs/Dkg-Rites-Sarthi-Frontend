@@ -400,7 +400,7 @@ const ErcRmIC = ({ data = {}, isEditing = false, isBusy = false, onChange = () =
           <div className="grid grid-cols-3 border-x border-b border-black">
             <div className="border-r border-black p-2">
               <span className="font-semibold">कॉल दिनांक / Date of call: </span>
-              <EditableField isEditing={false} value={callDate} onChange={(val) => onChange("callDate", val)} className="" />
+              <EditableField isEditing={isEditing} value={callDate} onChange={(val) => onChange("callDate", val)} className="" />
             </div>
             <div className="border-r border-black p-2">
               <span className="font-semibold">दौरों की संख्या / No. of visits: </span>

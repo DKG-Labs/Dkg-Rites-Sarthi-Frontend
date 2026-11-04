@@ -11,6 +11,7 @@ import { fetchSavedCaseLetterInfo, viewSavedCaseLetterPdf } from '../../services
 import { getAnnexureDocuments } from '../../services/certificateService';
 import { fetchCallLetterDetails } from '../../call-desk-module/src/services/callLetterApi';
 import { generateCallLetterPDF } from '../../call-desk-module/src/utils/generateCallLetterPDF';
+import { Snackbar, Alert } from '@mui/material';
 import './DownloadIcAnnexures.css';
 
 const formatPoNumber = (record) => {
@@ -103,6 +104,9 @@ const getQuantityColumns = (record) => {
 
 const DownloadIcAnnexures = ({ selectedProduct = 'ERC', fromDate: initialFromDate = '', toDate: initialToDate = '', hideFilters = false, vendorPlantCode = '', zonalRailway = '', poNumber = '', defaultStage = 'all' }) => {
     // 1. Backend Data State
+    // In-page notification instead of browser alert() popups
+    const [toast, setToast] = useState({ open: false, message: '', severity: 'warning' });
+    const notify = useCallback((message, severity = 'warning') => setToast({ open: true, message, severity }), []);
     const [records, setRecords] = useState([]);
     const [loading, setLoading] = useState(false);
     const [checkingAnnexureCallNo, setCheckingAnnexureCallNo] = useState(null);
@@ -446,7 +450,7 @@ const DownloadIcAnnexures = ({ selectedProduct = 'ERC', fromDate: initialFromDat
     // View IC directly from Certificate Storage (Azure Blob)
     const handleViewIc = async (record) => {
         if (!record) {
-            alert('Record details not available.');
+            notify('Record details not available.', 'warning');
             return;
         }
 
@@ -469,7 +473,7 @@ const DownloadIcAnnexures = ({ selectedProduct = 'ERC', fromDate: initialFromDat
         const candidates = Array.from(candidateSet).filter(Boolean);
 
         if (candidates.length === 0) {
-            alert('Certificate / Call Number is missing.');
+            notify('Certificate / Call Number is missing.', 'warning');
             return;
         }
 
@@ -529,12 +533,12 @@ const DownloadIcAnnexures = ({ selectedProduct = 'ERC', fromDate: initialFromDat
 
             setIsDownloading(false);
             setDownloadingRecord(null);
-            alert(`Inspection Certificate PDF for "${record.icNumber || record.callNumber}" is not found in Certificate Storage.`);
+            notify(`Inspection Certificate PDF for "${record.icNumber || record.callNumber}" is not found in Certificate Storage.`, 'warning');
         } catch (err) {
             console.error('Error fetching certificate:', err);
             setIsDownloading(false);
             setDownloadingRecord(null);
-            alert(`Error retrieving Inspection Certificate from Certificate Storage: ${err.message || err}`);
+            notify(`Error retrieving Inspection Certificate from Certificate Storage: ${err.message || err}`, 'error');
         }
     };
 
@@ -546,7 +550,7 @@ const DownloadIcAnnexures = ({ selectedProduct = 'ERC', fromDate: initialFromDat
     const handleDownloadAnnexures = async (record) => {
         const callNo = record.callNumber || record.callNo;
         if (!callNo) {
-            alert('Call number not found for this record.');
+            notify('Call number not found for this record.', 'warning');
             return;
         }
 
@@ -622,10 +626,10 @@ const DownloadIcAnnexures = ({ selectedProduct = 'ERC', fromDate: initialFromDat
             // ==========================================
             // TIER 4: None Found
             // ==========================================
-            alert(`No Case Letter, Annexures, or Call Letter found for Call No: ${callNo}`);
+            notify(`No Case Letter, Annexures, or Call Letter found for Call No: ${callNo}`, 'warning');
         } catch (err) {
             console.error('[Annexures] Error in handleDownloadAnnexures:', err);
-            alert(`Failed to retrieve documents for Call No: ${callNo}. Error: ${err.message || err}`);
+            notify(`Failed to retrieve documents for Call No: ${callNo}. Error: ${err.message || err}`, 'error');
         } finally {
             setCheckingAnnexureCallNo(null);
         }
@@ -634,7 +638,7 @@ const DownloadIcAnnexures = ({ selectedProduct = 'ERC', fromDate: initialFromDat
     // Export entire filtered Inspection Certificates list to Excel (.xlsx)
     const handleExportExcel = async () => {
         if (!filteredRecords || filteredRecords.length === 0) {
-            alert("No Inspection Certificate records available to export.");
+            notify("No Inspection Certificate records available to export.", 'warning');
             return;
         }
 
@@ -680,7 +684,7 @@ const DownloadIcAnnexures = ({ selectedProduct = 'ERC', fromDate: initialFromDat
     // Export entire filtered Inspection Certificates list to PDF
     const handleExportPdf = () => {
         if (!filteredRecords || filteredRecords.length === 0) {
-            alert("No Inspection Certificate records available to export.");
+            notify("No Inspection Certificate records available to export.", 'warning');
             return;
         }
 
@@ -1210,6 +1214,16 @@ const DownloadIcAnnexures = ({ selectedProduct = 'ERC', fromDate: initialFromDat
                     </div>
                 </div>
             )}
+            <Snackbar
+                open={toast.open}
+                autoHideDuration={5000}
+                onClose={(_, reason) => { if (reason !== 'clickaway') setToast(t => ({ ...t, open: false })); }}
+                anchorOrigin={{ vertical: 'top', horizontal: 'right' }}
+            >
+                <Alert onClose={() => setToast(t => ({ ...t, open: false }))} severity={toast.severity} variant="filled" sx={{ width: '100%', maxWidth: 480 }}>
+                    {toast.message}
+                </Alert>
+            </Snackbar>
         </div>
     );
 };

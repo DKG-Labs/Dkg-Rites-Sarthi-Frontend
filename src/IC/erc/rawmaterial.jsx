@@ -218,7 +218,7 @@ export default function RawMaterialCertificate({ call = {}, onBack }) {
         }
         return "IT IS CERTIFIED THAT THE MATERIAL IS CLEARED FOR THE NEXT STAGE.";
       })(),
-      callDate: c.dateOfCall || "",
+      callDate: c.callDate || c.dateOfCall || "",
       visitsNo: c.noOfVisits || "",
       inspectionDate: c.dateOfInspection || "",
       sealingPattern: c.sealingPattern || "",
@@ -270,6 +270,7 @@ export default function RawMaterialCertificate({ call = {}, onBack }) {
               trRecDate: savedEdit.trRecDate || initialData.trRecDate,
               inspectionDate: savedEdit.inspectionDate || initialData.inspectionDate,
               visitsNo: savedEdit.visitsNo || initialData.visitsNo,
+              callDate: savedEdit.callDate || savedEdit.dateOfCall || initialData.callDate,
             };
           }
           
@@ -333,6 +334,8 @@ export default function RawMaterialCertificate({ call = {}, onBack }) {
           qapNo: dataToPass.qapNo,
           chpClause: dataToPass.chpClause,
           visitsNo: dataToPass.visitsNo,
+          callDate: dataToPass.callDate,
+          dateOfCall: dataToPass.callDate,
           inspectionDate: dataToPass.inspectionDate,
           createdBy: getCurrentUserId()?.toString(),
           updatedBy: getCurrentUserId()?.toString()
@@ -481,6 +484,8 @@ export default function RawMaterialCertificate({ call = {}, onBack }) {
           qapNo: dataToPass.qapNo,
           chpClause: dataToPass.chpClause,
           visitsNo: dataToPass.visitsNo,
+          callDate: dataToPass.callDate,
+          dateOfCall: dataToPass.callDate,
           inspectionDate: dataToPass.inspectionDate,
           createdBy: getCurrentUserId()?.toString(),
           updatedBy: getCurrentUserId()?.toString()
@@ -608,6 +613,7 @@ export default function RawMaterialCertificate({ call = {}, onBack }) {
             qapNo: savedEdit.qapNo || initialData.qapNo,
             chpClause: savedEdit.chpClause || initialData.chpClause,
             visitsNo: savedEdit.visitsNo || initialData.visitsNo,
+            callDate: savedEdit.callDate || savedEdit.dateOfCall || initialData.callDate,
             drgNo: savedEdit.drawingNo || initialData.drgNo,
             manufacturer: savedEdit.manufacturer || initialData.manufacturer,
           };

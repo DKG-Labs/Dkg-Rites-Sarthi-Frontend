@@ -37,6 +37,7 @@ import RailPadVwpqrReport from './railpad-board/RailPadVwpqrReport';
 import RailPadQualityReport from './railpad-board/RailPadQualityReport';
 import ShiftWiseProductionReport from './ShiftWiseProductionReport';
 import PoWiseMonthlyReport from './PoWiseMonthlyReport';
+import ErcRawMaterialReport from './ErcRawMaterialReport';
 import SleeperShiftWiseProductionReport from './sleeper-board/SleeperShiftWiseProductionReport';
 import SqcAnalysis from './SqcAnalysis';
 import PoIssuedModal from './PoIssuedModal';
@@ -2492,6 +2493,8 @@ const ProfessionalCardSection = ({
                                                         return <ShiftWiseProductionReport />;
                                                     case 'pwmr':
                                                         return <PoWiseMonthlyReport fromDate={fromDate} toDate={toDate} selectedZone={selectedZone} onZonesUpdate={onZonesUpdate} />;
+                                                    case 'rmstatus':
+                                                        return <ErcRawMaterialReport />;
                                                     case 'ic_annexures':
                                                         return <DownloadIcAnnexures selectedProduct="ERC" fromDate={fromDate} toDate={toDate} />;
                                                     default:

@@ -651,6 +651,9 @@ const RailwayBoardDashboard = () => {
                                                 {selectedProduct === 'ERC' && (
                                                     <div className={`report-link ${activeReport === 'pwmr' && activeMainCard === 'reports' ? 'active' : ''}`} onClick={() => handleReportLink('pwmr')} style={{ padding: '6px 8px', paddingLeft: '28px', fontSize: '14px' }}>PO Wise Quality Report</div>
                                                 )}
+                                                {selectedProduct === 'ERC' && (
+                                                    <div className={`report-link ${activeReport === 'rmstatus' && activeMainCard === 'reports' ? 'active' : ''}`} onClick={() => handleReportLink('rmstatus')} style={{ padding: '6px 8px', paddingLeft: '28px', fontSize: '14px' }}>Raw Material Status Report</div>
+                                                )}
                                                 {selectedProduct === 'Sleeper' && (
                                                     <div className={`report-link ${activeReport === 'sqr' && activeMainCard === 'reports' ? 'active' : ''}`} onClick={() => handleReportLink('sqr')} style={{ padding: '6px 8px', paddingLeft: '28px', fontSize: '14px' }}>Quality of PSC Sleepers Report</div>
                                                 )}
@@ -783,6 +786,9 @@ const RailwayBoardDashboard = () => {
                                         {selectedProduct === 'ERC' && (
                                             <div className={`report-link ${activeReport === 'pwmr' && activeMainCard === 'reports' ? 'active' : ''}`} onClick={() => handleReportLink('pwmr')}>PO Wise Quality Report</div>
                                         )}
+                                        {selectedProduct === 'ERC' && (
+                                            <div className={`report-link ${activeReport === 'rmstatus' && activeMainCard === 'reports' ? 'active' : ''}`} onClick={() => handleReportLink('rmstatus')}>Raw Material Status Report</div>
+                                        )}
                                         {selectedProduct === 'Sleeper' && (
                                             <div className={`report-link ${activeReport === 'sqr' && activeMainCard === 'reports' ? 'active' : ''}`} onClick={() => handleReportLink('sqr')}>Quality of PSC Sleepers Report</div>
                                         )}
@@ -912,7 +918,7 @@ const RailwayBoardDashboard = () => {
                     )}
 
                     {/* TOPBAR / FILTERS - Hidden on Dashboard (summary), Quality, Lifecycle, Feedback, Scada Monitor, SQC tabs, and ERC/Sleeper SWP Reports, and Lot Wise Closed Loop Reports, and IC Annexures */}
-                    {activeMainCard !== 'cm-module' && activeMainCard !== 'active-login' && activeMainCard !== 'summary' && activeMainCard !== 'quality' && activeMainCard !== 'lifecycle' && activeMainCard !== 'feedback' && activeMainCard !== 'udm' && activeMainCard !== 'scada' && activeMainCard !== 'sqc' && activeMainCard !== 'sleeper-anomaly' && activeMainCard !== 'rejection-scrap' && !(activeMainCard === 'reports' && activeReport === 'swp' && (selectedProduct === 'ERC' || selectedProduct === 'Sleeper')) && !(activeMainCard === 'reports' && activeReport === 'lwcl') && !(activeMainCard === 'reports' && activeReport === 'ic_annexures') && (
+                    {activeMainCard !== 'cm-module' && activeMainCard !== 'active-login' && activeMainCard !== 'summary' && activeMainCard !== 'quality' && activeMainCard !== 'lifecycle' && activeMainCard !== 'feedback' && activeMainCard !== 'udm' && activeMainCard !== 'scada' && activeMainCard !== 'sqc' && activeMainCard !== 'sleeper-anomaly' && activeMainCard !== 'rejection-scrap' && !(activeMainCard === 'reports' && activeReport === 'swp' && (selectedProduct === 'ERC' || selectedProduct === 'Sleeper')) && !(activeMainCard === 'reports' && activeReport === 'lwcl') && !(activeMainCard === 'reports' && activeReport === 'ic_annexures') && !(activeMainCard === 'reports' && activeReport === 'rmstatus') && (
                         <div id="prof-topbar">
                             <label>From</label>
                             <input type="date" value={draftFromDate} onChange={(e) => setDraftFromDate(e.target.value)} />

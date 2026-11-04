@@ -502,6 +502,7 @@ export default function FinalProductCertificate({ call = {}, onBack }) {
               noOfVisits: savedEdit.noOfVisits || initialData.noOfVisits,
               datesOfInspection: savedEdit.datesOfInspection || initialData.datesOfInspection,
               sealingPattern: savedEdit.sealingPattern || initialData.sealingPattern,
+              dateOfCall: savedEdit.dateOfCall || initialData.dateOfCall,
             };
           }
           
@@ -575,6 +576,7 @@ export default function FinalProductCertificate({ call = {}, onBack }) {
           noOfVisits: data.noOfVisits,
           datesOfInspection: data.datesOfInspection,
           sealingPattern: data.sealingPattern,
+          dateOfCall: data.dateOfCall,
           createdBy: getCurrentUserId()?.toString(),
           updatedBy: getCurrentUserId()?.toString()
       });
@@ -720,6 +722,7 @@ export default function FinalProductCertificate({ call = {}, onBack }) {
           noOfVisits: data.noOfVisits,
           datesOfInspection: data.datesOfInspection,
           sealingPattern: data.sealingPattern,
+          dateOfCall: data.dateOfCall,
           createdBy: getCurrentUserId()?.toString(),
           updatedBy: getCurrentUserId()?.toString()
       });
@@ -834,6 +837,7 @@ export default function FinalProductCertificate({ call = {}, onBack }) {
           noOfVisits: savedEdit.noOfVisits || initialData.noOfVisits,
           datesOfInspection: savedEdit.datesOfInspection || initialData.datesOfInspection,
           sealingPattern: savedEdit.sealingPattern || initialData.sealingPattern,
+          dateOfCall: savedEdit.dateOfCall || initialData.dateOfCall,
         };
       }
     }

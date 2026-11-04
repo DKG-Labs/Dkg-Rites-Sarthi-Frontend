@@ -154,6 +154,7 @@ export default function ProcessMaterialCertificate({ call = {}, onBack }) {
               description: savedEdit.description || initialData.description,
               placeOfInspection: savedEdit.placeOfInspection || initialData.placeOfInspection,
               uom: savedEdit.uom || initialData.uom,
+              callDate: savedEdit.callDate || savedEdit.dateOfCall || initialData.callDate,
               lots: restoredLots,
             };
           }
@@ -240,6 +241,8 @@ export default function ProcessMaterialCertificate({ call = {}, onBack }) {
           qapNo: dataToPass.qapNo,
           chpClause: dataToPass.chpClause,
           inspectionDate: dataToPass.inspectionDate,
+          callDate: dataToPass.callDate,
+          dateOfCall: dataToPass.callDate,
           manDays: dataToPass.manDays,
           lotDetails: JSON.stringify(dataToPass.lots || []),
           createdBy: getCurrentUserId()?.toString(),
@@ -462,6 +465,8 @@ export default function ProcessMaterialCertificate({ call = {}, onBack }) {
           qapNo: dataToPass.qapNo,
           chpClause: dataToPass.chpClause,
           inspectionDate: dataToPass.inspectionDate,
+          callDate: dataToPass.callDate,
+          dateOfCall: dataToPass.callDate,
           manDays: dataToPass.manDays,
           lotDetails: JSON.stringify(dataToPass.lots || []),
           createdBy: getCurrentUserId()?.toString(),
@@ -560,6 +565,7 @@ export default function ProcessMaterialCertificate({ call = {}, onBack }) {
           billPayingOfficer: savedEdit.billPayingOfficer || initialData.billPayingOfficer,
           purchasingAuthority: savedEdit.purchasingAuthority || initialData.purchasingAuthority,
           description: savedEdit.description || initialData.description,
+          callDate: savedEdit.callDate || savedEdit.dateOfCall || initialData.callDate,
           lots: restoredLots,
         };
       }

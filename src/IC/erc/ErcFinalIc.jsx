@@ -6,7 +6,7 @@ const allowedFields = [
   "billPayingOfficer", "consignee", "purchasingAuthority", "description", 
   "qtyOfferedPreviously", "qtyPassedPreviously", "qtyStillDue", "trRecDate",
   "quantityNowPassedText", "noOfVisits", "datesOfInspection", "sealingPattern",
-  "facsimileText", "reasonsForRejection", "inspectingEngineer"
+  "facsimileText", "reasonsForRejection", "inspectingEngineer", "dateOfCall"
 ];
 
 // Editable field component moved outside to prevent re-mounting
@@ -31,7 +31,7 @@ const EditableField = ({ value, fieldName, placeholder = "", className = "", typ
         value={value ?? ""}
         onChange={(e) => onFieldChange(fieldName, e.target.value)}
         placeholder={placeholder}
-        className={`w-full p-0.5 border border-blue-400 bg-blue-50 text-sm text-center font-bold`}
+        className={`w-full p-0.5 border border-blue-400 bg-blue-50 text-[10px] text-center font-bold ${className}`}
         style={type === "inline" ? { display: "inline-block", width: "80px" } : {}}
         disabled={disabled || isBusy}
         maxLength={maxLength}

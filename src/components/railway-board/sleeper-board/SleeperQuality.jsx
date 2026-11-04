@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import reportService from '../../../services/reportService';
 import {
     PieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer,

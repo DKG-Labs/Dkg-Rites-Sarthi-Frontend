@@ -86,8 +86,13 @@ const PortalHome = ({
   const roleInput = user?.roleName || localStorage.getItem('roleName') || '';
   const roleLower = (Array.isArray(roleInput) ? roleInput.join(' ') : String(roleInput)).toLowerCase();
 
-  const hasProcessAccess = roleLower.includes('process ie') || roleLower.includes('rail process ie') || roleLower === 'railpad ie' || isProcessIeMapped;
-  const hasMainAccess = roleLower.includes('main ie') || roleLower.includes('rail main ie') || roleLower === 'railpad ie' || isMainIeMapped;
+  // The login role (user_role_master) decides access. IE mappings are only a fallback
+  // for users whose role does not say Main or Process (e.g. a generic "Railpad IE").
+  const roleHasProcess = roleLower.includes('process ie');
+  const roleHasMain = roleLower.includes('main ie');
+  const roleIsSpecific = roleHasProcess || roleHasMain;
+  const hasProcessAccess = roleHasProcess || roleLower === 'railpad ie' || (!roleIsSpecific && isProcessIeMapped);
+  const hasMainAccess = roleHasMain || roleLower === 'railpad ie' || (!roleIsSpecific && isMainIeMapped);
 
   const dutyPlantId = hasMainAccess ? null : (currentShift?.unit || null);
   const [showShiftForm, setShowShiftForm] = useState(false);
@@ -166,21 +171,19 @@ const PortalHome = ({
         if (allPlants && allPlants.length > 0) {
           setMappedPlants(allPlants);
         }
-        if ((mainPlants && mainPlants.length > 0) || (allPlants && allPlants.length > 0)) {
-          setIsMainIeMapped(true);
-        }
-        if (processPlants && processPlants.length > 0) {
-          setIsProcessIeMapped(true);
-        }
+        // Main IE only from a real MAIN_IE mapping; a Process IE mapping must not unlock the Main IE portal
+        const hasMainMapping = !!(mainPlants && mainPlants.length > 0);
+        setIsMainIeMapped(hasMainMapping);
+        setIsProcessIeMapped(!!(processPlants && processPlants.length > 0));
 
-        // Fetch plant declaration pending count (Module 1) filtered by mapped plants
-        if (roleLower.includes('main ie') || roleLower.includes('rail main ie') || (allPlants && allPlants.length > 0)) {
+        // Fetch plant declaration pending count (Module 1) filtered by the Main IE plants
+        if (roleLower.includes('main ie') || roleLower.includes('rail main ie') || hasMainMapping) {
           setLoadingCounts(true);
           try {
             const plantPendingRes = await fetchPendingWorkflowTransitions('Rail Main IE', '', 1).catch(() => []);
             let rpPlantPending = (plantPendingRes || []).filter(c => c.requestId);
 
-            const targetPlants = (allPlants && allPlants.length > 0) ? allPlants : (mainPlants || []);
+            const targetPlants = hasMainMapping ? mainPlants : (allPlants || []);
             if (targetPlants && targetPlants.length > 0) {
               rpPlantPending = rpPlantPending.filter(c => c.plantId && targetPlants.some(p => isPlantIdMatching(c.plantId, p)));
             }

@@ -2218,7 +2218,8 @@ textarea:focus {
 }
 
 /* Override the global select look (40px tall, big arrow padding) so it matches the page buttons */
-.tv-pager-size select {
+.tv-pager-size select,
+.rb-pg-size {
     width: auto !important;
     min-width: 64px;
     height: 34px !important;

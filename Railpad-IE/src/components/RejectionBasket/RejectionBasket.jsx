@@ -57,8 +57,8 @@ const Icon = {
   ),
 };
 
-const SortTh = ({ col, label, sort, onSort, num }) => (
-  <th className={`rb-sortable ${num ? 'rb-num' : ''} ${sort.col === col ? 'rb-sorted' : ''}`} onClick={() => onSort(col)}>
+const SortTh = ({ col, label, sort, onSort, num, style }) => (
+  <th className={`rb-sortable ${num ? 'rb-num' : ''} ${sort.col === col ? 'rb-sorted' : ''}`} onClick={() => onSort(col)} style={style}>
     {label}
     <span className="rb-sort-icon">{sort.col === col ? (sort.dir === 'asc' ? '▲' : '▼') : '⇅'}</span>
   </th>
@@ -88,25 +88,85 @@ const Empty = ({ cols, title, sub }) => (
   </tr>
 );
 
-/** Pager in the same style as the ERC Rejection & Disposal screen. */
+/** Modern Pager with clean layout, dropdown styling, and sleek chevron nav controls. */
 const Pager = ({ page, setPage, pageSize, setPageSize, total, unit }) => {
   if (!total) return null;
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
+  const startRow = Math.min((page - 1) * pageSize + 1, total);
+  const endRow = Math.min(page * pageSize, total);
+
   return (
     <div className="rb-pagination">
       <div className="rb-pg-info">
-        Showing {Math.min((page - 1) * pageSize + 1, total)}–{Math.min(page * pageSize, total)} of {total} {unit}
+        Showing <span className="rb-pg-num">{startRow}</span>–<span className="rb-pg-num">{endRow}</span> of <span className="rb-pg-num">{total}</span> {unit}
       </div>
       <div className="rb-pg-controls">
-        <span className="rb-pg-label">Rows per page:</span>
-        <select className="rb-pg-size" value={pageSize} onChange={e => setPageSize(Number(e.target.value))}>
-          {PAGE_SIZES.map(s => <option key={s} value={s}>{s}</option>)}
-        </select>
-        <button className="rb-pg-btn" onClick={() => setPage(1)} disabled={page === 1}>«</button>
-        <button className="rb-pg-btn" onClick={() => setPage(p => p - 1)} disabled={page === 1}>‹</button>
-        <span className="rb-pg-current">Page {page} / {totalPages}</span>
-        <button className="rb-pg-btn" onClick={() => setPage(p => p + 1)} disabled={page >= totalPages}>›</button>
-        <button className="rb-pg-btn" onClick={() => setPage(totalPages)} disabled={page >= totalPages}>»</button>
+        <div className="rb-pg-size-wrap">
+          <span className="rb-pg-label">Rows per page:</span>
+          <select
+            className="rb-pg-size"
+            value={pageSize}
+            onChange={e => setPageSize(Number(e.target.value))}
+            aria-label="Rows per page"
+          >
+            {PAGE_SIZES.map(s => <option key={s} value={s}>{s}</option>)}
+          </select>
+        </div>
+        <div className="rb-pg-nav">
+          <button
+            type="button"
+            className="rb-pg-btn"
+            onClick={() => setPage(1)}
+            disabled={page === 1}
+            title="First page"
+            aria-label="First page"
+          >
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+              <polyline points="11 17 6 12 11 7" />
+              <polyline points="18 17 13 12 18 7" />
+            </svg>
+          </button>
+          <button
+            type="button"
+            className="rb-pg-btn"
+            onClick={() => setPage(p => Math.max(1, p - 1))}
+            disabled={page === 1}
+            title="Previous page"
+            aria-label="Previous page"
+          >
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+              <polyline points="15 18 9 12 15 6" />
+            </svg>
+          </button>
+          <span className="rb-pg-current">
+            Page <span className="rb-pg-current-val">{page}</span> of <span className="rb-pg-total-val">{totalPages}</span>
+          </span>
+          <button
+            type="button"
+            className="rb-pg-btn"
+            onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+            disabled={page >= totalPages}
+            title="Next page"
+            aria-label="Next page"
+          >
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+              <polyline points="9 18 15 12 9 6" />
+            </svg>
+          </button>
+          <button
+            type="button"
+            className="rb-pg-btn"
+            onClick={() => setPage(totalPages)}
+            disabled={page >= totalPages}
+            title="Last page"
+            aria-label="Last page"
+          >
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+              <polyline points="13 17 18 12 13 7" />
+              <polyline points="6 17 11 12 6 7" />
+            </svg>
+          </button>
+        </div>
       </div>
     </div>
   );
@@ -203,7 +263,9 @@ export default function RejectionBasket({ readOnly = false }) {
   const plants = useMemo(() => [...new Map(rows
     .filter(r => !fManufacturer || r.manufacturer === fManufacturer)
     .map(r => [r.plantId, r.placeOfInspection || r.plantId])).entries()], [rows, fManufacturer]);
-  const products = useMemo(() => [...new Set(rows.map(r => r.productType).filter(Boolean))].sort(), [rows]);
+  const products = useMemo(() => [...new Set(rows
+    .filter(r => !fManufacturer || r.manufacturer === fManufacturer)
+    .map(r => r.productType).filter(Boolean))].sort(), [rows, fManufacturer]);
 
   const visible = useMemo(() => {
     const filtered = rows.filter(r =>
@@ -557,28 +619,52 @@ export default function RejectionBasket({ readOnly = false }) {
         <div className="rb-filters rb-filters--bar">
           <div className="rb-field">
             <label>Manufacturer</label>
-            <select value={fManufacturer} onChange={e => { setFManufacturer(e.target.value); setFPlant(''); }}>
+            <select
+              value={fManufacturer}
+              onChange={e => {
+                const val = e.target.value;
+                setFManufacturer(val);
+                setFPlant('');
+                setFProduct('');
+                setFStatus('');
+              }}
+            >
               <option value="">All manufacturers</option>
               {manufacturers.map(m => <option key={m} value={m}>{m}</option>)}
             </select>
           </div>
-          <div className="rb-field">
+          <div className={`rb-field ${!fManufacturer ? 'rb-field--disabled' : ''}`}>
             <label>Plant</label>
-            <select value={fPlant} onChange={e => setFPlant(e.target.value)}>
+            <select
+              value={fPlant}
+              onChange={e => setFPlant(e.target.value)}
+              disabled={!fManufacturer}
+              title={!fManufacturer ? 'Select manufacturer first' : ''}
+            >
               <option value="">All plants</option>
               {plants.map(([id, name]) => <option key={id} value={id}>{name}</option>)}
             </select>
           </div>
-          <div className="rb-field">
+          <div className={`rb-field ${!fManufacturer ? 'rb-field--disabled' : ''}`}>
             <label>Product Type</label>
-            <select value={fProduct} onChange={e => setFProduct(e.target.value)}>
+            <select
+              value={fProduct}
+              onChange={e => setFProduct(e.target.value)}
+              disabled={!fManufacturer}
+              title={!fManufacturer ? 'Select manufacturer first' : ''}
+            >
               <option value="">All product types</option>
               {products.map(p => <option key={p} value={p}>{p}</option>)}
             </select>
           </div>
-          <div className="rb-field">
+          <div className={`rb-field ${!fManufacturer ? 'rb-field--disabled' : ''}`}>
             <label>Status</label>
-            <select value={fStatus} onChange={e => setFStatus(e.target.value)}>
+            <select
+              value={fStatus}
+              onChange={e => setFStatus(e.target.value)}
+              disabled={!fManufacturer}
+              title={!fManufacturer ? 'Select manufacturer first' : ''}
+            >
               <option value="">All statuses</option>
               <option value="PENDING">Pending</option>
               <option value="CLEARED">Cleared</option>
@@ -589,19 +675,20 @@ export default function RejectionBasket({ readOnly = false }) {
 
       {error && <div className="rb-error">{error}</div>}
 
-      <div className="rb-table-wrap">
+      <div className="rb-table-card">
+        <div className="rb-table-wrap">
         <table className="rb-table">
           <thead>
             <tr>
-              <th style={{ width: 48 }}>S.No</th>
-              <SortTh col="manufacturer" label="Manufacturer & Plant" sort={sort} onSort={onSort} />
-              <SortTh col="productType" label="Product Type" sort={sort} onSort={onSort} />
-              <SortTh col="productionLast30Days" label="Production (30 d)" sort={sort} onSort={onSort} num />
-              <SortTh col="rejectedLast30Days" label="Rejected (30 d)" sort={sort} onSort={onSort} num />
-              <SortTh col="pendingScrapQty" label="Pending Scrap" sort={sort} onSort={onSort} num />
-              <SortTh col="lastScrapDate" label="Last Scrap Verification" sort={sort} onSort={onSort} />
-              <th>Status</th>
-              <th style={{ width: 40 }}></th>
+              <th style={{ width: 44, minWidth: 44, textAlign: 'center' }}>S.No</th>
+              <SortTh col="manufacturer" label="Manufacturer & Plant" sort={sort} onSort={onSort} style={{ minWidth: 200 }} />
+              <SortTh col="productType" label="Product Type" sort={sort} onSort={onSort} style={{ minWidth: 130 }} />
+              <SortTh col="productionLast30Days" label="Production (30 d)" sort={sort} onSort={onSort} num style={{ minWidth: 120 }} />
+              <SortTh col="rejectedLast30Days" label="Rejected (30 d)" sort={sort} onSort={onSort} num style={{ minWidth: 110 }} />
+              <SortTh col="pendingScrapQty" label="Pending Scrap" sort={sort} onSort={onSort} num style={{ minWidth: 120 }} />
+              <SortTh col="lastScrapDate" label="Last Scrap Verification" sort={sort} onSort={onSort} style={{ minWidth: 140 }} />
+              <th style={{ minWidth: 175, whiteSpace: 'nowrap' }}>Status</th>
+              <th style={{ width: 36, minWidth: 36, textAlign: 'center' }}></th>
             </tr>
           </thead>
           <tbody>
@@ -639,14 +726,20 @@ export default function RejectionBasket({ readOnly = false }) {
                         </div>
                       </td>
                       <td className="rb-date">{r.lastScrapDate ? fmtDate(r.lastScrapDate) : '—'}</td>
-                      <td>
-                        <span className={`rb-status ${pending ? 'rb-status--pending' : 'rb-status--done'}`}>{pending ? 'Pending' : 'Cleared'}</span>
-                        {!readOnly && r.canScrap && pending && (
-                          <button className="rb-btn rb-btn--sm rb-btn--primary rb-row-action"
-                            onClick={(e) => { e.stopPropagation(); openDetail(r); setShowAdd(true); }}>
-                            + Scrap
-                          </button>
-                        )}
+                      <td className="rb-status-cell">
+                        <div className="rb-status-wrap">
+                          <span className={`rb-status ${pending ? 'rb-status--pending' : 'rb-status--done'}`}>{pending ? 'Pending' : 'Cleared'}</span>
+                          {!readOnly && r.canScrap && pending && (
+                            <button
+                              type="button"
+                              className="rb-btn rb-btn--sm rb-btn--primary rb-row-action"
+                              onClick={(e) => { e.stopPropagation(); openDetail(r); setShowAdd(true); }}
+                              title="Witness and record scrap verification"
+                            >
+                              + Scrap
+                            </button>
+                          )}
+                        </div>
                       </td>
                       <td><span className="rb-row-arrow">›</span></td>
                     </tr>
@@ -655,8 +748,8 @@ export default function RejectionBasket({ readOnly = false }) {
           </tbody>
         </table>
       </div>
-
-      {!loading && <Pager {...basketPg} total={visible.length} unit="rows" />}
+        {!loading && <Pager {...basketPg} total={visible.length} unit="rows" />}
+      </div>
 
       {modals}
     </div>

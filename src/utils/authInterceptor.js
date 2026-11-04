@@ -187,6 +187,7 @@ export const setupAuthInterceptor = () => {
     window.__sarthiAuthInterceptorInstalled = true;
 
     const originalFetch = window.fetch;
+    const inflightGets = new Map();
 
     window.fetch = async function (input, init = {}) {
         let url = '';
@@ -245,7 +246,24 @@ export const setupAuthInterceptor = () => {
         }
 
         try {
-            const response = await originalFetch.apply(this, [input, init]);
+            // De-duplicate identical GET requests that are in flight at the same time (React StrictMode runs
+            // every effect twice in dev, and several components can ask for the same report). They share ONE
+            // network call; each caller gets its own clone of the response so every body can still be read.
+            const isRequestObj = typeof Request !== 'undefined' && input instanceof Request;
+            const method = String((init && init.method) || (isRequestObj ? input.method : 'GET')).toUpperCase();
+            const canShare = method === 'GET' && !isRequestObj && !(init && init.signal) && url;
+
+            let response;
+            if (canShare) {
+                let shared = inflightGets.get(url);
+                if (!shared) {
+                    shared = originalFetch.apply(this, [input, init]).finally(() => inflightGets.delete(url));
+                    inflightGets.set(url, shared);
+                }
+                response = (await shared).clone();
+            } else {
+                response = await originalFetch.apply(this, [input, init]);
+            }
             if (response && response.status === 401) {
                 notifySessionExpired(url);
             }

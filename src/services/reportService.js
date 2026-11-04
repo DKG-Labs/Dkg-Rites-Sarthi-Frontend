@@ -782,6 +782,16 @@ const reportService = {
      * @param {Object} params - { startDate, endDate }
      */
     getSleeperQualityReport: async (params) => {
+        // Share one in-flight request between callers with identical params (the report can mount and fetch twice)
+        const key = JSON.stringify([params?.startDate, params?.endDate, params?.zone]);
+        const inflight = (reportService._qualityInflight ||= new Map());
+        if (inflight.has(key)) return inflight.get(key);
+        const promise = reportService._fetchSleeperQualityReport(params).finally(() => inflight.delete(key));
+        inflight.set(key, promise);
+        return promise;
+    },
+
+    _fetchSleeperQualityReport: async (params) => {
         const { startDate, endDate, zone } = params || {};
 
         const formatDate = (dateStr) => {

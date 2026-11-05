@@ -14,6 +14,7 @@ import ProfessionalCardSection from '../components/railway-board/ProfessionalCar
 import UdmRejectionDashboard from '../components/railway-board/UdmRejectionDashboard';
 import ActiveLoginDashboard from '../components/railway-board/ActiveLoginDashboard';
 import RailwayBoardRejectionScrap from '../components/railway-board/RailwayBoardRejectionScrap';
+import OrgStructureViewer, { getOrgStructurePdf } from '../components/railway-board/OrgStructureViewer';
 import { exportDashboardScreenToPdf } from '../utils/dashboardPdfExport';
 
 
@@ -121,6 +122,17 @@ const RailwayBoardDashboard = () => {
 
     const handleDownloadDashboardPdf = async () => {
         if (isExportingPdf) return;
+        if (activeMainCard === 'org-structure') {
+            const doc = getOrgStructurePdf(selectedProduct);
+            const fileName = 'SARTHI_Contact_Details-' + doc.title.replace(/\s+/g, '_') + '.pdf';
+            const link = document.createElement('a');
+            link.href = doc.url;
+            link.download = fileName;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            return;
+        }
         setIsExportingPdf(true);
         try {
             const captureArea = document.getElementById('dashboard-capture-area') || document.getElementById('prof-content-area');
@@ -609,7 +621,7 @@ const RailwayBoardDashboard = () => {
                     <div style={{ padding: '0 0 20px', flex: 1, overflowY: 'auto' }}>
                         {isRitesAdmin ? (
                             <>
-                                <div className={`nav-item ${['summary', 'quality', 'lifecycle', 'performance', 'reports', 'sqc', 'scada', 'feedback', 'udm', 'active-login', 'rejection-scrap'].includes(activeMainCard) ? 'active' : ''}`} onClick={() => {
+                                <div className={`nav-item ${['summary', 'quality', 'lifecycle', 'performance', 'reports', 'sqc', 'scada', 'feedback', 'udm', 'active-login', 'rejection-scrap', 'org-structure'].includes(activeMainCard) ? 'active' : ''}`} onClick={() => {
                                     setIsRailwayNavOpen(!isRailwayNavOpen);
                                     if (!isRailwayNavOpen) setIsCmDropdownOpen(false);
                                 }}>
@@ -675,6 +687,9 @@ const RailwayBoardDashboard = () => {
                                         </div>
                                         <div className={`report-link ${activeMainCard === 'rejection-scrap' ? 'active' : ''}`} onClick={() => handleSwitchTab('rejection-scrap')} style={{ fontSize: '15px' }}>
                                             <i className="fa-solid fa-trash-can-arrow-up" style={{ marginRight: '8px' }}></i>Rejection &amp; Disposal
+                                        </div>
+                                        <div className={`report-link ${activeMainCard === 'org-structure' ? 'active' : ''}`} onClick={() => handleSwitchTab('org-structure')} style={{ fontSize: '15px' }}>
+                                            <i className="fa-solid fa-address-book" style={{ marginRight: '8px' }}></i>Contact Details
                                         </div>
                                         <div className={`report-link ${activeMainCard === 'udm' ? 'active' : ''}`} onClick={() => handleSwitchTab('udm')} style={{ fontSize: '15px' }}>
                                             <i className="fa-solid fa-triangle-exclamation" style={{ marginRight: '8px' }}></i>UDM Rejections
@@ -810,6 +825,9 @@ const RailwayBoardDashboard = () => {
                                 <div className={`nav-item ${activeMainCard === 'rejection-scrap' ? 'active' : ''}`} onClick={() => handleSwitchTab('rejection-scrap')}>
                                     <i className="fa-solid fa-trash-can-arrow-up"></i> {!isSidebarCollapsed && <span>Rejection &amp; Disposal</span>}
                                 </div>
+                                <div className={`nav-item ${activeMainCard === 'org-structure' ? 'active' : ''}`} onClick={() => handleSwitchTab('org-structure')}>
+                                    <i className="fa-solid fa-address-book"></i> {!isSidebarCollapsed && <span>Contact Details</span>}
+                                </div>
                                 <div className={`nav-item ${activeMainCard === 'udm' ? 'active' : ''}`} onClick={() => handleSwitchTab('udm')}>
                                     <i className="fa-solid fa-triangle-exclamation"></i> {!isSidebarCollapsed && <span>UDM Rejections</span>}
                                 </div>
@@ -842,26 +860,28 @@ const RailwayBoardDashboard = () => {
                             </div>
                             
                             <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
-                                <button 
-                                    onClick={handleDataRefresh} 
-                                    style={{ 
-                                        padding: '6px 12px', 
-                                        backgroundColor: '#10b981', 
-                                        color: 'white', 
-                                        border: 'none', 
-                                        borderRadius: '6px', 
-                                        cursor: 'pointer',
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        gap: '6px',
-                                        fontSize: '13px',
-                                        fontWeight: '500',
-                                        boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
-                                    }}
-                                    title="Refresh dashboard data"
-                                >
-                                    <i className="fa-solid fa-arrows-rotate"></i> Refresh Data
-                                </button>
+                                {activeMainCard !== 'org-structure' && (
+                                    <button 
+                                        onClick={handleDataRefresh} 
+                                        style={{ 
+                                            padding: '6px 12px', 
+                                            backgroundColor: '#10b981', 
+                                            color: 'white', 
+                                            border: 'none', 
+                                            borderRadius: '6px', 
+                                            cursor: 'pointer',
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            gap: '6px',
+                                            fontSize: '13px',
+                                            fontWeight: '500',
+                                            boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
+                                        }}
+                                        title="Refresh dashboard data"
+                                    >
+                                        <i className="fa-solid fa-arrows-rotate"></i> Refresh Data
+                                    </button>
+                                )}
                                 <button 
                                     onClick={handleDownloadDashboardPdf}
                                     disabled={isExportingPdf}
@@ -918,7 +938,7 @@ const RailwayBoardDashboard = () => {
                     )}
 
                     {/* TOPBAR / FILTERS - Hidden on Dashboard (summary), Quality, Lifecycle, Feedback, Scada Monitor, SQC tabs, and ERC/Sleeper SWP Reports, and Lot Wise Closed Loop Reports, and IC Annexures */}
-                    {activeMainCard !== 'cm-module' && activeMainCard !== 'active-login' && activeMainCard !== 'summary' && activeMainCard !== 'quality' && activeMainCard !== 'lifecycle' && activeMainCard !== 'feedback' && activeMainCard !== 'udm' && activeMainCard !== 'scada' && activeMainCard !== 'sqc' && activeMainCard !== 'sleeper-anomaly' && activeMainCard !== 'rejection-scrap' && !(activeMainCard === 'reports' && activeReport === 'swp' && (selectedProduct === 'ERC' || selectedProduct === 'Sleeper')) && !(activeMainCard === 'reports' && activeReport === 'lwcl') && !(activeMainCard === 'reports' && activeReport === 'ic_annexures') && !(activeMainCard === 'reports' && activeReport === 'rmstatus') && (
+                    {activeMainCard !== 'cm-module' && activeMainCard !== 'active-login' && activeMainCard !== 'summary' && activeMainCard !== 'quality' && activeMainCard !== 'lifecycle' && activeMainCard !== 'feedback' && activeMainCard !== 'udm' && activeMainCard !== 'scada' && activeMainCard !== 'sqc' && activeMainCard !== 'sleeper-anomaly' && activeMainCard !== 'rejection-scrap' && activeMainCard !== 'org-structure' && !(activeMainCard === 'reports' && activeReport === 'swp' && (selectedProduct === 'ERC' || selectedProduct === 'Sleeper')) && !(activeMainCard === 'reports' && activeReport === 'lwcl') && !(activeMainCard === 'reports' && activeReport === 'ic_annexures') && !(activeMainCard === 'reports' && activeReport === 'rmstatus') && (
                         <div id="prof-topbar">
                             <label>From</label>
                             <input type="date" value={draftFromDate} onChange={(e) => setDraftFromDate(e.target.value)} />
@@ -984,6 +1004,8 @@ const RailwayBoardDashboard = () => {
                                 <ActiveLoginDashboard />
                             ) : activeMainCard === 'rejection-scrap' ? (
                                 <RailwayBoardRejectionScrap selectedProduct={selectedProduct} />
+                            ) : activeMainCard === 'org-structure' ? (
+                                <OrgStructureViewer selectedProduct={selectedProduct} />
                             ) : activeMainCard === 'cm-module' ? (
                                 <CMDashboardPage isEmbedded={true} activeTabFromProps={cmActiveTab} activeCallFilterFromProps={cmActiveCallFilter} />
                             ) : (

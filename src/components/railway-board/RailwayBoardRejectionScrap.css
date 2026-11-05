@@ -344,6 +344,7 @@
 
 .rbrs-table {
   width: 100%;
+  min-width: 860px;
   border-collapse: collapse;
   font-size: 14px;
 }

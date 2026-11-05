@@ -1,0 +1,46 @@
+/* Modern in-app PDF viewer (ppv- prefix), light theme */
+.ppv { display: flex; flex-direction: column; background: #fff; border: 1px solid #e2e8f0; border-radius: 14px; box-shadow: 0 1px 2px rgba(15,23,42,.04), 0 8px 24px rgba(15,23,42,.05); overflow: hidden; }
+
+.ppv-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; padding: 10px 14px; border-bottom: 1px solid #eef2f7; background: #fbfcfe; }
+.ppv-doc { display: flex; align-items: center; gap: 10px; min-width: 0; flex: 1 1 200px; }
+.ppv-doc-icon { flex-shrink: 0; padding: 4px 7px; border-radius: 6px; background: #fef2f2; color: #dc2626; font-size: 10px; font-weight: 800; letter-spacing: .04em; }
+.ppv-doc-name { font-size: 13.5px; font-weight: 600; color: #1e293b; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.ppv-controls { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.ppv-group { display: inline-flex; align-items: center; gap: 2px; padding: 3px; background: #fff; border: 1px solid #e2e8f0; border-radius: 10px; }
+.ppv-icon-btn { width: 30px; height: 30px; border: none; background: none; border-radius: 7px; font-size: 18px; line-height: 1; color: #475569; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; transition: background .12s, color .12s; }
+.ppv-icon-btn:hover:not(:disabled) { background: #f1f5f9; color: #0f172a; }
+.ppv-icon-btn:disabled { opacity: .35; cursor: not-allowed; }
+.ppv-pages, .ppv-zoom { min-width: 54px; text-align: center; font-size: 12.5px; font-weight: 600; color: #334155; font-variant-numeric: tabular-nums; }
+.ppv-text-btn { height: 30px; padding: 0 10px; border: none; background: none; border-radius: 7px; font-size: 12px; font-weight: 600; color: #0f766e; cursor: pointer; }
+.ppv-text-btn:hover:not(:disabled) { background: #f0fdfa; }
+.ppv-text-btn:disabled { color: #94a3b8; cursor: default; }
+
+.ppv-actions { display: flex; gap: 8px; }
+.ppv-btn { height: 34px; padding: 0 14px; display: inline-flex; align-items: center; justify-content: center; border-radius: 8px; border: 1.5px solid #cbd5e1; background: #fff; color: #475569; font-weight: 600; font-size: 12.5px; text-decoration: none; transition: all .15s; white-space: nowrap; }
+.ppv-btn:hover { background: #f1f5f9; border-color: #94a3b8; color: #1e293b; }
+.ppv-btn--primary { background: #0f766e; border-color: #0f766e; color: #fff; }
+.ppv-btn--primary:hover { background: #115e59; border-color: #115e59; color: #fff; }
+
+.ppv-scroll { height: calc(100vh - 250px); min-height: 480px; overflow: auto; padding: 20px 16px 28px; background: #f1f5f9; display: flex; flex-direction: column; align-items: center; gap: 18px; scroll-behavior: smooth; }
+.ppv-scroll::-webkit-scrollbar { width: 8px; height: 8px; }
+.ppv-scroll::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+.ppv-loading { display: flex; flex-direction: column; align-items: center; gap: 18px; }
+
+.ppv-page { position: relative; flex-shrink: 0; background: #fff; border-radius: 6px; box-shadow: 0 1px 3px rgba(15,23,42,.08), 0 6px 20px rgba(15,23,42,.08); overflow: hidden; }
+.ppv-canvas { display: block; transition: opacity .2s ease; }
+.ppv-page-skeleton { position: absolute; inset: 0; background: linear-gradient(90deg, #f8fafc 25%, #eef2f7 50%, #f8fafc 75%); background-size: 400% 100%; animation: ppv-shimmer 1.4s ease infinite; }
+@keyframes ppv-shimmer { 0% { background-position: 100% 50%; } 100% { background-position: 0% 50%; } }
+.ppv-page-no { position: absolute; right: 10px; bottom: 8px; padding: 2px 8px; border-radius: 999px; background: rgba(15,23,42,.06); color: #64748b; font-size: 11px; font-weight: 600; }
+
+.ppv-message { margin: auto; text-align: center; color: #64748b; display: flex; flex-direction: column; align-items: center; gap: 10px; }
+.ppv-message-icon { font-size: 34px; }
+.ppv-message p { margin: 0; font-weight: 600; color: #374151; }
+
+@media (max-width: 700px) {
+  .ppv-toolbar { padding: 10px; }
+  .ppv-controls { width: 100%; justify-content: space-between; }
+  .ppv-actions { width: 100%; }
+  .ppv-actions .ppv-btn { flex: 1; }
+  .ppv-scroll { height: calc(100vh - 300px); min-height: 380px; padding: 12px 8px 20px; gap: 12px; }
+}

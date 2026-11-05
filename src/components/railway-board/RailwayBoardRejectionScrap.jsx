@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useMemo } from 'react';
 import { getBoardSummary, getLedger, getRejectionBreakup } from '../../services/scrapEntryService';
 import ScrapLedgerTable from '../rejection-scrapping/ScrapLedgerTable';
 import RejectionBreakupModal from './RejectionBreakupModal';
-import RailpadRejectionBasket from '../railpad-rejection-basket/RejectionBasket';
+import { getRejectionBasket, getScrapLedger } from '../../services/railpadScrapService';
 import './RailwayBoardRejectionScrap.css';
 
 function SearchableSelect({ label, value, onChange, options, placeholder = 'All', disabled = false, searchable = true }) {
@@ -179,23 +179,84 @@ export default function RailwayBoardRejectionScrap({ selectedProduct }) {
   const PAGE_SIZES = [10, 15, 25, 50];
 
   useEffect(() => {
-    if (selectedProduct !== 'ERC') return;
-    setSummaryLoading(true);
-    setSummaryError('');
-    getBoardSummary('ERC')
-      .then(data => setSummaryRows(data || []))
-      .catch(e => setSummaryError(e.message || 'Failed to load summary'))
-      .finally(() => setSummaryLoading(false));
+    setView('list');
+    setSelectedPoi(null);
+    setLedgerData(null);
+    setFilterCompany('');
+    setFilterPlant('');
+    setFilterStatus('ALL');
+
+    if (selectedProduct === 'ERC') {
+      setSummaryLoading(true);
+      setSummaryError('');
+      getBoardSummary('ERC')
+        .then(data => setSummaryRows(data || []))
+        .catch(e => setSummaryError(e.message || 'Failed to load summary'))
+        .finally(() => setSummaryLoading(false));
+    } else if (selectedProduct === 'Rail Pad') {
+      setSummaryLoading(true);
+      setSummaryError('');
+      getRejectionBasket()
+        .then(data => {
+          const mapped = (data || []).map((r, idx) => ({
+            rowKey: `${r.plantId}|${r.productType || ''}|${idx}`,
+            poiCode: r.plantId,
+            companyName: r.manufacturer || r.vendorCode || r.plantId,
+            unitName: r.placeOfInspection || r.plantId,
+            productType: r.productType || '',
+            totalRejected: Number(r.totalRejected || 0),
+            totalScrapped: Number(r.totalScrapped || 0),
+            pendingBalance: Number(r.pendingScrapQty || 0),
+            lastScrappingDate: r.lastScrapDate || '—',
+            raw: r,
+          }));
+          setSummaryRows(mapped);
+        })
+        .catch(e => setSummaryError(e.message || 'Failed to load summary'))
+        .finally(() => setSummaryLoading(false));
+    } else {
+      setSummaryRows([]);
+    }
   }, [selectedProduct]);
 
   useEffect(() => {
     if (view !== 'detail' || !selectedPoi) return;
     setLedgerLoading(true);
-    getLedger(selectedPoi.poiCode)
-      .then(data => setLedgerData(data))
-      .catch(() => setLedgerData(null))
-      .finally(() => setLedgerLoading(false));
-  }, [view, selectedPoi]);
+    if (selectedProduct === 'Rail Pad') {
+      getScrapLedger({ plantId: selectedPoi.poiCode, productType: selectedPoi.productType })
+        .then(data => {
+          const mappedRows = (data?.rows || []).map((r, i) => ({
+            rowType: r.rowType,
+            entryId: r.verificationId || r.sourceId || i,
+            entryDate: r.date || '—',
+            shift: r.callOrShift || '—',
+            unitLineShedNo: r.reference || '—',
+            stageOfInspection: r.stage || (r.transactionType && r.transactionType.includes('Process') ? 'Process' : r.transactionType && r.transactionType.includes('Final') ? 'Final' : '—'),
+            rejectedQty: r.rejectedQty,
+            scrappedQty: r.scrappedQty,
+            pendingBalance: r.pendingBalance,
+            ieName: r.engineer || '—',
+            scrapVerificationId: r.verificationId || '—',
+            remarks: r.defectReason || '',
+            imageUrls: r.imageUrls || [],
+          }));
+          setLedgerData({
+            poiCode: data?.plantId || selectedPoi.poiCode,
+            totalRejected: data?.totalRejected ?? selectedPoi.totalRejected,
+            totalScrapped: data?.totalScrapped ?? selectedPoi.totalScrapped,
+            pendingBalance: data?.pendingBalance ?? selectedPoi.pendingBalance,
+            rows: mappedRows,
+          });
+        })
+        .catch(() => setLedgerData(null))
+        .finally(() => setLedgerLoading(false));
+    } else {
+      getLedger(selectedPoi.poiCode)
+        .then(data => setLedgerData(data))
+        .catch(() => setLedgerData(null))
+        .finally(() => setLedgerLoading(false));
+    }
+  }, [view, selectedPoi, selectedProduct]);
 
   const companies = useMemo(() => [...new Set(summaryRows.map(r => r.companyName).filter(Boolean))].sort(), [summaryRows]);
   const plants = useMemo(() => {
@@ -264,11 +325,7 @@ export default function RailwayBoardRejectionScrap({ selectedProduct }) {
     }
   };
 
-  if (selectedProduct === 'Rail Pad') {
-    // Rail Pad Rejection Basket (read-only for Railway Board)
-    return <RailpadRejectionBasket readOnly />;
-  }
-  if (selectedProduct !== 'ERC') {
+  if (selectedProduct !== 'ERC' && selectedProduct !== 'Rail Pad') {
     return <UnderDevelopmentBanner product={selectedProduct} />;
   }
 
@@ -292,6 +349,7 @@ export default function RailwayBoardRejectionScrap({ selectedProduct }) {
               <span className="rbrs-bc-current">
                 {selectedPoi.companyName || selectedPoi.poiCode}
                 {selectedPoi.unitName ? ` — ${selectedPoi.unitName}` : ''}
+                {selectedPoi.productType ? ` (${selectedPoi.productType})` : ''}
               </span>
             </nav>
           </div>
@@ -309,7 +367,12 @@ export default function RailwayBoardRejectionScrap({ selectedProduct }) {
               </div>
               <div>
                 <div className="rbrs-hero-company">{selectedPoi.companyName || selectedPoi.poiCode}</div>
-                {selectedPoi.unitName && <div className="rbrs-hero-unit">{selectedPoi.unitName}</div>}
+                {selectedPoi.unitName && (
+                  <div className="rbrs-hero-unit">
+                    {selectedPoi.unitName}
+                    {selectedPoi.productType ? ` · ${selectedPoi.productType}` : ''}
+                  </div>
+                )}
               </div>
             </div>
             <span className="rbrs-hero-poi-badge">{selectedPoi.poiCode}</span>
@@ -403,7 +466,7 @@ export default function RailwayBoardRejectionScrap({ selectedProduct }) {
             rows={ledgerData?.rows || null}
             loading={ledgerLoading}
             readOnly={true}
-            onRejectionClick={handleRejectionClick}
+            onRejectionClick={selectedProduct === 'ERC' ? handleRejectionClick : undefined}
           />
         </div>
 
@@ -432,7 +495,7 @@ export default function RailwayBoardRejectionScrap({ selectedProduct }) {
     <div className="rbrs-wrap">
       <div className="rbrs-header">
         <h2 className="rbrs-title">Rejection &amp; Disposal Monitoring</h2>
-        <p className="rbrs-subtitle">ERC — All Plants Overview</p>
+        <p className="rbrs-subtitle">{selectedProduct || 'ERC'} — All Plants Overview</p>
       </div>
 
       {/* KPI + Filters in one row */}
@@ -540,7 +603,7 @@ export default function RailwayBoardRejectionScrap({ selectedProduct }) {
                 const isPending = row.pendingBalance > 0;
                 return (
                   <tr
-                    key={row.poiCode}
+                    key={row.rowKey || `${row.poiCode}-${row.productType || ''}-${idx}`}
                     className={`rbrs-row ${isPending ? 'row-pending' : 'row-done'}`}
                     onClick={() => handleRowClick(row)}
                   >
@@ -550,7 +613,10 @@ export default function RailwayBoardRejectionScrap({ selectedProduct }) {
                         <div className="rbrs-co-avatar">{getAvatar(row.companyName)}</div>
                         <div className="rbrs-co-info">
                           <span className="rbrs-co-name">{row.companyName || '—'}</span>
-                          <span className="rbrs-co-unit">{row.unitName || row.poiCode}</span>
+                          <span className="rbrs-co-unit">
+                            {row.unitName || row.poiCode}
+                            {row.productType ? ` · ${row.productType}` : ''}
+                          </span>
                         </div>
                       </div>
                     </td>

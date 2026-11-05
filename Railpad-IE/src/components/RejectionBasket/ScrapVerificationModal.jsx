@@ -59,45 +59,65 @@ const PhotoPicker = ({ label, hint, photos, setPhotos, onError, disabled, stepNu
       <div className="rb-photo-card-head">
         <div className="rb-photo-badge-wrap">
           {stepNumber && <span className="rb-step-pill">Step {stepNumber}</span>}
-          <label className="rb-photo-label">{label} *</label>
+          <label className="rb-photo-label">{label} <span className="rb-req">*</span></label>
         </div>
-        <span className="rb-photo-count">{photos.length}/{MAX_PHOTOS}</span>
+        <span className={`rb-photo-count ${photos.length === MAX_PHOTOS ? 'is-max' : ''}`}>
+          {photos.length}/{MAX_PHOTOS}
+        </span>
       </div>
       {hint && <p className="rb-photo-hint">{hint}</p>}
-      <div className="rb-photos">
-        {photos.map((p, i) => (
-          <div className="rb-photo" key={i}>
-            <img src={p.preview} alt={`${label} ${i + 1}`} onClick={() => setZoom(p.preview)} />
-            {!disabled && (
-              <button
-                type="button"
-                className="rb-photo-x"
-                aria-label="Remove photo"
-                onClick={() => setPhotos(prev => prev.filter((_, idx) => idx !== i))}
-              >
-                ×
-              </button>
-            )}
-            <div className="rb-photo-num">#{i + 1}</div>
+
+      {photos.length === 0 ? (
+        <div
+          className={`rb-photo-dropzone ${disabled ? 'is-disabled' : ''}`}
+          onClick={() => !disabled && inputRef.current?.click()}
+        >
+          <div className="rb-photo-dropzone-icon">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
+              <circle cx="12" cy="13" r="4"/>
+            </svg>
           </div>
-        ))}
-        {!disabled && photos.length < MAX_PHOTOS && (
-          <button
-            type="button"
-            className="rb-photo-add"
-            onClick={() => inputRef.current?.click()}
-          >
-            <div className="rb-photo-add-icon">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
-                <circle cx="12" cy="13" r="4"/>
-              </svg>
+          <div className="rb-photo-dropzone-title">Click to capture or upload</div>
+          <div className="rb-photo-dropzone-sub">Camera or gallery · Max 5 · Compressed automatically</div>
+        </div>
+      ) : (
+        <div className="rb-photos">
+          {photos.map((p, i) => (
+            <div className="rb-photo" key={i}>
+              <img src={p.preview} alt={`${label} ${i + 1}`} onClick={() => setZoom(p.preview)} />
+              {!disabled && (
+                <button
+                  type="button"
+                  className="rb-photo-x"
+                  aria-label="Remove photo"
+                  onClick={() => setPhotos(prev => prev.filter((_, idx) => idx !== i))}
+                >
+                  ×
+                </button>
+              )}
+              <div className="rb-photo-num">#{i + 1}</div>
             </div>
-            <span className="rb-photo-add-text">Add Photo</span>
-            <span className="rb-photo-add-sub">Take or upload</span>
-          </button>
-        )}
-      </div>
+          ))}
+          {!disabled && photos.length < MAX_PHOTOS && (
+            <button
+              type="button"
+              className="rb-photo-add-more"
+              onClick={() => inputRef.current?.click()}
+              title="Add another photo"
+            >
+              <div className="rb-photo-add-icon">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <line x1="12" y1="5" x2="12" y2="19"/>
+                  <line x1="5" y1="12" x2="19" y2="12"/>
+                </svg>
+              </div>
+              <span className="rb-photo-add-text">Add More</span>
+            </button>
+          )}
+        </div>
+      )}
+
       <input ref={inputRef} type="file" accept="image/*" capture="environment" multiple hidden onChange={onPick} />
       {zoom && (
         <div className="rb-lightbox" onClick={() => setZoom(null)}>
@@ -190,9 +210,10 @@ export default function ScrapVerificationModal({ mode = 'add', basketRow, entry,
           <div className="rb-modal-title-wrap">
             <div className="rb-modal-badge-icon">
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
-                <polyline points="14 2 14 8 20 8"/>
-                <path d="M9 15l2 2 4-4"/>
+                <polyline points="3 6 5 6 21 6" />
+                <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                <line x1="10" y1="11" x2="10" y2="17" />
+                <line x1="14" y1="11" x2="14" y2="17" />
               </svg>
             </div>
             <div>
@@ -200,7 +221,12 @@ export default function ScrapVerificationModal({ mode = 'add', basketRow, entry,
               <p className="rb-modal-subtitle">IRS T-55 witnessed destruction &amp; scrapping record</p>
             </div>
           </div>
-          <button className="rb-close" onClick={onClose} disabled={saving} aria-label="Close">×</button>
+          <button className="rb-close" onClick={onClose} disabled={saving} aria-label="Close">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+              <line x1="18" y1="6" x2="6" y2="18" />
+              <line x1="6" y1="6" x2="18" y2="18" />
+            </svg>
+          </button>
         </div>
 
         <div className="rb-modal-body">
@@ -208,7 +234,7 @@ export default function ScrapVerificationModal({ mode = 'add', basketRow, entry,
             <div className="rb-info-plant">
               <div className="rb-info-icon">
                 <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M3 21h18M5 21V7l8-4v18M13 10l6-3v14M9 10h.01M9 14h.01M9 18h.01M17 14h.01M17 18h.01"/>
+                  <path d="M3 21h18M5 21V7l8-4v18M13 10l6-3v14M9 10h.01M9 14h.01M9 18h.01M17 14h.01M17 18h.01" />
                 </svg>
               </div>
               <div>
@@ -231,20 +257,32 @@ export default function ScrapVerificationModal({ mode = 'add', basketRow, entry,
             </div>
           </div>
 
-          {error && <div className="rb-error" style={{ margin: 0 }}>{error}</div>}
+          {error && (
+            <div className="rb-error">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="12" cy="12" r="10" />
+                <line x1="12" y1="8" x2="12" y2="12" />
+                <line x1="12" y1="16" x2="12.01" y2="16" />
+              </svg>
+              <span>{error}</span>
+            </div>
+          )}
 
           <div className="rb-form-grid">
             <div className="rb-field">
               <div className="rb-field-head">
-                <label>Quantity witnessed (pieces) *</label>
+                <label>Quantity Witnessed (Pieces) <span className="rb-req">*</span></label>
                 {available != null && available > 0 && !saving && (
                   <button
                     type="button"
-                    className="rb-field-action-btn"
+                    className="rb-field-pill-btn"
                     onClick={() => setQty(String(available))}
                     title="Fill with all available pending scrap"
                   >
-                    Max ({available.toLocaleString('en-IN')})
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                      <polyline points="20 6 9 17 4 12" />
+                    </svg>
+                    Fill Max ({available.toLocaleString('en-IN')})
                   </button>
                 )}
               </div>
@@ -257,21 +295,28 @@ export default function ScrapVerificationModal({ mode = 'add', basketRow, entry,
                 value={qty}
                 onChange={e => setQty(e.target.value.replace(/[^\d]/g, ''))}
                 disabled={saving}
+                className="rb-input"
               />
             </div>
             <div className="rb-field">
-              <label>Scrapping date *</label>
+              <label>Scrapping Date <span className="rb-req">*</span></label>
               <input
                 type="date"
                 value={scrappingDate}
                 max={todayIso()}
                 onChange={e => setScrappingDate(e.target.value)}
                 disabled={saving}
+                className="rb-input"
               />
             </div>
             <div className="rb-field">
-              <label>Shift</label>
-              <select value={shift} onChange={e => setShift(e.target.value)} disabled={saving}>
+              <label>Shift <span className="rb-req">*</span></label>
+              <select
+                value={shift}
+                onChange={e => setShift(e.target.value)}
+                disabled={saving}
+                className="rb-input rb-select"
+              >
                 <option value="">Select shift</option>
                 {SHIFTS.map(s => <option key={s} value={s}>{s}</option>)}
               </select>
@@ -312,7 +357,7 @@ export default function ScrapVerificationModal({ mode = 'add', basketRow, entry,
 
           {isEdit ? (
             <div className="rb-field" style={{ minWidth: 0 }}>
-              <label>Reason for change * (recorded in the audit trail)</label>
+              <label>Reason for change <span className="rb-req">*</span> (recorded in the audit trail)</label>
               <textarea
                 className="rb-textarea"
                 placeholder="Provide reason for editing this record..."
@@ -332,8 +377,8 @@ export default function ScrapVerificationModal({ mode = 'add', basketRow, entry,
               <div className="rb-declaration-body">
                 <div className="rb-declaration-title">
                   <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
-                    <polyline points="9 12 11 14 15 10"/>
+                    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+                    <polyline points="9 12 11 14 15 10" />
                   </svg>
                   IRS T-55 Witnessed Scrapping Certification
                 </div>

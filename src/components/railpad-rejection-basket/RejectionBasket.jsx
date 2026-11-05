@@ -1,757 +1,786 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { getRejectionBasket, getRejectionHistory, getScrapLedger } from '../../services/railpadScrapService';
+import {
+  getRejectionBasket,
+  getScrapLedger,
+  getScrapVerification,
+  deleteScrapVerification,
+  fetchScrapPhoto
+} from '../../services/railpadScrapService';
 import ScrapVerificationModal from './ScrapVerificationModal';
-import ScrapDetailModal, { fmtDate } from './ScrapDetailModal';
+import SearchSelect from './SearchSelect';
 import { exportExcel, exportPdf } from './basketExport';
 import './RejectionBasket.css';
 
 const n = (v) => Number(v || 0).toLocaleString('en-IN');
-const rowKey = (r) => `${r.plantId}|${r.productType}`;
-const fileStamp = () => new Date().toISOString().slice(0, 10);
-const PAGE_SIZES = [10, 15, 25, 50];
+const PAGE_SIZES = [10, 20, 30, 50];
 
-const StagePill = ({ stage }) => (
-  <span className={`rb-pill ${stage === 'FINAL' ? 'rb-pill--final' : 'rb-pill--process'}`}>
-    {stage === 'FINAL' ? 'Final' : 'Process'}
-  </span>
-);
+/** Authed lightbox image loader that uses bearer token proxy to load private blob photos */
+const AuthedLightboxImg = ({ url, alt }) => {
+  const [src, setSrc] = useState(null);
+  const [err, setErr] = useState(false);
 
-const Icon = {
-  rejected: (s = 16) => (
-    <svg width={s} height={s} viewBox="0 0 20 20" fill="none">
-      <circle cx="10" cy="10" r="8" stroke="currentColor" strokeWidth="1.8" />
-      <path d="M7 7l6 6M13 7l-6 6" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
-    </svg>
-  ),
-  done: (s = 16) => (
-    <svg width={s} height={s} viewBox="0 0 20 20" fill="none">
-      <circle cx="10" cy="10" r="8" stroke="currentColor" strokeWidth="1.8" />
-      <path d="M6 10l3 3 5-5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-  ),
-  clock: (s = 16) => (
-    <svg width={s} height={s} viewBox="0 0 20 20" fill="none">
-      <circle cx="10" cy="10" r="8" stroke="currentColor" strokeWidth="1.8" />
-      <path d="M10 6v4l2.5 2.5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-  ),
-  chart: (s = 16) => (
-    <svg width={s} height={s} viewBox="0 0 20 20" fill="none">
-      <path d="M3 17h14M5 14V9M9 14V5M13 14v-7M17 14v-3" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
-    </svg>
-  ),
-  calendar: (s = 16) => (
-    <svg width={s} height={s} viewBox="0 0 20 20" fill="none">
-      <rect x="3" y="4" width="14" height="13" rx="2" stroke="currentColor" strokeWidth="1.8" />
-      <path d="M7 2v4M13 2v4M3 8h14" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
-    </svg>
-  ),
-  plant: (s = 28) => (
-    <svg width={s} height={s} viewBox="0 0 24 24" fill="none">
-      <rect x="2" y="10" width="4" height="12" rx="1" fill="currentColor" opacity=".7" />
-      <rect x="8" y="6" width="4" height="16" rx="1" fill="currentColor" />
-      <rect x="14" y="8" width="4" height="14" rx="1" fill="currentColor" opacity=".7" />
-      <rect x="20" y="12" width="2" height="10" rx="1" fill="currentColor" opacity=".5" />
-      <line x1="2" y1="22" x2="22" y2="22" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-    </svg>
-  ),
+  useEffect(() => {
+    let alive = true;
+    let objectUrl = null;
+    fetchScrapPhoto(url)
+      .then(u => {
+        objectUrl = u;
+        if (alive) setSrc(u);
+        else URL.revokeObjectURL(u);
+      })
+      .catch(() => alive && setErr(true));
+
+    return () => {
+      alive = false;
+      if (objectUrl) URL.revokeObjectURL(objectUrl);
+    };
+  }, [url]);
+
+  if (err) return <div style={{ color: '#fca5a5', padding: 18, fontSize: 13 }}>Photo could not be loaded</div>;
+  if (!src) return <div style={{ color: '#cbd5e1', padding: 18, fontSize: 13 }}>Loading photo…</div>;
+  return <img src={src} alt={alt} onClick={e => e.stopPropagation()} />;
 };
 
-const SortTh = ({ col, label, sort, onSort, num, style }) => (
-  <th className={`rb-sortable ${num ? 'rb-num' : ''} ${sort.col === col ? 'rb-sorted' : ''}`} onClick={() => onSort(col)} style={style}>
-    {label}
-    <span className="rb-sort-icon">{sort.col === col ? (sort.dir === 'asc' ? '▲' : '▼') : '⇅'}</span>
-  </th>
-);
+export default function RejectionBasket({ dutyPlantId, readOnly = false, ieType = 'PROCESS_IE' }) {
+  const [basketRows, setBasketRows] = useState([]);
+  const [basketLoading, setBasketLoading] = useState(true);
 
-const SkeletonRows = ({ cols, rows = 6 }) => (
-  <>
-    {Array.from({ length: rows }).map((_, i) => (
-      <tr key={i} className="rb-skel-row">
-        {Array.from({ length: cols }).map((__, j) => (
-          <td key={j}><div className="rb-skeleton" style={{ width: `${45 + ((i * 7 + j * 13) % 45)}%` }} /></td>
-        ))}
-      </tr>
-    ))}
-  </>
-);
+  const [selectedPlant, setSelectedPlant] = useState('');
+  const [selectedProduct, setSelectedProduct] = useState('');
 
-const Empty = ({ cols, title, sub }) => (
-  <tr>
-    <td colSpan={cols}>
-      <div className="rb-empty">
-        <div className="rb-empty-icon">📋</div>
-        <p className="rb-empty-title">{title}</p>
-        {sub && <p className="rb-empty-sub">{sub}</p>}
-      </div>
-    </td>
-  </tr>
-);
-
-/** Modern Pager with clean layout, dropdown styling, and sleek chevron nav controls. */
-const Pager = ({ page, setPage, pageSize, setPageSize, total, unit }) => {
-  if (!total) return null;
-  const totalPages = Math.max(1, Math.ceil(total / pageSize));
-  const startRow = Math.min((page - 1) * pageSize + 1, total);
-  const endRow = Math.min(page * pageSize, total);
-
-  return (
-    <div className="rb-pagination">
-      <div className="rb-pg-info">
-        Showing <span className="rb-pg-num">{startRow}</span>–<span className="rb-pg-num">{endRow}</span> of <span className="rb-pg-num">{total}</span> {unit}
-      </div>
-      <div className="rb-pg-controls">
-        <div className="rb-pg-size-wrap">
-          <span className="rb-pg-label">Rows per page:</span>
-          <select
-            className="rb-pg-size"
-            value={pageSize}
-            onChange={e => setPageSize(Number(e.target.value))}
-            aria-label="Rows per page"
-          >
-            {PAGE_SIZES.map(s => <option key={s} value={s}>{s}</option>)}
-          </select>
-        </div>
-        <div className="rb-pg-nav">
-          <button
-            type="button"
-            className="rb-pg-btn"
-            onClick={() => setPage(1)}
-            disabled={page === 1}
-            title="First page"
-            aria-label="First page"
-          >
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-              <polyline points="11 17 6 12 11 7" />
-              <polyline points="18 17 13 12 18 7" />
-            </svg>
-          </button>
-          <button
-            type="button"
-            className="rb-pg-btn"
-            onClick={() => setPage(p => Math.max(1, p - 1))}
-            disabled={page === 1}
-            title="Previous page"
-            aria-label="Previous page"
-          >
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-              <polyline points="15 18 9 12 15 6" />
-            </svg>
-          </button>
-          <span className="rb-pg-current">
-            Page <span className="rb-pg-current-val">{page}</span> of <span className="rb-pg-total-val">{totalPages}</span>
-          </span>
-          <button
-            type="button"
-            className="rb-pg-btn"
-            onClick={() => setPage(p => Math.min(totalPages, p + 1))}
-            disabled={page >= totalPages}
-            title="Next page"
-            aria-label="Next page"
-          >
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-              <polyline points="9 18 15 12 9 6" />
-            </svg>
-          </button>
-          <button
-            type="button"
-            className="rb-pg-btn"
-            onClick={() => setPage(totalPages)}
-            disabled={page >= totalPages}
-            title="Last page"
-            aria-label="Last page"
-          >
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-              <polyline points="13 17 18 12 13 7" />
-              <polyline points="6 17 11 12 6 7" />
-            </svg>
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-};
-
-/** Client-side page state that jumps back to page 1 whenever `resetKey` changes. */
-const usePaging = (items, resetKey, initialSize = 15) => {
-  const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(initialSize);
-  useEffect(() => { setPage(1); }, [resetKey, pageSize]);
-  const totalPages = Math.max(1, Math.ceil(items.length / pageSize));
-  const safePage = Math.min(page, totalPages);
-  return {
-    page: safePage, setPage, pageSize, setPageSize,
-    offset: (safePage - 1) * pageSize,
-    pageItems: items.slice((safePage - 1) * pageSize, safePage * pageSize),
-  };
-};
-
-/**
- * Rail Pad Rejection Basket (SRS): plant-wise pending scrap, rejection history, scrap ledger.
- * The backend decides which plants the user sees and whether they may record scrap verifications
- * (only a Process IE mapped to the plant). readOnly hides every change action regardless.
- */
-export default function RejectionBasket({ readOnly = false }) {
-  const [rows, setRows] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
-  const [notice, setNotice] = useState('');
-  const [fManufacturer, setFManufacturer] = useState('');
-  const [fPlant, setFPlant] = useState('');
-  const [fProduct, setFProduct] = useState('');
-  const [fStatus, setFStatus] = useState('');
-  const [sort, setSort] = useState({ col: 'pendingScrapQty', dir: 'desc' });
-
-  const [selected, setSelected] = useState(null);
-  const [tab, setTab] = useState('history');
-
-  const [history, setHistory] = useState([]);
-  const [hFilter, setHFilter] = useState({ fromDate: '', toDate: '', stage: '' });
   const [ledger, setLedger] = useState(null);
-  const [lFilter, setLFilter] = useState({ fromDate: '', toDate: '', txnType: '' });
-  const [detailLoading, setDetailLoading] = useState(false);
-  const [detailError, setDetailError] = useState('');
+  const [ledgerLoading, setLedgerLoading] = useState(false);
 
-  const [showAdd, setShowAdd] = useState(false);
+  const [typeFilter, setTypeFilter] = useState('ALL'); // ALL | REJECTION | SCRAP
+  const [pageSize, setPageSize] = useState(10);
+  const [page, setPage] = useState(1);
+
+  const [showAddModal, setShowAddModal] = useState(false);
   const [editEntry, setEditEntry] = useState(null);
-  const [openRow, setOpenRow] = useState(null);
+  const [deleteTarget, setDeleteTarget] = useState(null);
+  const [deleteReason, setDeleteReason] = useState('');
+  const [deleting, setDeleting] = useState(false);
 
+  const [lightboxUrls, setLightboxUrls] = useState(null);
+  const [toast, setToast] = useState(null);
+
+  const showToast = (msg, type = 'success') => {
+    setToast({ msg, type });
+    setTimeout(() => setToast(null), 5000);
+  };
+
+  // 1. Load summary basket to get all mapped plants & products
   const loadBasket = useCallback(async () => {
-    setLoading(true);
-    setError('');
+    setBasketLoading(true);
     try {
       const data = await getRejectionBasket();
-      setRows(Array.isArray(data) ? data : []);
-    } catch (e) {
-      setError(e.message || 'Could not load the rejection basket.');
+      setBasketRows(Array.isArray(data) ? data : []);
+    } catch {
+      setBasketRows([]);
     } finally {
-      setLoading(false);
+      setBasketLoading(false);
     }
   }, []);
 
-  useEffect(() => { loadBasket(); }, [loadBasket]);
-
-  const loadDetail = useCallback(async () => {
-    if (!selected) return;
-    setDetailLoading(true);
-    setDetailError('');
-    const base = { plantId: selected.plantId, productType: selected.productType };
-    try {
-      if (tab === 'history') {
-        setHistory(await getRejectionHistory({ ...base, ...hFilter }) || []);
-      } else {
-        setLedger(await getScrapLedger({ ...base, ...lFilter }));
-      }
-    } catch (e) {
-      setDetailError(e.message || 'Could not load details.');
-    } finally {
-      setDetailLoading(false);
-    }
-  }, [selected, tab, hFilter, lFilter]);
-
-  useEffect(() => { loadDetail(); }, [loadDetail]);
-
-  // Keep the selected row's numbers in sync after a refresh
   useEffect(() => {
-    if (selected) {
-      const fresh = rows.find(r => rowKey(r) === rowKey(selected));
-      if (fresh && fresh !== selected) setSelected(fresh);
-    }
-  }, [rows]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  const manufacturers = useMemo(() => [...new Set(rows.map(r => r.manufacturer).filter(Boolean))].sort(), [rows]);
-  const plants = useMemo(() => [...new Map(rows
-    .filter(r => !fManufacturer || r.manufacturer === fManufacturer)
-    .map(r => [r.plantId, r.placeOfInspection || r.plantId])).entries()], [rows, fManufacturer]);
-  const products = useMemo(() => [...new Set(rows
-    .filter(r => !fManufacturer || r.manufacturer === fManufacturer)
-    .map(r => r.productType).filter(Boolean))].sort(), [rows, fManufacturer]);
-
-  const visible = useMemo(() => {
-    const filtered = rows.filter(r =>
-      (!fManufacturer || r.manufacturer === fManufacturer)
-      && (!fPlant || r.plantId === fPlant)
-      && (!fProduct || r.productType === fProduct)
-      && (!fStatus || (fStatus === 'PENDING' ? r.pendingScrapQty > 0 : !r.pendingScrapQty)));
-    const dir = sort.dir === 'asc' ? 1 : -1;
-    return filtered.sort((a, b) => {
-      const av = a[sort.col] ?? '';
-      const bv = b[sort.col] ?? '';
-      if (typeof av === 'number' && typeof bv === 'number') return (av - bv) * dir;
-      return String(av).localeCompare(String(bv)) * dir;
-    });
-  }, [rows, fManufacturer, fPlant, fProduct, fStatus, sort]);
-
-  const onSort = (col) => setSort(s => (s.col === col ? { col, dir: s.dir === 'asc' ? 'desc' : 'asc' } : { col, dir: 'desc' }));
-
-  const basketPg = usePaging(visible, `${fManufacturer}|${fPlant}|${fProduct}|${fStatus}|${sort.col}|${sort.dir}`);
-  const historyPg = usePaging(history, `${rowKey(selected || {})}|${JSON.stringify(hFilter)}`);
-  const ledgerRows = ledger?.rows || [];
-  const ledgerPg = usePaging(ledgerRows, `${rowKey(selected || {})}|${JSON.stringify(lFilter)}`);
-
-  const totals = visible.reduce((t, r) => ({
-    rejected: t.rejected + (r.totalRejected || 0),
-    scrapped: t.scrapped + (r.totalScrapped || 0),
-    pending: t.pending + (r.pendingScrapQty || 0),
-    rejected30: t.rejected30 + (r.rejectedLast30Days || 0),
-  }), { rejected: 0, scrapped: 0, pending: 0, rejected30: 0 });
-
-  const canScrapSelected = !readOnly && selected?.canScrap;
-
-  const openDetail = (r) => {
-    setSelected(r);
-    setTab('history');
-    setHistory([]);
-    setLedger(null);
-  };
-  const closeDetail = () => {
-    setSelected(null);
-    setHistory([]);
-    setLedger(null);
-  };
-
-  const afterSave = (msg) => {
-    setShowAdd(false);
-    setEditEntry(null);
-    setOpenRow(null);
-    setNotice(msg);
-    setTimeout(() => setNotice(''), 5000);
     loadBasket();
-    setTab('ledger');
-    loadDetail();
+  }, [loadBasket]);
+
+  // Distinct plants
+  const plantList = useMemo(() => {
+    const map = new Map();
+    basketRows.forEach(r => {
+      if (r.plantId && !map.has(r.plantId)) {
+        map.set(r.plantId, {
+          plantId: r.plantId,
+          vendorCode: r.vendorCode,
+          manufacturer: r.manufacturer,
+          placeOfInspection: r.placeOfInspection,
+          canScrap: r.canScrap,
+        });
+      }
+    });
+    return Array.from(map.values()).sort((a, b) => (a.manufacturer || '').localeCompare(b.manufacturer || ''));
+  }, [basketRows]);
+
+  // Auto-select plant (dutyPlantId priority -> 1 plant auto -> fallback first)
+  useEffect(() => {
+    if (plantList.length === 0) return;
+    if (dutyPlantId && plantList.some(p => p.plantId === dutyPlantId)) {
+      setSelectedPlant(dutyPlantId);
+    } else if (!selectedPlant || !plantList.some(p => p.plantId === selectedPlant)) {
+      setSelectedPlant(plantList[0].plantId);
+    }
+  }, [plantList, dutyPlantId, selectedPlant]);
+
+  // Distinct products for selected plant
+  const productList = useMemo(() => {
+    if (!selectedPlant) return [];
+    return [...new Set(basketRows.filter(r => r.plantId === selectedPlant).map(r => r.productType).filter(Boolean))].sort();
+  }, [basketRows, selectedPlant]);
+
+  // Auto-select product
+  useEffect(() => {
+    if (productList.length === 0) {
+      setSelectedProduct('');
+    } else if (!selectedProduct || !productList.includes(selectedProduct)) {
+      setSelectedProduct(productList[0]);
+    }
+  }, [productList, selectedProduct]);
+
+  // Options for SearchSelect
+  const plantOptions = useMemo(() => {
+    return plantList.map(p => ({
+      value: p.plantId,
+      label: p.manufacturer
+        ? `${p.manufacturer} — ${p.placeOfInspection} (${p.plantId})`
+        : (p.placeOfInspection ? `${p.placeOfInspection} (${p.plantId})` : p.plantId),
+    }));
+  }, [plantList]);
+
+  const productOptions = useMemo(() => {
+    return productList.map(p => ({
+      value: p,
+      label: p,
+    }));
+  }, [productList]);
+
+  // Selected plant details
+  const selectedPlantObj = useMemo(() => {
+    return plantList.find(p => p.plantId === selectedPlant);
+  }, [plantList, selectedPlant]);
+
+  // 2. Load ledger for selected plant and product
+  const loadLedger = useCallback(async (pId, pType) => {
+    if (!pId) return;
+    setLedgerLoading(true);
+    try {
+      const data = await getScrapLedger({ plantId: pId, productType: pType || undefined });
+      setLedger(data);
+    } catch {
+      setLedger(null);
+    } finally {
+      setLedgerLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (selectedPlant && selectedProduct) {
+      loadLedger(selectedPlant, selectedProduct);
+    } else {
+      setLedger(null);
+    }
+  }, [selectedPlant, selectedProduct, loadLedger]);
+
+  // Reset page when filter or selections change
+  useEffect(() => {
+    setPage(1);
+  }, [typeFilter, pageSize, selectedPlant, selectedProduct]);
+
+  // Rejection & Scrap counts
+  const rawRows = ledger?.rows || [];
+  const rejectionCount = rawRows.filter(r => r.rowType === 'REJECTION' && (r.rejectedQty ?? 0) > 0).length;
+  const scrapCount = rawRows.filter(r => r.rowType === 'SCRAP').length;
+  const allCount = rawRows.filter(r => !(r.rowType === 'REJECTION' && (r.rejectedQty ?? 0) === 0)).length;
+
+  // Filtered rows
+  const filteredRows = useMemo(() => {
+    return rawRows.filter(r => {
+      if (r.rowType === 'REJECTION' && (r.rejectedQty ?? 0) === 0) return false;
+      if (typeFilter === 'REJECTION') return r.rowType === 'REJECTION';
+      if (typeFilter === 'SCRAP') return r.rowType === 'SCRAP';
+      return true;
+    });
+  }, [rawRows, typeFilter]);
+
+  const size = Number(pageSize) || 10;
+  const totalRows = filteredRows.length;
+  const totalPages = Math.max(1, Math.ceil(totalRows / size));
+  const safePage = Math.max(1, Math.min(page, totalPages));
+
+  const pageRows = useMemo(() => {
+    const start = (safePage - 1) * size;
+    return filteredRows.slice(start, start + size);
+  }, [filteredRows, safePage, size]);
+
+  // Actions
+  const handleAddSuccess = (res) => {
+    setShowAddModal(false);
+    showToast(`Disposal entry submitted — SV ID: ${res?.verificationNo || res?.scrapVerificationId || 'Recorded'}`);
+    loadBasket();
+    if (selectedPlant && selectedProduct) loadLedger(selectedPlant, selectedProduct);
   };
 
-  // ---------- Exports ----------
-  const basketCols = [
-    { header: 'Manufacturer', value: r => r.manufacturer || '-' },
-    { header: 'Place of Inspection', value: r => r.placeOfInspection || r.plantId },
-    { header: 'Product Type', value: r => r.productType },
-    { header: 'Production (30 days)', value: r => r.productionLast30Days },
-    { header: 'Rejected (30 days)', value: r => r.rejectedLast30Days },
-    { header: 'Total Rejected', value: r => r.totalRejected },
-    { header: 'Total Scrapped', value: r => r.totalScrapped },
-    { header: 'Pending Scrap (pcs)', value: r => r.pendingScrapQty },
-    { header: 'Last Scrap Verification', value: r => (r.lastScrapDate ? fmtDate(r.lastScrapDate) : '-') },
-  ];
-  const historyCols = [
-    { header: 'Date', value: r => fmtDate(r.date) },
-    { header: 'Batch / Lot', value: r => r.reference },
-    { header: 'Product Type', value: r => r.productType },
-    { header: 'Stage', value: r => (r.stage === 'FINAL' ? 'Final' : 'Process') },
-    { header: 'Defect Reason', value: r => r.defectReason || '-' },
-    { header: 'Rejected Qty', value: r => r.rejectedQty },
-    { header: 'Added By', value: r => r.addedBy || '-' },
-  ];
-  const ledgerCols = [
-    { header: 'Date', value: r => fmtDate(r.date) },
-    { header: 'Transaction', value: r => r.transactionType },
-    { header: 'Reference', value: r => r.reference || '-' },
-    { header: 'Rejected (+)', value: r => (r.rejectedQty != null ? `+${r.rejectedQty}` : '-') },
-    { header: 'Scrapped (-)', value: r => (r.scrappedQty != null ? `-${r.scrappedQty}` : '-') },
-    { header: 'Pending for Scrapping', value: r => r.pendingBalance },
-    { header: 'Engineer', value: r => r.engineer || '-' },
-  ];
-  const selName = selected ? `${selected.manufacturer || ''} ${selected.placeOfInspection || selected.plantId} - ${selected.productType}` : '';
-
-  const doExport = (kind, what) => {
-    const sets = {
-      basket: ['Rail Pad Rejection Basket', 'All plants in view', basketCols, visible, `RejectionBasket_${fileStamp()}`],
-      history: [`Rejection History - ${selName}`, 'Process and final rejections', historyCols, history, `RejectionHistory_${fileStamp()}`],
-      ledger: [`Scrap Ledger - ${selName}`, `Pending for scrapping: ${n(ledger?.pendingScrapQty)}`, ledgerCols, ledgerRows, `ScrapLedger_${fileStamp()}`],
-    };
-    const [title, subtitle, cols, data, file] = sets[what];
-    if (kind === 'pdf') exportPdf(file, title, subtitle, cols, data);
-    else exportExcel(file, title, cols, data);
+  const handleEditClick = async (row) => {
+    try {
+      const detail = await getScrapVerification(row.verificationId);
+      setEditEntry(detail);
+    } catch (e) {
+      showToast(e.message || 'Could not load entry details', 'error');
+    }
   };
 
-  const avatar = (name) => (name ? name.trim()[0].toUpperCase() : '?');
+  const handleEditSuccess = (res) => {
+    setEditEntry(null);
+    showToast(`Disposal entry ${res?.verificationNo || ''} updated successfully.`);
+    loadBasket();
+    if (selectedPlant && selectedProduct) loadLedger(selectedPlant, selectedProduct);
+  };
 
-  const modals = (
-    <>
-      {showAdd && selected && (
-        <ScrapVerificationModal
-          mode="add"
-          basketRow={selected}
-          onClose={() => setShowAdd(false)}
-          onSaved={(s) => afterSave(`Scrap verification ${s?.verificationNo || ''} recorded. Pending quantity updated.`)}
-        />
-      )}
-      {editEntry && selected && (
-        <ScrapVerificationModal
-          mode="edit"
-          basketRow={selected}
-          entry={editEntry}
-          onClose={() => setEditEntry(null)}
-          onSaved={(s) => afterSave(`Scrap verification ${s?.verificationNo || ''} updated.`)}
-        />
-      )}
-      {openRow && (
-        <ScrapDetailModal
-          row={openRow}
-          readOnly={readOnly}
-          onClose={() => setOpenRow(null)}
-          onEdit={(detail) => { setOpenRow(null); setEditEntry(detail); }}
-          onDeleted={() => afterSave('Scrap verification deleted. Pending quantity restored.')}
-        />
-      )}
-    </>
-  );
+  const handleDeleteConfirm = async () => {
+    if (!deleteTarget || deleteReason.trim().length < 5 || deleting) return;
+    setDeleting(true);
+    try {
+      await deleteScrapVerification(deleteTarget.verificationId, deleteReason.trim());
+      setDeleteTarget(null);
+      setDeleteReason('');
+      showToast('Disposal entry deleted. Pending balance restored.');
+      loadBasket();
+      if (selectedPlant && selectedProduct) loadLedger(selectedPlant, selectedProduct);
+    } catch (e) {
+      showToast(e.message || 'Could not delete entry', 'error');
+    } finally {
+      setDeleting(false);
+    }
+  };
 
-  // ================= Detail page =================
-  if (selected) {
-    const pending = selected.pendingScrapQty > 0;
-    return (
-      <div className="rb-wrap">
-        {notice && <div className="rb-ok">{notice}</div>}
+  const openPhotos = async (row) => {
+    if (row.imageUrls && row.imageUrls.length > 0) {
+      setLightboxUrls(row.imageUrls);
+      return;
+    }
+    if (row.verificationId) {
+      try {
+        const detail = await getScrapVerification(row.verificationId);
+        const photos = [...(detail.beforePhotos || []), ...(detail.afterPhotos || [])];
+        if (photos.length > 0) {
+          setLightboxUrls(photos);
+        } else {
+          showToast('No photos uploaded for this entry.', 'error');
+        }
+      } catch {
+        showToast('Could not load photos.', 'error');
+      }
+    }
+  };
 
-        <div className="rb-hero">
-          <div className="rb-hero-top">
-            <button className="rb-back-btn" onClick={closeDetail}>
-              <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-                <path d="M10 3L5 8l5 5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
-              </svg>
-              Back
-            </button>
-            <nav className="rb-breadcrumb">
-              <span className="rb-bc-root">Rejection Basket</span>
-              <span className="rb-bc-sep">›</span>
-              <span className="rb-bc-current">{selected.manufacturer || selected.plantId} — {selected.productType}</span>
-            </nav>
-          </div>
+  // Exports
+  const handleExport = (kind) => {
+    if (!filteredRows.length) return;
+    const plantName = selectedPlantObj?.manufacturer || selectedPlant;
+    const fileStamp = new Date().toISOString().slice(0, 10);
+    const title = `Rail Pad Rejection & Disposal Ledger - ${plantName}`;
+    const subtitle = `Product: ${selectedProduct} | Total Rejected: ${ledger?.totalRejected ?? 0} | Total Disposed: ${ledger?.totalScrapped ?? 0} | Pending Balance: ${ledger?.pendingScrapQty ?? 0}`;
+    const cols = [
+      { header: 'Type', value: r => (r.rowType === 'REJECTION' ? 'Rejection' : 'Disposal') },
+      { header: 'Date', value: r => r.entryDate || r.date || '-' },
+      { header: 'Shift', value: r => r.shift || r.callOrShift || '-' },
+      { header: 'Unit / Line', value: r => r.unitLineShedNo || r.placeOfInspection || '-' },
+      { header: 'Stage', value: r => r.stage || r.stageOfInspection || '-' },
+      { header: 'Rejected', value: r => (r.rowType === 'REJECTION' ? r.rejectedQty : '-') },
+      { header: 'Disposed', value: r => (r.rowType === 'SCRAP' ? r.scrappedQty : '-') },
+      { header: 'Balance', value: r => r.pendingBalance ?? '-' },
+      { header: 'IE Name', value: r => r.ieName || r.engineer || '-' },
+      { header: 'SV ID', value: r => r.reference || r.scrapVerificationId || '-' },
+    ];
+    if (kind === 'pdf') exportPdf(`Railpad_Disposal_${fileStamp}`, title, subtitle, cols, filteredRows);
+    else exportExcel(`Railpad_Disposal_${fileStamp}`, title, cols, filteredRows);
+  };
 
-          <div className="rb-hero-body">
-            <div className="rb-hero-plant">
-              <div className="rb-hero-plant-icon">{Icon.plant()}</div>
-              <div>
-                <div className="rb-hero-company">{selected.manufacturer || selected.plantId}</div>
-                <div className="rb-hero-unit">{selected.placeOfInspection || selected.plantId}</div>
-              </div>
-            </div>
-            <div className="rb-hero-right">
-              <span className="rb-hero-badge">{selected.productType}</span>
-              {canScrapSelected && (
-                <button className="rb-btn rb-btn--primary" disabled={!pending} onClick={() => setShowAdd(true)}
-                  title={pending ? '' : 'Nothing pending for scrapping'}>
-                  + Add Scrap Verification
-                </button>
-              )}
-            </div>
-          </div>
+  const canScrap = !readOnly && Boolean(ledger?.canScrap ?? selectedPlantObj?.canScrap);
+  const pendingScrapQty = ledger?.pendingScrapQty ?? 0;
 
-          <div className="rb-stat-row">
-            <div className="rb-stat rb-stat--rejected">
-              <div className="rb-stat-icon">{Icon.rejected(20)}</div>
-              <div className="rb-stat-body">
-                <div className="rb-stat-label">Total Rejected</div>
-                <div className="rb-stat-value">{n(selected.totalRejected)}</div>
-                <div className="rb-stat-unit">pieces · {n(selected.rejectedLast30Days)} in last 30 days</div>
-              </div>
-            </div>
-            <div className="rb-stat rb-stat--scrapped">
-              <div className="rb-stat-icon">{Icon.done(20)}</div>
-              <div className="rb-stat-body">
-                <div className="rb-stat-label">Total Scrapped</div>
-                <div className="rb-stat-value">{n(selected.totalScrapped)}</div>
-                <div className="rb-stat-unit">pieces witnessed</div>
-              </div>
-            </div>
-            <div className={`rb-stat ${pending ? 'rb-stat--pending' : 'rb-stat--clear'}`}>
-              <div className="rb-stat-icon">{pending ? Icon.clock(20) : Icon.done(20)}</div>
-              <div className="rb-stat-body">
-                <div className="rb-stat-label">Pending for Scrapping</div>
-                <div className="rb-stat-value">{n(selected.pendingScrapQty)}</div>
-                <div className="rb-stat-unit">{pending ? 'awaiting destruction' : 'fully scrapped'}</div>
-              </div>
-            </div>
-            <div className="rb-stat rb-stat--date">
-              <div className="rb-stat-icon">{Icon.calendar(20)}</div>
-              <div className="rb-stat-body">
-                <div className="rb-stat-label">Last Scrap Verification</div>
-                <div className="rb-stat-value rb-stat-value--date">{selected.lastScrapDate ? fmtDate(selected.lastScrapDate) : '—'}</div>
-                <div className="rb-stat-unit">production (30 d): {n(selected.productionLast30Days)}</div>
-              </div>
-            </div>
-          </div>
+  return (
+    <div className="rs-wrapper">
+      {/* ── Top Bar ── */}
+      <div className="rs-topbar">
+        <div className="rs-title-block">
+          <h2 className="rs-title">
+            <span className="rs-title-icon">🗑️</span>
+            Rejection &amp; Disposal
+          </h2>
+          <p className="rs-subtitle">
+            Railpad IE — Track and record the disposal of rejected pieces
+          </p>
         </div>
 
-        <div className="rb-section">
-          <div className="rb-section-head">
-            <div className="rb-tabs">
-              <button className={`rb-tab ${tab === 'history' ? 'rb-tab--active' : ''}`} onClick={() => setTab('history')}>Rejection History</button>
-              <button className={`rb-tab ${tab === 'ledger' ? 'rb-tab--active' : ''}`} onClick={() => setTab('ledger')}>Scrap Ledger</button>
-            </div>
-            <div className="rb-actions">
-              <button className="rb-btn rb-btn--sm" onClick={() => doExport('excel', tab)}>Excel</button>
-              <button className="rb-btn rb-btn--sm" onClick={() => doExport('pdf', tab)}>PDF</button>
-            </div>
-          </div>
-
-          {tab === 'history' ? (
-            <div className="rb-filters">
-              <div className="rb-field"><label>From</label><input type="date" value={hFilter.fromDate} onChange={e => setHFilter(f => ({ ...f, fromDate: e.target.value }))} /></div>
-              <div className="rb-field"><label>To</label><input type="date" value={hFilter.toDate} onChange={e => setHFilter(f => ({ ...f, toDate: e.target.value }))} /></div>
-              <div className="rb-field">
-                <label>Inspection Stage</label>
-                <select value={hFilter.stage} onChange={e => setHFilter(f => ({ ...f, stage: e.target.value }))}>
-                  <option value="">All stages</option><option value="PROCESS">Process</option><option value="FINAL">Final</option>
-                </select>
-              </div>
-            </div>
-          ) : (
-            <div className="rb-filters">
-              <div className="rb-field"><label>From</label><input type="date" value={lFilter.fromDate} onChange={e => setLFilter(f => ({ ...f, fromDate: e.target.value }))} /></div>
-              <div className="rb-field"><label>To</label><input type="date" value={lFilter.toDate} onChange={e => setLFilter(f => ({ ...f, toDate: e.target.value }))} /></div>
-              <div className="rb-field">
-                <label>Transaction Type</label>
-                <select value={lFilter.txnType} onChange={e => setLFilter(f => ({ ...f, txnType: e.target.value }))}>
-                  <option value="">All</option><option value="REJECTION">Rejections</option><option value="SCRAP">Scrap Verifications</option>
-                </select>
-              </div>
-            </div>
+        <div className="rs-top-actions">
+          {ledger && (
+            <>
+              <button className="rs-export-btn" onClick={() => handleExport('excel')} title="Export current ledger to Excel">
+                📊 Excel
+              </button>
+              <button className="rs-export-btn" onClick={() => handleExport('pdf')} title="Export current ledger to PDF">
+                📄 PDF
+              </button>
+            </>
           )}
+          {selectedPlant && !readOnly && (
+            <button
+              type="button"
+              className="rs-add-btn"
+              onClick={() => setShowAddModal(true)}
+              title="Record disposal verification"
+            >
+              + Add Disposal Entry
+            </button>
+          )}
+        </div>
+      </div>
 
-          {detailError && <div className="rb-error">{detailError}</div>}
+      {/* ── Controls Panel: Plant Selector + Product Type + 3 KPI Tiles ── */}
+      <div className="rs-controls-panel">
+        <div className="rs-controls">
+          <div className="rs-selectors-row">
+            {/* Plant Dropdown / Chip */}
+            <div className="rs-plant-block">
+              <span className="rs-label">Plant / POI</span>
+              {basketLoading ? (
+                <div className="rs-skeleton-select" />
+              ) : plantList.length === 0 ? (
+                <div className="rs-no-plants">⚠️ No mapped plants found for this IE</div>
+              ) : plantList.length === 1 ? (
+                <div className="rs-plant-chip" title={plantList[0].label}>
+                  <span className="rs-plant-chip-name">
+                    {plantList[0].manufacturer || plantList[0].placeOfInspection || plantList[0].plantId}
+                    {plantList[0].placeOfInspection ? ` — ${plantList[0].placeOfInspection}` : ''}
+                  </span>
+                  <span className="rs-plant-chip-code">{plantList[0].plantId}</span>
+                </div>
+              ) : (
+                <SearchSelect
+                  value={selectedPlant}
+                  onChange={v => setSelectedPlant(v)}
+                  options={plantOptions}
+                  placeholder="— Select Plant —"
+                />
+              )}
+            </div>
 
-          <div className="rb-table-wrap rb-table-wrap--flat">
-            {tab === 'history' ? (
-              <table className="rb-table">
-                <thead>
-                  <tr><th style={{ width: 48 }}>S.No</th><th>Date</th><th>Batch / Lot No.</th><th>Product Type</th><th>Stage</th><th>Defect Reason</th><th className="rb-num">Rejected Qty</th><th>Added By</th></tr>
-                </thead>
-                <tbody>
-                  {detailLoading ? <SkeletonRows cols={8} />
-                    : !history.length ? <Empty cols={8} title="No rejections found" sub="No rejections match these filters" />
-                      : historyPg.pageItems.map((h, i) => (
-                        <tr key={i}>
-                          <td className="rb-sr">{historyPg.offset + i + 1}</td>
-                          <td className="rb-nowrap">{fmtDate(h.date)}</td>
-                          <td><div className="rb-strong">{h.reference}</div><div className="rb-muted">{h.callOrShift}</div></td>
-                          <td>{h.productType}</td>
-                          <td><StagePill stage={h.stage} /></td>
-                          <td className="rb-wrap-text">{h.defectReason || '-'}</td>
-                          <td className="rb-num rb-plus">{n(h.rejectedQty)}</td>
-                          <td>{h.addedBy || '-'}</td>
-                        </tr>
-                      ))}
-                </tbody>
-              </table>
-            ) : (
-              <table className="rb-table">
-                <thead>
-                  <tr><th style={{ width: 48 }}>S.No</th><th>Date</th><th>Transaction Type</th><th>Reference (Batch / Lot)</th><th className="rb-num">Rejected (+)</th><th className="rb-num">Scrapped (−)</th><th className="rb-num">Pending for Scrapping</th><th>Engineer</th></tr>
-                </thead>
-                <tbody>
-                  {detailLoading ? <SkeletonRows cols={8} />
-                    : !ledgerRows.length ? <Empty cols={8} title="No transactions found" sub="No ledger entries match these filters" />
-                      : ledgerPg.pageItems.map((r, i) => (
-                        <tr key={i} className="rb-click" onClick={() => setOpenRow(r)} title="Click for full details">
-                          <td className="rb-sr">{ledgerPg.offset + i + 1}</td>
-                          <td className="rb-nowrap">{fmtDate(r.date)}</td>
-                          <td>
-                            {r.rowType === 'SCRAP'
-                              ? <span className="rb-pill rb-pill--scrap">Scrap Verification</span>
-                              : <StagePill stage={r.stage} />}
-                            {r.rowType === 'SCRAP' && r.editable && <span className="rb-editable">editable</span>}
-                          </td>
-                          <td>{r.reference || '-'}</td>
-                          <td className="rb-num rb-plus">{r.rejectedQty != null ? `+${n(r.rejectedQty)}` : '-'}</td>
-                          <td className="rb-num rb-minus">{r.scrappedQty != null ? `−${n(r.scrappedQty)}` : '-'}</td>
-                          <td className="rb-num"><strong>{n(r.pendingBalance)}</strong></td>
-                          <td>{r.engineer || '-'}</td>
-                        </tr>
-                      ))}
-                </tbody>
-              </table>
+            {/* Product Type Dropdown / Chip */}
+            {selectedPlant && productList.length > 0 && (
+              <div className="rs-plant-block" style={{ minWidth: 200, flex: '1 1 200px' }}>
+                <span className="rs-label">Product Type</span>
+                {productList.length === 1 ? (
+                  <div className="rs-plant-chip">
+                    <span className="rs-plant-chip-name">{productList[0]}</span>
+                  </div>
+                ) : (
+                  <SearchSelect
+                    value={selectedProduct}
+                    onChange={v => setSelectedProduct(v)}
+                    options={productOptions}
+                    placeholder="— Select Product Type —"
+                  />
+                )}
+              </div>
             )}
           </div>
 
-          <div className="rb-section-foot">
-            {tab === 'history'
-              ? !detailLoading && <Pager {...historyPg} total={history.length} unit="rejections" />
-              : !detailLoading && <Pager {...ledgerPg} total={ledgerRows.length} unit="transactions" />}
-          </div>
-        </div>
-
-        {modals}
-      </div>
-    );
-  }
-
-  // ================= Basket list =================
-  return (
-    <div className="rb-wrap">
-      <div className="rb-head">
-        <div>
-          <h2 className="rb-title">Rejection Basket</h2>
-          <p className="rb-sub">Rail Pad — rejected pads (process &amp; final) awaiting witnessed destruction, as per IRS T-55 Clause 12.1 &amp; 17.0</p>
-        </div>
-        <div className="rb-actions">
-          <button className="rb-btn" onClick={loadBasket} disabled={loading}>{loading ? 'Refreshing…' : '⟳ Refresh'}</button>
-          <button className="rb-btn" onClick={() => doExport('excel', 'basket')} disabled={!visible.length}>Excel</button>
-          <button className="rb-btn" onClick={() => doExport('pdf', 'basket')} disabled={!visible.length}>PDF</button>
-        </div>
-      </div>
-
-      {notice && <div className="rb-ok">{notice}</div>}
-
-      <div className="rb-topbar">
-        {!loading && visible.length > 0 && (
-          <div className="rb-kpi-strip">
-            <div className="rb-kpi-card">
-              <div className="rb-kpi-icon red">{Icon.rejected()}</div>
-              <div><div className="rb-kpi-val">{n(totals.rejected)}</div><div className="rb-kpi-lbl">Total Rejected</div></div>
+          {/* 3 KPI Cards */}
+          {ledger && (
+            <div className="rs-kpi-row">
+              <div className="rs-kpi">
+                <div className="rs-kpi-label">Total Rejected</div>
+                <div className={`rs-kpi-value ${(ledger.totalRejected ?? 0) > 0 ? 'red' : 'green'}`}>
+                  {n(ledger.totalRejected)}
+                </div>
+              </div>
+              <div className="rs-kpi">
+                <div className="rs-kpi-label">Total Disposed</div>
+                <div className="rs-kpi-value green">
+                  {n(ledger.totalScrapped)}
+                </div>
+              </div>
+              <div className="rs-kpi">
+                <div className="rs-kpi-label">Pending Balance</div>
+                <div className={`rs-kpi-value ${(ledger.pendingScrapQty ?? 0) > 0 ? 'orange' : 'green'}`}>
+                  {n(ledger.pendingScrapQty)}
+                </div>
+              </div>
             </div>
-            <div className="rb-kpi-card">
-              <div className="rb-kpi-icon green">{Icon.done()}</div>
-              <div><div className="rb-kpi-val">{n(totals.scrapped)}</div><div className="rb-kpi-lbl">Total Scrapped</div></div>
-            </div>
-            <div className="rb-kpi-card">
-              <div className="rb-kpi-icon orange">{Icon.clock()}</div>
-              <div><div className="rb-kpi-val">{n(totals.pending)}</div><div className="rb-kpi-lbl">Pending Scrap</div></div>
-            </div>
-            <div className="rb-kpi-card">
-              <div className="rb-kpi-icon blue">{Icon.chart()}</div>
-              <div><div className="rb-kpi-val">{n(totals.rejected30)}</div><div className="rb-kpi-lbl">Rejected (30 d)</div></div>
-            </div>
-          </div>
-        )}
-
-        <div className="rb-filters rb-filters--bar">
-          <div className="rb-field">
-            <label>Manufacturer</label>
-            <select
-              value={fManufacturer}
-              onChange={e => {
-                const val = e.target.value;
-                setFManufacturer(val);
-                setFPlant('');
-                setFProduct('');
-                setFStatus('');
-              }}
-            >
-              <option value="">All manufacturers</option>
-              {manufacturers.map(m => <option key={m} value={m}>{m}</option>)}
-            </select>
-          </div>
-          <div className={`rb-field ${!fManufacturer ? 'rb-field--disabled' : ''}`}>
-            <label>Plant</label>
-            <select
-              value={fPlant}
-              onChange={e => setFPlant(e.target.value)}
-              disabled={!fManufacturer}
-              title={!fManufacturer ? 'Select manufacturer first' : ''}
-            >
-              <option value="">All plants</option>
-              {plants.map(([id, name]) => <option key={id} value={id}>{name}</option>)}
-            </select>
-          </div>
-          <div className={`rb-field ${!fManufacturer ? 'rb-field--disabled' : ''}`}>
-            <label>Product Type</label>
-            <select
-              value={fProduct}
-              onChange={e => setFProduct(e.target.value)}
-              disabled={!fManufacturer}
-              title={!fManufacturer ? 'Select manufacturer first' : ''}
-            >
-              <option value="">All product types</option>
-              {products.map(p => <option key={p} value={p}>{p}</option>)}
-            </select>
-          </div>
-          <div className={`rb-field ${!fManufacturer ? 'rb-field--disabled' : ''}`}>
-            <label>Status</label>
-            <select
-              value={fStatus}
-              onChange={e => setFStatus(e.target.value)}
-              disabled={!fManufacturer}
-              title={!fManufacturer ? 'Select manufacturer first' : ''}
-            >
-              <option value="">All statuses</option>
-              <option value="PENDING">Pending</option>
-              <option value="CLEARED">Cleared</option>
-            </select>
-          </div>
+          )}
         </div>
       </div>
 
-      {error && <div className="rb-error">{error}</div>}
+      {/* ── Main Card: Filter Pills + Ledger Table ── */}
+      <div className="rs-card">
+        {!selectedPlant ? (
+          <div className="rs-prompt">
+            <span className="rs-prompt-icon">🏭</span>
+            <span className="rs-prompt-text">Select a plant above to view the rejection &amp; disposal ledger</span>
+          </div>
+        ) : (
+          <>
+            {/* Filter pills */}
+            {!ledgerLoading && rawRows.length > 0 && (
+              <div className="rs-type-filter">
+                {[
+                  { key: 'ALL', label: 'All', count: allCount },
+                  { key: 'REJECTION', label: 'Rejection', count: rejectionCount },
+                  { key: 'SCRAP', label: 'Disposal', count: scrapCount },
+                ].map(({ key, label, count }) => (
+                  <button
+                    key={key}
+                    type="button"
+                    className={`rs-filter-pill${typeFilter === key ? ' active' : ''} ${key.toLowerCase()}`}
+                    onClick={() => setTypeFilter(key)}
+                  >
+                    {label} <span className="rs-filter-count">{count}</span>
+                  </button>
+                ))}
+              </div>
+            )}
 
-      <div className="rb-table-card">
-        <div className="rb-table-wrap">
-        <table className="rb-table">
-          <thead>
-            <tr>
-              <th style={{ width: 44, minWidth: 44, textAlign: 'center' }}>S.No</th>
-              <SortTh col="manufacturer" label="Manufacturer & Plant" sort={sort} onSort={onSort} style={{ minWidth: 200 }} />
-              <SortTh col="productType" label="Product Type" sort={sort} onSort={onSort} style={{ minWidth: 130 }} />
-              <SortTh col="productionLast30Days" label="Production (30 d)" sort={sort} onSort={onSort} num style={{ minWidth: 120 }} />
-              <SortTh col="rejectedLast30Days" label="Rejected (30 d)" sort={sort} onSort={onSort} num style={{ minWidth: 110 }} />
-              <SortTh col="pendingScrapQty" label="Pending Scrap" sort={sort} onSort={onSort} num style={{ minWidth: 120 }} />
-              <SortTh col="lastScrapDate" label="Last Scrap Verification" sort={sort} onSort={onSort} style={{ minWidth: 140 }} />
-              <th style={{ minWidth: 175, whiteSpace: 'nowrap' }}>Status</th>
-              <th style={{ width: 36, minWidth: 36, textAlign: 'center' }}></th>
-            </tr>
-          </thead>
-          <tbody>
-            {loading && !rows.length ? <SkeletonRows cols={9} />
-              : !visible.length ? (!error && <Empty cols={9} title="No data found" sub="No rejected Rail Pads match the current filters" />)
-                : basketPg.pageItems.map((r, i) => {
-                  const pending = r.pendingScrapQty > 0;
-                  return (
-                    <tr key={rowKey(r)} className={`rb-row ${pending ? 'rb-row--pending' : 'rb-row--done'}`} onClick={() => openDetail(r)}>
-                      <td className="rb-sr">{basketPg.offset + i + 1}</td>
-                      <td>
-                        <div className="rb-co-cell">
-                          <div className="rb-co-avatar">{avatar(r.manufacturer)}</div>
-                          <div className="rb-co-info">
-                            <span className="rb-co-name" title={r.manufacturer}>{r.manufacturer || '—'}</span>
-                            <span className="rb-co-unit" title={r.placeOfInspection}>{r.placeOfInspection || r.plantId}</span>
-                          </div>
+            {/* Table */}
+            <div className="rs-table-wrap">
+              <table className="rs-table">
+                <thead>
+                  <tr>
+                    <th className="center" style={{ width: 46 }}>#</th>
+                    <th style={{ width: 110 }}>Type</th>
+                    <th style={{ width: 100 }}>Date</th>
+                    <th style={{ width: 140 }}>Shift</th>
+                    <th style={{ width: 180 }}>Unit / Line / Shed</th>
+                    <th style={{ width: 95 }}>Stage</th>
+                    <th className="num" style={{ width: 95 }}>Rejected</th>
+                    <th className="num" style={{ width: 95 }}>Disposed</th>
+                    <th className="num" style={{ width: 105 }}>Balance</th>
+                    <th style={{ width: 150 }}>IE Name</th>
+                    <th style={{ width: 120 }}>SV ID</th>
+                    <th className="center" style={{ width: 85 }}>Photos</th>
+                    {!readOnly && <th className="center" style={{ width: 85 }}>Actions</th>}
+                  </tr>
+                </thead>
+                <tbody>
+                  {ledgerLoading ? (
+                    Array.from({ length: 5 }).map((_, i) => (
+                      <tr key={i} className="rs-skel-row">
+                        {Array.from({ length: readOnly ? 12 : 13 }).map((__, j) => (
+                          <td key={j}><div className="rs-skeleton" style={{ width: j === 0 ? 30 : j === 1 ? 80 : 60 }} /></td>
+                        ))}
+                      </tr>
+                    ))
+                  ) : !ledger || rawRows.length === 0 ? (
+                    <tr>
+                      <td colSpan={readOnly ? 12 : 13}>
+                        <div className="rs-empty">
+                          <div className="rs-empty-icon">📋</div>
+                          <p className="rs-empty-title">No entries for this plant yet</p>
+                          <p className="rs-empty-sub">Rejection and disposal records will appear here</p>
                         </div>
                       </td>
-                      <td><span className="rb-type-chip">{r.productType}</span></td>
-                      <td className="rb-num">
-                        <div className="rb-num-val">{n(r.productionLast30Days)}</div>
-                        <div className="rb-num-label">pcs</div>
-                      </td>
-                      <td className="rb-num">
-                        <div className="rb-num-val rb-c-red">{n(r.rejectedLast30Days)}</div>
-                        <div className="rb-num-label">pcs</div>
-                      </td>
-                      <td className="rb-num">
-                        <div className={`rb-num-val ${pending ? 'rb-c-orange' : 'rb-c-green'}`}>{n(r.pendingScrapQty)}</div>
-                        <div className="rb-num-label">
-                          {r.balanceMismatch
-                            ? <span className="rb-pill rb-pill--warn" title="More scrapped than currently rejected: a rejection was reduced after scrapping">check</span>
-                            : pending ? 'pending' : 'cleared'}
-                        </div>
-                      </td>
-                      <td className="rb-date">{r.lastScrapDate ? fmtDate(r.lastScrapDate) : '—'}</td>
-                      <td className="rb-status-cell">
-                        <div className="rb-status-wrap">
-                          <span className={`rb-status ${pending ? 'rb-status--pending' : 'rb-status--done'}`}>{pending ? 'Pending' : 'Cleared'}</span>
-                          {!readOnly && r.canScrap && pending && (
-                            <button
-                              type="button"
-                              className="rb-btn rb-btn--sm rb-btn--primary rb-row-action"
-                              onClick={(e) => { e.stopPropagation(); openDetail(r); setShowAdd(true); }}
-                              title="Witness and record scrap verification"
-                            >
-                              + Scrap
-                            </button>
-                          )}
-                        </div>
-                      </td>
-                      <td><span className="rb-row-arrow">›</span></td>
                     </tr>
-                  );
-                })}
-          </tbody>
-        </table>
-      </div>
-        {!loading && <Pager {...basketPg} total={visible.length} unit="rows" />}
+                  ) : pageRows.length === 0 ? (
+                    <tr>
+                      <td colSpan={readOnly ? 12 : 13}>
+                        <div className="rs-empty">
+                          <div className="rs-empty-icon">🔍</div>
+                          <p className="rs-empty-title">
+                            No {typeFilter === 'REJECTION' ? 'rejection' : 'disposal'} entries found
+                          </p>
+                          <p className="rs-empty-sub">Try switching the filter above</p>
+                        </div>
+                      </td>
+                    </tr>
+                  ) : (
+                    pageRows.map((row, idx) => {
+                      const isScrap = row.rowType === 'SCRAP';
+                      const hasPhotos = (row.imageUrls && row.imageUrls.length > 0) || (isScrap && row.verificationId);
+                      return (
+                        <tr key={`${row.rowType}-${row.verificationId || row.sourceId || idx}`}>
+                          {/* # (Sr No) */}
+                          <td className="center" style={{ color: '#64748b', fontSize: 12, fontWeight: 600 }}>
+                            {(safePage - 1) * size + idx + 1}
+                          </td>
+
+                          {/* Type */}
+                          <td>
+                            <span className={`rs-badge ${isScrap ? 'scrap' : 'rejection'}`}>
+                              {isScrap ? '✓ Disposal' : '✕ Rejection'}
+                            </span>
+                          </td>
+
+                          {/* Date */}
+                          <td style={{ whiteSpace: 'nowrap' }}>{row.entryDate || row.date || '—'}</td>
+
+                          {/* Shift */}
+                          <td style={{ fontSize: 12.5, color: '#475569' }}>{row.shift || row.callOrShift || '—'}</td>
+
+                          {/* Unit / Line / Shed */}
+                          <td style={{ fontSize: 12.5 }}>{row.unitLineShedNo || row.placeOfInspection || selectedPlantObj?.placeOfInspection || '—'}</td>
+
+                          {/* Stage */}
+                          <td style={{ whiteSpace: 'nowrap' }}>{row.stage || row.stageOfInspection || '—'}</td>
+
+                          {/* Rejected */}
+                          <td className="num">
+                            {!isScrap && (row.rejectedQty ?? 0) > 0 ? (
+                              <span style={{ color: '#dc2626', fontWeight: 600 }}>{n(row.rejectedQty)}</span>
+                            ) : (
+                              <span style={{ color: '#cbd5e1' }}>—</span>
+                            )}
+                          </td>
+
+                          {/* Disposed */}
+                          <td className="num">
+                            {isScrap && (row.scrappedQty ?? 0) > 0 ? (
+                              <span style={{ color: '#16a34a', fontWeight: 600 }}>{n(row.scrappedQty)}</span>
+                            ) : (
+                              <span style={{ color: '#cbd5e1' }}>—</span>
+                            )}
+                          </td>
+
+                          {/* Balance */}
+                          <td className="num">
+                            <span className={(row.pendingBalance ?? 0) > 0 ? 'rs-balance-high' : 'rs-balance-ok'}>
+                              {row.pendingBalance != null ? n(row.pendingBalance) : '—'}
+                            </span>
+                          </td>
+
+                          {/* IE Name */}
+                          <td>{row.ieName || row.engineer || '—'}</td>
+
+                          {/* SV ID */}
+                          <td style={{ fontSize: 11, color: '#64748b', fontFamily: 'monospace' }}>
+                            {isScrap ? (row.scrapVerificationId && row.scrapVerificationId !== '—' ? row.scrapVerificationId : (row.reference || '—')) : '—'}
+                          </td>
+
+                          {/* Photos */}
+                          <td className="center">
+                            {hasPhotos ? (
+                              <button
+                                type="button"
+                                className="rs-photo-btn"
+                                onClick={() => openPhotos(row)}
+                                title="View photos"
+                              >
+                                📷 {row.imageUrls?.length || 1}
+                              </button>
+                            ) : (
+                              <span style={{ color: '#cbd5e1' }}>—</span>
+                            )}
+                          </td>
+
+                          {/* Actions */}
+                          {!readOnly && (
+                            <td className="center">
+                              {isScrap ? (
+                                row.editable ? (
+                                  <div className="rs-action-cell">
+                                    <button
+                                      type="button"
+                                      className="rs-icon-btn edit"
+                                      onClick={() => handleEditClick(row)}
+                                      title="Edit within 1 hour of recording"
+                                    >
+                                      ✏️
+                                    </button>
+                                    <button
+                                      type="button"
+                                      className="rs-icon-btn del"
+                                      onClick={() => { setDeleteTarget(row); setDeleteReason(''); }}
+                                      title="Delete within 1 hour of recording"
+                                    >
+                                      🗑️
+                                    </button>
+                                  </div>
+                                ) : (
+                                  <span className="rs-lock-icon" title="Edit window expired (1 hour)">🔒</span>
+                                )
+                              ) : (
+                                <span style={{ color: '#cbd5e1' }}>—</span>
+                              )}
+                            </td>
+                          )}
+                        </tr>
+                      );
+                    })
+                  )}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Pagination */}
+            {!ledgerLoading && totalRows > 0 && (
+              <div className="rs-pagination">
+                <div className="rs-pagination-info">
+                  Showing {totalRows === 0 ? 0 : (safePage - 1) * size + 1}–{Math.min(safePage * size, totalRows)} of {totalRows} entries
+                </div>
+                <div className="rs-pagination-controls">
+                  <span className="rs-pagination-label">Rows per page:</span>
+                  <select
+                    className="rs-page-size-select"
+                    value={size}
+                    onChange={e => {
+                      const newSize = Number(e.target.value) || 10;
+                      setPageSize(newSize);
+                      setPage(1);
+                    }}
+                  >
+                    {PAGE_SIZES.map(s => <option key={s} value={s}>{s}</option>)}
+                  </select>
+                  <div className="rs-pagination-nav">
+                    <button
+                      type="button"
+                      className="rs-page-btn"
+                      onClick={() => setPage(1)}
+                      disabled={safePage === 1}
+                      title="First page"
+                    >
+                      «
+                    </button>
+                    <button
+                      type="button"
+                      className="rs-page-btn"
+                      onClick={() => setPage(p => Math.max(1, p - 1))}
+                      disabled={safePage === 1}
+                      title="Previous page"
+                    >
+                      ‹
+                    </button>
+                    <span className="rs-page-indicator">{safePage} / {totalPages}</span>
+                    <button
+                      type="button"
+                      className="rs-page-btn"
+                      onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+                      disabled={safePage === totalPages}
+                      title="Next page"
+                    >
+                      ›
+                    </button>
+                    <button
+                      type="button"
+                      className="rs-page-btn"
+                      onClick={() => setPage(totalPages)}
+                      disabled={safePage === totalPages}
+                      title="Last page"
+                    >
+                      »
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+          </>
+        )}
       </div>
 
-      {modals}
+      {/* ── Add Disposal Entry Modal ── */}
+      {showAddModal && selectedPlant && (
+        <ScrapVerificationModal
+          mode="add"
+          basketRow={{
+            plantId: selectedPlant,
+            productType: selectedProduct,
+            manufacturer: selectedPlantObj?.manufacturer || '',
+            placeOfInspection: selectedPlantObj?.placeOfInspection || selectedPlant,
+            pendingScrapQty: ledger?.pendingScrapQty || 0,
+          }}
+          onClose={() => setShowAddModal(false)}
+          onSaved={handleAddSuccess}
+        />
+      )}
+
+      {/* ── Edit Disposal Entry Modal ── */}
+      {editEntry && (
+        <ScrapVerificationModal
+          mode="edit"
+          basketRow={{
+            plantId: selectedPlant,
+            productType: selectedProduct,
+            manufacturer: selectedPlantObj?.manufacturer || '',
+            placeOfInspection: selectedPlantObj?.placeOfInspection || selectedPlant,
+            pendingScrapQty: ledger?.pendingScrapQty || 0,
+          }}
+          entry={editEntry}
+          onClose={() => setEditEntry(null)}
+          onSaved={handleEditSuccess}
+        />
+      )}
+
+      {/* ── Delete Confirmation Modal ── */}
+      {deleteTarget && (
+        <div className="rs-overlay" onClick={e => { if (e.target === e.currentTarget && !deleting) setDeleteTarget(null); }}>
+          <div className="rs-modal" role="dialog" aria-modal="true">
+            <div className="rs-modal-header">
+              <h3 className="rs-modal-title">Delete Disposal Entry</h3>
+              <button
+                type="button"
+                className="rs-modal-close"
+                onClick={() => !deleting && setDeleteTarget(null)}
+                aria-label="Close"
+              >
+                ✕
+              </button>
+            </div>
+            <div className="rs-modal-body">
+              <p style={{ margin: '0 0 12px', fontSize: 14, color: '#334155' }}>
+                Are you sure you want to delete disposal entry{' '}
+                <strong>{deleteTarget.reference || deleteTarget.scrapVerificationId || `#${deleteTarget.verificationId}`}</strong>?
+              </p>
+              <p style={{ margin: '0 0 16px', fontSize: 12.5, color: '#64748b' }}>
+                The scrapped quantity will be restored to the plant pending balance. This action will be audited.
+              </p>
+              <label className="rs-label" style={{ marginBottom: 6, display: 'block' }}>
+                Reason for Deletion * (minimum 5 characters)
+              </label>
+              <textarea
+                className="rs-textarea"
+                rows={3}
+                placeholder="State why this disposal verification is being removed…"
+                value={deleteReason}
+                onChange={e => setDeleteReason(e.target.value)}
+                disabled={deleting}
+              />
+            </div>
+            <div className="rs-modal-footer">
+              <button
+                type="button"
+                className="rs-btn rs-btn-ghost"
+                onClick={() => setDeleteTarget(null)}
+                disabled={deleting}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="rs-btn rs-btn-danger"
+                onClick={handleDeleteConfirm}
+                disabled={deleteReason.trim().length < 5 || deleting}
+              >
+                {deleting ? 'Deleting…' : 'Delete Entry'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Lightbox for Photos ── */}
+      {lightboxUrls && (
+        <div className="rs-lightbox" onClick={() => setLightboxUrls(null)}>
+          <button
+            type="button"
+            className="rs-lightbox-close"
+            onClick={() => setLightboxUrls(null)}
+            aria-label="Close lightbox"
+          >
+            ✕
+          </button>
+          {lightboxUrls.map((url, i) => (
+            <AuthedLightboxImg key={i} url={url} alt={`Scrap Photo ${i + 1}`} />
+          ))}
+        </div>
+      )}
+
+      {/* ── Toast Notification ── */}
+      {toast && (
+        <div className={`rs-toast ${toast.type}`}>
+          <span className="rs-toast-icon">{toast.type === 'success' ? '✓' : '⚠️'}</span>
+          <span>{toast.msg}</span>
+          <button type="button" className="rs-toast-close" onClick={() => setToast(null)}>✕</button>
+        </div>
+      )}
     </div>
   );
 }

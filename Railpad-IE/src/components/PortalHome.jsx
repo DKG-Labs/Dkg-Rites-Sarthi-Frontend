@@ -894,16 +894,16 @@ const PortalHome = ({
                 </div>
               </div>
 
-              {/* Card 6: Rejection Basket & Scrap Verification */}
+              {/* Card 6: Rejection & Disposal */}
               <div
                 className={`ph-card ${selectedMainTab === 'rejection' ? 'ph-card--active-plant' : ''}`}
                 onClick={() => setSelectedMainTab('rejection')}
               >
                 <div className="ph-card-text">
                   <div className="ph-card-title-row">
-                    <span className="ph-card-title">Rejection Basket</span>
+                    <span className="ph-card-title">Rejection &amp; Disposal</span>
                   </div>
-                  <span className="ph-card-sub">Pending scrap, scrap verification &amp; ledger</span>
+                  <span className="ph-card-sub">Dispose rejected pieces</span>
                 </div>
                 <div className="ph-card-icon-wrap">
                   <div className="ph-card-icon ph-card-icon--purple" style={{ fontSize: '18px' }}>🗑️</div>
@@ -914,135 +914,139 @@ const PortalHome = ({
           </div>
 
           {/* Embedded Content Table Directly Beneath the Cards */}
-          <div className="ph-main-embedded-panel">
-            {selectedMainTab === 'plant' ? (
-              <div style={{ padding: '24px' }}>
-                <PlantDeclarationDashboard dutyPlantId={dutyPlantId} />
-              </div>
-            ) : selectedMainTab === 'rejection' ? (
-              <div style={{ padding: '24px' }}>
-                {/* The backend allows scrap verification only where this user is the mapped Process IE */}
-                <RejectionBasket />
-              </div>
-            ) : (
-              <AttendingCallsDashboard
-                controlledTab={selectedMainTab}
-                hideTopHeader={true}
-                hideTopTabs={true}
-                dutyPlantId={dutyPlantId}
-                mappedPlants={mappedPlants}
-                user={user}
-                onStart={onStart}
-                onResume={onResume}
-                onIssueIc={onIssueIc}
-                onCountsChange={(newCounts) => {
-                  if (newCounts) {
-                    setMainCounts(prev => ({
-                      ...prev,
-                      ...newCounts
-                    }));
-                  }
-                }}
-              />
-            )}
-          </div>
+          {selectedMainTab === 'rejection' ? (
+            <div style={{ marginTop: '16px' }}>
+              <RejectionBasket dutyPlantId={dutyPlantId} />
+            </div>
+          ) : (
+            <div className="ph-main-embedded-panel">
+              {selectedMainTab === 'plant' ? (
+                <div style={{ padding: '24px' }}>
+                  <PlantDeclarationDashboard dutyPlantId={dutyPlantId} />
+                </div>
+              ) : (
+                <AttendingCallsDashboard
+                  controlledTab={selectedMainTab}
+                  hideTopHeader={true}
+                  hideTopTabs={true}
+                  dutyPlantId={dutyPlantId}
+                  mappedPlants={mappedPlants}
+                  user={user}
+                  onStart={onStart}
+                  onResume={onResume}
+                  onIssueIc={onIssueIc}
+                  onCountsChange={(newCounts) => {
+                    if (newCounts) {
+                      setMainCounts(prev => ({
+                        ...prev,
+                        ...newCounts
+                      }));
+                    }
+                  }}
+                />
+              )}
+            </div>
+          )}
         </div>
       ) : (
         /* ============================================================ */
         /* CASE 2: PURE PROCESS IE (Shift Duty Only)                     */
         /* ============================================================ */
-        <div style={{ background: '#ffffff', borderRadius: '14px', border: '1px solid #e2e8f0', padding: '24px' }}>
-          <p style={{ fontSize: '11px', fontWeight: '700', color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.07em', margin: '0 0 16px 0' }}>
-            Duty Management
-          </p>
+        <>
+          <div style={{ background: '#ffffff', borderRadius: '14px', border: '1px solid #e2e8f0', padding: '24px' }}>
+            <p style={{ fontSize: '11px', fontWeight: '700', color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.07em', margin: '0 0 16px 0' }}>
+              Duty Management
+            </p>
 
-          <div className="ph-cards-grid">
-            {/* Start Duty Card */}
-            <div
-              className={`ph-card ${isClickableStartCard ? 'ph-card--clickable' : ''}`}
-              onClick={isClickableStartCard ? handleStartDutyClick : undefined}
-            >
-              <div className="ph-card-text">
-                <span className="ph-card-title">
-                  {isShiftActive ? 'Resume Duty' : 'Start Duty'}
-                </span>
-                <span className="ph-card-sub">
-                  {isShiftActive
-                    ? 'Your shift is active. Click to resume operations.'
-                    : 'Initialize your daily productivity and duty assignment.'}
-                </span>
-              </div>
-              <div className="ph-card-icon-wrap">
-                <div className="ph-card-icon" style={{
-                  background: '#f0fdfa',
-                  color: '#0d9488',
-                  border: '1px solid #ccfbf1'
-                }}>
-                  <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
-                    <path d="M7 4.5c0-.828.672-1.5 1.5-1.5.263 0 .52.07.747.202l11 6.5c.468.277.753.774.753 1.298s-.285 1.021-.753 1.298l-11 6.5c-.227.133-.484.202-.747.202-.828 0-1.5-.672-1.5-1.5v-13z" />
-                  </svg>
+            <div className="ph-cards-grid">
+              {/* Start Duty Card */}
+              <div
+                className={`ph-card ${isClickableStartCard ? 'ph-card--clickable' : ''}`}
+                onClick={isClickableStartCard ? handleStartDutyClick : undefined}
+              >
+                <div className="ph-card-text">
+                  <span className="ph-card-title">
+                    {isShiftActive ? 'Resume Duty' : 'Start Duty'}
+                  </span>
+                  <span className="ph-card-sub">
+                    {isShiftActive
+                      ? 'Your shift is active. Click to resume operations.'
+                      : 'Initialize your daily productivity and duty assignment.'}
+                  </span>
+                </div>
+                <div className="ph-card-icon-wrap">
+                  <div className="ph-card-icon" style={{
+                    background: '#f0fdfa',
+                    color: '#0d9488',
+                    border: '1px solid #ccfbf1'
+                  }}>
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                      <path d="M7 4.5c0-.828.672-1.5 1.5-1.5.263 0 .52.07.747.202l11 6.5c.468.277.753.774.753 1.298s-.285 1.021-.753 1.298l-11 6.5c-.227.133-.484.202-.747.202-.828 0-1.5-.672-1.5-1.5v-13z" />
+                    </svg>
+                  </div>
                 </div>
               </div>
-            </div>
 
-            {/* Daily Report Card — always visible */}
-            <div
-              className="ph-card ph-card--clickable"
-              onClick={() => setShowDailyReportModal(true)}
-            >
-              <div className="ph-card-text">
-                <div className="ph-card-title-row">
-                  <span className="ph-card-title">Daily Report</span>
-                  <span className="ph-badge ph-badge--teal">Annexure-A</span>
+              {/* Daily Report Card — always visible */}
+              <div
+                className="ph-card ph-card--clickable"
+                onClick={() => setShowDailyReportModal(true)}
+              >
+                <div className="ph-card-text">
+                  <div className="ph-card-title-row">
+                    <span className="ph-card-title">Daily Report</span>
+                    <span className="ph-badge ph-badge--teal">Annexure-A</span>
+                  </div>
+                  <span className="ph-card-sub">
+                    Process Inspection Order (IRS-T-55-2025) activity report
+                  </span>
                 </div>
-                <span className="ph-card-sub">
-                  Process Inspection Order (IRS-T-55-2025) activity report
-                </span>
-              </div>
-              <div className="ph-card-icon-wrap">
-                <div className="ph-card-icon" style={{
-                  background: '#f0fdfa',
-                  color: '#0d9488',
-                  border: '1px solid #ccfbf1',
-                  fontSize: '18px'
-                }}>
-                  📊
+                <div className="ph-card-icon-wrap">
+                  <div className="ph-card-icon" style={{
+                    background: '#f0fdfa',
+                    color: '#0d9488',
+                    border: '1px solid #ccfbf1',
+                    fontSize: '18px'
+                  }}>
+                    📊
+                  </div>
                 </div>
               </div>
-            </div>
 
-            {/* Rejection Basket & Scrap Verification */}
-            <div
-              className="ph-card ph-card--clickable"
-              onClick={() => setShowRejectionBasket(v => !v)}
-            >
-              <div className="ph-card-text">
-                <div className="ph-card-title-row">
-                  <span className="ph-card-title">Rejection Basket</span>
+              {/* Rejection & Disposal */}
+              <div
+                className="ph-card ph-card--clickable"
+                onClick={() => setShowRejectionBasket(v => !v)}
+              >
+                <div className="ph-card-text">
+                  <div className="ph-card-title-row">
+                    <span className="ph-card-title">Rejection &amp; Disposal</span>
+                  </div>
+                  <span className="ph-card-sub">
+                    Dispose rejected pieces
+                  </span>
                 </div>
-                <span className="ph-card-sub">
-                  Pending scrap, scrap verification &amp; scrap ledger
-                </span>
-              </div>
-              <div className="ph-card-icon-wrap">
-                <div className="ph-card-icon" style={{
-                  background: '#faf5ff',
-                  color: '#7c3aed',
-                  border: '1px solid #ede9fe',
-                  fontSize: '18px'
-                }}>
-                  🗑️
+                <div className="ph-card-icon-wrap">
+                  <div className="ph-card-icon" style={{
+                    background: '#faf5ff',
+                    color: '#7c3aed',
+                    border: '1px solid #ede9fe',
+                    fontSize: '18px'
+                  }}>
+                    🗑️
+                  </div>
                 </div>
               </div>
             </div>
           </div>
 
+          {/* Rejection & Disposal rendered cleanly outside the duty box */}
           {showRejectionBasket && (
-            <div style={{ marginTop: '20px' }}>
-              <RejectionBasket />
+            <div style={{ marginTop: '16px' }}>
+              <RejectionBasket dutyPlantId={dutyPlantId} />
             </div>
           )}
-        </div>
+        </>
       )}
 
       {showPlantDeclaration && !hasMainAccess && (

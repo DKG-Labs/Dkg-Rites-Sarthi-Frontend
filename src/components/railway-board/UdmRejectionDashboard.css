@@ -1,4 +1,4 @@
-﻿/* ─────────────────────────────────────────────────────────────
+/* ─────────────────────────────────────────────────────────────
    UDM Rejection Dashboard  —  Senior Frontend Design Pass
    ───────────────────────────────────────────────────────────── */
 
@@ -60,7 +60,7 @@
 
 .udm-intro-copy h2 {
     margin: 0 0 4px;
-    font-size: 16px;
+    font-size: 28px;
     font-weight: 800;
     color: #ffffff;
     letter-spacing: -0.3px;
@@ -691,7 +691,7 @@
     top: 0;
     z-index: 2;
     background: #f8fafc;
-    padding: 10px 12px;
+    padding: 11px 12px;
     text-align: left;
     font-size: 13px; font-weight: 800;
     text-transform: uppercase; letter-spacing: 0.06em;
@@ -702,34 +702,35 @@
 .udm-table thead th:first-child { padding-left: 16px; }
 
 .udm-table tbody td {
-    padding: 11px 12px;
+    padding: 12px 14px;
     border-bottom: 1px solid #f8fafc;
     vertical-align: middle;
     color: #374151;
     overflow: hidden;
     text-overflow: ellipsis;
+    font-size: 15px;
+    line-height: 1.4;
 }
 .udm-table tbody td:first-child { padding-left: 16px; }
 .udm-table tbody tr:last-child td { border-bottom: none; }
 .udm-table tbody tr { transition: background 0.1s; }
 .udm-table tbody tr:hover { background: #fbfcff; }
 
-.td-main     { font-weight: 700; color: #0f172a; }
-.td-sub      { font-size: 13px; color: #94a3b8; margin-top: 1px; }
-.td-muted    { color: #94a3b8; font-size: 14px; }
+.td-main     { font-size: 15.5px !important; font-weight: 700; color: #0f172a; line-height: 1.35; }
+.td-sub      { font-size: 13.5px !important; color: #64748b; margin-top: 3px; line-height: 1.35; }
+.td-muted    { color: #64748b; font-size: 14.5px !important; }
 
 /* Column width helpers */
-.td-num      { width: 44px; text-align: center; }
+.td-num      { width: 50px; text-align: center; font-size: 14px !important; font-weight: 600; color: #475569; }
 .td-nowrap   { white-space: nowrap; }
-.td-clamp    { max-width: 160px; }
+.td-clamp    { max-width: 240px; }
 .td-truncate { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: block; }
-.td-truncate { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 /* Type badges */
 .tbadge {
     display: inline-flex; align-items: center; gap: 4px;
     padding: 2px 9px; border-radius: 50px;
-    font-size: 10px; font-weight: 800;
+    font-size: 11px; font-weight: 800;
     letter-spacing: 0.04em; text-transform: uppercase;
     white-space: nowrap;
 }
@@ -737,12 +738,12 @@
 .tbadge.warranty { background: #fff1f2; color: #9f1239; border: 1px solid #fecdd3; }
 
 .btn-view {
-    display: inline-flex; align-items: center; gap: 5px;
+    display: inline-flex; align-items: center; gap: 6px;
     background: #f8fafc;
     border: 1px solid #dde3ed;
     border-radius: 8px;
-    padding: 4px 11px;
-    font-size: 11px; font-weight: 700; color: #374151;
+    padding: 6px 13px;
+    font-size: 12.5px !important; font-weight: 700; color: #374151;
     cursor: pointer;
     transition: all 0.16s;
     white-space: nowrap;

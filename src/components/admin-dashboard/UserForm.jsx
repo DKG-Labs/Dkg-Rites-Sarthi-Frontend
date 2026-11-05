@@ -231,6 +231,22 @@ export const UserForm = ({ user, roles = [], rolesLoading = false, existingUsers
                 vendorAddress: user.vendorAddress || ''
             }));
 
+            // User lists no longer carry photos (they made the list several MB); load this user's photo separately
+            const photoUid = user.userId || user.id;
+            if (photoUid && !user.profilePhotoPath) {
+                fetch(`${API_BASE_URL || ''}/api/auth/api/users/${photoUid}/photo`, { headers: getAuthHeaders() })
+                    .then(res => (res.ok ? res.json() : null))
+                    .then(json => {
+                        const photo = json?.responseData?.profilePhotoPath;
+                        if (photo) {
+                            // Only fill if the admin hasn't picked a new photo meanwhile
+                            setFormData(prev => (prev.userId === photoUid && !prev.profilePhotoPath
+                                ? { ...prev, profilePhotoPath: photo } : prev));
+                        }
+                    })
+                    .catch(() => { /* photo is optional */ });
+            }
+
             // Fetch vendor units if this is an ERC vendor
             const isV = activeVendorRole 
                 ? (activeVendorRole === 'Vendor' || activeVendorRole === 'ERC Vendor')

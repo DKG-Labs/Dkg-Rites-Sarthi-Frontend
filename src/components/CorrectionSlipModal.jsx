@@ -732,6 +732,7 @@ const CorrectionSlipModal = ({ row, onClose, viewOnly = false, isViewOnly = fals
 
           // Common fields across all 3 IC types
           editOverrides = {
+            certificateNo:       editData.icNumber            || certData?.certificateNo,
             certificateDate:     formattedCertDate            || (certData?.certificateDate ? formatDateVal(certData.certificateDate) : null),
             bookNo:              editData.bookNo              || certData?.bookNo,
             setNo:               editData.setNo               || certData?.setNo,

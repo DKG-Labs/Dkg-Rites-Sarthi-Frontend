@@ -576,7 +576,7 @@ const StatCard = ({ label, value, unit = '', color = '#1e293b' }) => (
     </div>
 );
 
-const BatchSearchableSelect = ({ value, onChange, options = [] }) => {
+const BatchSearchableSelect = ({ value, selectedId, onChange, options = [] }) => {
     const [isOpen, setIsOpen] = useState(false);
     const [searchTerm, setSearchTerm] = useState(value || '');
     const containerRef = React.useRef(null);
@@ -681,7 +681,10 @@ const BatchSearchableSelect = ({ value, onChange, options = [] }) => {
                             const bNo = opt.batchNumber || opt.batchNo;
                             const drw = opt.drawingNo || opt.sleeperType;
                             const gr = opt.mixDesignReference || opt.concreteGrade;
-                            const isSelected = String(value || '').trim().toLowerCase() === String(bNo || '').trim().toLowerCase();
+                            // Batch numbers can repeat across declarations, so match on the declaration id when known
+                            const isSelected = selectedId != null && selectedId !== '' && opt.id != null
+                                ? String(selectedId) === String(opt.id)
+                                : String(value || '').trim().toLowerCase() === String(bNo || '').trim().toLowerCase();
 
                             return (
                                 <div
@@ -790,15 +793,21 @@ const MFSampleDeclarationModal = ({ sample, isModifying, onClose, onSave, saving
     // Batches filtered by Date of Casting if date is provided
     const batchOptions = useMemo(() => {
         if (!localDeclarations || !Array.isArray(localDeclarations)) return [];
+        // Dedupe per declaration, not per batch number: the same batch no. can belong to
+        // several declarations (e.g. different sleeper types on the same date).
         const seen = new Set();
         return localDeclarations.filter(p => {
             const bNo = String(p.batchNumber || p.batchNo || '').trim();
-            if (!bNo || seen.has(bNo.toLowerCase())) return false;
+            if (!bNo) return false;
+            const key = p.id != null
+                ? `id:${p.id}`
+                : `${bNo.toLowerCase()}|${extractDrawingNo(p) || ''}|${formatDateToInput(p.castingDate || p.dateOfCasting) || ''}`;
+            if (seen.has(key)) return false;
             if (formData.castingDate) {
                 const pDate = formatDateToInput(p.castingDate || p.dateOfCasting);
                 if (pDate && pDate !== formData.castingDate) return false;
             }
-            seen.add(bNo.toLowerCase());
+            seen.add(key);
             return true;
         });
     }, [localDeclarations, formData.castingDate]);
@@ -816,8 +825,15 @@ const MFSampleDeclarationModal = ({ sample, isModifying, onClose, onSave, saving
                 const cleanBatch = String(formData.batchNo).trim();
                 let list = [];
 
+                // If several declarations share this batch no., the by-batch API would mix their
+                // sleepers; go straight to the selected declaration instead.
+                const sameBatchCount = (localDeclarations || []).filter(p =>
+                    String(p.batchNumber || p.batchNo || '').trim().toLowerCase() === cleanBatch.toLowerCase()
+                ).length;
+                const ambiguousBatch = sameBatchCount > 1 && !!formData.declarationId;
+
                 // Method 1: getAllProductionSleepers API
-                try {
+                if (!ambiguousBatch) try {
                     const sleepersRes = await apiService.getAllProductionSleepers(cleanBatch);
                     const data = sleepersRes?.responseData || sleepersRes?.data || sleepersRes;
                     if (Array.isArray(data) && data.length > 0) {
@@ -839,10 +855,10 @@ const MFSampleDeclarationModal = ({ sample, isModifying, onClose, onSave, saving
 
                 // Method 2: fallback to matching declaration in localDeclarations
                 if (list.length === 0) {
-                    const match = (localDeclarations || []).find(p => 
+                    const match = (localDeclarations || []).find(p =>
                         String(p.batchNumber || p.batchNo || '').trim().toLowerCase() === cleanBatch.toLowerCase()
                     );
-                    const declId = match?.id;
+                    const declId = formData.declarationId || match?.id;
                     if (declId) {
                         try {
                             const response = await apiService.getProductionDeclarationRecordById(declId);
@@ -894,15 +910,24 @@ const MFSampleDeclarationModal = ({ sample, isModifying, onClose, onSave, saving
         };
 
         fetchSleepersForBatch();
-    }, [formData.batchNo, localDeclarations]);
+    }, [formData.batchNo, formData.declarationId, localDeclarations]);
 
     const handleBatchChange = (batchVal, matchedOpt) => {
         const updated = { ...formData, batchNo: batchVal };
         const cleanVal = String(batchVal || '').trim().toLowerCase();
 
-        const match = matchedOpt || (localDeclarations || []).find(p => 
+        const match = matchedOpt || (localDeclarations || []).find(p =>
             String(p.batchNumber || p.batchNo || '').trim().toLowerCase() === cleanVal
         );
+
+        // Remember which declaration was picked (batch nos. aren't unique); reset the sleeper if it changed
+        const newDeclId = match?.id ?? '';
+        const prevDeclId = formData.declarationId ?? '';
+        if (prevDeclId !== '' && String(newDeclId) !== String(prevDeclId)) {
+            updated.sleeperId = '';
+            updated.sampleIdentification = '';
+        }
+        updated.declarationId = newDeclId;
 
         if (match) {
             // Concrete Grade (Auto fetch)
@@ -1042,6 +1067,7 @@ const MFSampleDeclarationModal = ({ sample, isModifying, onClose, onSave, saving
                             <label>3. Batch No. <span style={{ color: '#ef4444' }}>*</span></label>
                             <BatchSearchableSelect
                                 value={formData.batchNo}
+                                selectedId={formData.declarationId}
                                 onChange={handleBatchChange}
                                 options={batchOptions}
                             />

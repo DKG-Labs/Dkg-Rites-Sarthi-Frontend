@@ -66,13 +66,16 @@ const CountUp = ({ value, duration = 1600, className = '' }) => {
 
   if (!parsed) return <span className={className}>{value ?? ''}</span>;
 
-  const fixed = display.toFixed(parsed.decimals);
-  const text = parsed.grouped
-    ? Number(fixed).toLocaleString('en-IN', { minimumFractionDigits: parsed.decimals, maximumFractionDigits: parsed.decimals })
-    : fixed;
+  const format = (n) => {
+    const fixed = n.toFixed(parsed.decimals);
+    return parsed.grouped
+      ? Number(fixed).toLocaleString('en-IN', { minimumFractionDigits: parsed.decimals, maximumFractionDigits: parsed.decimals })
+      : fixed;
+  };
+  const text = format(display);
 
   return (
-    <span ref={elRef} className={`countup ${className}`}>
+    <span ref={elRef} className={`countup ${className}`} data-final={format(target)}>
       <span key={runKey} className="countup__rise">{text}</span>
     </span>
   );

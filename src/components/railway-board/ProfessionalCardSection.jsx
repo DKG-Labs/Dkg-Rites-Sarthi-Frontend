@@ -1232,7 +1232,7 @@ const ProfessionalCardSection = ({
                                             isDashboardLoading={isDashboardLoading}
                                         />
                                     ) : (
-                                        <div className="railpad-summary-container fade-in">
+                                        <div className="erc-summary-container rps-glass fade-in">
                                             <div className="g3 mb">
                                                 <div className="prof-card card-dark-green"
                                                     style={{ textAlign: 'center', cursor: 'pointer' }}

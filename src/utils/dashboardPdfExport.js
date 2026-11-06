@@ -88,11 +88,20 @@ export async function exportDashboardScreenToPdf(elementOrId, metadata = {}) {
         }
     }
 
+    // The PDF uses the plain solid dashboard design, not the on-screen glass look. html2canvas reads
+    // ::before/::after styles from the live page, so the glass class is removed from the live page
+    // for the moment of capture and put back afterwards.
+    const glassEls = Array.from(document.querySelectorAll('.rps-glass'));
+    glassEls.forEach((el) => el.classList.remove('rps-glass'));
+    document.documentElement.classList.add('pdf-exporting');
+
     // Pause to allow charts and animations to settle
     await new Promise((resolve) => setTimeout(resolve, 400));
 
     // Capture using html2canvas with high DPI and explicit print cleanup
-    const canvas = await html2canvas(element, {
+    let canvas;
+    try {
+    canvas = await html2canvas(element, {
         scale: 2,
         useCORS: true,
         allowTaint: true,
@@ -252,8 +261,25 @@ export async function exportDashboardScreenToPdf(elementOrId, metadata = {}) {
                 }
             `;
             clonedDoc.head.appendChild(printFixStyle);
+
+            // Count-up numbers may still be mid-animation (or not started for cards below the fold): print the final value
+            clonedDoc.querySelectorAll('.countup[data-final]').forEach((el) => {
+                el.textContent = el.getAttribute('data-final');
+            });
+
+            // Plain print design: no icon badges, count-up numbers as plain text
+            const plainPrintFix = clonedDoc.createElement('style');
+            plainPrintFix.innerHTML = `
+                .rps-icon { display: none !important; }
+                .countup, .countup__rise { overflow: visible !important; display: inline !important; }
+            `;
+            clonedDoc.head.appendChild(plainPrintFix);
         },
     });
+    } finally {
+        document.documentElement.classList.remove('pdf-exporting');
+        glassEls.forEach((el) => el.classList.add('rps-glass'));
+    }
 
     if (!canvas || canvas.width === 0 || canvas.height === 0) {
         throw new Error('Canvas rendering produced an empty image.');

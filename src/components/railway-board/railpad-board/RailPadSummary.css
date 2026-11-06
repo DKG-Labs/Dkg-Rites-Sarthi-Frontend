@@ -147,13 +147,13 @@
 
 /* ===================== Glassy dashboard (Rail Pad) ===================== */
 
-.railpad-summary-container {
+.rps-glass {
   position: relative;
   isolation: isolate;
 }
 
 /* All cards: frosted glass, glossy top highlight, entrance + hover lift */
-.railpad-summary-container .prof-card {
+.rps-glass .prof-card {
   position: relative;
   overflow: hidden;
   border-radius: 20px !important;
@@ -167,7 +167,7 @@
   animation: rps-rise 0.55s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
-.railpad-summary-container .prof-card::before {
+.rps-glass .prof-card::before {
   content: '';
   position: absolute;
   inset: 0;
@@ -178,7 +178,7 @@
 }
 
 /* Light sweep that glides across each card */
-.railpad-summary-container .prof-card::after {
+.rps-glass .prof-card::after {
   content: '';
   position: absolute;
   top: 0;
@@ -192,12 +192,12 @@
   animation: rps-sweep 6s ease-in-out infinite;
 }
 
-.railpad-summary-container .prof-card > * {
+.rps-glass .prof-card > * {
   position: relative;
   z-index: 1;
 }
 
-.railpad-summary-container .prof-card:hover {
+.rps-glass .prof-card:hover {
   transform: translateY(-5px);
   box-shadow:
     0 22px 40px -18px rgba(22, 101, 52, 0.3),
@@ -205,45 +205,45 @@
 }
 
 /* Stagger the cards in each row */
-.railpad-summary-container .g3 > .prof-card:nth-child(1),
-.railpad-summary-container .g4 > .prof-card:nth-child(1),
-.railpad-summary-container .g2 > .prof-card:nth-child(1) { animation-delay: 0.05s; }
-.railpad-summary-container .g3 > .prof-card:nth-child(2),
-.railpad-summary-container .g4 > .prof-card:nth-child(2),
-.railpad-summary-container .g2 > .prof-card:nth-child(2) { animation-delay: 0.12s; }
-.railpad-summary-container .g3 > .prof-card:nth-child(3),
-.railpad-summary-container .g4 > .prof-card:nth-child(3) { animation-delay: 0.19s; }
-.railpad-summary-container .g4 > .prof-card:nth-child(4) { animation-delay: 0.26s; }
+.rps-glass .g3 > .prof-card:nth-child(1),
+.rps-glass .g4 > .prof-card:nth-child(1),
+.rps-glass .g2 > .prof-card:nth-child(1) { animation-delay: 0.05s; }
+.rps-glass .g3 > .prof-card:nth-child(2),
+.rps-glass .g4 > .prof-card:nth-child(2),
+.rps-glass .g2 > .prof-card:nth-child(2) { animation-delay: 0.12s; }
+.rps-glass .g3 > .prof-card:nth-child(3),
+.rps-glass .g4 > .prof-card:nth-child(3) { animation-delay: 0.19s; }
+.rps-glass .g4 > .prof-card:nth-child(4) { animation-delay: 0.26s; }
 
-.railpad-summary-container .g3 > .prof-card:nth-child(2)::after,
-.railpad-summary-container .g4 > .prof-card:nth-child(2)::after { animation-delay: 0.8s; }
-.railpad-summary-container .g3 > .prof-card:nth-child(3)::after,
-.railpad-summary-container .g4 > .prof-card:nth-child(3)::after { animation-delay: 1.6s; }
-.railpad-summary-container .g4 > .prof-card:nth-child(4)::after { animation-delay: 2.4s; }
+.rps-glass .g3 > .prof-card:nth-child(2)::after,
+.rps-glass .g4 > .prof-card:nth-child(2)::after { animation-delay: 0.8s; }
+.rps-glass .g3 > .prof-card:nth-child(3)::after,
+.rps-glass .g4 > .prof-card:nth-child(3)::after { animation-delay: 1.6s; }
+.rps-glass .g4 > .prof-card:nth-child(4)::after { animation-delay: 2.4s; }
 
 /* Top KPI cards: dark fills -> light pastel glass */
-.railpad-summary-container .card-dark-green {
+.rps-glass .card-dark-green {
   background: linear-gradient(135deg, rgba(220, 252, 231, 0.92), rgba(187, 247, 208, 0.75)) !important;
 }
-.railpad-summary-container .card-ocean {
+.rps-glass .card-ocean {
   background: linear-gradient(135deg, rgba(224, 242, 254, 0.92), rgba(186, 230, 253, 0.75)) !important;
 }
-.railpad-summary-container .card-indigo {
+.rps-glass .card-indigo {
   background: linear-gradient(135deg, rgba(237, 233, 254, 0.92), rgba(221, 214, 254, 0.75)) !important;
 }
-.railpad-summary-container .card-gold {
+.rps-glass .card-gold {
   background: linear-gradient(135deg, rgba(254, 249, 195, 0.92), rgba(253, 230, 138, 0.7)) !important;
 }
 
-.railpad-summary-container .card-dark-green .kpi-lbl { color: #166534 !important; }
-.railpad-summary-container .card-ocean .kpi-lbl { color: #075985 !important; }
-.railpad-summary-container .card-indigo .kpi-lbl { color: #5b21b6 !important; }
-.railpad-summary-container .card-gold .kpi-lbl { color: #92400e !important; }
+.rps-glass .card-dark-green .kpi-lbl { color: #166534 !important; }
+.rps-glass .card-ocean .kpi-lbl { color: #075985 !important; }
+.rps-glass .card-indigo .kpi-lbl { color: #5b21b6 !important; }
+.rps-glass .card-gold .kpi-lbl { color: #92400e !important; }
 
-.railpad-summary-container .card-dark-green .kpi-val,
-.railpad-summary-container .card-ocean .kpi-val,
-.railpad-summary-container .card-indigo .kpi-val,
-.railpad-summary-container .card-gold .kpi-val {
+.rps-glass .card-dark-green .kpi-val,
+.rps-glass .card-ocean .kpi-val,
+.rps-glass .card-indigo .kpi-val,
+.rps-glass .card-gold .kpi-val {
   font-weight: 800;
   letter-spacing: -0.02em;
   -webkit-background-clip: text;
@@ -251,27 +251,27 @@
   color: transparent !important;
 }
 
-.railpad-summary-container .card-dark-green .kpi-val { background-image: linear-gradient(90deg, #14532d, #16a34a); }
-.railpad-summary-container .card-ocean .kpi-val { background-image: linear-gradient(90deg, #0c4a6e, #0284c7); }
-.railpad-summary-container .card-indigo .kpi-val { background-image: linear-gradient(90deg, #4c1d95, #7c3aed); }
-.railpad-summary-container .card-gold .kpi-val { background-image: linear-gradient(90deg, #78350f, #d97706); }
+.rps-glass .card-dark-green .kpi-val { background-image: linear-gradient(90deg, #14532d, #16a34a); }
+.rps-glass .card-ocean .kpi-val { background-image: linear-gradient(90deg, #0c4a6e, #0284c7); }
+.rps-glass .card-indigo .kpi-val { background-image: linear-gradient(90deg, #4c1d95, #7c3aed); }
+.rps-glass .card-gold .kpi-val { background-image: linear-gradient(90deg, #78350f, #d97706); }
 
-.railpad-summary-container .card-dark-green .kpi-sub,
-.railpad-summary-container .card-ocean .kpi-sub,
-.railpad-summary-container .card-indigo .kpi-sub,
-.railpad-summary-container .card-gold .kpi-sub {
+.rps-glass .card-dark-green .kpi-sub,
+.rps-glass .card-ocean .kpi-sub,
+.rps-glass .card-indigo .kpi-sub,
+.rps-glass .card-gold .kpi-sub {
   color: #475569 !important;
   opacity: 1 !important;
   font-weight: 600;
 }
 
 /* Section titles: animated gradient underline */
-.railpad-summary-container .sec-title-flex {
+.rps-glass .sec-title-flex {
   position: relative;
   padding-bottom: 6px;
 }
 
-.railpad-summary-container .sec-title-flex::after {
+.rps-glass .sec-title-flex::after {
   content: '';
   position: absolute;
   left: 0;
@@ -284,7 +284,7 @@
   animation: rps-flow 6s linear infinite;
 }
 
-.railpad-summary-container .prof-badge {
+.rps-glass .prof-badge {
   border-radius: 999px !important;
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.8);
 }
@@ -305,12 +305,12 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .railpad-summary-container .prof-card,
-  .railpad-summary-container .prof-card::after,
-  .railpad-summary-container .sec-title-flex::after {
+  .rps-glass .prof-card,
+  .rps-glass .prof-card::after,
+  .rps-glass .sec-title-flex::after {
     animation: none !important;
   }
-  .railpad-summary-container .prof-card:hover {
+  .rps-glass .prof-card:hover {
     transform: none;
   }
 }
@@ -318,28 +318,28 @@
 /* ===================== Polish pass ===================== */
 
 /* Steady digits while counting */
-.railpad-summary-container .kpi-val,
-.railpad-summary-container [style*="font-weight: 800"] {
+.rps-glass .kpi-val,
+.rps-glass [style*="font-weight: 800"] {
   font-variant-numeric: tabular-nums;
 }
 
-.railpad-summary-container .card-dark-green .kpi-val,
-.railpad-summary-container .card-ocean .kpi-val,
-.railpad-summary-container .card-indigo .kpi-val {
+.rps-glass .card-dark-green .kpi-val,
+.rps-glass .card-ocean .kpi-val,
+.rps-glass .card-indigo .kpi-val {
   font-size: 34px !important;
   line-height: 1.15;
 }
-.railpad-summary-container .card-dark-green .kpi-val { font-size: 44px !important; }
-.railpad-summary-container .card-gold .kpi-val { font-size: 40px !important; }
+.rps-glass .card-dark-green .kpi-val { font-size: 44px !important; }
+.rps-glass .card-gold .kpi-val { font-size: 40px !important; }
 
 /* Coloured accent bar on top of each KPI card */
-.railpad-summary-container .card-dark-green { box-shadow: inset 0 4px 0 #22c55e, 0 14px 34px -18px rgba(22, 101, 52, 0.35) !important; }
-.railpad-summary-container .card-ocean { box-shadow: inset 0 4px 0 #0ea5e9, 0 14px 34px -18px rgba(3, 105, 161, 0.35) !important; }
-.railpad-summary-container .card-indigo { box-shadow: inset 0 4px 0 #8b5cf6, 0 14px 34px -18px rgba(91, 33, 182, 0.35) !important; }
-.railpad-summary-container .card-gold { box-shadow: inset 0 4px 0 #f59e0b, 0 14px 34px -18px rgba(146, 64, 14, 0.35) !important; }
+.rps-glass .card-dark-green { box-shadow: inset 0 4px 0 #22c55e, 0 14px 34px -18px rgba(22, 101, 52, 0.35) !important; }
+.rps-glass .card-ocean { box-shadow: inset 0 4px 0 #0ea5e9, 0 14px 34px -18px rgba(3, 105, 161, 0.35) !important; }
+.rps-glass .card-indigo { box-shadow: inset 0 4px 0 #8b5cf6, 0 14px 34px -18px rgba(91, 33, 182, 0.35) !important; }
+.rps-glass .card-gold { box-shadow: inset 0 4px 0 #f59e0b, 0 14px 34px -18px rgba(146, 64, 14, 0.35) !important; }
 
 /* Icon badge in the corner of each KPI card */
-.railpad-summary-container .rps-icon {
+.rps-glass .rps-icon {
   position: absolute !important;
   top: 16px;
   left: 16px;
@@ -353,24 +353,24 @@
   box-shadow: 0 8px 18px -8px currentColor, inset 0 1px 0 rgba(255, 255, 255, 0.45);
   animation: rps-float 4s ease-in-out infinite;
 }
-.railpad-summary-container .card-dark-green .rps-icon { background: linear-gradient(135deg, #4ade80, #16a34a); }
-.railpad-summary-container .card-ocean .rps-icon { background: linear-gradient(135deg, #38bdf8, #0284c7); }
-.railpad-summary-container .card-indigo .rps-icon { background: linear-gradient(135deg, #a78bfa, #7c3aed); }
-.railpad-summary-container .card-gold .rps-icon { background: linear-gradient(135deg, #fbbf24, #d97706); }
+.rps-glass .card-dark-green .rps-icon { background: linear-gradient(135deg, #4ade80, #16a34a); }
+.rps-glass .card-ocean .rps-icon { background: linear-gradient(135deg, #38bdf8, #0284c7); }
+.rps-glass .card-indigo .rps-icon { background: linear-gradient(135deg, #a78bfa, #7c3aed); }
+.rps-glass .card-gold .rps-icon { background: linear-gradient(135deg, #fbbf24, #d97706); }
 
-.railpad-summary-container .rps-icon i { color: #fff; }
+.rps-glass .rps-icon i { color: #fff; }
 
 /* Visible dividers between Nos / Set on light cards */
-.railpad-summary-container .card-ocean [style*="border-right"],
-.railpad-summary-container .card-indigo [style*="border-right"] {
+.rps-glass .card-ocean [style*="border-right"],
+.rps-glass .card-indigo [style*="border-right"] {
   border-right: 1px solid rgba(100, 116, 139, 0.25) !important;
 }
 
 /* Unit labels as soft pills */
-.railpad-summary-container .card-ocean .kpi-sub,
-.railpad-summary-container .card-indigo .kpi-sub,
-.railpad-summary-container .card-dark-green .kpi-sub,
-.railpad-summary-container .card-gold .kpi-sub {
+.rps-glass .card-ocean .kpi-sub,
+.rps-glass .card-indigo .kpi-sub,
+.rps-glass .card-dark-green .kpi-sub,
+.rps-glass .card-gold .kpi-sub {
   display: inline-block;
   margin-top: 6px;
   padding: 2px 10px;
@@ -382,31 +382,31 @@
 }
 
 /* Glass mini-tiles inside the call cards */
-.railpad-summary-container .g4 .prof-card [style*="cursor: pointer"] {
+.rps-glass .g4 .prof-card [style*="cursor: pointer"] {
   background: rgba(255, 255, 255, 0.6) !important;
   border: 1px solid rgba(255, 255, 255, 0.9);
   border-radius: 12px !important;
   box-shadow: 0 4px 12px -8px rgba(15, 23, 42, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.9);
   transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease !important;
 }
-.railpad-summary-container .g4 .prof-card [style*="cursor: pointer"]:hover {
+.rps-glass .g4 .prof-card [style*="cursor: pointer"]:hover {
   transform: translateY(-2px);
   background: rgba(255, 255, 255, 0.9) !important;
   box-shadow: 0 10px 20px -10px rgba(15, 23, 42, 0.3), inset 0 1px 0 #fff;
 }
 
 /* Soft tinted glass for the call/inspection cards instead of flat fills */
-.railpad-summary-container .prof-card[style*="#eff6ff"] { background: linear-gradient(140deg, rgba(239, 246, 255, 0.95), rgba(219, 234, 254, 0.6)) !important; }
-.railpad-summary-container .prof-card[style*="#fff7ed"] { background: linear-gradient(140deg, rgba(255, 247, 237, 0.95), rgba(254, 215, 170, 0.45)) !important; }
-.railpad-summary-container .prof-card[style*="#fef2f2"] { background: linear-gradient(140deg, rgba(254, 242, 242, 0.95), rgba(254, 202, 202, 0.45)) !important; }
-.railpad-summary-container .prof-card[style*="#f5f3ff"] { background: linear-gradient(140deg, rgba(245, 243, 255, 0.95), rgba(221, 214, 254, 0.5)) !important; }
-.railpad-summary-container .prof-card[style*="#fff1f2"] { background: linear-gradient(140deg, rgba(255, 241, 242, 0.95), rgba(254, 205, 211, 0.45)) !important; }
+.rps-glass .prof-card[style*="#eff6ff"] { background: linear-gradient(140deg, rgba(239, 246, 255, 0.95), rgba(219, 234, 254, 0.6)) !important; }
+.rps-glass .prof-card[style*="#fff7ed"] { background: linear-gradient(140deg, rgba(255, 247, 237, 0.95), rgba(254, 215, 170, 0.45)) !important; }
+.rps-glass .prof-card[style*="#fef2f2"] { background: linear-gradient(140deg, rgba(254, 242, 242, 0.95), rgba(254, 202, 202, 0.45)) !important; }
+.rps-glass .prof-card[style*="#f5f3ff"] { background: linear-gradient(140deg, rgba(245, 243, 255, 0.95), rgba(221, 214, 254, 0.5)) !important; }
+.rps-glass .prof-card[style*="#fff1f2"] { background: linear-gradient(140deg, rgba(255, 241, 242, 0.95), rgba(254, 205, 211, 0.45)) !important; }
 
 /* Glowing gradient border on hover */
-.railpad-summary-container .prof-card {
+.rps-glass .prof-card {
   background-clip: padding-box;
 }
-.railpad-summary-container .prof-card:hover {
+.rps-glass .prof-card:hover {
   outline: 2px solid transparent;
   box-shadow:
     0 0 0 2px rgba(34, 197, 94, 0.25),
@@ -414,7 +414,7 @@
 }
 
 /* Bigger, bolder section headings */
-.railpad-summary-container .sec-title-flex span {
+.rps-glass .sec-title-flex span {
   font-size: 15px !important;
   font-weight: 800 !important;
   letter-spacing: 0.01em;
@@ -430,52 +430,52 @@
 }
 
 @media (max-width: 768px) {
-  .railpad-summary-container .rps-icon {
+  .rps-glass .rps-icon {
     width: 34px;
     height: 34px;
     font-size: 15px;
     top: 12px;
     left: 12px;
   }
-  .railpad-summary-container .card-dark-green .kpi-val { font-size: 34px !important; }
-  .railpad-summary-container .card-ocean .kpi-val,
-  .railpad-summary-container .card-indigo .kpi-val { font-size: 24px !important; }
+  .rps-glass .card-dark-green .kpi-val { font-size: 34px !important; }
+  .rps-glass .card-ocean .kpi-val,
+  .rps-glass .card-indigo .kpi-val { font-size: 24px !important; }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .railpad-summary-container .rps-icon { animation: none !important; }
+  .rps-glass .rps-icon { animation: none !important; }
 }
 
 /* ===================== 10% smaller cards ===================== */
 /* zoom makes cards 10% shorter; width stays full so there's no empty space at the sides */
-.railpad-summary-container {
+.rps-glass {
   zoom: 0.9;
   width: 100%;
 }
 
 /* Tighter gaps between rows and section titles */
-.railpad-summary-container .mb {
+.rps-glass .mb {
   margin-bottom: 14px !important;
 }
 
-.railpad-summary-container .g3,
-.railpad-summary-container .g4,
-.railpad-summary-container .g2 {
+.rps-glass .g3,
+.rps-glass .g4,
+.rps-glass .g2 {
   gap: 14px !important;
 }
 
-.railpad-summary-container .sec-title-flex {
+.rps-glass .sec-title-flex {
   margin-top: 4px !important;
   margin-bottom: 10px !important;
 }
 
-.railpad-summary-container .railpad-footer-note {
+.rps-glass .railpad-footer-note {
   margin-top: 1rem !important;
 }
 
 /* Keep the gradient number visible through the animated CountUp spans */
-.railpad-summary-container .kpi-val .countup,
-.railpad-summary-container .kpi-val .countup__rise {
+.rps-glass .kpi-val .countup,
+.rps-glass .kpi-val .countup__rise {
   background-image: inherit;
   -webkit-background-clip: text;
   background-clip: text;
@@ -484,77 +484,77 @@
 
 /* ===================== ERC / Sleeper extras ===================== */
 /* ERC uses a 5-column Stagewise row */
-.railpad-summary-container .g5 {
+.rps-glass .g5 {
   gap: 14px !important;
 }
-.railpad-summary-container .g5 > .prof-card:nth-child(1) { animation-delay: 0.05s; }
-.railpad-summary-container .g5 > .prof-card:nth-child(2) { animation-delay: 0.11s; }
-.railpad-summary-container .g5 > .prof-card:nth-child(3) { animation-delay: 0.17s; }
-.railpad-summary-container .g5 > .prof-card:nth-child(4) { animation-delay: 0.23s; }
-.railpad-summary-container .g5 > .prof-card:nth-child(5) { animation-delay: 0.29s; }
-.railpad-summary-container .g5 > .prof-card:nth-child(2)::after { animation-delay: 0.8s; }
-.railpad-summary-container .g5 > .prof-card:nth-child(3)::after { animation-delay: 1.6s; }
-.railpad-summary-container .g5 > .prof-card:nth-child(4)::after { animation-delay: 2.4s; }
-.railpad-summary-container .g5 > .prof-card:nth-child(5)::after { animation-delay: 3.2s; }
+.rps-glass .g5 > .prof-card:nth-child(1) { animation-delay: 0.05s; }
+.rps-glass .g5 > .prof-card:nth-child(2) { animation-delay: 0.11s; }
+.rps-glass .g5 > .prof-card:nth-child(3) { animation-delay: 0.17s; }
+.rps-glass .g5 > .prof-card:nth-child(4) { animation-delay: 0.23s; }
+.rps-glass .g5 > .prof-card:nth-child(5) { animation-delay: 0.29s; }
+.rps-glass .g5 > .prof-card:nth-child(2)::after { animation-delay: 0.8s; }
+.rps-glass .g5 > .prof-card:nth-child(3)::after { animation-delay: 1.6s; }
+.rps-glass .g5 > .prof-card:nth-child(4)::after { animation-delay: 2.4s; }
+.rps-glass .g5 > .prof-card:nth-child(5)::after { animation-delay: 3.2s; }
 
 /* ERC Production & Rejection cards: dark fills -> light pastel glass */
-.railpad-summary-container .card-spring-green {
+.rps-glass .card-spring-green {
   background: linear-gradient(135deg, rgba(209, 250, 229, 0.92), rgba(167, 243, 208, 0.7)) !important;
   box-shadow: inset 0 4px 0 #10b981, 0 14px 34px -18px rgba(4, 120, 87, 0.35) !important;
 }
-.railpad-summary-container .card-lime {
+.rps-glass .card-lime {
   background: linear-gradient(135deg, rgba(236, 252, 203, 0.92), rgba(217, 249, 157, 0.65)) !important;
   box-shadow: inset 0 4px 0 #84cc16, 0 14px 34px -18px rgba(77, 124, 15, 0.35) !important;
 }
-.railpad-summary-container .card-ruby {
+.rps-glass .card-ruby {
   background: linear-gradient(135deg, rgba(255, 228, 230, 0.92), rgba(254, 205, 211, 0.7)) !important;
   box-shadow: inset 0 4px 0 #e11d48, 0 14px 34px -18px rgba(159, 18, 57, 0.35) !important;
 }
 
-.railpad-summary-container .card-spring-green .kpi-lbl { color: #047857 !important; }
-.railpad-summary-container .card-lime .kpi-lbl { color: #4d7c0f !important; }
-.railpad-summary-container .card-ruby .kpi-lbl { color: #9f1239 !important; }
+.rps-glass .card-spring-green .kpi-lbl { color: #047857 !important; }
+.rps-glass .card-lime .kpi-lbl { color: #4d7c0f !important; }
+.rps-glass .card-ruby .kpi-lbl { color: #9f1239 !important; }
 
-.railpad-summary-container .card-spring-green .kpi-val,
-.railpad-summary-container .card-lime .kpi-val,
-.railpad-summary-container .card-ruby .kpi-val {
+.rps-glass .card-spring-green .kpi-val,
+.rps-glass .card-lime .kpi-val,
+.rps-glass .card-ruby .kpi-val {
   font-weight: 800;
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent !important;
 }
-.railpad-summary-container .card-spring-green .kpi-val { background-image: linear-gradient(90deg, #065f46, #10b981); }
-.railpad-summary-container .card-lime .kpi-val { background-image: linear-gradient(90deg, #365314, #65a30d); }
-.railpad-summary-container .card-ruby .kpi-val { background-image: linear-gradient(90deg, #881337, #e11d48); }
+.rps-glass .card-spring-green .kpi-val { background-image: linear-gradient(90deg, #065f46, #10b981); }
+.rps-glass .card-lime .kpi-val { background-image: linear-gradient(90deg, #365314, #65a30d); }
+.rps-glass .card-ruby .kpi-val { background-image: linear-gradient(90deg, #881337, #e11d48); }
 
-.railpad-summary-container .card-spring-green .kpi-sub,
-.railpad-summary-container .card-lime .kpi-sub,
-.railpad-summary-container .card-ruby .kpi-sub {
+.rps-glass .card-spring-green .kpi-sub,
+.rps-glass .card-lime .kpi-sub,
+.rps-glass .card-ruby .kpi-sub {
   color: #475569 !important;
   opacity: 1 !important;
 }
 
 /* Trend icon in the corner stays readable on light cards */
-.railpad-summary-container .trend-cue-icon {
+.rps-glass .trend-cue-icon {
   color: #64748b !important;
 }
 
 /* Progress bars as glossy pills */
-.railpad-summary-container .prof-prog {
+.rps-glass .prof-prog {
   height: 8px !important;
   border-radius: 999px !important;
   background: rgba(255, 255, 255, 0.7) !important;
   box-shadow: inset 0 1px 2px rgba(15, 23, 42, 0.08);
   overflow: hidden;
 }
-.railpad-summary-container .prof-prog-f {
+.rps-glass .prof-prog-f {
   border-radius: 999px !important;
   animation: rps-grow 1.4s cubic-bezier(0.22, 1, 0.36, 1) both;
   transform-origin: left;
 }
 
 /* ERC's Production & Rejection wrapper card and its title */
-.railpad-summary-container .prof-card > .sec-title {
+.rps-glass .prof-card > .sec-title {
   font-weight: 800;
   background: linear-gradient(90deg, #166534, #0d9488);
   -webkit-background-clip: text;
@@ -563,7 +563,7 @@
 }
 
 /* Sleeper "Filtered" pill picks up the glass look */
-.railpad-summary-container > div[style*="#ecfdf5"] {
+.rps-glass > div[style*="#ecfdf5"] {
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
   box-shadow: 0 6px 16px -10px rgba(4, 120, 87, 0.4);
@@ -575,5 +575,5 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .railpad-summary-container .prof-prog-f { animation: none !important; }
+  .rps-glass .prof-prog-f { animation: none !important; }
 }

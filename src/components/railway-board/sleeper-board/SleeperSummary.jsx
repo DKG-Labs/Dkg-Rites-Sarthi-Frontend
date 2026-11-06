@@ -194,7 +194,7 @@ const SleeperSummary = ({
     const icIssuedTotal = sleeperIcIssued > 0 ? sleeperIcIssued : icIssuedFromData;
 
     return (
-        <div className="sleeper-summary-container railpad-summary-container fade-in">
+        <div className="sleeper-summary-container rps-glass fade-in">
             {filterApplied && (
                 <div style={{
                     display: 'inline-flex',

@@ -111,7 +111,7 @@ const RailPadSummary = ({
     const icIssuedTotal = icIssuedData?.total ?? 0;
 
     return (
-        <div className="railpad-summary-container fade-in">
+        <div className="railpad-summary-container rps-glass fade-in">
             {/* KPI Cards Row 1 */}
             <div className="g3 mb">
                 <div

@@ -13,6 +13,7 @@ import DashboardGraph from '../components/railway-board/DashboardGraph';
 import ProfessionalCardSection from '../components/railway-board/ProfessionalCardSection';
 import UdmRejectionDashboard from '../components/railway-board/UdmRejectionDashboard';
 import ActiveLoginDashboard from '../components/railway-board/ActiveLoginDashboard';
+import ManageIcDatesForm from '../components/admin-dashboard/ManageIcDatesForm';
 import RailwayBoardRejectionScrap from '../components/railway-board/RailwayBoardRejectionScrap';
 import OrgStructureViewer, { getOrgStructurePdf } from '../components/railway-board/OrgStructureViewer';
 import { exportDashboardScreenToPdf } from '../utils/dashboardPdfExport';
@@ -761,6 +762,7 @@ const RailwayBoardDashboard = () => {
                                                 </div>
                                             </div>
                                         )}
+                                        <div className={`report-link ${activeMainCard === 'manage-ic-dates' ? 'active' : ''}`} onClick={() => { setActiveMainCard('manage-ic-dates'); setCmCallMenuOpen(false); setCmIeMenuOpen(false); setCmReportsMenuOpen(false); }} style={{ fontSize: '15px' }}><i className="fa-solid fa-calendar-days" style={{ marginRight: '8px' }}></i>Manage IC Dates</div>
                                         <div className={`report-link ${activeMainCard === 'cm-module' && cmActiveTab === 'Notification & Approval' ? 'active' : ''}`} onClick={() => { setActiveMainCard('cm-module'); setCmActiveTab('Notification & Approval'); setCmCallMenuOpen(false); setCmIeMenuOpen(false); setCmReportsMenuOpen(false); }} style={{ fontSize: '15px' }}><i className="fa-solid fa-key" style={{ marginRight: '8px' }}></i>Notification & Approval</div>
                                     </div>
                                 )}
@@ -848,7 +850,7 @@ const RailwayBoardDashboard = () => {
                 {/* MAIN */}
                 <div id="prof-main" style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                     {/* GLOBAL PRODUCT SELECTION - Above everything */}
-                    {activeMainCard !== 'cm-module' && activeMainCard !== 'udm' && activeMainCard !== 'active-login' ? (
+                    {activeMainCard === 'manage-ic-dates' ? null : activeMainCard !== 'cm-module' && activeMainCard !== 'udm' && activeMainCard !== 'active-login' ? (
                         <div className="sub-tabs" style={{ padding: '0 24px', marginTop: '24px', marginBottom: '4px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                             <div style={{ display: 'flex', gap: '8px' }}>
                                 <button className={`sub-tab-btn ${selectedProduct === 'ERC' ? 'active' : ''}`} onClick={() => setSelectedProduct('ERC')}>ERC</button>
@@ -938,7 +940,7 @@ const RailwayBoardDashboard = () => {
                     )}
 
                     {/* TOPBAR / FILTERS - Hidden on Dashboard (summary), Quality, Lifecycle, Feedback, Scada Monitor, SQC tabs, and ERC/Sleeper SWP Reports, and Lot Wise Closed Loop Reports, and IC Annexures */}
-                    {activeMainCard !== 'cm-module' && activeMainCard !== 'active-login' && activeMainCard !== 'summary' && activeMainCard !== 'quality' && activeMainCard !== 'lifecycle' && activeMainCard !== 'feedback' && activeMainCard !== 'udm' && activeMainCard !== 'scada' && activeMainCard !== 'sqc' && activeMainCard !== 'sleeper-anomaly' && activeMainCard !== 'rejection-scrap' && activeMainCard !== 'org-structure' && !(activeMainCard === 'reports' && activeReport === 'swp' && (selectedProduct === 'ERC' || selectedProduct === 'Sleeper')) && !(activeMainCard === 'reports' && activeReport === 'lwcl') && !(activeMainCard === 'reports' && activeReport === 'ic_annexures') && !(activeMainCard === 'reports' && activeReport === 'rmstatus') && (
+                    {activeMainCard !== 'manage-ic-dates' && activeMainCard !== 'cm-module' && activeMainCard !== 'active-login' && activeMainCard !== 'summary' && activeMainCard !== 'quality' && activeMainCard !== 'lifecycle' && activeMainCard !== 'feedback' && activeMainCard !== 'udm' && activeMainCard !== 'scada' && activeMainCard !== 'sqc' && activeMainCard !== 'sleeper-anomaly' && activeMainCard !== 'rejection-scrap' && activeMainCard !== 'org-structure' && !(activeMainCard === 'reports' && activeReport === 'swp' && (selectedProduct === 'ERC' || selectedProduct === 'Sleeper')) && !(activeMainCard === 'reports' && activeReport === 'lwcl') && !(activeMainCard === 'reports' && activeReport === 'ic_annexures') && !(activeMainCard === 'reports' && activeReport === 'rmstatus') && (
                         <div id="prof-topbar">
                             <label>From</label>
                             <input type="date" value={draftFromDate} onChange={(e) => setDraftFromDate(e.target.value)} />
@@ -1006,6 +1008,8 @@ const RailwayBoardDashboard = () => {
                                 <RailwayBoardRejectionScrap selectedProduct={selectedProduct} />
                             ) : activeMainCard === 'org-structure' ? (
                                 <OrgStructureViewer selectedProduct={selectedProduct} />
+                            ) : activeMainCard === 'manage-ic-dates' && isRitesAdmin ? (
+                                <ManageIcDatesForm />
                             ) : activeMainCard === 'cm-module' ? (
                                 <CMDashboardPage isEmbedded={true} activeTabFromProps={cmActiveTab} activeCallFilterFromProps={cmActiveCallFilter} />
                             ) : (

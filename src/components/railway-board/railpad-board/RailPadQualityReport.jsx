@@ -172,14 +172,14 @@ const RailPadQualityReport = () => {
                         <p>Loading Quality of Rubber Pad Data...</p>
                     </div>
                 ) : (
-                    <table style={{ width: '100%', borderCollapse: 'separate', borderSpacing: 0, fontSize: '12px' }}>
-                        <thead style={{ position: 'sticky', top: 0, zIndex: 10 }}>
+                    <table style={{ minWidth: '2200px', width: '100%', borderCollapse: 'separate', borderSpacing: 0, fontSize: '12px' }}>
+                        <thead style={{ position: 'sticky', top: 0, zIndex: 10, color: '#ffffff' }}>
                             {/* Row 1: Main groups */}
                             <tr>
                                 <th rowSpan="3" style={thBase}>S.No.</th>
                                 <th rowSpan="3" style={thBase}>Zonal Railway</th>
                                 <th rowSpan="3" style={thBase}>Vendor</th>
-                                <th rowSpan="3" style={thBase}>Type of Rubber Pad</th>
+                                <th rowSpan="3" style={{ ...thBase, width: '180px', minWidth: '150px', maxWidth: '200px', whiteSpace: 'normal' }}>Type of Rubber Pad</th>
                                 <th rowSpan="3" style={thBase}>P.O. No. &amp; Date</th>
                                 <th rowSpan="3" style={thBase}>Specification</th>
                                 <th rowSpan="3" style={thBase}>Total P.O. Qty</th>
@@ -236,7 +236,7 @@ const RailPadQualityReport = () => {
                                             <td style={tdCenter}>{i + 1}</td>
                                             <td style={{ ...tdCenter, fontWeight: '600', color: '#0f172a' }}>{row.zonalRailway}</td>
                                             <td style={{ ...tdCenter, fontWeight: '600', color: '#1d4ed8' }}>{row.vendor}</td>
-                                            <td style={{ ...tdCenter, fontSize: '11px', color: '#475569' }}>{row.typeOfRubberPad}</td>
+                                            <td style={{ ...tdCenter, width: '180px', minWidth: '150px', maxWidth: '200px', whiteSpace: 'normal', wordBreak: 'break-word', overflowWrap: 'anywhere', fontSize: '11px', color: '#475569', lineHeight: '1.4' }}>{row.typeOfRubberPad}</td>
                                             <td style={{ ...tdCenter, whiteSpace: 'nowrap' }}>
                                                 <div style={{ fontWeight: '700', color: '#0f172a' }}>{row.zonalRailway}-{row.poNo}</div>
                                                 <div style={{ fontSize: '10px', color: '#64748b' }}>{row.poDate}</div>
@@ -303,7 +303,7 @@ const thBase = {
     textAlign: 'center',
     verticalAlign: 'middle',
     whiteSpace: 'nowrap',
-    border: '1px solid #0f172a',
+    border: '1px solid rgba(255, 255, 255, 0.2)',
     background: '#1e293b',
     color: '#ffffff',
 };
@@ -311,43 +311,50 @@ const thBase = {
 const thGreen = {
     ...thBase,
     background: '#047857',
-    border: '1px solid #065f46',
+    border: '1px solid rgba(255, 255, 255, 0.2)',
+    color: '#ffffff',
 };
 
 const thGreenSub = {
     ...thBase,
     background: '#059669',
-    border: '1px solid #047857',
+    border: '1px solid rgba(255, 255, 255, 0.2)',
+    color: '#ffffff',
 };
 
 const thBlue = {
     ...thBase,
     background: '#1d4ed8',
-    border: '1px solid #1e40af',
+    border: '1px solid rgba(255, 255, 255, 0.2)',
+    color: '#ffffff',
 };
 
 const thBlueSub = {
     ...thBase,
     background: '#2563eb',
-    border: '1px solid #1d4ed8',
+    border: '1px solid rgba(255, 255, 255, 0.2)',
+    color: '#ffffff',
 };
 
 const thOrange = {
     ...thBase,
     background: '#b45309',
-    border: '1px solid #92400e',
+    border: '1px solid rgba(255, 255, 255, 0.2)',
+    color: '#ffffff',
 };
 
 const thRed = {
     ...thBase,
     background: '#c2410c',
-    border: '1px solid #9a3412',
+    border: '1px solid rgba(255, 255, 255, 0.2)',
+    color: '#ffffff',
 };
 
 const thBrown = {
     ...thBase,
     background: '#92400e',
-    border: '1px solid #78350f',
+    border: '1px solid rgba(255, 255, 255, 0.2)',
+    color: '#ffffff',
 };
 
 const tdCenter = {

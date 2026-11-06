@@ -71,6 +71,7 @@ export const ROUTES = {
 
   // Rites Admin Route
   RITES_ADMIN_DASHBOARD: '/rites-admin',
+  RITES_ADMIN_MANAGE_IC_DATES: '/rites-admin/manage-ic-dates',
 
   // Annexures Route
   ANNEXURES: '/annexures',

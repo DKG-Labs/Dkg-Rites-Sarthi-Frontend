@@ -1,0 +1,628 @@
+.manage-ic-dates-container {
+  --mic-green: #15803d;
+  --mic-green-dark: #166534;
+  --mic-mint: #dcfce7;
+  --mic-text: #0f172a;
+  --mic-muted: #64748b;
+  --mic-border: rgba(255, 255, 255, 0.7);
+  --mic-glass: rgba(255, 255, 255, 0.62);
+  --mic-glass-strong: rgba(255, 255, 255, 0.82);
+
+  position: relative;
+  max-width: 920px;
+  margin: 24px auto;
+  padding: 32px;
+  border-radius: 24px;
+  background:
+    radial-gradient(circle at 0% 0%, rgba(187, 247, 208, 0.55), transparent 45%),
+    radial-gradient(circle at 100% 100%, rgba(186, 230, 253, 0.5), transparent 45%),
+    var(--mic-glass);
+  backdrop-filter: blur(18px) saturate(160%);
+  -webkit-backdrop-filter: blur(18px) saturate(160%);
+  border: 1px solid var(--mic-border);
+  box-shadow:
+    0 20px 50px -20px rgba(21, 128, 61, 0.25),
+    0 2px 6px rgba(15, 23, 42, 0.04),
+    inset 0 1px 0 rgba(255, 255, 255, 0.9);
+  color: var(--mic-text);
+  overflow: hidden;
+}
+
+.manage-ic-dates-header {
+  margin-bottom: 28px;
+  padding-bottom: 18px;
+  border-bottom: 1px solid rgba(21, 128, 61, 0.12);
+}
+
+.manage-ic-dates-header h2 {
+  margin: 0 0 6px;
+  font-size: 26px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  background: linear-gradient(90deg, var(--mic-green-dark), #0d9488);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.manage-ic-dates-header p {
+  margin: 0;
+  font-size: 14px;
+  color: var(--mic-muted);
+}
+
+.manage-ic-dates-form {
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+}
+
+.manage-ic-dates-form .form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.manage-ic-dates-form .form-group label {
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--mic-muted);
+}
+
+.manage-ic-dates-form .form-group input {
+  height: 48px;
+  padding: 0 16px;
+  font-size: 15px;
+  font-family: inherit;
+  color: var(--mic-text);
+  background: var(--mic-glass-strong);
+  border: 1px solid rgba(148, 163, 184, 0.35);
+  border-radius: 14px;
+  box-shadow: inset 0 1px 2px rgba(15, 23, 42, 0.04);
+  transition: border-color 0.2s, box-shadow 0.2s, background 0.2s;
+}
+
+.manage-ic-dates-form .form-group input:focus {
+  outline: none;
+  background: #fff;
+  border-color: var(--mic-green);
+  box-shadow: 0 0 0 4px rgba(21, 128, 61, 0.14);
+}
+
+.manage-ic-dates-form .form-group input:disabled {
+  color: var(--mic-muted);
+  background: rgba(241, 245, 249, 0.7);
+}
+
+.manage-ic-dates-form .form-group input.error {
+  border-color: #ef4444;
+  box-shadow: 0 0 0 4px rgba(239, 68, 68, 0.1);
+}
+
+.manage-ic-dates-form .form-group small {
+  font-size: 12px;
+  color: var(--mic-muted);
+}
+
+.manage-ic-dates-form .input-group {
+  display: flex;
+  gap: 10px;
+}
+
+.manage-ic-dates-form .input-group input {
+  flex: 1;
+  min-width: 0;
+}
+
+.manage-ic-dates-form .btn-fetch,
+.manage-ic-dates-form .btn-save {
+  height: 48px;
+  padding: 0 26px;
+  border: none;
+  border-radius: 14px;
+  font-size: 15px;
+  font-weight: 600;
+  color: #fff;
+  background: linear-gradient(135deg, #22c55e, var(--mic-green));
+  box-shadow: 0 8px 20px -8px rgba(21, 128, 61, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.3);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: transform 0.15s, box-shadow 0.2s, opacity 0.2s;
+}
+
+.manage-ic-dates-form .btn-fetch:hover:not(:disabled),
+.manage-ic-dates-form .btn-save:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 12px 24px -8px rgba(21, 128, 61, 0.65), inset 0 1px 0 rgba(255, 255, 255, 0.3);
+}
+
+.manage-ic-dates-form .btn-fetch:disabled,
+.manage-ic-dates-form .btn-save:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+.manage-ic-dates-form .btn-cancel {
+  height: 48px;
+  padding: 0 24px;
+  border-radius: 14px;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--mic-text);
+  background: var(--mic-glass-strong);
+  border: 1px solid rgba(148, 163, 184, 0.4);
+  cursor: pointer;
+  transition: background 0.2s, border-color 0.2s;
+}
+
+.manage-ic-dates-form .btn-cancel:hover:not(:disabled) {
+  background: #fff;
+  border-color: rgba(100, 116, 139, 0.5);
+}
+
+.manage-ic-dates-form .btn-cancel:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.manage-ic-dates-form .error-msg {
+  font-size: 12px;
+  color: #dc2626;
+}
+
+.manage-ic-dates-form .error-box {
+  padding: 12px 16px;
+  font-size: 14px;
+  color: #b91c1c;
+  background: rgba(254, 226, 226, 0.75);
+  border: 1px solid rgba(248, 113, 113, 0.4);
+  border-radius: 14px;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+
+.manage-ic-dates-form .ic-details {
+  padding: 24px;
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.55);
+  border: 1px solid var(--mic-border);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.9);
+  animation: mic-fade-in 0.3s ease-out;
+}
+
+.manage-ic-dates-form .details-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  gap: 14px;
+  margin-bottom: 24px;
+}
+
+.manage-ic-dates-form .detail-item {
+  position: relative;
+  padding: 14px 16px;
+  border-radius: 16px;
+  background: var(--mic-glass-strong);
+  border: 1px solid rgba(255, 255, 255, 0.9);
+  box-shadow: 0 4px 14px -6px rgba(15, 23, 42, 0.1);
+  overflow: hidden;
+}
+
+.manage-ic-dates-form .detail-item::before {
+  content: '';
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 4px;
+  background: linear-gradient(180deg, #22c55e, #0d9488);
+}
+
+.manage-ic-dates-form .detail-item label {
+  display: block;
+  margin-bottom: 6px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--mic-muted);
+}
+
+.manage-ic-dates-form .detail-item p {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--mic-text);
+  word-break: break-word;
+}
+
+.manage-ic-dates-form .btn-view-ic {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #0369a1;
+  text-decoration: none;
+  background: rgba(224, 242, 254, 0.85);
+  border: 1px solid rgba(125, 211, 252, 0.6);
+  border-radius: 999px;
+  transition: background 0.2s, transform 0.15s;
+}
+
+.manage-ic-dates-form .btn-view-ic:hover {
+  background: #e0f2fe;
+  transform: translateY(-1px);
+}
+
+.manage-ic-dates-form .form-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  margin-top: 8px;
+}
+
+/* ---------- Animated gloss layer ---------- */
+
+.manage-ic-dates-container {
+  animation: mic-card-in 0.6s cubic-bezier(0.22, 1, 0.36, 1) both;
+  isolation: isolate;
+}
+
+/* Drifting soft colour blobs behind the glass */
+.manage-ic-dates-container::before,
+.manage-ic-dates-container::after {
+  content: '';
+  position: absolute;
+  z-index: -1;
+  width: 380px;
+  height: 380px;
+  border-radius: 50%;
+  filter: blur(60px);
+  opacity: 0.55;
+  pointer-events: none;
+}
+
+.manage-ic-dates-container::before {
+  top: -140px;
+  left: -120px;
+  background: radial-gradient(circle, #86efac, transparent 70%);
+  animation: mic-drift-a 14s ease-in-out infinite alternate;
+}
+
+.manage-ic-dates-container::after {
+  bottom: -160px;
+  right: -120px;
+  background: radial-gradient(circle, #7dd3fc, transparent 70%);
+  animation: mic-drift-b 16s ease-in-out infinite alternate;
+}
+
+/* Animated gradient underline under the title */
+.manage-ic-dates-header {
+  position: relative;
+  border-bottom-color: transparent;
+}
+
+.manage-ic-dates-header::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -1px;
+  height: 2px;
+  border-radius: 2px;
+  background: linear-gradient(90deg, #22c55e, #0d9488, #38bdf8, #22c55e);
+  background-size: 300% 100%;
+  animation: mic-flow 6s linear infinite;
+}
+
+.manage-ic-dates-header h2 {
+  background-size: 200% auto;
+  background-image: linear-gradient(90deg, #166534, #0d9488, #16a34a, #166534);
+  animation: mic-flow 8s linear infinite;
+}
+
+/* Light sweep across primary buttons */
+.manage-ic-dates-form .btn-fetch,
+.manage-ic-dates-form .btn-save {
+  position: relative;
+  overflow: hidden;
+}
+
+.manage-ic-dates-form .btn-fetch::after,
+.manage-ic-dates-form .btn-save::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -75%;
+  width: 50%;
+  height: 100%;
+  background: linear-gradient(120deg, transparent, rgba(255, 255, 255, 0.55), transparent);
+  transform: skewX(-20deg);
+  animation: mic-shine 3.2s ease-in-out infinite;
+}
+
+.manage-ic-dates-form .btn-fetch:disabled::after,
+.manage-ic-dates-form .btn-save:disabled::after {
+  animation: none;
+  display: none;
+}
+
+.manage-ic-dates-form .btn-fetch:active:not(:disabled),
+.manage-ic-dates-form .btn-save:active:not(:disabled) {
+  transform: scale(0.97);
+}
+
+/* Glow pulse on focused input */
+.manage-ic-dates-form .form-group input:focus {
+  animation: mic-glow 2s ease-in-out infinite;
+}
+
+/* Staggered tile entrance + hover lift */
+.manage-ic-dates-form .detail-item {
+  opacity: 0;
+  animation: mic-rise 0.5s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  transition: transform 0.25s ease, box-shadow 0.25s ease;
+}
+
+.manage-ic-dates-form .detail-item:nth-child(1) { animation-delay: 0.05s; }
+.manage-ic-dates-form .detail-item:nth-child(2) { animation-delay: 0.12s; }
+.manage-ic-dates-form .detail-item:nth-child(3) { animation-delay: 0.19s; }
+.manage-ic-dates-form .detail-item:nth-child(4) { animation-delay: 0.26s; }
+
+.manage-ic-dates-form .detail-item:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 14px 28px -12px rgba(21, 128, 61, 0.3);
+}
+
+/* Glossy highlight across each tile */
+.manage-ic-dates-form .detail-item::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: linear-gradient(160deg, rgba(255, 255, 255, 0.7) 0%, transparent 45%);
+  pointer-events: none;
+}
+
+.manage-ic-dates-form .btn-view-ic:hover {
+  box-shadow: 0 6px 16px -6px rgba(3, 105, 161, 0.4);
+}
+
+@keyframes mic-card-in {
+  from { opacity: 0; transform: translateY(16px) scale(0.98); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@keyframes mic-drift-a {
+  from { transform: translate(0, 0) scale(1); }
+  to { transform: translate(120px, 60px) scale(1.15); }
+}
+
+@keyframes mic-drift-b {
+  from { transform: translate(0, 0) scale(1); }
+  to { transform: translate(-110px, -70px) scale(1.1); }
+}
+
+@keyframes mic-flow {
+  from { background-position: 0% 50%; }
+  to { background-position: 300% 50%; }
+}
+
+@keyframes mic-shine {
+  0% { left: -75%; }
+  55%, 100% { left: 130%; }
+}
+
+@keyframes mic-glow {
+  0%, 100% { box-shadow: 0 0 0 4px rgba(21, 128, 61, 0.12); }
+  50% { box-shadow: 0 0 0 6px rgba(21, 128, 61, 0.2); }
+}
+
+@keyframes mic-rise {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* ---------- Toast ---------- */
+
+.mic-toast.MuiAlert-root {
+  --toast-accent: #16a34a;
+  --toast-tint: rgba(220, 252, 231, 0.55);
+  position: relative;
+  min-width: 320px;
+  max-width: 420px;
+  padding: 14px 16px 18px 18px;
+  border-radius: 18px;
+  color: #0f172a;
+  background:
+    linear-gradient(135deg, var(--toast-tint), rgba(255, 255, 255, 0.78) 60%);
+  backdrop-filter: blur(16px) saturate(170%);
+  -webkit-backdrop-filter: blur(16px) saturate(170%);
+  border: 1px solid rgba(255, 255, 255, 0.85);
+  box-shadow:
+    0 18px 40px -14px rgba(15, 23, 42, 0.25),
+    inset 0 1px 0 rgba(255, 255, 255, 0.95);
+  overflow: hidden;
+  align-items: flex-start;
+}
+
+.mic-toast--error.MuiAlert-root {
+  --toast-accent: #dc2626;
+  --toast-tint: rgba(254, 226, 226, 0.6);
+}
+
+.mic-toast--warning.MuiAlert-root {
+  --toast-accent: #d97706;
+  --toast-tint: rgba(254, 243, 199, 0.6);
+}
+
+.mic-toast--info.MuiAlert-root {
+  --toast-accent: #0284c7;
+  --toast-tint: rgba(224, 242, 254, 0.6);
+}
+
+.mic-toast.MuiAlert-root::before {
+  content: '';
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 4px;
+  background: var(--toast-accent);
+}
+
+.mic-toast .MuiAlert-icon {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  margin-right: 12px;
+  padding: 0;
+  border-radius: 12px;
+  color: #fff !important;
+  background: var(--toast-accent);
+  box-shadow: 0 6px 14px -6px var(--toast-accent);
+  animation: mic-pop 0.45s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+
+.mic-toast .MuiAlert-icon svg {
+  font-size: 20px;
+}
+
+.mic-toast .MuiAlert-message {
+  padding: 0;
+}
+
+.mic-toast__title {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--toast-accent);
+  margin-bottom: 2px;
+}
+
+.mic-toast__msg {
+  font-size: 13.5px;
+  line-height: 1.4;
+  color: #334155;
+}
+
+.mic-toast .MuiAlert-action {
+  padding-top: 0;
+  margin-right: -4px;
+}
+
+.mic-toast .MuiAlert-action .MuiIconButton-root {
+  color: #64748b;
+  border-radius: 10px;
+  transition: background 0.2s, color 0.2s;
+}
+
+.mic-toast .MuiAlert-action .MuiIconButton-root:hover {
+  color: #0f172a;
+  background: rgba(15, 23, 42, 0.06);
+}
+
+.mic-toast__bar {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  height: 3px;
+  width: 100%;
+  background: var(--toast-accent);
+  opacity: 0.7;
+  transform-origin: left;
+  animation: mic-countdown 5s linear forwards;
+}
+
+@keyframes mic-pop {
+  from { transform: scale(0.4) rotate(-15deg); opacity: 0; }
+  to { transform: scale(1) rotate(0); opacity: 1; }
+}
+
+@keyframes mic-countdown {
+  from { transform: scaleX(1); }
+  to { transform: scaleX(0); }
+}
+
+@media (max-width: 480px) {
+  .mic-toast.MuiAlert-root {
+    min-width: 0;
+    width: calc(100vw - 32px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mic-toast .MuiAlert-icon,
+  .mic-toast__bar {
+    animation: none !important;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .manage-ic-dates-container,
+  .manage-ic-dates-container *,
+  .manage-ic-dates-container::before,
+  .manage-ic-dates-container::after {
+    animation: none !important;
+    transition: none !important;
+  }
+
+  .manage-ic-dates-form .detail-item {
+    opacity: 1;
+  }
+}
+
+@keyframes mic-fade-in {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@media (max-width: 768px) {
+  .manage-ic-dates-container {
+    margin: 16px;
+    padding: 22px 18px;
+    border-radius: 20px;
+  }
+
+  .manage-ic-dates-header h2 {
+    font-size: 22px;
+  }
+
+  .manage-ic-dates-form .input-group {
+    flex-direction: column;
+  }
+
+  .manage-ic-dates-form .btn-fetch {
+    width: 100%;
+  }
+
+  .manage-ic-dates-form .details-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .manage-ic-dates-form .ic-details {
+    padding: 16px;
+  }
+
+  .manage-ic-dates-form .form-actions {
+    flex-direction: column-reverse;
+  }
+
+  .manage-ic-dates-form .btn-save,
+  .manage-ic-dates-form .btn-cancel {
+    width: 100%;
+  }
+}
+
+@media (max-width: 400px) {
+  .manage-ic-dates-container {
+    margin: 12px;
+    padding: 18px 14px;
+  }
+
+  .manage-ic-dates-form .form-group input {
+    font-size: 16px;
+  }
+}

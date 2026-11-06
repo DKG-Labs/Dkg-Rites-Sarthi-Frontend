@@ -258,7 +258,7 @@ const RailPadLwcpReport = () => {
             </div>
 
             {/* Filter Bar */}
-            <div className="prof-card mb" style={{ padding: '20px', borderRadius: '15px', border: '1px solid #e2e8f0', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05)' }}>
+            <div className="prof-card mb" style={{ position: 'relative', zIndex: 50, overflow: 'visible', padding: '20px', borderRadius: '15px', border: '1px solid #e2e8f0', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05)' }}>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '20px' }}>
                     
                     {/* Manufacturer */}

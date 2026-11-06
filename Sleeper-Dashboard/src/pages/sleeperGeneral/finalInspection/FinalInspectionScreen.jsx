@@ -1028,7 +1028,13 @@ const FinalInspectionScreen = ({ call, onBack }) => {
 
     const saveAllInspectionData = async () => {
         const user = getStoredUser();
-        const plantId = localStorage.getItem('plantId') || call?.plantId || icForm?.place || "PLANT-01";
+        // The call's own plant first (as Sections A/B do), then the IE's duty plant. Never a stale
+        // localStorage value, the place-of-inspection text, or a placeholder: a wrong plant would file the
+        // batches (and their rejected sleepers) under a plant that does not exist.
+        const plantId = String(call?.plantId || call?.plant_id || localStorage.getItem('dutyUnit') || '').trim();
+        if (!plantId) {
+            throw new Error('The plant of this inspection call is not known, so the inspection cannot be saved. Please reopen the call from the list and try again.');
+        }
         const callNo = call?.requestId || call?.callNo || call?.call_no || call?.id;
         const chosenShift = call?.shift || icForm?.shift || 'Shift A';
         const rawInspDate = call?.dateOfInspection || call?.inspectionDate || call?.date || summaryData?.callDate || icForm?.callDate || new Date();

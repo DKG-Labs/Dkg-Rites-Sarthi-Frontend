@@ -3,6 +3,9 @@ import { getBoardSummary, getLedger, getRejectionBreakup } from '../../services/
 import ScrapLedgerTable from '../rejection-scrapping/ScrapLedgerTable';
 import RejectionBreakupModal from './RejectionBreakupModal';
 import { getRejectionBasket, getScrapLedger } from '../../services/railpadScrapService';
+import { getSleeperBasket, getSleeperLedger } from '../../services/sleeperScrapService';
+import { exportSleeperLedger } from './sleeperLedgerExport';
+import SleeperScrapLedgerTable from './sleeper/SleeperScrapLedgerTable';
 import './RailwayBoardRejectionScrap.css';
 
 function SearchableSelect({ label, value, onChange, options, placeholder = 'All', disabled = false, searchable = true }) {
@@ -214,6 +217,28 @@ export default function RailwayBoardRejectionScrap({ selectedProduct }) {
         })
         .catch(e => setSummaryError(e.message || 'Failed to load summary'))
         .finally(() => setSummaryLoading(false));
+    } else if (selectedProduct === 'Sleeper') {
+      setSummaryLoading(true);
+      setSummaryError('');
+      getSleeperBasket()
+        .then(data => {
+          const mapped = (data || []).map((r, idx) => ({
+            rowKey: `${r.plantId}|${idx}`,
+            poiCode: r.plantId,
+            companyName: r.manufacturer || r.vendorCode || r.plantId,
+            unitName: r.placeOfInspection || r.plantId,
+            totalRejected: Number(r.totalRejected || 0),
+            totalScrapped: Number(r.totalScrapped || 0),
+            pendingBalance: Number(r.pendingScrapQty || 0),
+            productionLast30Days: Number(r.productionLast30Days || 0),
+            rejectedLast30Days: Number(r.rejectedLast30Days || 0),
+            lastScrappingDate: r.lastScrapDate || '—',
+            raw: r,
+          }));
+          setSummaryRows(mapped);
+        })
+        .catch(e => setSummaryError(e.message || 'Failed to load summary'))
+        .finally(() => setSummaryLoading(false));
     } else {
       setSummaryRows([]);
     }
@@ -248,6 +273,19 @@ export default function RailwayBoardRejectionScrap({ selectedProduct }) {
             rows: mappedRows,
           });
         })
+        .catch(() => setLedgerData(null))
+        .finally(() => setLedgerLoading(false));
+    } else if (selectedProduct === 'Sleeper') {
+      // Sleeper ledger rows already use the ERC ledger row shape
+      getSleeperLedger(selectedPoi.poiCode)
+        .then(data => setLedgerData({
+          poiCode: data?.plantId || selectedPoi.poiCode,
+          totalRejected: data?.totalRejected ?? selectedPoi.totalRejected,
+          totalScrapped: data?.totalScrapped ?? selectedPoi.totalScrapped,
+          pendingBalance: data?.pendingBalance ?? selectedPoi.pendingBalance,
+          rows: data?.rows || [],
+          pendingSleepers: data?.pendingSleepers || [],
+        }))
         .catch(() => setLedgerData(null))
         .finally(() => setLedgerLoading(false));
     } else {
@@ -325,7 +363,15 @@ export default function RailwayBoardRejectionScrap({ selectedProduct }) {
     }
   };
 
-  if (selectedProduct !== 'ERC' && selectedProduct !== 'Rail Pad') {
+  // Sleeper only: 30-day production / rejection columns and a ledger export for audits
+  const isSleeper = selectedProduct === 'Sleeper';
+  const handleSleeperExport = (kind) => {
+    if (!selectedPoi) return;
+    const label = `${selectedPoi.companyName || selectedPoi.poiCode}${selectedPoi.unitName ? ` — ${selectedPoi.unitName}` : ''}`;
+    exportSleeperLedger(kind, label, selectedPoi.poiCode, ledgerData);
+  };
+
+  if (selectedProduct !== 'ERC' && selectedProduct !== 'Rail Pad' && selectedProduct !== 'Sleeper') {
     return <UnderDevelopmentBanner product={selectedProduct} />;
   }
 
@@ -454,20 +500,51 @@ export default function RailwayBoardRejectionScrap({ selectedProduct }) {
               <span className="rbrs-ledger-section-title">Rejection &amp; Disposal Ledger</span>
               <span className="rbrs-ledger-section-sub">Full history for this plant · Read-only</span>
             </div>
-            <div className="rbrs-ledger-section-badge">
-              <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-                <circle cx="7" cy="7" r="6" stroke="#94a3b8" strokeWidth="1.4"/>
-                <path d="M7 4v3l2 2" stroke="#94a3b8" strokeWidth="1.4" strokeLinecap="round"/>
-              </svg>
-              Click a date to see defect breakdown
-            </div>
+            {isSleeper ? (
+              <div className="rbrs-export-group">
+                <button
+                  type="button"
+                  className="rbrs-export-btn"
+                  onClick={() => handleSleeperExport('excel')}
+                  disabled={ledgerLoading || !(ledgerData?.rows || []).length}
+                  title="Export ledger to Excel"
+                >📊 Excel</button>
+                <button
+                  type="button"
+                  className="rbrs-export-btn"
+                  onClick={() => handleSleeperExport('pdf')}
+                  disabled={ledgerLoading || !(ledgerData?.rows || []).length}
+                  title="Export ledger to PDF"
+                >📄 PDF</button>
+              </div>
+            ) : (
+              <div className="rbrs-ledger-section-badge">
+                <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+                  <circle cx="7" cy="7" r="6" stroke="#94a3b8" strokeWidth="1.4"/>
+                  <path d="M7 4v3l2 2" stroke="#94a3b8" strokeWidth="1.4" strokeLinecap="round"/>
+                </svg>
+                Click a date to see defect breakdown
+              </div>
+            )}
           </div>
-          <ScrapLedgerTable
-            rows={ledgerData?.rows || null}
-            loading={ledgerLoading}
-            readOnly={true}
-            onRejectionClick={selectedProduct === 'ERC' ? handleRejectionClick : undefined}
-          />
+          {isSleeper ? (
+            // Sleeper ledger: sleeper IDs per transaction, Pending Sleepers grid, drill-down with photos
+            <SleeperScrapLedgerTable
+              rows={ledgerData?.rows || null}
+              loading={ledgerLoading}
+              readOnly
+              onRefresh={() => {}}
+              pendingSleepers={ledgerData?.pendingSleepers || null}
+              pendingLoading={ledgerLoading}
+            />
+          ) : (
+            <ScrapLedgerTable
+              rows={ledgerData?.rows || null}
+              loading={ledgerLoading}
+              readOnly={true}
+              onRejectionClick={selectedProduct === 'ERC' ? handleRejectionClick : undefined}
+            />
+          )}
         </div>
 
       </div>
@@ -577,6 +654,8 @@ export default function RailwayBoardRejectionScrap({ selectedProduct }) {
             <tr>
               <th style={{ width: 48 }}>S.No</th>
               <SortTh col="companyName" label="Manufacturer & Plant" sortCol={sortCol} sortDir={sortDir} onSort={handleSort} />
+              {isSleeper && <SortTh col="productionLast30Days" label="Production (30 Days)" sortCol={sortCol} sortDir={sortDir} onSort={handleSort} />}
+              {isSleeper && <SortTh col="rejectedLast30Days" label="Rejected (30 Days)" sortCol={sortCol} sortDir={sortDir} onSort={handleSort} />}
               <SortTh col="totalRejected" label="Total Rejected" sortCol={sortCol} sortDir={sortDir} onSort={handleSort} />
               <SortTh col="totalScrapped" label="Total Disposed" sortCol={sortCol} sortDir={sortDir} onSort={handleSort} />
               <SortTh col="pendingBalance" label="Balance Pending" sortCol={sortCol} sortDir={sortDir} onSort={handleSort} />
@@ -590,7 +669,7 @@ export default function RailwayBoardRejectionScrap({ selectedProduct }) {
               <SummarySkeletonRows />
             ) : filteredRows.length === 0 ? (
               <tr>
-                <td colSpan={8}>
+                <td colSpan={isSleeper ? 10 : 8}>
                   <div className="rbrs-empty">
                     <div className="rbrs-empty-icon">📋</div>
                     <p className="rbrs-empty-title">No data found</p>
@@ -620,6 +699,26 @@ export default function RailwayBoardRejectionScrap({ selectedProduct }) {
                         </div>
                       </div>
                     </td>
+                    {isSleeper && (
+                      <td>
+                        <div className="rbrs-num-cell">
+                          <span className="rbrs-num-val">{row.productionLast30Days?.toLocaleString() || 0}</span>
+                          <span className="rbrs-num-label">cast</span>
+                        </div>
+                      </td>
+                    )}
+                    {isSleeper && (
+                      <td className="rbrs-rejected">
+                        <div className="rbrs-num-cell">
+                          <span className="rbrs-num-val">{row.rejectedLast30Days?.toLocaleString() || 0}</span>
+                          <span className="rbrs-num-label">
+                            {row.productionLast30Days > 0
+                              ? `${((row.rejectedLast30Days / row.productionLast30Days) * 100).toFixed(1)}%`
+                              : 'pcs'}
+                          </span>
+                        </div>
+                      </td>
+                    )}
                     <td className="rbrs-rejected">
                       <div className="rbrs-num-cell">
                         <span className="rbrs-num-val">{row.totalRejected?.toLocaleString() || 0}</span>

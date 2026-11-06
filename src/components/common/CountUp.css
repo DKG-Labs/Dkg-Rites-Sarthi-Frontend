@@ -1,0 +1,18 @@
+.countup {
+  display: inline-block;
+  overflow: hidden;
+  vertical-align: bottom;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Number rises up from the bottom like a bar filling, then settles */
+.countup__rise {
+  display: inline-block;
+  animation: countup-rise 0.7s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@keyframes countup-rise {
+  0% { transform: translateY(100%); opacity: 0; filter: blur(2px); }
+  60% { opacity: 1; filter: blur(0); }
+  100% { transform: translateY(0); opacity: 1; }
+}

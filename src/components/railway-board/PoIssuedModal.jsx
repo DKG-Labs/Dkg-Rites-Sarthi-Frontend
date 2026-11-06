@@ -108,10 +108,10 @@ const PoIssuedModal = ({ isOpen, onClose, data, title, isLoading }) => {
     if (!isOpen) return null;
 
     return (
-        <div className="modal-overlay" onClick={onClose}>
-            <div className="modal-content-large fade-in" onClick={e => e.stopPropagation()}>
+        <div className="modal-overlay po-glass-overlay" onClick={onClose}>
+            <div className="modal-content-large fade-in po-glass" onClick={e => e.stopPropagation()}>
                 <div className="modal-header">
-                    <h2>{title} - PO Issued Details</h2>
+                    <h2><span className="po-head-icon"><i className="fa-solid fa-file-signature"></i></span>{title} - PO Issued Details</h2>
                     <button className="btn-close" onClick={onClose}><i className="fa-solid fa-xmark"></i></button>
                 </div>
                 

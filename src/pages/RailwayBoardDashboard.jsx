@@ -5,6 +5,7 @@ import reportService from '../services/reportService';
 import useReportData, { clearGlobalReportCache } from '../hooks/useReportData';
 import './RailwayBoardDashboard.css';
 import './RailwayBoardDashboardProfessional.css'; // New professional styles
+import './RailwayBoardGlass.css';
 
 // Components
 import { Level1Row } from '../components/railway-board/LevelRows';
@@ -55,7 +56,18 @@ const RailwayBoardDashboard = () => {
 
 
 
-    const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+    const isMobileView = () => typeof window !== 'undefined' && window.innerWidth <= 768;
+    // On phones "collapsed" means the drawer is hidden, so start hidden there
+    const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(isMobileView);
+
+    const handleSidebarNavClick = (e) => {
+        if (!isMobileView()) return;
+        const link = e.target.closest('.report-link, .nav-item');
+        if (!link) return;
+        // Items with a chevron only open a submenu; keep the drawer open for those
+        if (link.querySelector('.fa-chevron-up, .fa-chevron-down')) return;
+        setIsSidebarCollapsed(true);
+    };
     const [isRailwayNavOpen, setIsRailwayNavOpen] = useState(true);
     const [poSearch, setPoSearch] = useState('');
     const [poSort, setPoSort] = useState({ key: 'poNo', direction: 'asc' });
@@ -612,8 +624,18 @@ const RailwayBoardDashboard = () => {
     return (
         <div className={`prof-dashboard-wrapper ${isSidebarCollapsed ? 'sidebar-collapsed' : ''}`}>
             <div className="prof-layout-container">
+                {!isSidebarCollapsed && (
+                    <div className="rb-mobile-backdrop" onClick={() => setIsSidebarCollapsed(true)} />
+                )}
+                <button
+                    className="rb-mobile-menu-btn"
+                    onClick={() => setIsSidebarCollapsed(false)}
+                    aria-label="Open menu"
+                >
+                    <i className="fa-solid fa-bars"></i>
+                </button>
                 {/* SIDEBAR */}
-                <nav id="prof-sidebar" className={isSidebarCollapsed ? 'collapsed' : ''}>
+                <nav id="prof-sidebar" className={isSidebarCollapsed ? 'collapsed' : ''} onClick={handleSidebarNavClick}>
                     <div className="sidebar-top-action" style={{ padding: '30px 14px 10px', display: 'flex', justifyContent: isSidebarCollapsed ? 'center' : 'flex-end' }}>
                         <button className="sidebar-toggle-btn-small" onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}>
                             <i className={`fa-solid ${isSidebarCollapsed ? 'fa-bars' : 'fa-bars-staggered'}`}></i>
@@ -851,7 +873,7 @@ const RailwayBoardDashboard = () => {
                 <div id="prof-main" style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                     {/* GLOBAL PRODUCT SELECTION - Above everything */}
                     {activeMainCard === 'manage-ic-dates' ? null : activeMainCard !== 'cm-module' && activeMainCard !== 'udm' && activeMainCard !== 'active-login' ? (
-                        <div className="sub-tabs" style={{ padding: '0 24px', marginTop: '24px', marginBottom: '4px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <div className="sub-tabs rb-glass-bar" style={{ padding: '0 24px', marginTop: '24px', marginBottom: '4px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                             <div style={{ display: 'flex', gap: '8px' }}>
                                 <button className={`sub-tab-btn ${selectedProduct === 'ERC' ? 'active' : ''}`} onClick={() => setSelectedProduct('ERC')}>ERC</button>
                                 <button className={`sub-tab-btn ${selectedProduct === 'Sleeper' ? 'active' : ''}`} onClick={() => {
@@ -863,8 +885,9 @@ const RailwayBoardDashboard = () => {
                             
                             <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
                                 {activeMainCard !== 'org-structure' && (
-                                    <button 
-                                        onClick={handleDataRefresh} 
+                                    <button
+                                        className="rb-btn rb-btn-refresh"
+                                        onClick={handleDataRefresh}
                                         style={{ 
                                             padding: '6px 12px', 
                                             backgroundColor: '#10b981', 
@@ -884,7 +907,8 @@ const RailwayBoardDashboard = () => {
                                         <i className="fa-solid fa-arrows-rotate"></i> Refresh Data
                                     </button>
                                 )}
-                                <button 
+                                <button
+                                    className="rb-btn rb-btn-pdf"
                                     onClick={handleDownloadDashboardPdf}
                                     disabled={isExportingPdf}
                                     style={{ 
@@ -940,7 +964,7 @@ const RailwayBoardDashboard = () => {
                     )}
 
                     {/* TOPBAR / FILTERS - Hidden on Dashboard (summary), Quality, Lifecycle, Feedback, Scada Monitor, SQC tabs, and ERC/Sleeper SWP Reports, and Lot Wise Closed Loop Reports, and IC Annexures */}
-                    {activeMainCard !== 'manage-ic-dates' && activeMainCard !== 'cm-module' && activeMainCard !== 'active-login' && activeMainCard !== 'summary' && activeMainCard !== 'quality' && activeMainCard !== 'lifecycle' && activeMainCard !== 'feedback' && activeMainCard !== 'udm' && activeMainCard !== 'scada' && activeMainCard !== 'sqc' && activeMainCard !== 'sleeper-anomaly' && activeMainCard !== 'rejection-scrap' && activeMainCard !== 'org-structure' && !(activeMainCard === 'reports' && activeReport === 'swp' && (selectedProduct === 'ERC' || selectedProduct === 'Sleeper')) && !(activeMainCard === 'reports' && activeReport === 'lwcl') && !(activeMainCard === 'reports' && activeReport === 'ic_annexures') && !(activeMainCard === 'reports' && activeReport === 'rmstatus') && (
+                    {activeMainCard !== 'manage-ic-dates' && activeMainCard !== 'cm-module' && activeMainCard !== 'active-login' && activeMainCard !== 'summary' && activeMainCard !== 'quality' && activeMainCard !== 'lifecycle' && activeMainCard !== 'feedback' && activeMainCard !== 'udm' && activeMainCard !== 'scada' && activeMainCard !== 'sqc' && activeMainCard !== 'sleeper-anomaly' && activeMainCard !== 'rejection-scrap' && activeMainCard !== 'org-structure' && !(activeMainCard === 'reports' && activeReport === 'swp' && (selectedProduct === 'ERC' || selectedProduct === 'Sleeper')) && !(activeMainCard === 'reports' && activeReport === 'lwcl') && !(activeMainCard === 'reports' && activeReport === 'ic_annexures') && !(activeMainCard === 'reports' && activeReport === 'rmstatus') && !(activeMainCard === 'reports' && activeReport === 'qrp' && selectedProduct === 'Rail Pad') && (
                         <div id="prof-topbar">
                             <label>From</label>
                             <input type="date" value={draftFromDate} onChange={(e) => setDraftFromDate(e.target.value)} />

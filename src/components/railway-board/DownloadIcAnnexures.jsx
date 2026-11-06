@@ -1023,12 +1023,25 @@ const DownloadIcAnnexures = ({ selectedProduct = 'ERC', fromDate: initialFromDat
                     </thead>
                     <tbody>
                         {loading ? (
-                            <tr>
-                                <td colSpan="11" className="text-center p-8 text-slate-500">
-                                    <i className="fa-solid fa-spinner fa-spin" style={{ marginRight: '8px', color: '#3b82f6' }}></i>
-                                    Loading Inspection Certificates...
-                                </td>
-                            </tr>
+                            <>
+                                <tr className="ica-loading-banner">
+                                    <td colSpan="11">
+                                        <div className="ica-loading-pill">
+                                            <span className="ica-loading-dots"><span></span><span></span><span></span></span>
+                                            Fetching inspection certificates
+                                        </div>
+                                    </td>
+                                </tr>
+                                {Array.from({ length: 8 }).map((_, r) => (
+                                    <tr key={`sk-${r}`} className="ica-skeleton-row" style={{ animationDelay: `${r * 0.06}s` }}>
+                                        {[24, 140, 120, 90, 130, 60, 80, 70, 70, 80, 110].map((w, c) => (
+                                            <td key={c}>
+                                                <span className="ica-skeleton" style={{ width: `${Math.max(30, w - ((r * 13 + c * 7) % 30))}px` }}></span>
+                                            </td>
+                                        ))}
+                                    </tr>
+                                ))}
+                            </>
                         ) : paginatedRecords.length > 0 ? (
                             paginatedRecords.map((record, index) => {
                                 const serialNo = page * rowsPerPage + index + 1;

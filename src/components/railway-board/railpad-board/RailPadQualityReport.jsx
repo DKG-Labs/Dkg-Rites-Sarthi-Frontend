@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { ExportButton, downloadExcel, SearchableDropdown } from '../SharedComponents';
 import reportService from '../../../services/reportService';
 import '../erc-board/ProcessInspectionQualityTable.css';
+import './RailPadQualityReport.css';
 
 const RailPadQualityReport = () => {
     const [loading, setLoading] = useState(false);
@@ -104,7 +105,7 @@ const RailPadQualityReport = () => {
     });
 
     return (
-        <div className="piq-container">
+        <div className="piq-container rpq-glass">
             {/* Top Toolbar */}
             <div className="piq-topbar">
                 <div className="piq-title-area">
@@ -173,7 +174,7 @@ const RailPadQualityReport = () => {
                     </div>
                 ) : (
                     <table style={{ minWidth: '2200px', width: '100%', borderCollapse: 'separate', borderSpacing: 0, fontSize: '12px' }}>
-                        <thead style={{ position: 'sticky', top: 0, zIndex: 10, color: '#ffffff' }}>
+                        <thead style={{ position: 'sticky', top: 0, zIndex: 10, color: '#334155' }}>
                             {/* Row 1: Main groups */}
                             <tr>
                                 <th rowSpan="3" style={thBase}>S.No.</th>
@@ -293,68 +294,71 @@ const RailPadQualityReport = () => {
     );
 };
 
-/* Shared header cell styles */
+/* Header cell styles: light pastel tints with dark text (solid so sticky rows don't show through) */
 const thBase = {
-    padding: '10px 8px',
+    padding: '12px 10px',
     fontWeight: '700',
     fontSize: '11px',
     textTransform: 'uppercase',
-    letterSpacing: '0.3px',
+    letterSpacing: '0.5px',
     textAlign: 'center',
     verticalAlign: 'middle',
     whiteSpace: 'nowrap',
-    border: '1px solid rgba(255, 255, 255, 0.2)',
-    background: '#1e293b',
-    color: '#ffffff',
+    border: '1px solid rgba(255, 255, 255, 0.9)',
+    background: 'linear-gradient(180deg, #f8fafc 0%, #eef2f7 100%)',
+    color: '#334155',
+    '--rpq-th': '#334155',
+    boxShadow: 'inset 0 1px 0 rgba(255, 255, 255, 0.9)',
 };
 
+// --rpq-th carries the label colour past the shared CSS's `color: #fff !important` on th
 const thGreen = {
     ...thBase,
-    background: '#047857',
-    border: '1px solid rgba(255, 255, 255, 0.2)',
-    color: '#ffffff',
+    background: 'linear-gradient(180deg, #dcfce7 0%, #bbf7d0 100%)',
+    color: '#166534',
+    '--rpq-th': '#166534',
 };
 
 const thGreenSub = {
     ...thBase,
-    background: '#059669',
-    border: '1px solid rgba(255, 255, 255, 0.2)',
-    color: '#ffffff',
+    background: 'linear-gradient(180deg, #ecfdf5 0%, #d1fae5 100%)',
+    color: '#15803d',
+    '--rpq-th': '#15803d',
 };
 
 const thBlue = {
     ...thBase,
-    background: '#1d4ed8',
-    border: '1px solid rgba(255, 255, 255, 0.2)',
-    color: '#ffffff',
+    background: 'linear-gradient(180deg, #dbeafe 0%, #bfdbfe 100%)',
+    color: '#1e40af',
+    '--rpq-th': '#1e40af',
 };
 
 const thBlueSub = {
     ...thBase,
-    background: '#2563eb',
-    border: '1px solid rgba(255, 255, 255, 0.2)',
-    color: '#ffffff',
+    background: 'linear-gradient(180deg, #eff6ff 0%, #dbeafe 100%)',
+    color: '#1d4ed8',
+    '--rpq-th': '#1d4ed8',
 };
 
 const thOrange = {
     ...thBase,
-    background: '#b45309',
-    border: '1px solid rgba(255, 255, 255, 0.2)',
-    color: '#ffffff',
+    background: 'linear-gradient(180deg, #ffedd5 0%, #fed7aa 100%)',
+    color: '#9a3412',
+    '--rpq-th': '#9a3412',
 };
 
 const thRed = {
     ...thBase,
-    background: '#c2410c',
-    border: '1px solid rgba(255, 255, 255, 0.2)',
-    color: '#ffffff',
+    background: 'linear-gradient(180deg, #fff1f2 0%, #ffe4e6 100%)',
+    color: '#be123c',
+    '--rpq-th': '#be123c',
 };
 
 const thBrown = {
     ...thBase,
-    background: '#92400e',
-    border: '1px solid rgba(255, 255, 255, 0.2)',
-    color: '#ffffff',
+    background: 'linear-gradient(180deg, #fefce8 0%, #fef3c7 100%)',
+    color: '#92400e',
+    '--rpq-th': '#92400e',
 };
 
 const tdCenter = {

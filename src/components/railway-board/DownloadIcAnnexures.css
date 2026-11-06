@@ -545,3 +545,277 @@
     cursor: not-allowed;
 }
 
+
+/* ===================== Light glassy theme ===================== */
+
+/* Popup shell (IC Issued card -> Download IC & Annexures) */
+.ica-overlay {
+  background: rgba(15, 23, 42, 0.35) !important;
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+}
+
+.ica-glass-modal {
+  position: relative;
+  isolation: isolate;
+  border-radius: 24px !important;
+  border: 1px solid rgba(255, 255, 255, 0.85);
+  background:
+    radial-gradient(circle at 0% 0%, rgba(187, 247, 208, 0.45), transparent 40%),
+    radial-gradient(circle at 100% 100%, rgba(191, 219, 254, 0.45), transparent 40%),
+    rgba(248, 250, 252, 0.92) !important;
+  backdrop-filter: blur(20px) saturate(170%);
+  -webkit-backdrop-filter: blur(20px) saturate(170%);
+  box-shadow: 0 30px 60px -20px rgba(15, 23, 42, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.9) !important;
+  animation: ica-pop 0.4s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.ica-glass-head {
+  background: rgba(255, 255, 255, 0.55) !important;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.18) !important;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+
+.ica-glass-head h3 {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: linear-gradient(90deg, #166534, #0d9488);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent !important;
+  letter-spacing: -0.01em;
+}
+
+.ica-head-icon {
+  display: inline-grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  border-radius: 12px;
+  background: linear-gradient(135deg, #4ade80, #16a34a);
+  box-shadow: 0 8px 18px -8px rgba(22, 163, 74, 0.7), inset 0 1px 0 rgba(255, 255, 255, 0.4);
+  font-size: 16px;
+}
+
+.ica-head-icon i {
+  color: #fff;
+  -webkit-text-fill-color: #fff;
+}
+
+.ica-close-btn {
+  width: 38px;
+  height: 38px;
+  border-radius: 12px !important;
+  background: rgba(255, 255, 255, 0.7) !important;
+  border: 1px solid rgba(255, 255, 255, 0.9) !important;
+  box-shadow: 0 4px 12px -8px rgba(15, 23, 42, 0.3);
+  transition: transform 0.2s ease, background 0.2s ease, color 0.2s ease;
+}
+
+.ica-close-btn:hover {
+  transform: rotate(90deg);
+  background: #fee2e2 !important;
+  color: #dc2626 !important;
+}
+
+/* Toolbar */
+.ic-annexures-container .ic-table-toolbar {
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.7);
+  border: 1px solid rgba(255, 255, 255, 0.9);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  box-shadow: 0 10px 26px -18px rgba(15, 23, 42, 0.25), inset 0 1px 0 #fff;
+}
+
+.ic-annexures-container .ic-toolbar-search-group,
+.ic-annexures-container .ic-toolbar-stage-select {
+  border-radius: 12px !important;
+  background: rgba(255, 255, 255, 0.85) !important;
+  border: 1px solid rgba(148, 163, 184, 0.35) !important;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.ic-annexures-container .ic-toolbar-search-group:focus-within,
+.ic-annexures-container .ic-toolbar-stage-select:focus {
+  outline: none;
+  border-color: #16a34a !important;
+  box-shadow: 0 0 0 3px rgba(22, 163, 74, 0.12) !important;
+}
+
+.ic-annexures-container .ic-toolbar-count-badge {
+  border-radius: 999px;
+  background: rgba(220, 252, 231, 0.85);
+  color: #166534;
+  border: 1px solid rgba(134, 239, 172, 0.7);
+}
+
+.ic-annexures-container .ic-toolbar-refresh-btn {
+  border-radius: 12px !important;
+  transition: transform 0.2s ease;
+}
+
+.ic-annexures-container .ic-toolbar-refresh-btn:hover i {
+  animation: ica-spin 0.8s ease;
+}
+
+/* Table: dark navy header -> light glass header with dark text */
+.ic-annexures-container .ic-table-wrapper {
+  border-radius: 18px;
+  border: 1px solid rgba(255, 255, 255, 0.9);
+  background: rgba(255, 255, 255, 0.82);
+  box-shadow: 0 14px 34px -22px rgba(15, 23, 42, 0.3);
+}
+
+.ic-annexures-container .ic-table-fit th {
+  background: linear-gradient(180deg, #f0fdf4 0%, #dcfce7 100%) !important;
+  color: #166534 !important;
+  border: none !important;
+  border-bottom: 1px solid rgba(134, 239, 172, 0.6) !important;
+  padding: 11px 8px !important;
+  font-weight: 700 !important;
+  letter-spacing: 0.04em;
+  box-shadow: inset 0 1px 0 #fff;
+}
+
+.ic-annexures-container .ic-table-fit td {
+  padding: 9px 8px !important;
+  border-bottom: 1px solid rgba(226, 232, 240, 0.7);
+}
+
+.ic-annexures-container .ic-table-fit tbody tr {
+  animation: ica-row 0.4s ease-out both;
+}
+
+.ic-annexures-container .ic-table-fit tbody tr:nth-child(even) td {
+  background: rgba(248, 250, 252, 0.6);
+}
+
+.ic-annexures-container .ic-table-fit tbody tr:hover td {
+  background: rgba(220, 252, 231, 0.45);
+}
+
+.ic-annexures-container .ic-table-fit tbody tr:hover td:first-child {
+  box-shadow: inset 3px 0 0 #16a34a;
+}
+
+/* Action buttons as soft pills */
+.ic-annexures-container .ic-view-btn,
+.ic-annexures-container .ic-annexures-btn {
+  border-radius: 10px !important;
+  transition: transform 0.15s ease, box-shadow 0.2s ease;
+}
+
+.ic-annexures-container .ic-view-btn:hover,
+.ic-annexures-container .ic-annexures-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 14px -8px rgba(15, 23, 42, 0.35);
+}
+
+.ic-annexures-container .ic-stage-badge {
+  border-radius: 999px;
+}
+
+@keyframes ica-pop {
+  from { opacity: 0; transform: translateY(14px) scale(0.98); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@keyframes ica-row {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes ica-spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ica-glass-modal,
+  .ic-annexures-container .ic-table-fit tbody tr {
+    animation: none !important;
+  }
+}
+
+/* ===================== Skeleton loading ===================== */
+.ic-annexures-container .ica-loading-banner td {
+  padding: 14px 8px 6px !important;
+  border-bottom: none !important;
+  background: transparent !important;
+  text-align: center;
+}
+
+.ica-loading-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 16px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #166534;
+  background: rgba(220, 252, 231, 0.85);
+  border: 1px solid rgba(134, 239, 172, 0.7);
+  box-shadow: 0 6px 16px -10px rgba(22, 101, 52, 0.5);
+}
+
+.ica-loading-dots {
+  display: inline-flex;
+  gap: 4px;
+}
+
+.ica-loading-dots span {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #16a34a;
+  animation: ica-bounce 1s ease-in-out infinite;
+}
+
+.ica-loading-dots span:nth-child(2) { animation-delay: 0.15s; }
+.ica-loading-dots span:nth-child(3) { animation-delay: 0.3s; }
+
+.ic-annexures-container .ica-skeleton-row {
+  animation: ica-row 0.4s ease-out both;
+}
+
+.ic-annexures-container .ica-skeleton-row td {
+  padding: 13px 8px !important;
+  background: transparent !important;
+}
+
+.ica-skeleton {
+  display: inline-block;
+  max-width: 100%;
+  height: 12px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #eef2f7 0%, #dcfce7 40%, #eef2f7 80%);
+  background-size: 300% 100%;
+  animation: ica-shimmer 1.4s ease-in-out infinite;
+}
+
+.ic-annexures-container .ica-skeleton-row td:last-child .ica-skeleton,
+.ic-annexures-container .ica-skeleton-row td:nth-child(6) .ica-skeleton {
+  height: 22px;
+  border-radius: 10px;
+}
+
+@keyframes ica-shimmer {
+  0% { background-position: 100% 0; }
+  100% { background-position: -100% 0; }
+}
+
+@keyframes ica-bounce {
+  0%, 80%, 100% { transform: translateY(0); opacity: 0.5; }
+  40% { transform: translateY(-5px); opacity: 1; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ica-skeleton,
+  .ica-loading-dots span {
+    animation: none !important;
+  }
+}

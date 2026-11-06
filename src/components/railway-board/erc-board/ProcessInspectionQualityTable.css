@@ -188,6 +188,10 @@
     background: #ffffff;
 }
 
+.piq-table-wrapper th {
+    color: #ffffff !important;
+}
+
 .piq-table {
     width: 100%;
     border-collapse: separate;

@@ -130,7 +130,13 @@ export default function ProcessMaterialCertificate({ call = {}, onBack }) {
               try {
                 const parsedLots = JSON.parse(savedEdit.lotDetails);
                 if (Array.isArray(parsedLots) && parsedLots.length > 0) {
-                  restoredLots = parsedLots;
+                  if (initialData.isDiverted && Array.isArray(initialData.lots) && initialData.lots.length > 0) {
+                    const allowedLabels = new Set(initialData.lots.map(l => (l.heatNo || '').trim().toUpperCase()));
+                    const filtered = parsedLots.filter(l => allowedLabels.has((l.heatNo || '').trim().toUpperCase()));
+                    restoredLots = filtered.length > 0 ? filtered : initialData.lots;
+                  } else {
+                    restoredLots = parsedLots;
+                  }
                 }
               } catch (e) {
                 console.error("Failed to parse saved lot details", e);

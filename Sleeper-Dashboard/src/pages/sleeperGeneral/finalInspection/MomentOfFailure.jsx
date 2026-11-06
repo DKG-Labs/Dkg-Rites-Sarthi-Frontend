@@ -757,6 +757,7 @@ const MFSampleDeclarationModal = ({ sample, isModifying, onClose, onSave, saving
         mrResult: sample.mrResult || 'PENDING',
         concreteGrade: sample.concreteGrade || '',
         sleeperType: sample.sleeperType || '',
+        declarationId: sample.declarationId ?? '',
         sleeperId: sample.sleeperNo || sample.sampleIdentification || '',
         sampleIdentification: sample.sampleIdentification || sample.sleeperNo || '',
         sampleType: sample.sampleType || 'Fresh'

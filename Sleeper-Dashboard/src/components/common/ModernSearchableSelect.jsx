@@ -221,11 +221,13 @@ const ModernSearchableSelect = ({
                                 No matches found
                             </div>
                         ) : (
-                            filteredOptions.map((opt) => {
+                            filteredOptions.map((opt, idx) => {
                                 const isSelected = String(opt.value) === String(value);
                                 return (
                                     <div
-                                        key={opt.value}
+                                        // Index-qualified key: values can repeat (e.g. same sleeper no. across
+                                        // gangs/moulds), and duplicate keys leave stale rows after filtering.
+                                        key={`${opt.value}__${opt.label}__${idx}`}
                                         onClick={() => handleSelect(opt.value)}
                                         style={{
                                             padding: '8px 14px',

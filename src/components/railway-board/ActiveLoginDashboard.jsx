@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { getActiveLogins, getActiveLoginSelfie, getNearestPlant } from '../../services/activeLoginService';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { getActiveLogins, fetchSelfieBlob, getNearestPlant } from '../../services/activeLoginService';
 
 // Fires fetchFn for each item but keeps at most `limit` in-flight at once
 async function throttledFetch(items, limit, fetchFn) {
@@ -110,11 +110,29 @@ export default function ActiveLoginDashboard() {
         return () => clearTimeout(t);
     }, [search]);
 
+    const selfieObjectUrlRef = useRef(null);
+
     const openSelfie = id => {
+        // Revoke any previous object URL to prevent memory leaks
+        if (selfieObjectUrlRef.current) {
+            URL.revokeObjectURL(selfieObjectUrlRef.current);
+            selfieObjectUrlRef.current = null;
+        }
         setSelfie({ id, loading: true });
-        getActiveLoginSelfie(id)
-            .then(d => setSelfie({ id, src: d.selfieImageUrl }))
+        fetchSelfieBlob(id)
+            .then(objectUrl => {
+                selfieObjectUrlRef.current = objectUrl;
+                setSelfie({ id, src: objectUrl });
+            })
             .catch(() => setSelfie({ id, src: null }));
+    };
+
+    const closeSelfie = () => {
+        if (selfieObjectUrlRef.current) {
+            URL.revokeObjectURL(selfieObjectUrlRef.current);
+            selfieObjectUrlRef.current = null;
+        }
+        setSelfie(null);
     };
 
     const openModal = (userId, userName) => {
@@ -246,11 +264,16 @@ export default function ActiveLoginDashboard() {
 
             {/* Selfie modal */}
             {selfie && (
-                <div onClick={() => setSelfie(null)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
-                    <div onClick={e => e.stopPropagation()} style={{ background: '#fff', padding: '16px', borderRadius: '12px', maxWidth: '90vw', maxHeight: '90vh' }}>
-                        {selfie.loading ? 'Loading…' : selfie.src
-                            ? <img src={selfie.src} alt="Selfie" style={{ maxWidth: '80vw', maxHeight: '80vh' }} />
-                            : 'Selfie unavailable'}
+                <div onClick={closeSelfie} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
+                    <div onClick={e => e.stopPropagation()} style={{ background: '#fff', padding: '16px', borderRadius: '12px', maxWidth: '90vw', maxHeight: '90vh', position: 'relative' }}>
+                        <button onClick={closeSelfie} style={{ position: 'absolute', top: 8, right: 10, background: 'none', border: 'none', fontSize: '18px', cursor: 'pointer', color: '#6b7280', lineHeight: 1 }}>✕</button>
+                        {selfie.loading ? (
+                            <div style={{ padding: '32px 48px', color: '#6b7280', fontSize: 14 }}>Loading…</div>
+                        ) : selfie.src ? (
+                            <img src={selfie.src} alt="Selfie" style={{ maxWidth: '80vw', maxHeight: '80vh', display: 'block', borderRadius: 8, marginTop: 8 }} />
+                        ) : (
+                            <div style={{ padding: '32px 48px', color: '#b91c1c', fontSize: 14 }}>Selfie unavailable</div>
+                        )}
                     </div>
                 </div>
             )}

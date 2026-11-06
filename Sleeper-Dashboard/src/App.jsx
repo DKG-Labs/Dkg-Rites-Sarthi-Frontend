@@ -14,6 +14,7 @@ import MonthlyReport from './pages/ProcessIE/MonthlyReport';
 import DashboardTabs from './components/Navigation/DashboardTabs';
 import LoginPage from './pages/LoginPage/LoginPage';
 import UserProfilePage from './pages/UserProfile/UserProfilePage';
+import SleeperRejectionDisposal from './features/rejection-disposal/SleeperRejectionDisposal';
 import { ROUTES } from './routes';
 import { isAuthenticated, getStoredUser } from './services/authService';
 import VersionUpdateBanner from './components/common/VersionUpdateBanner';
@@ -111,6 +112,9 @@ const App = () => {
           case 'User Profile':
             setMainView('User Profile');
             break;
+          case 'Rejection & Disposal':
+            setMainView('Rejection & Disposal');
+            break;
           default:
             setMainView('Main Dashboard');
         }
@@ -146,6 +150,8 @@ const App = () => {
         return <div className="fade-in"><SleeperFinalProductCertificate /></div>;
       case 'User Profile':
         return <UserProfilePage onBack={() => setMainView('Main Dashboard')} />;
+      case 'Rejection & Disposal':
+        return <div className="fade-in"><SleeperRejectionDisposal /></div>;
       case 'Main Dashboard':
       default:
         return <MainDashboard />;

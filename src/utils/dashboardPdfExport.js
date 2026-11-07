@@ -259,6 +259,37 @@ export async function exportDashboardScreenToPdf(elementOrId, metadata = {}) {
                     width: 100% !important;
                     max-width: 100% !important;
                 }
+
+                /* ---- Modern Rail Pad / IC / Lifecycle / Feedback screens ---- */
+                /* scroll boxes with max-height would cut rows: expand fully */
+                .piq-table-wrapper, .rplc-table-wrap, .ic-table-wrapper, .searchable-dropdown-options-list {
+                    overflow: visible !important;
+                    max-height: none !important;
+                    height: auto !important;
+                }
+                /* sticky headers inside expanded boxes */
+                .piq-table-wrapper thead, .piq-table-wrapper thead th, .rplc-table thead th {
+                    position: static !important;
+                }
+                /* html2canvas can't paint gradient-clipped text: use solid colour */
+                .piq-heading, .ica-hero-title, .rplc-title, .fb-head-title, .scada-soon-title, .rbrs-modern .rbrs-title {
+                    background: none !important;
+                    -webkit-background-clip: border-box !important;
+                    background-clip: border-box !important;
+                    color: #166534 !important;
+                    -webkit-text-fill-color: #166534 !important;
+                }
+                /* blur/backdrop effects aren't supported: render as solid white cards */
+                .rpq-glass, .rplc-shell, .ica-hero, .fb-modern, .scada-soon, .rbf-bar,
+                .rp-kpi, .rplc-kpi, .ica-kpi, .mau-kpi, .lwcl-filter-card, .lwcl-result-card,
+                .rbrs-wrap.rbrs-modern, .rbrs-modern .rbrs-kpi-card, .rbrs-modern .rbrs-filters {
+                    backdrop-filter: none !important;
+                    -webkit-backdrop-filter: none !important;
+                    background: #ffffff !important;
+                }
+                .scada-soon-glow, .scada-soon-pulse, .rpq-loading-overlay { display: none !important; }
+                /* table header text colour override survives (pastel headers stay readable) */
+                .rpq-glass .piq-table-wrapper thead th { -webkit-text-fill-color: var(--rpq-th, #334155) !important; }
             `;
             clonedDoc.head.appendChild(printFixStyle);
 

@@ -6,6 +6,7 @@ import { getRejectionBasket, getScrapLedger } from '../../services/railpadScrapS
 import { getSleeperBasket, getSleeperLedger } from '../../services/sleeperScrapService';
 import { exportSleeperLedger } from './sleeperLedgerExport';
 import SleeperScrapLedgerTable from './sleeper/SleeperScrapLedgerTable';
+import { RowsSelect } from '../Pagination';
 import './RailwayBoardRejectionScrap.css';
 
 function SearchableSelect({ label, value, onChange, options, placeholder = 'All', disabled = false, searchable = true }) {
@@ -569,10 +570,14 @@ export default function RailwayBoardRejectionScrap({ selectedProduct }) {
   const getAvatar = (name) => (name ? name.trim()[0].toUpperCase() : '?');
 
   return (
-    <div className="rbrs-wrap">
+    <div className="rbrs-wrap rbrs-modern">
       <div className="rbrs-header">
-        <h2 className="rbrs-title">Rejection &amp; Disposal Monitoring</h2>
-        <p className="rbrs-subtitle">{selectedProduct || 'ERC'} — All Plants Overview</p>
+        <span className="rbrs-hero-icon" aria-hidden="true"><i className="fa-solid fa-recycle"></i></span>
+        <div className="rbrs-hero-text">
+          <h2 className="rbrs-title">Rejection &amp; Disposal Monitoring</h2>
+          <p className="rbrs-subtitle">All plants overview · rejected, disposed &amp; pending quantities</p>
+        </div>
+        <span className="rbrs-hero-badge">{selectedProduct || 'ERC'}</span>
       </div>
 
       {/* KPI + Filters in one row */}
@@ -671,7 +676,7 @@ export default function RailwayBoardRejectionScrap({ selectedProduct }) {
               <tr>
                 <td colSpan={isSleeper ? 10 : 8}>
                   <div className="rbrs-empty">
-                    <div className="rbrs-empty-icon">📋</div>
+                    <div className="rbrs-empty-icon"><i className="fa-solid fa-inbox"></i></div>
                     <p className="rbrs-empty-title">No data found</p>
                     <p className="rbrs-empty-sub">No rejection or disposal records match the current filters</p>
                   </div>
@@ -761,13 +766,11 @@ export default function RailwayBoardRejectionScrap({ selectedProduct }) {
           </div>
           <div className="rbrs-pg-controls">
             <span className="rbrs-pg-label">Rows per page:</span>
-            <select
-              className="rbrs-pg-size"
-              value={pageSize}
-              onChange={e => setPageSize(Number(e.target.value))}
-            >
-              {PAGE_SIZES.map(s => <option key={s} value={s}>{s}</option>)}
-            </select>
+            <RowsSelect
+              value={Number(pageSize)}
+              options={PAGE_SIZES}
+              onChange={v => setPageSize(Number(v))}
+            />
             <button className="rbrs-pg-btn" onClick={() => setPage(1)} disabled={page === 1}>«</button>
             <button className="rbrs-pg-btn" onClick={() => setPage(p => p - 1)} disabled={page === 1}>‹</button>
             <span className="rbrs-pg-current">Page {page} / {totalPages}</span>

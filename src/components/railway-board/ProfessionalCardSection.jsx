@@ -1999,10 +1999,10 @@ const ProfessionalCardSection = ({
                                                 switch (activeReport) {
                                                     case 'mpr': return <RailPadMprReport mprData={mprData} loading={mprLoading} />;
                                                     case 'mau': return <RailPadMauReport mauData={mauData} loading={mauLoading} startDate={fromDate} endDate={toDate} />;
-                                                    case 'lwcl': return <RailPadLwcpReport />;
-                                                    case 'swp': return <RailPadSwpReport />;
-                                                    case 'vwpqr': return <RailPadVwpqrReport />;
-                                                    case 'qrp': return <RailPadQualityReport />;
+                                                    case 'lwcl': return <RailPadLwcpReport refreshTick={refreshTick} />;
+                                                    case 'swp': return <RailPadSwpReport refreshTick={refreshTick} />;
+                                                    case 'vwpqr': return <RailPadVwpqrReport refreshTick={refreshTick} />;
+                                                    case 'qrp': return <RailPadQualityReport refreshTick={refreshTick} />;
                                                     case 'ic_annexures': return <DownloadIcAnnexures selectedProduct="Rail Pad" fromDate={fromDate} toDate={toDate} />;
                                                     default: return <RailPadMprReport mprData={mprData} loading={mprLoading} />;
                                                 }
@@ -3282,49 +3282,69 @@ const ScadaMonitor = ({ selectedProduct }) => {
     if (selectedProduct === 'Rail Pad') {
         return (
             <div className="scada-monitor-container fade-in" style={{ padding: '20px 0' }}>
-                <div className="prof-card" style={{
-                    padding: '80px 20px',
-                    background: '#fff',
-                    borderRadius: '16px',
-                    border: '1px dashed #10b981',
-                    textAlign: 'center',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    minHeight: '400px'
-                }}>
-                    <div style={{
-                        width: '80px',
-                        height: '80px',
-                        background: '#f0fdf4',
-                        borderRadius: '50%',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        marginBottom: '24px'
-                    }}>
-                        <i className="fa-solid fa-person-digging" style={{ fontSize: '40px', color: '#10b981' }}></i>
+                <div className="scada-soon">
+                    <div className="scada-soon-glow" aria-hidden="true"></div>
+                    <div className="scada-soon-icon">
+                        <span className="scada-soon-pulse" aria-hidden="true"></span>
+                        <i className="fa-solid fa-tower-broadcast"></i>
                     </div>
-                    <h2 style={{ fontSize: '24px', fontWeight: '800', color: '#14532d', marginBottom: '12px' }}>
-                        SCADA Live Monitor - Rail Pad
-                    </h2>
-                    <p style={{ color: '#64748b', fontSize: '16px', maxWidth: '400px', lineHeight: '1.6' }}>
+                    <span className="scada-soon-chip"><span className="scada-soon-dot"></span>Under Development</span>
+                    <h2 className="scada-soon-title">SCADA Live Monitor</h2>
+                    <div className="scada-soon-sub">Rail Pad manufacturing units</div>
+                    <p className="scada-soon-text">
                         We are currently integrating the SCADA systems for Rail Pad manufacturing units. This feature will be available soon.
                     </p>
-                    <div style={{
-                        marginTop: '30px',
-                        padding: '8px 16px',
-                        background: '#f0fdf4',
-                        color: '#166534',
-                        borderRadius: '20px',
-                        fontSize: '12px',
-                        fontWeight: '700',
-                        textTransform: 'uppercase',
-                        letterSpacing: '1px'
-                    }}>
-                        Under Development
+                    <div className="scada-soon-steps">
+                        {[
+                            { icon: 'fa-plug', label: 'Plant connectivity', state: 'done' },
+                            { icon: 'fa-database', label: 'Data pipeline', state: 'active' },
+                            { icon: 'fa-chart-line', label: 'Live dashboard', state: '' },
+                        ].map(s => (
+                            <div key={s.label} className={`scada-soon-step ${s.state}`}>
+                                <span className="scada-soon-step-icon">
+                                    <i className={`fa-solid ${s.state === 'done' ? 'fa-check' : s.icon}`}></i>
+                                </span>
+                                {s.label}
+                            </div>
+                        ))}
                     </div>
+                    <style>{`
+                        .scada-soon { position: relative; overflow: hidden; isolation: isolate; min-height: 420px; padding: 64px 20px;
+                            display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center;
+                            border-radius: 22px; background: rgba(255,255,255,0.78); border: 1px solid rgba(255,255,255,0.9);
+                            box-shadow: 0 20px 45px -24px rgba(15,23,42,0.22), inset 0 1px 0 rgba(255,255,255,0.95);
+                            backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); }
+                        .scada-soon-glow { position: absolute; inset: -40% -10% auto; height: 120%; z-index: -1; pointer-events: none;
+                            background: radial-gradient(circle at 30% 30%, rgba(134,239,172,0.45), transparent 45%),
+                                        radial-gradient(circle at 75% 25%, rgba(147,197,253,0.4), transparent 45%); }
+                        .scada-soon-icon { position: relative; width: 84px; height: 84px; border-radius: 26px; display: flex; align-items: center;
+                            justify-content: center; font-size: 34px; color: #fff; margin-bottom: 20px;
+                            background: linear-gradient(135deg, #16a34a, #0d9488); box-shadow: 0 18px 34px -16px rgba(22,163,74,0.8); }
+                        .scada-soon-pulse { position: absolute; inset: -8px; border-radius: 32px; border: 2px solid rgba(22,163,74,0.35);
+                            animation: scada-pulse 2.2s ease-out infinite; }
+                        .scada-soon-chip { display: inline-flex; align-items: center; gap: 8px; padding: 6px 14px; border-radius: 999px;
+                            font-size: 11px; font-weight: 800; letter-spacing: 1px; text-transform: uppercase; color: #b45309;
+                            background: rgba(254,243,199,0.9); border: 1px solid rgba(252,211,77,0.7); }
+                        .scada-soon-dot { width: 7px; height: 7px; border-radius: 50%; background: #f59e0b; animation: scada-blink 1.4s ease-in-out infinite; }
+                        .scada-soon-title { margin: 16px 0 4px; font-size: 28px; font-weight: 800; letter-spacing: -0.02em;
+                            background: linear-gradient(90deg, #14532d, #0d9488); -webkit-background-clip: text; background-clip: text; color: transparent; }
+                        .scada-soon-sub { font-size: 13px; font-weight: 600; color: #16a34a; }
+                        .scada-soon-text { max-width: 460px; margin: 14px 0 0; font-size: 15px; line-height: 1.65; color: #64748b; }
+                        .scada-soon-steps { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; margin-top: 28px; }
+                        .scada-soon-step { display: inline-flex; align-items: center; gap: 8px; padding: 8px 14px; border-radius: 14px; font-size: 12.5px;
+                            font-weight: 600; color: #94a3b8; background: rgba(255,255,255,0.85); border: 1px solid #e2e8f0; }
+                        .scada-soon-step-icon { width: 24px; height: 24px; border-radius: 8px; display: inline-flex; align-items: center; justify-content: center;
+                            font-size: 11px; background: #f1f5f9; color: #94a3b8; }
+                        .scada-soon-step.done { color: #166534; border-color: rgba(134,239,172,0.8); }
+                        .scada-soon-step.done .scada-soon-step-icon { background: linear-gradient(135deg,#16a34a,#0d9488); color: #fff; }
+                        .scada-soon-step.active { color: #1d4ed8; border-color: rgba(147,197,253,0.8); }
+                        .scada-soon-step.active .scada-soon-step-icon { background: rgba(219,234,254,0.9); color: #1d4ed8; }
+                        @keyframes scada-pulse { 0% { transform: scale(0.95); opacity: 1; } 100% { transform: scale(1.25); opacity: 0; } }
+                        @keyframes scada-blink { 0%,100% { opacity: 1; } 50% { opacity: 0.3; } }
+                        @media (max-width: 480px) { .scada-soon { padding: 44px 16px; min-height: 360px; } .scada-soon-title { font-size: 22px; }
+                            .scada-soon-text { font-size: 14px; } }
+                        @media (prefers-reduced-motion: reduce) { .scada-soon-pulse, .scada-soon-dot { animation: none; } }
+                    `}</style>
                 </div>
             </div>
         );

@@ -959,3 +959,113 @@
 }
 .rbrs-export-btn:hover:not(:disabled) { background: #f8fafc; border-color: #cbd5e1; }
 .rbrs-export-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+/* ===================== Modern refresh (matches Rail Pad reports) — scoped to .rbrs-modern ===================== */
+.rbrs-wrap.rbrs-modern {
+  position: relative;
+  padding: 22px;
+  border-radius: 22px;
+  background:
+    radial-gradient(circle at 0% 0%, rgba(187, 247, 208, 0.45), transparent 40%),
+    radial-gradient(circle at 100% 0%, rgba(191, 219, 254, 0.45), transparent 40%),
+    rgba(255, 255, 255, 0.72);
+  backdrop-filter: blur(16px) saturate(160%);
+  -webkit-backdrop-filter: blur(16px) saturate(160%);
+  border: 1px solid rgba(255, 255, 255, 0.85);
+  box-shadow: 0 20px 45px -24px rgba(15, 23, 42, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.95);
+}
+
+/* Header */
+.rbrs-modern .rbrs-header {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 18px;
+}
+.rbrs-modern .rbrs-hero-icon {
+  width: 46px; height: 46px; flex-shrink: 0; border-radius: 14px;
+  display: inline-flex; align-items: center; justify-content: center; font-size: 19px; color: #fff;
+  background: linear-gradient(135deg, #16a34a, #0d9488);
+  box-shadow: 0 10px 20px -10px rgba(22, 163, 74, 0.8);
+}
+.rbrs-modern .rbrs-hero-text { min-width: 0; }
+.rbrs-modern .rbrs-title {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  background: linear-gradient(90deg, #166534, #0d9488);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+.rbrs-modern .rbrs-subtitle { margin: 3px 0 0; font-size: 12.5px; color: #64748b; }
+.rbrs-modern .rbrs-hero-badge {
+  margin-left: auto; padding: 5px 12px; border-radius: 999px; font-size: 11.5px; font-weight: 700;
+  color: #15803d; background: rgba(220, 252, 231, 0.85); border: 1px solid rgba(134, 239, 172, 0.7);
+}
+
+/* KPI strip → separate glass cards */
+.rbrs-modern .rbrs-kpi-strip {
+  gap: 12px !important;
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+}
+.rbrs-modern .rbrs-kpi-card {
+  flex: 1;
+  padding: 14px 16px !important;
+  border-radius: 16px !important;
+  background: rgba(255, 255, 255, 0.88) !important;
+  border: 1px solid rgba(226, 232, 240, 0.9) !important;
+  box-shadow: 0 10px 22px -18px rgba(15, 23, 42, 0.25) !important;
+}
+.rbrs-modern .rbrs-kpi-card + .rbrs-kpi-card { border-left: 1px solid rgba(226, 232, 240, 0.9) !important; }
+.rbrs-modern .rbrs-kpi-icon { width: 40px !important; height: 40px !important; border-radius: 12px !important; }
+.rbrs-modern .rbrs-kpi-val { font-size: 20px !important; font-weight: 800 !important; color: #0f172a !important; }
+.rbrs-modern .rbrs-kpi-lbl { font-size: 10.5px !important; font-weight: 700 !important; letter-spacing: 0.5px; color: #64748b !important; }
+
+/* Filters card */
+.rbrs-modern .rbrs-filters {
+  padding: 14px 16px !important;
+  border-radius: 16px !important;
+  background: rgba(255, 255, 255, 0.88) !important;
+  border: 1px solid rgba(226, 232, 240, 0.9) !important;
+  box-shadow: 0 10px 22px -18px rgba(15, 23, 42, 0.25) !important;
+}
+
+/* Table */
+.rbrs-modern .rbrs-table-wrap {
+  border-radius: 18px !important;
+  border: 1px solid rgba(226, 232, 240, 0.9) !important;
+  background: rgba(255, 255, 255, 0.92) !important;
+  box-shadow: 0 14px 30px -24px rgba(15, 23, 42, 0.3) !important;
+  overflow: hidden;
+}
+.rbrs-modern .rbrs-table thead th {
+  background: linear-gradient(180deg, #ecfdf5 0%, #d1fae5 100%) !important;
+  color: #166534 !important;
+  font-size: 10.5px !important;
+  font-weight: 700 !important;
+  letter-spacing: 0.5px !important;
+  border-bottom: 1px solid #bbf7d0 !important;
+}
+.rbrs-modern .rbrs-table tbody tr:hover td { background: #f0fdf4 !important; }
+
+/* Empty state icon */
+.rbrs-modern .rbrs-empty-icon {
+  width: 54px; height: 54px; margin: 0 auto 6px; border-radius: 16px;
+  display: inline-flex; align-items: center; justify-content: center;
+  font-size: 22px; color: #16a34a;
+  background: linear-gradient(180deg, #ecfdf5, #d1fae5);
+  border: 1px solid rgba(134, 239, 172, 0.7);
+}
+
+@media (max-width: 768px) {
+  .rbrs-wrap.rbrs-modern { padding: 14px 12px; border-radius: 18px; }
+  .rbrs-modern .rbrs-title { font-size: 17px; }
+  .rbrs-modern .rbrs-hero-badge { display: none; }
+  .rbrs-modern .rbrs-kpi-strip { flex-wrap: wrap; }
+  .rbrs-modern .rbrs-kpi-card { min-width: calc(50% - 6px); }
+}

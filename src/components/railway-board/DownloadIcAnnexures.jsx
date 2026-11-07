@@ -121,6 +121,8 @@ const DownloadIcAnnexures = ({ selectedProduct = 'ERC', fromDate: initialFromDat
 
     // 2. Local Filters state
     const [stageFilter, setStageFilter] = useState(defaultStage);
+    // Sleeper has only Final ICs: stage cards / stage dropdowns are hidden for it
+    const isSleeperProduct = selectedProduct === 'Sleeper';
     const [fromDate, setFromDate] = useState(initialFromDate || '2025-01-01');
     const [toDate, setToDate] = useState(initialToDate || new Date().toISOString().split('T')[0]);
     const [globalSearch, setGlobalSearch] = useState('');
@@ -776,17 +778,20 @@ const DownloadIcAnnexures = ({ selectedProduct = 'ERC', fromDate: initialFromDat
         <div className="ic-annexures-container">
             {!hideFilters && (
                 <>
-                    <div className="prof-card-header ic-header" style={{ marginBottom: '16px', background: 'linear-gradient(to right, #f8fafc, #f1f5f9)' }}>
-                        <span style={{ fontSize: '18px', fontWeight: '800', color: '#166534', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                            <i className="fa-solid fa-cloud-arrow-down" style={{ color: '#10b981' }}></i>
-                            Download IC & Annexures ({selectedProduct})
-                        </span>
+                    <div className="ica-hero">
+                        <span className="ica-hero-icon"><i className="fa-solid fa-cloud-arrow-down"></i></span>
+                        <div>
+                            <h2 className="ica-hero-title">Download IC &amp; Annexures</h2>
+                            <span className="ica-hero-sub">Inspection certificates issued for {selectedProduct}</span>
+                        </div>
+                        <span className="ica-hero-badge">{selectedProduct}</span>
                     </div>
 
                     {/* Filters panel */}
                     <div className="ic-filters-card">
                         <div className="ic-filters-grid">
-                            {/* Stage Filter */}
+                            {/* Stage Filter (Sleeper has only Final ICs — no stage choice) */}
+                            {!isSleeperProduct && (
                             <div className="ic-filter-group">
                                 <label className="ic-filter-label">Stage of Inspection</label>
                                 <select 
@@ -798,11 +803,12 @@ const DownloadIcAnnexures = ({ selectedProduct = 'ERC', fromDate: initialFromDat
                                     }}
                                 >
                                     <option value="all">All Stages</option>
-                                    {selectedProduct !== 'Sleeper' && <option value="RAW MATERIAL">Raw Material (RM)</option>}
+                                    {(selectedProduct !== 'Sleeper' && selectedProduct !== 'Rail Pad') && <option value="RAW MATERIAL">Raw Material (RM)</option>}
                                     <option value="PROCESS">Process</option>
                                     <option value="FINAL">Final Inspection</option>
                                 </select>
                             </div>
+                            )}
 
                             {/* From Date */}
                             <div className="ic-filter-group">
@@ -853,6 +859,40 @@ const DownloadIcAnnexures = ({ selectedProduct = 'ERC', fromDate: initialFromDat
                 </>
             )}
 
+            {/* Stage KPI strip (counts of the current result set) — not shown for Sleeper (Final ICs only) */}
+            {!isSleeperProduct && (
+            <div className="ica-kpis">
+                {[
+                    { key: 'all', label: 'Total ICs', icon: 'fa-file-circle-check', tone: '#0d9488', count: records.length },
+                    ...((selectedProduct !== 'Sleeper' && selectedProduct !== 'Rail Pad') ? [{ key: 'RAW MATERIAL', label: 'Raw Material', icon: 'fa-cubes', tone: '#7c3aed', count: records.filter(r => String(r.stage || '').toUpperCase().includes('RAW')).length }] : []),
+                    { key: 'PROCESS', label: 'Process', icon: 'fa-gears', tone: '#c2410c', count: records.filter(r => String(r.stage || '').toUpperCase() === 'PROCESS').length },
+                    { key: 'FINAL', label: 'Final', icon: 'fa-clipboard-check', tone: '#15803d', count: records.filter(r => String(r.stage || '').toUpperCase() === 'FINAL').length },
+                ].map(k => (
+                    <button
+                        type="button"
+                        key={k.key}
+                        className={`ica-kpi ${stageFilter === k.key ? 'is-active' : ''}`}
+                        onClick={() => {
+                            setStageFilter(k.key);
+                            setActiveFilters(prev => ({ ...prev, stage: k.key }));
+                            setPage(0);
+                        }}
+                        title={`Show ${k.label}`}
+                    >
+                        <span className="ica-kpi-icon" style={{ color: k.tone, background: `${k.tone}14` }}>
+                            <i className={`fa-solid ${k.icon}`}></i>
+                        </span>
+                        <span className="ica-kpi-text">
+                            <span className="ica-kpi-label">{k.label}</span>
+                            {loading
+                                ? <span className="ica-skeleton" style={{ width: '50px', height: '16px' }}></span>
+                                : <strong className="ica-kpi-value">{k.count.toLocaleString()}</strong>}
+                        </span>
+                    </button>
+                ))}
+            </div>
+            )}
+
             {/* Table Search & Quick Filter Toolbar */}
             <div className="ic-table-toolbar">
                 <div className="ic-toolbar-search-group">
@@ -900,6 +940,7 @@ const DownloadIcAnnexures = ({ selectedProduct = 'ERC', fromDate: initialFromDat
                 </div>
 
                 <div className="ic-toolbar-filters">
+                    {!isSleeperProduct && (
                     <div className="ic-toolbar-stage-wrapper">
                         <select
                             className="ic-toolbar-stage-select"
@@ -912,11 +953,12 @@ const DownloadIcAnnexures = ({ selectedProduct = 'ERC', fromDate: initialFromDat
                             title="Filter by Stage"
                         >
                             <option value="all">All Stages</option>
-                            {selectedProduct !== 'Sleeper' && <option value="RAW MATERIAL">Raw Material (RM)</option>}
+                            {(selectedProduct !== 'Sleeper' && selectedProduct !== 'Rail Pad') && <option value="RAW MATERIAL">Raw Material (RM)</option>}
                             <option value="PROCESS">Process</option>
                             <option value="FINAL">Final Inspection</option>
                         </select>
                     </div>
+                    )}
 
                     <span className="ic-toolbar-count-badge">
                         Showing <strong>{filteredRecords.length}</strong> of <strong>{records.length}</strong>
@@ -925,50 +967,20 @@ const DownloadIcAnnexures = ({ selectedProduct = 'ERC', fromDate: initialFromDat
                     {/* Download IC in Excel and PDF Buttons */}
                     <button
                         type="button"
+                        className="ica-export-btn ica-export-excel"
                         onClick={handleExportExcel}
                         title="Download IC List in Excel (.xlsx)"
                         disabled={loading || filteredRecords.length === 0}
-                        style={{
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '6px',
-                            padding: '0 12px',
-                            height: '36px',
-                            backgroundColor: '#059669',
-                            color: '#ffffff',
-                            border: 'none',
-                            borderRadius: '8px',
-                            fontWeight: '600',
-                            fontSize: '12.5px',
-                            cursor: (loading || filteredRecords.length === 0) ? 'not-allowed' : 'pointer',
-                            boxShadow: '0 2px 4px rgba(5, 150, 105, 0.2)',
-                            transition: 'all 0.2s'
-                        }}
                     >
                         <i className="fa-solid fa-file-excel"></i> Excel
                     </button>
 
                     <button
                         type="button"
+                        className="ica-export-btn ica-export-pdf"
                         onClick={handleExportPdf}
                         title="Download IC List in PDF"
                         disabled={loading || filteredRecords.length === 0}
-                        style={{
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '6px',
-                            padding: '0 12px',
-                            height: '36px',
-                            backgroundColor: '#2563eb',
-                            color: '#ffffff',
-                            border: 'none',
-                            borderRadius: '8px',
-                            fontWeight: '600',
-                            fontSize: '12.5px',
-                            cursor: (loading || filteredRecords.length === 0) ? 'not-allowed' : 'pointer',
-                            boxShadow: '0 2px 4px rgba(37, 99, 235, 0.2)',
-                            transition: 'all 0.2s'
-                        }}
                     >
                         <i className="fa-solid fa-file-pdf"></i> PDF
                     </button>

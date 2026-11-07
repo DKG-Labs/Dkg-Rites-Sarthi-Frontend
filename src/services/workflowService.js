@@ -219,7 +219,8 @@ export const fetchUserPendingCalls = async (forceRefresh = false) => {
         rawPoNo: transition.rawPoNo,
         vendor_name: vendorName,
         product_type: transition.productType || '-',
-        call_date: transition.createdDate ? transition.createdDate.split('T')[0] : null,
+        // Original call date: created_at of the 'Created' workflow row only (no fallback)
+        call_date: transition.callCreatedDate ? String(transition.callCreatedDate).split('T')[0] : null,
         desired_inspection_date: transition.desiredInspectionDate || null,
         // Keep processIes and finalIes for reference
         processIes: transition.processIes,

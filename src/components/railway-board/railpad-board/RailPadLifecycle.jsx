@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import reportService from '../../../services/reportService';
 import Pagination from '../../Pagination';
+import './RailPadLifecycle.css';
 
 let cachedRailpadLifecycle_PO = null;
 let lastRefreshTick_RailpadLifecycle = -1;
@@ -137,29 +138,81 @@ const RailPadLifecycle = ({ refreshTick }) => {
     const totalPages = Math.ceil(filteredPoMasterData.length / rowsPerPage);
     const paginatedPoList = filteredPoMasterData.slice(start, end);
 
+    // KPI counts (PO counts — quantities mix Nos. and Sets)
+    const kpi = filteredPoMasterData.reduce((a, po) => {
+        a.total += 1;
+        const bal = Number(po.overallPoBalance) || 0;
+        const tot = Number(po.totalQty) || 0;
+        if (tot > 0 && bal <= 0) a.completed += 1;
+        if ((Number(po.acceptedQty) || 0) === 0) a.notStarted += 1;
+        if (po.vendor) a.vendors.add(po.vendor);
+        return a;
+    }, { total: 0, completed: 0, notStarted: 0, vendors: new Set() });
+
+    const kpis = [
+        { label: 'Total POs', value: kpi.total, icon: 'fa-file-contract', tone: '#1d4ed8' },
+        { label: 'Vendors', value: kpi.vendors.size, icon: 'fa-industry', tone: '#7c3aed' },
+        { label: 'Fully Accepted', value: kpi.completed, icon: 'fa-circle-check', tone: '#15803d' },
+        { label: 'Not Started', value: kpi.notStarted, icon: 'fa-hourglass-start', tone: '#b45309' },
+    ];
+
     return (
-        <div className="railpad-lifecycle-container fade-in">
-            <div className="prof-card mb">
-                <div className="sec-title" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <span>Rail Pad PO Lifecycle Tracking</span>
-                    <input 
-                        type="text" 
-                        placeholder="Search PO, Vendor, Type..." 
-                        className="prof-search" 
-                        style={{ height: '36px', fontSize: '13px' }} 
-                        value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
-                    />
+        <div className="railpad-lifecycle-container fade-in rplc">
+            <div className="rplc-shell">
+                <div className="rplc-head">
+                    <div className="rplc-title-wrap">
+                        <span className="rplc-title-icon"><i className="fa-solid fa-route"></i></span>
+                        <div>
+                            <h2 className="rplc-title">Rail Pad PO Lifecycle Tracking</h2>
+                            <span className="rplc-sub">Expand a PO for its items, then an item for its inspection calls</span>
+                        </div>
+                    </div>
+                    <div className="rplc-search">
+                        <i className="fa-solid fa-magnifying-glass"></i>
+                        <input
+                            type="text"
+                            placeholder="Search PO, Vendor, Rly, Type..."
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                        />
+                        {searchQuery && (
+                            <button type="button" onClick={() => setSearchQuery('')} aria-label="Clear search">×</button>
+                        )}
+                    </div>
                 </div>
 
-                <div className="table-responsive">
-                    {loading ? (
-                        <div style={{ padding: '30px', textAlign: 'center', color: '#64748b' }}>
-                            Loading live PO data...
+                <div className="rplc-kpis">
+                    {kpis.map(k => (
+                        <div key={k.label} className="rplc-kpi">
+                            <span className="rplc-kpi-icon" style={{ color: k.tone, background: `${k.tone}14` }}>
+                                <i className={`fa-solid ${k.icon}`}></i>
+                            </span>
+                            <span className="rplc-kpi-text">
+                                <span className="rplc-kpi-label">{k.label}</span>
+                                {loading
+                                    ? <span className="rplc-skel" style={{ width: '50px', height: '16px' }}></span>
+                                    : <strong className="rplc-kpi-value">{k.value.toLocaleString()}</strong>}
+                            </span>
                         </div>
+                    ))}
+                </div>
+
+                <div className="table-responsive rplc-table-wrap">
+                    {loading ? (
+                        <table className="prof-table rplc-table">
+                            <tbody>
+                                {Array.from({ length: 6 }).map((_, r) => (
+                                    <tr key={`sk-${r}`}>
+                                        {[24, 40, 110, 70, 90, 180, 40, 70, 70, 70].map((w, c) => (
+                                            <td key={c}><span className="rplc-skel" style={{ width: `${Math.max(20, w - ((r * 11 + c * 7) % 20))}px` }}></span></td>
+                                        ))}
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
                     ) : (
                         <>
-                            <table className="prof-table">
+                            <table className="prof-table rplc-table">
                             <thead>
                                 <tr>
                                     <th style={{ width: '40px' }}></th>
@@ -177,8 +230,12 @@ const RailPadLifecycle = ({ refreshTick }) => {
                             <tbody>
                                 {filteredPoMasterData.length === 0 ? (
                                     <tr>
-                                        <td colSpan="10" className="text-center" style={{ padding: '20px', color: '#64748b' }}>
-                                            No PO records found
+                                        <td colSpan="10" className="text-center">
+                                            <div className="rplc-empty">
+                                                <span className="rplc-empty-icon"><i className="fa-solid fa-inbox"></i></span>
+                                                <strong>No PO records found</strong>
+                                                <span>Try a different search.</span>
+                                            </div>
                                         </td>
                                     </tr>
                                 ) : (
@@ -194,17 +251,32 @@ const RailPadLifecycle = ({ refreshTick }) => {
                                                             {isExpanded ? '−' : '+'}
                                                         </button>
                                                     </td>
-                                                    <td><strong>{po.rly}</strong></td>
-                                                    <td style={{ color: '#1e40af', fontWeight: 'bold' }}>{po.poNo}</td>
-                                                    <td>{formatDate(po.poDate)}</td>
-                                                    <td style={{ fontSize: '12px', color: '#334155', fontWeight: '500' }}>{po.railPadType || '-'}</td>
-                                                    <td>
-                                                        <div style={{ fontWeight: '600' }}>{po.vendor}</div>
+                                                    <td><span className="rplc-rly">{po.rly || '-'}</span></td>
+                                                    <td className="rplc-po">{po.poNo}</td>
+                                                    <td className="rplc-muted">{formatDate(po.poDate)}</td>
+                                                    <td><span className="rplc-type">{po.railPadType || '-'}</span></td>
+                                                    <td className="rplc-vendor">{po.vendor}</td>
+                                                    <td>{po.rio ? <span className="rplc-rio">{po.rio}</span> : <span className="rplc-muted">-</span>}</td>
+                                                    <td className="text-right" style={{ fontWeight: 600 }}>{po.totalQty ? po.totalQty.toLocaleString() : '0'}</td>
+                                                    <td className="text-right" style={{ color: '#15803d', fontWeight: 700 }}>{po.acceptedQty ? po.acceptedQty.toLocaleString() : '0'}</td>
+                                                    <td className="text-right">
+                                                        {(() => {
+                                                            const tot = Number(po.totalQty) || 0;
+                                                            const bal = Number(po.overallPoBalance) || 0;
+                                                            const pct = tot > 0 ? Math.min(100, Math.max(0, ((tot - bal) * 100) / tot)) : 0;
+                                                            const done = tot > 0 && bal <= 0;
+                                                            return (
+                                                                <div className="rplc-bal">
+                                                                    {done
+                                                                        ? <span className="rplc-done"><i className="fa-solid fa-check"></i> Done</span>
+                                                                        : <span style={{ color: '#c2410c', fontWeight: 700 }}>{bal.toLocaleString()}</span>}
+                                                                    <span className="rplc-bar" title={`${pct.toFixed(0)}% accepted`}>
+                                                                        <span className={done ? 'is-done' : ''} style={{ width: `${pct}%` }}></span>
+                                                                    </span>
+                                                                </div>
+                                                            );
+                                                        })()}
                                                     </td>
-                                                    <td>{po.rio}</td>
-                                                    <td className="text-right">{po.totalQty ? po.totalQty.toLocaleString() : '0'}</td>
-                                                    <td className="text-right text-emerald-600 font-bold">{po.acceptedQty ? po.acceptedQty.toLocaleString() : '0'}</td>
-                                                    <td className="text-right text-red-600">{po.overallPoBalance ? po.overallPoBalance.toLocaleString() : '0'}</td>
                                                 </tr>
 
                                             {/* Level 2 Expansion */}

@@ -10,6 +10,8 @@ import './RailwayBoardGlass.css';
 // Components
 import { Level1Row } from '../components/railway-board/LevelRows';
 import Pagination from '../components/Pagination';
+import { SearchableDropdown } from '../components/railway-board/SharedComponents';
+import './RailwayBoardFilterBar.css';
 import DashboardGraph from '../components/railway-board/DashboardGraph';
 import ProfessionalCardSection from '../components/railway-board/ProfessionalCardSection';
 import UdmRejectionDashboard from '../components/railway-board/UdmRejectionDashboard';
@@ -44,7 +46,17 @@ const RailwayBoardDashboard = () => {
         () => sessionStorage.getItem('rb_activeTab') || 'summary'
     );
     const [reportSubmenuOpen, setReportSubmenuOpen] = useState(activeMainCard === 'reports');
-    const [activeReport, setActiveReport] = useState('mpr');
+    const [activeReport, setActiveReport] = useState(() => {
+        try { return sessionStorage.getItem('rb_activeReport') || 'mpr'; } catch { return 'mpr'; }
+    });
+
+    // Keep the current tab + report across a browser refresh
+    React.useEffect(() => {
+        try { sessionStorage.setItem('rb_activeTab', activeMainCard); } catch { /* storage unavailable */ }
+    }, [activeMainCard]);
+    React.useEffect(() => {
+        try { sessionStorage.setItem('rb_activeReport', activeReport); } catch { /* storage unavailable */ }
+    }, [activeReport]);
 
     // CM Module state
     const [isCmDropdownOpen, setIsCmDropdownOpen] = useState(false);
@@ -965,59 +977,56 @@ const RailwayBoardDashboard = () => {
 
                     {/* TOPBAR / FILTERS - Hidden on Dashboard (summary), Quality, Lifecycle, Feedback, Scada Monitor, SQC tabs, and ERC/Sleeper SWP Reports, and Lot Wise Closed Loop Reports, and IC Annexures */}
                     {activeMainCard !== 'manage-ic-dates' && activeMainCard !== 'cm-module' && activeMainCard !== 'active-login' && activeMainCard !== 'summary' && activeMainCard !== 'quality' && activeMainCard !== 'lifecycle' && activeMainCard !== 'feedback' && activeMainCard !== 'udm' && activeMainCard !== 'scada' && activeMainCard !== 'sqc' && activeMainCard !== 'sleeper-anomaly' && activeMainCard !== 'rejection-scrap' && activeMainCard !== 'org-structure' && !(activeMainCard === 'reports' && activeReport === 'swp' && (selectedProduct === 'ERC' || selectedProduct === 'Sleeper')) && !(activeMainCard === 'reports' && activeReport === 'lwcl') && !(activeMainCard === 'reports' && activeReport === 'ic_annexures') && !(activeMainCard === 'reports' && activeReport === 'rmstatus') && !(activeMainCard === 'reports' && activeReport === 'qrp' && selectedProduct === 'Rail Pad') && (
-                        <div id="prof-topbar">
-                            <label>From</label>
-                            <input type="date" value={draftFromDate} onChange={(e) => setDraftFromDate(e.target.value)} />
-                            <label>To</label>
-                            <input type="date" value={draftToDate} onChange={(e) => setDraftToDate(e.target.value)} />
+                        <div id="prof-topbar" className="rbf-bar">
+                            <div className="rbf-field">
+                                <label htmlFor="rbf-from"><i className="fa-regular fa-calendar"></i>From</label>
+                                <input id="rbf-from" type="date" value={draftFromDate} max={draftToDate || undefined} onChange={(e) => setDraftFromDate(e.target.value)} />
+                            </div>
+                            <span className="rbf-sep" aria-hidden="true"><i className="fa-solid fa-arrow-right-long"></i></span>
+                            <div className="rbf-field">
+                                <label htmlFor="rbf-to"><i className="fa-regular fa-calendar"></i>To</label>
+                                <input id="rbf-to" type="date" value={draftToDate} min={draftFromDate || undefined} onChange={(e) => setDraftToDate(e.target.value)} />
+                            </div>
 
                             {!(activeMainCard === 'reports' && (activeReport === 'mpia' || activeReport === 'vwpqr')) && (
                                 (activeMainCard === 'reports' && activeReport === 'mau') || activeMainCard === 'performance' ? (
-                                    <>
-                                        <label>RIO</label>
-                                        <select 
-                                            className="prof-input"
-                                            value={draftRio} 
-                                            onChange={(e) => setDraftRio(e.target.value || 'all')}
-                                            style={{ width: '110px', marginLeft: '4px', marginRight: '16px' }}
-                                        >
-                                            <option value="all">All RIOs</option>
-                                            {uniqueRios.map(rio => (
-                                                <option key={rio} value={rio}>{rio}</option>
-                                            ))}
-                                        </select>
-                                    </>
+                                    <div className="rbf-field rbf-field-select">
+                                        <label><i className="fa-solid fa-building-shield"></i>RIO</label>
+                                        <SearchableDropdown
+                                            value={draftRio === 'all' ? 'All RIOs' : draftRio}
+                                            onChange={(val) => setDraftRio(!val || val === 'All RIOs' ? 'all' : val)}
+                                            options={[{ label: 'All RIOs', value: 'All RIOs' }, ...uniqueRios.map(rio => ({ label: rio, value: rio }))]}
+                                            placeholder="All RIOs"
+                                        />
+                                    </div>
                                 ) : (
-                                    <>
-                                        <label>Zone</label>
-                                        <select 
-                                            className="prof-input"
-                                            value={draftZone} 
-                                            onChange={(e) => setDraftZone(e.target.value || 'all')}
-                                            style={{ width: '110px', marginLeft: '4px', marginRight: '16px' }}
-                                        >
-                                            <option value="all">All Zones</option>
-                                            {uniqueZones.map(zone => (
-                                                <option key={zone} value={zone}>{zone}</option>
-                                            ))}
-                                        </select>
-                                    </>
+                                    <div className="rbf-field rbf-field-select">
+                                        <label><i className="fa-solid fa-train"></i>Zone</label>
+                                        <SearchableDropdown
+                                            value={draftZone === 'all' ? 'All Zones' : draftZone}
+                                            onChange={(val) => setDraftZone(!val || val === 'All Zones' ? 'all' : val)}
+                                            options={[{ label: 'All Zones', value: 'All Zones' }, ...uniqueZones.map(zone => ({ label: zone, value: zone }))]}
+                                            placeholder="All Zones"
+                                        />
+                                    </div>
                                 )
                             )}
 
-                            <button className="btn-apply" onClick={() => {
-                                setFromDate(draftFromDate);
-                                setToDate(draftToDate);
-                                setSelectedZone(draftZone);
-                                setSelectedRio(draftRio);
-                            }}><i className="fa-solid fa-magnifying-glass" style={{ marginRight: '4px' }}></i>Apply</button>
-                            <button className="btn-reset" onClick={() => {
-                                const d = new Date();
-                                d.setMonth(d.getMonth() - 3);
-                                setFromDate(d.toISOString().split('T')[0]);
-                                setToDate(new Date().toISOString().split('T')[0]);
-                                setSelectedProduct('ERC'); setSelectedZone('all'); setSelectedRio('all');
-                            }}>Reset</button>
+                            <div className="rbf-actions">
+                                <button className="btn-apply rbf-apply" onClick={() => {
+                                    setFromDate(draftFromDate);
+                                    setToDate(draftToDate);
+                                    setSelectedZone(draftZone);
+                                    setSelectedRio(draftRio);
+                                }}><i className="fa-solid fa-magnifying-glass"></i>Apply</button>
+                                <button className="btn-reset rbf-reset" onClick={() => {
+                                    const d = new Date();
+                                    d.setMonth(d.getMonth() - 3);
+                                    setFromDate(d.toISOString().split('T')[0]);
+                                    setToDate(new Date().toISOString().split('T')[0]);
+                                    setSelectedProduct('ERC'); setSelectedZone('all'); setSelectedRio('all');
+                                }}><i className="fa-solid fa-rotate-left"></i>Reset</button>
+                            </div>
                         </div>
                     )}
 

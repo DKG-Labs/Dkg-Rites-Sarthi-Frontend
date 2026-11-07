@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { ExportButton, downloadExcel, SearchableDropdown } from '../SharedComponents';
 import reportService from '../../../services/reportService';
 
-const RailPadSwpReport = () => {
+const RailPadSwpReport = ({ refreshTick = 0 }) => {
     const [loading, setLoading] = useState(false);
     const [vendors, setVendors] = useState([]);
     const [plants, setPlants] = useState([]);
@@ -77,7 +77,7 @@ const RailPadSwpReport = () => {
         };
 
         fetchReportData();
-    }, [selectedVendor, selectedPlant, startDate, endDate]);
+    }, [selectedVendor, selectedPlant, startDate, endDate, refreshTick]);
 
     const handleExport = () => {
         const headers = [

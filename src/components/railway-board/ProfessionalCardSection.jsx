@@ -26,6 +26,7 @@ import SleeperScadaMonitor from './sleeper-board/SleeperScadaMonitor';
 import SleeperPerformance from './sleeper-board/SleeperPerformance';
 import SleeperQualityReport from './sleeper-board/SleeperQualityReport';
 import RailPadSummary from './railpad-board/RailPadSummary';
+import CountUp from '../common/CountUp';
 import RailPadQuality from './railpad-board/RailPadQuality';
 import RailPadLifecycle from './railpad-board/RailPadLifecycle';
 import RailPadPerformance from './railpad-board/RailPadPerformance';
@@ -1012,16 +1013,16 @@ const ProfessionalCardSection = ({
                                 <div className="summary-tab-content">
                                     {/* Global Filters for ERC, Rail Pad, and Sleeper */}
                                     {(isErc || isRailPad || isSleeper) && (
-                                        <div className="global-filters mb" style={{
-                                            display: 'flex', gap: '15px', background: '#f8fafc',
-                                            padding: '12px 16px', borderRadius: '12px', border: '1px solid #e2e8f0',
-                                            alignItems: 'center', flexWrap: 'wrap'
+                                        <div className="global-filters rb-filter-glass mb" style={{
+                                            display: 'flex', gap: '12px', background: '#f8fafc',
+                                            padding: '8px 14px', borderRadius: '12px', border: '1px solid #e2e8f0',
+                                            alignItems: 'flex-end', flexWrap: 'wrap'
                                         }}>
-                                            <div style={{ width: '100%', marginBottom: '10px' }}>
-                                                <div style={{ display: 'inline-flex', background: '#e2e8f0', padding: '4px', borderRadius: '8px' }}>
+                                            <div style={{ order: 0, flex: '0 0 auto' }}>
+                                                <div style={{ display: 'inline-flex', background: '#e2e8f0', padding: '3px', borderRadius: '8px', height: '36px', boxSizing: 'border-box', alignItems: 'center' }}>
                                                     <button
                                                         style={{
-                                                            padding: '6px 16px', borderRadius: '6px', border: 'none', cursor: 'pointer', fontSize: '13px', fontWeight: '600',
+                                                            padding: '5px 14px', borderRadius: '6px', border: 'none', cursor: 'pointer', fontSize: '13px', fontWeight: '600',
                                                             background: filterMode === 'zonalwise' ? '#fff' : 'transparent',
                                                             color: filterMode === 'zonalwise' ? '#0f172a' : '#64748b',
                                                             boxShadow: filterMode === 'zonalwise' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
@@ -1033,7 +1034,7 @@ const ProfessionalCardSection = ({
                                                     </button>
                                                     <button
                                                         style={{
-                                                            padding: '6px 16px', borderRadius: '6px', border: 'none', cursor: 'pointer', fontSize: '13px', fontWeight: '600',
+                                                            padding: '5px 14px', borderRadius: '6px', border: 'none', cursor: 'pointer', fontSize: '13px', fontWeight: '600',
                                                             background: filterMode === 'vendorwise' ? '#fff' : 'transparent',
                                                             color: filterMode === 'vendorwise' ? '#0f172a' : '#64748b',
                                                             boxShadow: filterMode === 'vendorwise' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none'
@@ -1231,38 +1232,41 @@ const ProfessionalCardSection = ({
                                             isDashboardLoading={isDashboardLoading}
                                         />
                                     ) : (
-                                        <>
+                                        <div className="erc-summary-container rps-glass fade-in">
                                             <div className="g3 mb">
                                                 <div className="prof-card card-dark-green"
                                                     style={{ textAlign: 'center', cursor: 'pointer' }}
                                                     onClick={handlePoIssuedClick}
                                                 >
+                                                    <span className="rps-icon"><i className="fa-solid fa-file-signature"></i></span>
                                                     <div className="kpi-lbl">PO Issued</div>
-                                                    <div className="kpi-val">{(s.poIssued ?? 0)}</div>
+                                                    <div className="kpi-val"><CountUp value={s.poIssued ?? 0} /></div>
                                                     <div className="kpi-sub">Nos.</div>
                                                 </div>
                                                 <div className="prof-card card-ocean" style={{ textAlign: 'center' }}>
+                                                    <span className="rps-icon"><i className="fa-solid fa-boxes-stacked"></i></span>
                                                     <div className="kpi-lbl">PO Quantity</div>
                                                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginTop: '4px' }}>
                                                         <div style={{ borderRight: '1px solid rgba(255,255,255,0.2)', paddingRight: '4px' }}>
-                                                            <div className="kpi-val" style={{ fontSize: '26px' }}>{(s.poQuantityNos || 0)}</div>
+                                                            <div className="kpi-val" style={{ fontSize: '26px' }}><CountUp value={s.poQuantityNos || 0} /></div>
                                                             <div className="kpi-sub" style={{ fontSize: '11px', opacity: 0.9 }}>Nos.</div>
                                                         </div>
                                                         <div style={{ paddingLeft: '4px' }}>
-                                                            <div className="kpi-val" style={{ fontSize: '26px' }}>{(s.poQuantityMt || 0)}</div>
+                                                            <div className="kpi-val" style={{ fontSize: '26px' }}><CountUp value={s.poQuantityMt || 0} /></div>
                                                             <div className="kpi-sub" style={{ fontSize: '11px', opacity: 0.9 }}>MT</div>
                                                         </div>
                                                     </div>
                                                 </div>
                                                 <div className="prof-card card-indigo" style={{ textAlign: 'center' }}>
+                                                    <span className="rps-icon"><i className="fa-solid fa-circle-check"></i></span>
                                                     <div className="kpi-lbl">Final Inspection Qty</div>
                                                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginTop: '4px' }}>
                                                         <div style={{ borderRight: '1px solid rgba(255,255,255,0.2)', paddingRight: '4px' }}>
-                                                            <div className="kpi-val" style={{ fontSize: '26px' }}>{(s.finalInspectionQuantity || 0)}</div>
+                                                            <div className="kpi-val" style={{ fontSize: '26px' }}><CountUp value={s.finalInspectionQuantity || 0} /></div>
                                                             <div className="kpi-sub" style={{ fontSize: '11px', opacity: 0.9 }}>Nos.</div>
                                                         </div>
                                                         <div style={{ paddingLeft: '4px' }}>
-                                                            <div className="kpi-val" style={{ fontSize: '26px' }}>{Number((s.finalInspectionQuantityMt || 0).toFixed(3))}</div>
+                                                            <div className="kpi-val" style={{ fontSize: '26px' }}><CountUp value={Number((s.finalInspectionQuantityMt || 0).toFixed(3))} /></div>
                                                             <div className="kpi-sub" style={{ fontSize: '11px', opacity: 0.9 }}>MT</div>
                                                         </div>
                                                     </div>
@@ -1282,15 +1286,15 @@ const ProfessionalCardSection = ({
                                                     <div style={{ display: 'flex', justifyContent: 'space-between', gap: '8px', textAlign: 'center' }}>
                                                         <div onClick={() => handleTotalCallsClick('Open')} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', cursor: 'pointer', background: 'rgba(255,255,255,0.7)', padding: '8px 4px', borderRadius: '6px', transition: 'all 0.2s', flex: 1 }} onMouseEnter={e => e.currentTarget.style.background = '#dbeafe'} onMouseLeave={e => e.currentTarget.style.background = 'rgba(255,255,255,0.7)'} title="Click to view Open calls">
                                                             <span style={{ fontSize: '10px', color: '#64748b', fontWeight: '700', lineHeight: '1.2', marginBottom: '4px' }}>TOTAL<br />OPEN</span>
-                                                            <span style={{ fontSize: '18px', fontWeight: '800', color: '#3b82f6' }}>{totalCallsData?.totalOpenCalls || 0}</span>
+                                                            <span style={{ fontSize: '18px', fontWeight: '800', color: '#3b82f6' }}><CountUp value={totalCallsData?.totalOpenCalls || 0} /></span>
                                                         </div>
                                                         <div onClick={() => handleTotalCallsClick('Under Inspection')} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', cursor: 'pointer', background: 'rgba(255,255,255,0.7)', padding: '8px 4px', borderRadius: '6px', transition: 'all 0.2s', flex: 1 }} onMouseEnter={e => e.currentTarget.style.background = '#dbeafe'} onMouseLeave={e => e.currentTarget.style.background = 'rgba(255,255,255,0.7)'} title="Click to view Under Inspection calls">
                                                             <span style={{ fontSize: '10px', color: '#64748b', fontWeight: '700', lineHeight: '1.2', marginBottom: '4px' }}>UNDER<br />INSPECTION</span>
-                                                            <span style={{ fontSize: '18px', fontWeight: '800', color: '#f59e0b' }}>{totalCallsData?.totalUnderInspectionCalls || 0}</span>
+                                                            <span style={{ fontSize: '18px', fontWeight: '800', color: '#f59e0b' }}><CountUp value={totalCallsData?.totalUnderInspectionCalls || 0} /></span>
                                                         </div>
                                                         <div onClick={() => handleTotalCallsClick('Pending')} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', cursor: 'pointer', background: 'rgba(255,255,255,0.7)', padding: '8px 4px', borderRadius: '6px', transition: 'all 0.2s', flex: 1 }} onMouseEnter={e => e.currentTarget.style.background = '#dbeafe'} onMouseLeave={e => e.currentTarget.style.background = 'rgba(255,255,255,0.7)'} title="Click to view Pending calls">
                                                             <span style={{ fontSize: '10px', color: '#64748b', fontWeight: '700', lineHeight: '1.2', marginBottom: '4px' }}>PENDING<br />CALLS</span>
-                                                            <span style={{ fontSize: '18px', fontWeight: '800', color: '#ef4444' }}>{totalCallsData?.totalPendingCalls || 0}</span>
+                                                            <span style={{ fontSize: '18px', fontWeight: '800', color: '#ef4444' }}><CountUp value={totalCallsData?.totalPendingCalls || 0} /></span>
                                                         </div>
                                                     </div>
                                                 </div>
@@ -1317,7 +1321,7 @@ const ProfessionalCardSection = ({
                                                                     title="Click to view Under Inspection calls"
                                                                 >
                                                                     <div style={{ fontSize: '10px', color: '#64748b', fontWeight: '700' }}>UNDER INSPECTION</div>
-                                                                    <div style={{ fontSize: '28px', fontWeight: '800', color: '#f59e0b' }}>{d?.under || '0'}</div>
+                                                                    <div style={{ fontSize: '28px', fontWeight: '800', color: '#f59e0b' }}><CountUp value={d?.under || 0} /></div>
                                                                 </div>
                                                                 <div
                                                                     style={{ textAlign: 'right', cursor: 'pointer', padding: '6px', borderRadius: '8px', transition: 'all 0.2s' }}
@@ -1327,7 +1331,7 @@ const ProfessionalCardSection = ({
                                                                     title="Click to view Pending calls"
                                                                 >
                                                                     <div style={{ fontSize: '10px', color: '#64748b', fontWeight: '700' }}>PENDING</div>
-                                                                    <div style={{ fontSize: '28px', fontWeight: '800', color: '#ef4444' }}>{d?.pending || '0'}</div>
+                                                                    <div style={{ fontSize: '28px', fontWeight: '800', color: '#ef4444' }}><CountUp value={d?.pending || 0} /></div>
                                                                 </div>
                                                             </div>
                                                         </div>
@@ -1339,9 +1343,10 @@ const ProfessionalCardSection = ({
                                                     onClick={() => setIsIcIssuedModalOpen(true)}
                                                     title="Click to view stage-wise breakdown"
                                                 >
+                                                    <span className="rps-icon"><i className="fa-solid fa-certificate"></i></span>
                                                     <div className="kpi-lbl">IC Issued</div>
                                                     <div style={{ marginTop: '12px' }}>
-                                                        <div className="kpi-val" style={{ fontSize: '32px' }}>{(icIssuedData.total || 0)}</div>
+                                                        <div className="kpi-val" style={{ fontSize: '32px' }}><CountUp value={icIssuedData.total || 0} /></div>
                                                         <div className="kpi-sub" style={{ fontSize: '11px', opacity: 0.9, marginTop: '2px' }}>Total Calls</div>
                                                     </div>
                                                 </div>
@@ -1368,11 +1373,11 @@ const ProfessionalCardSection = ({
                                                             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
                                                                 <div>
                                                                     <div style={{ fontSize: '11px', color: '#64748b', fontWeight: '600' }}>ACCEPTED (Nos.)</div>
-                                                                    <div style={{ fontSize: '26px', fontWeight: '800', color: '#22c55e' }}>{d?.accepted || '0'}</div>
+                                                                    <div style={{ fontSize: '26px', fontWeight: '800', color: '#22c55e' }}><CountUp value={d?.accepted || 0} /></div>
                                                                 </div>
                                                                 <div style={{ textAlign: 'right' }}>
                                                                     <div style={{ fontSize: '11px', color: '#64748b', fontWeight: '600' }}>REJECTED (Nos.)</div>
-                                                                    <div style={{ fontSize: '26px', fontWeight: '800', color: '#ef4444' }}>{d?.rejected || '0'}</div>
+                                                                    <div style={{ fontSize: '26px', fontWeight: '800', color: '#ef4444' }}><CountUp value={d?.rejected || 0} /></div>
                                                                 </div>
                                                             </div>
                                                         </div>
@@ -1418,7 +1423,7 @@ const ProfessionalCardSection = ({
                                                             >
                                                                 <i className="fa-solid fa-chart-line trend-cue-icon"></i>
                                                                 <div className="kpi-lbl">Avg Production/Day</div>
-                                                                <div className="kpi-val">{Math.round(avgProd)}</div>
+                                                                <div className="kpi-val"><CountUp value={Math.round(avgProd)} /></div>
                                                                 <div className="kpi-sub">Nos.</div>
                                                             </div>
                                                             <div
@@ -1429,7 +1434,7 @@ const ProfessionalCardSection = ({
                                                             >
                                                                 <i className="fa-solid fa-chart-line trend-cue-icon"></i>
                                                                 <div className="kpi-lbl">RM Rejection</div>
-                                                                <div className="kpi-val">{formatDecimal(rmRejPct)}%</div>
+                                                                <div className="kpi-val"><CountUp value={formatDecimal(rmRejPct)} />%</div>
                                                                 <div className="prof-prog"><div className="prof-prog-f" style={{ width: `${Math.min(100, rmRejPct * 10)}%`, background: '#eab308' }}></div></div>
                                                             </div>
                                                             <div
@@ -1440,7 +1445,7 @@ const ProfessionalCardSection = ({
                                                             >
                                                                 <i className="fa-solid fa-chart-line trend-cue-icon"></i>
                                                                 <div className="kpi-lbl">Process Rejection</div>
-                                                                <div className="kpi-val">{formatDecimal(pRejPct)}%</div>
+                                                                <div className="kpi-val"><CountUp value={formatDecimal(pRejPct)} />%</div>
                                                                 <div className="prof-prog"><div className="prof-prog-f" style={{ width: `${Math.min(100, pRejPct * 10)}%`, background: '#84cc16' }}></div></div>
                                                             </div>
                                                             <div
@@ -1451,14 +1456,14 @@ const ProfessionalCardSection = ({
                                                             >
                                                                 <i className="fa-solid fa-chart-line trend-cue-icon"></i>
                                                                 <div className="kpi-lbl">Final Rejection</div>
-                                                                <div className="kpi-val">{formatDecimal(fRejPct)}%</div>
+                                                                <div className="kpi-val"><CountUp value={formatDecimal(fRejPct)} />%</div>
                                                                 <div className="prof-prog"><div className="prof-prog-f" style={{ width: `${Math.min(100, fRejPct * 10)}%`, background: '#e11d48' }}></div></div>
                                                             </div>
                                                         </div>
                                                     );
                                                 })()}
                                             </div>
-                                        </>
+                                        </div>
                                     )}
                                 </div>
                             );
@@ -1994,10 +1999,10 @@ const ProfessionalCardSection = ({
                                                 switch (activeReport) {
                                                     case 'mpr': return <RailPadMprReport mprData={mprData} loading={mprLoading} />;
                                                     case 'mau': return <RailPadMauReport mauData={mauData} loading={mauLoading} startDate={fromDate} endDate={toDate} />;
-                                                    case 'lwcl': return <RailPadLwcpReport />;
-                                                    case 'swp': return <RailPadSwpReport />;
-                                                    case 'vwpqr': return <RailPadVwpqrReport />;
-                                                    case 'qrp': return <RailPadQualityReport />;
+                                                    case 'lwcl': return <RailPadLwcpReport refreshTick={refreshTick} />;
+                                                    case 'swp': return <RailPadSwpReport refreshTick={refreshTick} />;
+                                                    case 'vwpqr': return <RailPadVwpqrReport refreshTick={refreshTick} />;
+                                                    case 'qrp': return <RailPadQualityReport refreshTick={refreshTick} />;
                                                     case 'ic_annexures': return <DownloadIcAnnexures selectedProduct="Rail Pad" fromDate={fromDate} toDate={toDate} />;
                                                     default: return <RailPadMprReport mprData={mprData} loading={mprLoading} />;
                                                 }
@@ -2556,22 +2561,22 @@ const ProfessionalCardSection = ({
 
             {/* IC Issued Breakdown Modal -> Now showing Download IC Annexures */}
             {isIcIssuedModalOpen && (
-                <div className="modal-overlay" onClick={() => setIsIcIssuedModalOpen(false)} style={{
+                <div className="modal-overlay ica-overlay" onClick={() => setIsIcIssuedModalOpen(false)} style={{
                     position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
                     backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center',
                     justifyContent: 'center', zIndex: 1000
                 }}>
-                    <div className="modal-content fade-in" onClick={e => e.stopPropagation()} style={{
+                    <div className="modal-content fade-in ica-glass-modal" onClick={e => e.stopPropagation()} style={{
                         background: '#f8fafc', borderRadius: '16px', overflow: 'hidden',
                         width: '96vw', maxWidth: '1550px', height: '90vh', boxShadow: '0 20px 25px -5px rgba(0,0,0,0.1)',
                         display: 'flex', flexDirection: 'column'
                     }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px 24px', borderBottom: '1px solid #e2e8f0', background: 'white' }}>
+                        <div className="ica-glass-head" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px 24px', borderBottom: '1px solid #e2e8f0', background: 'white' }}>
                             <h3 style={{ margin: 0, color: '#1e293b', fontSize: '20px', fontWeight: 'bold' }}>
-                                <i className="fa-solid fa-file-contract" style={{ marginRight: '8px', color: '#3b82f6' }}></i>
+                                <span className="ica-head-icon"><i className="fa-solid fa-file-contract"></i></span>
                                 Download IC & Annexures
                             </h3>
-                            <button onClick={() => setIsIcIssuedModalOpen(false)} style={{
+                            <button className="ica-close-btn" onClick={() => setIsIcIssuedModalOpen(false)} style={{
                                 background: 'none', border: 'none', fontSize: '24px', cursor: 'pointer', color: '#64748b', lineHeight: 1
                             }}>&times;</button>
                         </div>
@@ -3277,49 +3282,69 @@ const ScadaMonitor = ({ selectedProduct }) => {
     if (selectedProduct === 'Rail Pad') {
         return (
             <div className="scada-monitor-container fade-in" style={{ padding: '20px 0' }}>
-                <div className="prof-card" style={{
-                    padding: '80px 20px',
-                    background: '#fff',
-                    borderRadius: '16px',
-                    border: '1px dashed #10b981',
-                    textAlign: 'center',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    minHeight: '400px'
-                }}>
-                    <div style={{
-                        width: '80px',
-                        height: '80px',
-                        background: '#f0fdf4',
-                        borderRadius: '50%',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        marginBottom: '24px'
-                    }}>
-                        <i className="fa-solid fa-person-digging" style={{ fontSize: '40px', color: '#10b981' }}></i>
+                <div className="scada-soon">
+                    <div className="scada-soon-glow" aria-hidden="true"></div>
+                    <div className="scada-soon-icon">
+                        <span className="scada-soon-pulse" aria-hidden="true"></span>
+                        <i className="fa-solid fa-tower-broadcast"></i>
                     </div>
-                    <h2 style={{ fontSize: '24px', fontWeight: '800', color: '#14532d', marginBottom: '12px' }}>
-                        SCADA Live Monitor - Rail Pad
-                    </h2>
-                    <p style={{ color: '#64748b', fontSize: '16px', maxWidth: '400px', lineHeight: '1.6' }}>
+                    <span className="scada-soon-chip"><span className="scada-soon-dot"></span>Under Development</span>
+                    <h2 className="scada-soon-title">SCADA Live Monitor</h2>
+                    <div className="scada-soon-sub">Rail Pad manufacturing units</div>
+                    <p className="scada-soon-text">
                         We are currently integrating the SCADA systems for Rail Pad manufacturing units. This feature will be available soon.
                     </p>
-                    <div style={{
-                        marginTop: '30px',
-                        padding: '8px 16px',
-                        background: '#f0fdf4',
-                        color: '#166534',
-                        borderRadius: '20px',
-                        fontSize: '12px',
-                        fontWeight: '700',
-                        textTransform: 'uppercase',
-                        letterSpacing: '1px'
-                    }}>
-                        Under Development
+                    <div className="scada-soon-steps">
+                        {[
+                            { icon: 'fa-plug', label: 'Plant connectivity', state: 'done' },
+                            { icon: 'fa-database', label: 'Data pipeline', state: 'active' },
+                            { icon: 'fa-chart-line', label: 'Live dashboard', state: '' },
+                        ].map(s => (
+                            <div key={s.label} className={`scada-soon-step ${s.state}`}>
+                                <span className="scada-soon-step-icon">
+                                    <i className={`fa-solid ${s.state === 'done' ? 'fa-check' : s.icon}`}></i>
+                                </span>
+                                {s.label}
+                            </div>
+                        ))}
                     </div>
+                    <style>{`
+                        .scada-soon { position: relative; overflow: hidden; isolation: isolate; min-height: 420px; padding: 64px 20px;
+                            display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center;
+                            border-radius: 22px; background: rgba(255,255,255,0.78); border: 1px solid rgba(255,255,255,0.9);
+                            box-shadow: 0 20px 45px -24px rgba(15,23,42,0.22), inset 0 1px 0 rgba(255,255,255,0.95);
+                            backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); }
+                        .scada-soon-glow { position: absolute; inset: -40% -10% auto; height: 120%; z-index: -1; pointer-events: none;
+                            background: radial-gradient(circle at 30% 30%, rgba(134,239,172,0.45), transparent 45%),
+                                        radial-gradient(circle at 75% 25%, rgba(147,197,253,0.4), transparent 45%); }
+                        .scada-soon-icon { position: relative; width: 84px; height: 84px; border-radius: 26px; display: flex; align-items: center;
+                            justify-content: center; font-size: 34px; color: #fff; margin-bottom: 20px;
+                            background: linear-gradient(135deg, #16a34a, #0d9488); box-shadow: 0 18px 34px -16px rgba(22,163,74,0.8); }
+                        .scada-soon-pulse { position: absolute; inset: -8px; border-radius: 32px; border: 2px solid rgba(22,163,74,0.35);
+                            animation: scada-pulse 2.2s ease-out infinite; }
+                        .scada-soon-chip { display: inline-flex; align-items: center; gap: 8px; padding: 6px 14px; border-radius: 999px;
+                            font-size: 11px; font-weight: 800; letter-spacing: 1px; text-transform: uppercase; color: #b45309;
+                            background: rgba(254,243,199,0.9); border: 1px solid rgba(252,211,77,0.7); }
+                        .scada-soon-dot { width: 7px; height: 7px; border-radius: 50%; background: #f59e0b; animation: scada-blink 1.4s ease-in-out infinite; }
+                        .scada-soon-title { margin: 16px 0 4px; font-size: 28px; font-weight: 800; letter-spacing: -0.02em;
+                            background: linear-gradient(90deg, #14532d, #0d9488); -webkit-background-clip: text; background-clip: text; color: transparent; }
+                        .scada-soon-sub { font-size: 13px; font-weight: 600; color: #16a34a; }
+                        .scada-soon-text { max-width: 460px; margin: 14px 0 0; font-size: 15px; line-height: 1.65; color: #64748b; }
+                        .scada-soon-steps { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; margin-top: 28px; }
+                        .scada-soon-step { display: inline-flex; align-items: center; gap: 8px; padding: 8px 14px; border-radius: 14px; font-size: 12.5px;
+                            font-weight: 600; color: #94a3b8; background: rgba(255,255,255,0.85); border: 1px solid #e2e8f0; }
+                        .scada-soon-step-icon { width: 24px; height: 24px; border-radius: 8px; display: inline-flex; align-items: center; justify-content: center;
+                            font-size: 11px; background: #f1f5f9; color: #94a3b8; }
+                        .scada-soon-step.done { color: #166534; border-color: rgba(134,239,172,0.8); }
+                        .scada-soon-step.done .scada-soon-step-icon { background: linear-gradient(135deg,#16a34a,#0d9488); color: #fff; }
+                        .scada-soon-step.active { color: #1d4ed8; border-color: rgba(147,197,253,0.8); }
+                        .scada-soon-step.active .scada-soon-step-icon { background: rgba(219,234,254,0.9); color: #1d4ed8; }
+                        @keyframes scada-pulse { 0% { transform: scale(0.95); opacity: 1; } 100% { transform: scale(1.25); opacity: 0; } }
+                        @keyframes scada-blink { 0%,100% { opacity: 1; } 50% { opacity: 0.3; } }
+                        @media (max-width: 480px) { .scada-soon { padding: 44px 16px; min-height: 360px; } .scada-soon-title { font-size: 22px; }
+                            .scada-soon-text { font-size: 14px; } }
+                        @media (prefers-reduced-motion: reduce) { .scada-soon-pulse, .scada-soon-dot { animation: none; } }
+                    `}</style>
                 </div>
             </div>
         );

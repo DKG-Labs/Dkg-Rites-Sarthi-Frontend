@@ -43,6 +43,114 @@
   border-color: #cbd5e1;
 }
 
+/* Custom rows dropdown */
+.pg-select {
+  position: relative;
+}
+
+.pg-select-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 58px;
+  height: 30px;
+  padding: 0 10px 0 12px;
+  border-radius: 10px;
+  border: 1px solid #e2e8f0;
+  background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+  color: #334155;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.05);
+  transition: border-color 0.2s, box-shadow 0.2s, background 0.2s;
+}
+
+.pg-select-btn span { flex: 1; text-align: left; }
+
+.pg-select-btn:hover {
+  border-color: #86efac;
+  background: #fff;
+}
+
+.pg-select-btn:focus-visible,
+.pg-select.is-open .pg-select-btn {
+  outline: none;
+  border-color: #16a34a;
+  box-shadow: 0 0 0 3px rgba(22, 163, 74, 0.15);
+  background: #fff;
+}
+
+.pg-select-chev {
+  color: #94a3b8;
+  transition: transform 0.2s ease, color 0.2s;
+}
+
+.pg-select.is-open .pg-select-chev {
+  transform: rotate(180deg);
+  color: #16a34a;
+}
+
+/* Opens upward: pagination sits at the bottom of tables */
+.pg-select-menu {
+  position: absolute;
+  bottom: calc(100% + 6px);
+  left: 0;
+  z-index: 50;
+  min-width: 100%;
+  margin: 0;
+  padding: 5px;
+  list-style: none;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.96);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 14px 32px -12px rgba(15, 23, 42, 0.25), 0 2px 6px rgba(15, 23, 42, 0.06);
+  animation: pg-menu-in 0.16s ease-out both;
+}
+
+.pg-select-opt {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 7px 10px;
+  border-radius: 8px;
+  color: #475569;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  outline: none;
+  transition: background 0.15s, color 0.15s;
+}
+
+.pg-select-opt:hover,
+.pg-select-opt:focus-visible {
+  background: #f0fdf4;
+  color: #166534;
+}
+
+.pg-select-opt.is-active {
+  background: linear-gradient(90deg, #dcfce7, #f0fdf4);
+  color: #15803d;
+  font-weight: 700;
+}
+
+@keyframes pg-menu-in {
+  from { opacity: 0; transform: translateY(4px) scale(0.98); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+/* theme accents for the custom dropdown */
+.pg-theme-blue .pg-select-btn { border-color: #bae6fd; color: #0369a1; }
+.pg-theme-orange .pg-select-btn { border-color: #fed7aa; color: #c2410c; }
+
+@media (max-width: 600px) {
+  .pg-select-btn { height: 34px; min-width: 64px; }
+  .pg-select-opt { padding: 10px 12px; }
+}
+
 .pg-buttons {
   display: flex;
   gap: 4px;

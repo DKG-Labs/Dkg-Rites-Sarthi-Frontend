@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import './SleeperSummary.css';
 import reportService from '../../../services/reportService';
 import ProductionRejectionTrendModal from '../ProductionRejectionTrendModal';
+import CountUp from '../../common/CountUp';
+import '../railpad-board/RailPadSummary.css';
 
 let cachedSleeperSummary = null;
 let lastRefreshTick_SleeperSummary = -1;
@@ -192,7 +194,7 @@ const SleeperSummary = ({
     const icIssuedTotal = sleeperIcIssued > 0 ? sleeperIcIssued : icIssuedFromData;
 
     return (
-        <div className="sleeper-summary-container fade-in">
+        <div className="sleeper-summary-container rps-glass fade-in">
             {filterApplied && (
                 <div style={{
                     display: 'inline-flex',
@@ -222,32 +224,35 @@ const SleeperSummary = ({
                     style={{ textAlign: 'center', cursor: 'pointer' }}
                     onClick={onPoIssuedClick}
                 >
+                    <span className="rps-icon"><i className="fa-solid fa-file-signature"></i></span>
                     <div className="kpi-lbl">Total PO Issued</div>
-                    <div className="kpi-val">{totalPoIssued}</div>
+                    <div className="kpi-val"><CountUp value={totalPoIssued} /></div>
                     <div className="kpi-sub">All Vendors (IREPS)</div>
                 </div>
                 <div className="prof-card card-ocean" style={{ textAlign: 'center' }}>
+                    <span className="rps-icon"><i className="fa-solid fa-boxes-stacked"></i></span>
                     <div className="kpi-lbl">Total PO Qty on Order</div>
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginTop: '4px' }}>
                         <div style={{ borderRight: '1px solid rgba(255,255,255,0.2)', paddingRight: '8px' }}>
-                            <div className="kpi-val" style={{ fontSize: '20px' }}>{totalPoQtyNos}</div>
+                            <div className="kpi-val" style={{ fontSize: '20px' }}><CountUp value={totalPoQtyNos} /></div>
                             <div className="kpi-sub" style={{ fontSize: '11px', opacity: 0.9 }}>Nos.</div>
                         </div>
                         <div style={{ paddingLeft: '8px' }}>
-                            <div className="kpi-val" style={{ fontSize: '20px' }}>{totalPoQtySet}</div>
+                            <div className="kpi-val" style={{ fontSize: '20px' }}><CountUp value={totalPoQtySet} /></div>
                             <div className="kpi-sub" style={{ fontSize: '11px', opacity: 0.9 }}>Set</div>
                         </div>
                     </div>
                 </div>
                 <div className="prof-card card-indigo" style={{ textAlign: 'center' }}>
+                    <span className="rps-icon"><i className="fa-solid fa-circle-check"></i></span>
                     <div className="kpi-lbl">Final Accepted Quantity</div>
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginTop: '4px' }}>
                         <div style={{ borderRight: '1px solid rgba(255,255,255,0.2)', paddingRight: '8px' }}>
-                            <div className="kpi-val" style={{ fontSize: '20px' }}>{finalAcceptedNos}</div>
+                            <div className="kpi-val" style={{ fontSize: '20px' }}><CountUp value={finalAcceptedNos} /></div>
                             <div className="kpi-sub" style={{ fontSize: '11px', opacity: 0.9 }}>Nos.</div>
                         </div>
                         <div style={{ paddingLeft: '8px' }}>
-                            <div className="kpi-val" style={{ fontSize: '20px' }}>{finalAcceptedSet}</div>
+                            <div className="kpi-val" style={{ fontSize: '20px' }}><CountUp value={finalAcceptedSet} /></div>
                             <div className="kpi-sub" style={{ fontSize: '11px', opacity: 0.9 }}>Set</div>
                         </div>
                     </div>
@@ -268,15 +273,15 @@ const SleeperSummary = ({
                     <div style={{ display: 'flex', justifyContent: 'space-between', gap: '8px', textAlign: 'center' }}>
                         <div onClick={() => onTotalCallsClick && onTotalCallsClick('Open')} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', cursor: 'pointer', background: 'rgba(255,255,255,0.7)', padding: '8px 4px', borderRadius: '6px', transition: 'all 0.2s', flex: 1 }} onMouseEnter={e => e.currentTarget.style.background = '#dbeafe'} onMouseLeave={e => e.currentTarget.style.background = 'rgba(255,255,255,0.7)'} title="Click to view Open calls">
                             <span style={{ fontSize: '10px', color: '#64748b', fontWeight: '700', lineHeight: '1.2', marginBottom: '4px' }}>TOTAL<br />OPEN</span>
-                            <span style={{ fontSize: '18px', fontWeight: '800', color: '#3b82f6' }}>{totalOpen}</span>
+                            <span style={{ fontSize: '18px', fontWeight: '800', color: '#3b82f6' }}><CountUp value={totalOpen} /></span>
                         </div>
                         <div onClick={() => onTotalCallsClick && onTotalCallsClick('Under Inspection')} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', cursor: 'pointer', background: 'rgba(255,255,255,0.7)', padding: '8px 4px', borderRadius: '6px', transition: 'all 0.2s', flex: 1 }} onMouseEnter={e => e.currentTarget.style.background = '#dbeafe'} onMouseLeave={e => e.currentTarget.style.background = 'rgba(255,255,255,0.7)'} title="Click to view Under Inspection calls">
                             <span style={{ fontSize: '10px', color: '#64748b', fontWeight: '700', lineHeight: '1.2', marginBottom: '4px' }}>UNDER<br />INSPECTION</span>
-                            <span style={{ fontSize: '18px', fontWeight: '800', color: '#f59e0b' }}>{totalUnder}</span>
+                            <span style={{ fontSize: '18px', fontWeight: '800', color: '#f59e0b' }}><CountUp value={totalUnder} /></span>
                         </div>
                         <div onClick={() => onTotalCallsClick && onTotalCallsClick('Pending')} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', cursor: 'pointer', background: 'rgba(255,255,255,0.7)', padding: '8px 4px', borderRadius: '6px', transition: 'all 0.2s', flex: 1 }} onMouseEnter={e => e.currentTarget.style.background = '#dbeafe'} onMouseLeave={e => e.currentTarget.style.background = 'rgba(255,255,255,0.7)'} title="Click to view Pending calls">
                             <span style={{ fontSize: '10px', color: '#64748b', fontWeight: '700', lineHeight: '1.2', marginBottom: '4px' }}>PENDING<br />CALLS</span>
-                            <span style={{ fontSize: '18px', fontWeight: '800', color: '#ef4444' }}>{totalPending}</span>
+                            <span style={{ fontSize: '18px', fontWeight: '800', color: '#ef4444' }}><CountUp value={totalPending} /></span>
                         </div>
                     </div>
                 </div>
@@ -296,7 +301,7 @@ const SleeperSummary = ({
                             title="Click to view Under Inspection calls"
                         >
                             <div style={{ fontSize: '10px', color: '#64748b', fontWeight: '700' }}>UNDER INSPECTION</div>
-                            <div style={{ fontSize: '28px', fontWeight: '800', color: '#f59e0b' }}>{underInspectionCalls}</div>
+                            <div style={{ fontSize: '28px', fontWeight: '800', color: '#f59e0b' }}><CountUp value={underInspectionCalls} /></div>
                         </div>
                         <div
                             style={{ textAlign: 'right', cursor: 'pointer', padding: '6px', borderRadius: '8px', transition: 'all 0.2s' }}
@@ -306,7 +311,7 @@ const SleeperSummary = ({
                             title="Click to view Pending calls"
                         >
                             <div style={{ fontSize: '10px', color: '#64748b', fontWeight: '700' }}>PENDING</div>
-                            <div style={{ fontSize: '28px', fontWeight: '800', color: '#ef4444' }}>{pendingCalls}</div>
+                            <div style={{ fontSize: '28px', fontWeight: '800', color: '#ef4444' }}><CountUp value={pendingCalls} /></div>
                         </div>
                     </div>
                 </div>
@@ -317,9 +322,10 @@ const SleeperSummary = ({
                     onClick={onIcIssuedClick}
                     title="Click to view stage-wise breakdown"
                 >
+                    <span className="rps-icon"><i className="fa-solid fa-certificate"></i></span>
                     <div className="kpi-lbl">IC Issued</div>
                     <div style={{ marginTop: '12px' }}>
-                        <div className="kpi-val" style={{ fontSize: '32px' }}>{icIssuedTotal}</div>
+                        <div className="kpi-val" style={{ fontSize: '32px' }}><CountUp value={icIssuedTotal} /></div>
                         <div className="kpi-sub" style={{ fontSize: '11px', opacity: 0.9, marginTop: '2px' }}>Total Calls</div>
                     </div>
                 </div>
@@ -339,12 +345,12 @@ const SleeperSummary = ({
                         {/* Accepted column */}
                         <div style={{ background: 'rgba(34, 197, 94, 0.08)', padding: '10px', borderRadius: '8px', border: '1px solid rgba(34, 197, 94, 0.2)', textAlign: 'center' }}>
                             <div style={{ fontSize: '11px', color: '#15803d', fontWeight: '700', marginBottom: '4px' }}>ACCEPTED (Nos.)</div>
-                            <div style={{ fontSize: '24px', fontWeight: '800', color: '#22c55e' }}>{processAcceptedNos}</div>
+                            <div style={{ fontSize: '24px', fontWeight: '800', color: '#22c55e' }}><CountUp value={processAcceptedNos} /></div>
                         </div>
                         {/* Rejected column */}
                         <div style={{ background: 'rgba(239, 68, 68, 0.08)', padding: '10px', borderRadius: '8px', border: '1px solid rgba(239, 68, 68, 0.2)', textAlign: 'center' }}>
                             <div style={{ fontSize: '11px', color: '#b91c1c', fontWeight: '700', marginBottom: '4px' }}>REJECTED (Nos.)</div>
-                            <div style={{ fontSize: '24px', fontWeight: '800', color: '#ef4444' }}>{processRejectedNos}</div>
+                            <div style={{ fontSize: '24px', fontWeight: '800', color: '#ef4444' }}><CountUp value={processRejectedNos} /></div>
                         </div>
                     </div>
                 </div>
@@ -360,11 +366,11 @@ const SleeperSummary = ({
                             <div style={{ fontSize: '11px', color: '#15803d', fontWeight: '700', marginBottom: '6px', textAlign: 'center' }}>ACCEPTED</div>
                             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', textAlign: 'center' }}>
                                 <div>
-                                    <div style={{ fontSize: '20px', fontWeight: '800', color: '#22c55e' }}>{finalAcceptedNos}</div>
+                                    <div style={{ fontSize: '20px', fontWeight: '800', color: '#22c55e' }}><CountUp value={finalAcceptedNos} /></div>
                                     <div style={{ fontSize: '10px', color: '#64748b', fontWeight: '600' }}>Nos.</div>
                                 </div>
                                 <div>
-                                    <div style={{ fontSize: '20px', fontWeight: '800', color: '#22c55e' }}>{finalAcceptedSet}</div>
+                                    <div style={{ fontSize: '20px', fontWeight: '800', color: '#22c55e' }}><CountUp value={finalAcceptedSet} /></div>
                                     <div style={{ fontSize: '10px', color: '#64748b', fontWeight: '600' }}>Sets</div>
                                 </div>
                             </div>
@@ -374,11 +380,11 @@ const SleeperSummary = ({
                             <div style={{ fontSize: '11px', color: '#b91c1c', fontWeight: '700', marginBottom: '6px', textAlign: 'center' }}>REJECTED</div>
                             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', textAlign: 'center' }}>
                                 <div>
-                                    <div style={{ fontSize: '20px', fontWeight: '800', color: '#ef4444' }}>{finalRejectedNos}</div>
+                                    <div style={{ fontSize: '20px', fontWeight: '800', color: '#ef4444' }}><CountUp value={finalRejectedNos} /></div>
                                     <div style={{ fontSize: '10px', color: '#64748b', fontWeight: '600' }}>Nos.</div>
                                 </div>
                                 <div>
-                                    <div style={{ fontSize: '20px', fontWeight: '800', color: '#ef4444' }}>{finalRejectedSet}</div>
+                                    <div style={{ fontSize: '20px', fontWeight: '800', color: '#ef4444' }}><CountUp value={finalRejectedSet} /></div>
                                     <div style={{ fontSize: '10px', color: '#64748b', fontWeight: '600' }}>Sets</div>
                                 </div>
                             </div>
@@ -402,7 +408,7 @@ const SleeperSummary = ({
                     <i className="fa-solid fa-chart-line trend-cue-icon"></i>
                     <div style={{ fontSize: '11px', fontWeight: '700', color: '#64748b', textTransform: 'uppercase' }}>Avg Production / Day</div>
                     <div style={{ marginTop: '8px' }}>
-                        <div style={{ fontSize: '24px', fontWeight: '800', color: '#1e3a8a' }}>{avgProductionPerDay}</div>
+                        <div style={{ fontSize: '24px', fontWeight: '800', color: '#1e3a8a' }}><CountUp value={avgProductionPerDay} /></div>
                         <div style={{ fontSize: '10px', color: '#64748b', marginTop: '2px' }}>Nos. / Day</div>
                     </div>
                 </div>
@@ -418,12 +424,12 @@ const SleeperSummary = ({
                     <div style={{ fontSize: '11px', fontWeight: '700', color: '#64748b', textTransform: 'uppercase' }}>Process Rejection</div>
                     <div style={{ marginTop: '8px', display: 'flex', justifyContent: 'space-around', alignItems: 'center' }}>
                         <div>
-                            <div style={{ fontSize: '20px', fontWeight: '800', color: '#dc2626' }}>{processRejectedNos}</div>
+                            <div style={{ fontSize: '20px', fontWeight: '800', color: '#dc2626' }}><CountUp value={processRejectedNos} /></div>
                             <div style={{ fontSize: '10px', color: '#64748b' }}>Nos.</div>
                         </div>
                         <div style={{ borderLeft: '1px solid #e2e8f0', height: '24px' }}></div>
                         <div>
-                            <div style={{ fontSize: '20px', fontWeight: '800', color: '#dc2626' }}>{processRejectionPercentage}%</div>
+                            <div style={{ fontSize: '20px', fontWeight: '800', color: '#dc2626' }}><CountUp value={processRejectionPercentage} />%</div>
                             <div style={{ fontSize: '10px', color: '#64748b' }}>Percentage</div>
                         </div>
                     </div>
@@ -440,12 +446,12 @@ const SleeperSummary = ({
                     <div style={{ fontSize: '11px', fontWeight: '700', color: '#64748b', textTransform: 'uppercase' }}>Final Rejection</div>
                     <div style={{ marginTop: '8px', display: 'flex', justifyContent: 'space-around', alignItems: 'center' }}>
                         <div>
-                            <div style={{ fontSize: '20px', fontWeight: '800', color: '#c2410c' }}>{finalRejectedNos}</div>
+                            <div style={{ fontSize: '20px', fontWeight: '800', color: '#c2410c' }}><CountUp value={finalRejectedNos} /></div>
                             <div style={{ fontSize: '10px', color: '#64748b' }}>Nos.</div>
                         </div>
                         <div style={{ borderLeft: '1px solid #e2e8f0', height: '24px' }}></div>
                         <div>
-                            <div style={{ fontSize: '20px', fontWeight: '800', color: '#c2410c' }}>{finalRejectionPercentage}%</div>
+                            <div style={{ fontSize: '20px', fontWeight: '800', color: '#c2410c' }}><CountUp value={finalRejectionPercentage} />%</div>
                             <div style={{ fontSize: '10px', color: '#64748b' }}>Percentage</div>
                         </div>
                     </div>
@@ -461,7 +467,7 @@ const SleeperSummary = ({
                     <i className="fa-solid fa-chart-line trend-cue-icon"></i>
                     <div style={{ fontSize: '11px', fontWeight: '700', color: '#64748b', textTransform: 'uppercase' }}>Overall Rejection</div>
                     <div style={{ marginTop: '8px' }}>
-                        <div style={{ fontSize: '24px', fontWeight: '800', color: '#6d28d9' }}>{overallRejectionPercentage}%</div>
+                        <div style={{ fontSize: '24px', fontWeight: '800', color: '#6d28d9' }}><CountUp value={overallRejectionPercentage} />%</div>
                         <div style={{ fontSize: '10px', color: '#64748b', marginTop: '2px' }}>Total Rejection Rate</div>
                         <div style={{ fontSize: '10px', color: '#7c3aed', marginTop: '4px', fontWeight: '600' }}>*Includes Process Rejection</div>
                     </div>

@@ -88,11 +88,20 @@ export async function exportDashboardScreenToPdf(elementOrId, metadata = {}) {
         }
     }
 
+    // The PDF uses the plain solid dashboard design, not the on-screen glass look. html2canvas reads
+    // ::before/::after styles from the live page, so the glass class is removed from the live page
+    // for the moment of capture and put back afterwards.
+    const glassEls = Array.from(document.querySelectorAll('.rps-glass'));
+    glassEls.forEach((el) => el.classList.remove('rps-glass'));
+    document.documentElement.classList.add('pdf-exporting');
+
     // Pause to allow charts and animations to settle
     await new Promise((resolve) => setTimeout(resolve, 400));
 
     // Capture using html2canvas with high DPI and explicit print cleanup
-    const canvas = await html2canvas(element, {
+    let canvas;
+    try {
+    canvas = await html2canvas(element, {
         scale: 2,
         useCORS: true,
         allowTaint: true,
@@ -250,10 +259,58 @@ export async function exportDashboardScreenToPdf(elementOrId, metadata = {}) {
                     width: 100% !important;
                     max-width: 100% !important;
                 }
+
+                /* ---- Modern Rail Pad / IC / Lifecycle / Feedback screens ---- */
+                /* scroll boxes with max-height would cut rows: expand fully */
+                .piq-table-wrapper, .rplc-table-wrap, .ic-table-wrapper, .searchable-dropdown-options-list {
+                    overflow: visible !important;
+                    max-height: none !important;
+                    height: auto !important;
+                }
+                /* sticky headers inside expanded boxes */
+                .piq-table-wrapper thead, .piq-table-wrapper thead th, .rplc-table thead th {
+                    position: static !important;
+                }
+                /* html2canvas can't paint gradient-clipped text: use solid colour */
+                .piq-heading, .ica-hero-title, .rplc-title, .fb-head-title, .scada-soon-title, .rbrs-modern .rbrs-title {
+                    background: none !important;
+                    -webkit-background-clip: border-box !important;
+                    background-clip: border-box !important;
+                    color: #166534 !important;
+                    -webkit-text-fill-color: #166534 !important;
+                }
+                /* blur/backdrop effects aren't supported: render as solid white cards */
+                .rpq-glass, .rplc-shell, .ica-hero, .fb-modern, .scada-soon, .rbf-bar,
+                .rp-kpi, .rplc-kpi, .ica-kpi, .mau-kpi, .lwcl-filter-card, .lwcl-result-card,
+                .rbrs-wrap.rbrs-modern, .rbrs-modern .rbrs-kpi-card, .rbrs-modern .rbrs-filters {
+                    backdrop-filter: none !important;
+                    -webkit-backdrop-filter: none !important;
+                    background: #ffffff !important;
+                }
+                .scada-soon-glow, .scada-soon-pulse, .rpq-loading-overlay { display: none !important; }
+                /* table header text colour override survives (pastel headers stay readable) */
+                .rpq-glass .piq-table-wrapper thead th { -webkit-text-fill-color: var(--rpq-th, #334155) !important; }
             `;
             clonedDoc.head.appendChild(printFixStyle);
+
+            // Count-up numbers may still be mid-animation (or not started for cards below the fold): print the final value
+            clonedDoc.querySelectorAll('.countup[data-final]').forEach((el) => {
+                el.textContent = el.getAttribute('data-final');
+            });
+
+            // Plain print design: no icon badges, count-up numbers as plain text
+            const plainPrintFix = clonedDoc.createElement('style');
+            plainPrintFix.innerHTML = `
+                .rps-icon { display: none !important; }
+                .countup, .countup__rise { overflow: visible !important; display: inline !important; }
+            `;
+            clonedDoc.head.appendChild(plainPrintFix);
         },
     });
+    } finally {
+        document.documentElement.classList.remove('pdf-exporting');
+        glassEls.forEach((el) => el.classList.add('rps-glass'));
+    }
 
     if (!canvas || canvas.width === 0 || canvas.height === 0) {
         throw new Error('Canvas rendering produced an empty image.');

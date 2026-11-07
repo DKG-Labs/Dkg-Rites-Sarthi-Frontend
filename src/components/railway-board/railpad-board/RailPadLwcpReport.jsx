@@ -2,6 +2,8 @@ import React, { useState, useEffect, useRef, useMemo } from 'react';
 import reportService from '../../../services/reportService';
 import { ExportButton, downloadExcel } from '../SharedComponents';
 import './RailPadSummary.css';
+import '../erc-board/ProcessInspectionQualityTable.css';
+import './RailPadQualityReport.css';
 
 // Searchable, scrollable dropdown for the filter bar
 const SearchableSelect = ({ options = [], value, onChange, placeholder = 'Select...', labelKey = 'label', valueKey = 'value', disabled = false }) => {
@@ -113,7 +115,7 @@ const SearchableSelect = ({ options = [], value, onChange, placeholder = 'Select
     );
 };
 
-const RailPadLwcpReport = () => {
+const RailPadLwcpReport = ({ refreshTick = 0 }) => {
     const [filters, setFilters] = useState({
         manufacturer: '',
         plant: '',
@@ -142,7 +144,15 @@ const RailPadLwcpReport = () => {
             }
         };
         fetchManufacturers();
-    }, []);
+    }, [refreshTick]);
+
+    // Refresh Data: reload lots and the selected lot's details, keeping current filters
+    useEffect(() => {
+        if (refreshTick === 0) return;
+        if (filters.plant && filters.year) fetchLots(filters.plant, parseInt(filters.year));
+        if (filters.lotId) handleLotChange(filters.lotId);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [refreshTick]);
 
     const handleManufacturerChange = async (vendorCode) => {
         setFilters({ manufacturer: vendorCode, plant: '', year: filters.year, lotId: '' });
@@ -251,19 +261,54 @@ const RailPadLwcpReport = () => {
         downloadExcel(exportData, exportColumns, `Lot_Closed_Loop_${filters.lotId}`);
     };
 
+    const batches = (reportData && Array.isArray(reportData.batches)) ? reportData.batches : [];
+    const suppliedTotal = batches.reduce((s, b) => s + (Number(b.quantity) || 0), 0);
+    const lotSize = Number(reportData?.lotSize) || 0;
+    const coveragePct = lotSize > 0 ? Math.min(100, (suppliedTotal * 100) / lotSize) : 0;
+    const selectedLot = lots.find(l => String(l.lotId) === String(filters.lotId));
+
+    const steps = [
+        { key: 'manufacturer', label: 'Manufacturer', done: !!filters.manufacturer },
+        { key: 'plant', label: 'Plant', done: !!filters.plant },
+        { key: 'year', label: 'Year', done: !!filters.year && !!filters.plant },
+        { key: 'lot', label: 'Lot', done: !!filters.lotId },
+    ];
+
+    const kpis = reportData ? [
+        { label: 'PO Sr. No.', value: reportData.rlyPoSrNo || 'N/A', icon: 'fa-file-contract', tone: '#1d4ed8', small: true },
+        { label: 'Batches', value: batches.length.toLocaleString(), icon: 'fa-layer-group', tone: '#7c3aed' },
+        { label: 'Lot Size', value: `${lotSize.toLocaleString()} Nos.`, icon: 'fa-boxes-stacked', tone: '#15803d' },
+        { label: 'Final Inspection', value: formatDate(reportData.dateOfInspection), icon: 'fa-clipboard-check', tone: '#0d9488' },
+    ] : [];
+
     return (
-        <div className="report-content fade-in">
-            <div className="sec-title" style={{ color: '#166534', fontWeight: 'bold', fontSize: '14px', marginBottom: '15px' }}>
-                Lot Wise Closed Loop Analysis (Rail Pad)
+        <div className="piq-container rpq-glass lwcl-root">
+            {/* Title */}
+            <div className="piq-topbar" style={{ borderBottom: 'none', paddingBottom: 0 }}>
+                <div className="piq-title-area">
+                    <h2 className="piq-heading">Lot Wise Closed Loop Analysis</h2>
+                    <span className="piq-badge">Rail Pad</span>
+                </div>
             </div>
 
-            {/* Filter Bar */}
-            <div className="prof-card mb" style={{ position: 'relative', zIndex: 50, overflow: 'visible', padding: '20px', borderRadius: '15px', border: '1px solid #e2e8f0', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05)' }}>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '20px' }}>
-                    
+            {/* Filter card */}
+            <div className="lwcl-filter-card">
+                <div className="lwcl-steps" aria-hidden="true">
+                    {steps.map((s, i) => (
+                        <React.Fragment key={s.key}>
+                            <span className={`lwcl-step ${s.done ? 'is-done' : ''}`}>
+                                <span className="lwcl-step-dot">{s.done ? <i className="fa-solid fa-check"></i> : i + 1}</span>
+                                {s.label}
+                            </span>
+                            {i < steps.length - 1 && <span className={`lwcl-step-line ${s.done ? 'is-done' : ''}`}></span>}
+                        </React.Fragment>
+                    ))}
+                </div>
+
+                <div className="lwcl-filter-grid">
                     {/* Manufacturer */}
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                        <label style={{ fontSize: '10px', fontWeight: '800', color: '#64748b', letterSpacing: '0.05em', textTransform: 'uppercase' }}>Manufacturer</label>
+                    <div className="lwcl-field">
+                        <label><i className="fa-solid fa-industry"></i>Manufacturer</label>
                         <SearchableSelect
                             options={manufacturers.map(m => ({ label: m.companyName, value: m.vendorCode }))}
                             value={filters.manufacturer}
@@ -274,8 +319,8 @@ const RailPadLwcpReport = () => {
 
                     {/* Plant */}
                     {filters.manufacturer && (
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                            <label style={{ fontSize: '10px', fontWeight: '800', color: '#64748b', letterSpacing: '0.05em', textTransform: 'uppercase' }}>Plant</label>
+                        <div className="lwcl-field">
+                            <label><i className="fa-solid fa-location-dot"></i>Plant</label>
                             <SearchableSelect
                                 options={plants.map(p => ({ label: p.plantName, value: String(p.plantId) }))}
                                 value={filters.plant}
@@ -287,8 +332,8 @@ const RailPadLwcpReport = () => {
 
                     {/* Year of Production */}
                     {filters.plant && (
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                            <label style={{ fontSize: '10px', fontWeight: '800', color: '#64748b', letterSpacing: '0.05em', textTransform: 'uppercase' }}>Year of Production</label>
+                        <div className="lwcl-field">
+                            <label><i className="fa-regular fa-calendar"></i>Year of Production</label>
                             <SearchableSelect
                                 options={[{label:'2026',value:'2026'},{label:'2025',value:'2025'},{label:'2024',value:'2024'}]}
                                 value={filters.year}
@@ -300,8 +345,8 @@ const RailPadLwcpReport = () => {
 
                     {/* Lot Number */}
                     {filters.plant && (
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                            <label style={{ fontSize: '10px', fontWeight: '800', color: '#64748b', letterSpacing: '0.05em', textTransform: 'uppercase' }}>Lot Number</label>
+                        <div className="lwcl-field">
+                            <label><i className="fa-solid fa-hashtag"></i>Lot Number</label>
                             <SearchableSelect
                                 options={lots.map(l => ({ label: `${l.lotNo} (${l.callNo})`, value: String(l.lotId) }))}
                                 value={filters.lotId}
@@ -315,87 +360,209 @@ const RailPadLwcpReport = () => {
 
             {/* Results Section */}
             {loading ? (
-                <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '200px' }}>
-                    <div className="spinner-small" style={{ width: '30px', height: '30px', border: '4px solid #f3f3f3', borderTop: '4px solid #10b981', borderRadius: '50%', animation: 'spin 1s linear infinite' }}></div>
-                    <span style={{ marginLeft: '12px', color: '#64748b', fontWeight: '500' }}>Fetching Lot Closed Loop Data...</span>
+                <div className="lwcl-result-card">
+                    <div className="rp-kpis">
+                        {Array.from({ length: 4 }).map((_, i) => (
+                            <div key={i} className="rp-kpi">
+                                <span className="rp-kpi-icon rpq-skeleton" style={{ borderRadius: '12px' }}></span>
+                                <div className="rp-kpi-text">
+                                    <span className="rpq-skeleton" style={{ width: '70px', height: '10px' }}></span>
+                                    <span className="rpq-skeleton" style={{ width: '110px', height: '16px' }}></span>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                    <div className="lwcl-loading-row">
+                        <span className="rpq-loading-ring" style={{ width: '26px', height: '26px' }}></span>
+                        <span>Fetching lot closed loop data
+                            <span className="rpq-loading-dots" style={{ marginLeft: '8px' }}><span></span><span></span><span></span></span>
+                        </span>
+                    </div>
                 </div>
             ) : reportData ? (
-                <div className="fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-                    
-                    {/* Unified Lot Closed Loop Table */}
-                    <div className="prof-card" style={{ padding: '20px', borderRadius: '15px', border: '1px solid #cbd5e1' }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-                            <div style={{ fontSize: '12px', fontWeight: 'bold', color: '#166534', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                                Lot Closed Loop Details
+                <div className="lwcl-result-card">
+                    {/* KPI cards */}
+                    <div className="rp-kpis">
+                        {kpis.map(k => (
+                            <div key={k.label} className="rp-kpi">
+                                <span className="rp-kpi-icon" style={{ color: k.tone, background: `${k.tone}14` }}>
+                                    <i className={`fa-solid ${k.icon}`}></i>
+                                </span>
+                                <div className="rp-kpi-text">
+                                    <span className="rp-kpi-label">{k.label}</span>
+                                    <strong className="rp-kpi-value" style={k.small ? { fontSize: '13px', wordBreak: 'break-all' } : undefined}>{k.value}</strong>
+                                </div>
                             </div>
-                            <ExportButton onClick={handleExport} />
-                        </div>
-                        <div className="table-responsive" style={{ border: '1px solid #e2e8f0', borderRadius: '10px' }}>
-                            <table className="prof-table">
-                                <thead>
-                                    <tr>
-                                        <th style={{ width: '25%' }}>PO Sr. No. for which supplied</th>
-                                        <th style={{ width: '15%' }}>Batch Number</th>
-                                        <th style={{ width: '15%' }}>Date of Production</th>
-                                        <th className="text-right" style={{ width: '15%' }}>Qty Supplied</th>
-                                        <th className="text-right" style={{ width: '15%' }}>Total Qty</th>
-                                        <th style={{ width: '15%' }}>Date of Final Inspection</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {reportData.batches && reportData.batches.length > 0 ? (
-                                        reportData.batches.map((b, i) => (
-                                            <tr key={i} className={i % 2 === 0 ? 'row-odd' : 'row-even'}>
-                                                {i === 0 && (
-                                                    <td rowSpan={reportData.batches.length} style={{ fontWeight: '600', verticalAlign: 'middle', background: '#ffffff', borderRight: '1px solid #e2e8f0' }}>
-                                                        {reportData.rlyPoSrNo || 'N/A'}
-                                                    </td>
-                                                )}
-                                                <td style={{ fontWeight: '600' }}>{b.batchNo}</td>
-                                                <td>{formatDate(b.productionDate)}</td>
-                                                <td className="text-right font-bold" style={{ color: '#0369a1' }}>
-                                                    {b.quantity?.toLocaleString()} Nos.
-                                                </td>
-                                                {i === 0 && (
-                                                    <td rowSpan={reportData.batches.length} className="text-right font-bold" style={{ verticalAlign: 'middle', color: '#166534', background: '#ffffff', borderLeft: '1px solid #e2e8f0', borderRight: '1px solid #e2e8f0' }}>
-                                                        {reportData.lotSize?.toLocaleString()} Nos.
-                                                    </td>
-                                                )}
-                                                {i === 0 && (
-                                                    <td rowSpan={reportData.batches.length} style={{ verticalAlign: 'middle', fontWeight: '500', background: '#ffffff', borderLeft: '1px solid #e2e8f0' }}>
-                                                        {formatDate(reportData.dateOfInspection)}
-                                                    </td>
-                                                )}
-                                            </tr>
-                                        ))
-                                    ) : (
-                                        <tr>
-                                            <td colSpan="6" className="text-center p-4 text-slate-400">No batches mapped to this inspection lot.</td>
-                                        </tr>
-                                    )}
-                                </tbody>
-                            </table>
-                        </div>
+                        ))}
                     </div>
 
-                </div>
-            ) : filters.lotId ? (
-                <div className="prof-card p-12 text-center" style={{ border: '2px dashed #e2e8f0', background: 'transparent' }}>
-                    <div style={{ fontSize: '3rem', opacity: 0.3 }}>⚠️</div>
-                    <h3 className="mt-4 text-slate-400 font-medium">No closed loop lifecycle data found for the selected Lot</h3>
+                    {/* Section header */}
+                    <div className="lwcl-section-head">
+                        <div>
+                            <div className="lwcl-section-title">Lot Closed Loop Details</div>
+                            <div className="lwcl-section-sub">
+                                {selectedLot ? `${selectedLot.lotNo} · Call ${selectedLot.callNo}` : ''}
+                                {lotSize > 0 && (
+                                    <span className="lwcl-coverage">
+                                        <span className="rp-progress-track" style={{ width: '120px' }}>
+                                            <span className={`rp-progress-fill ${coveragePct >= 100 ? 'is-done' : ''}`} style={{ width: `${coveragePct}%`, display: 'block' }}></span>
+                                        </span>
+                                        {suppliedTotal.toLocaleString()} / {lotSize.toLocaleString()} Nos. traced
+                                    </span>
+                                )}
+                            </div>
+                        </div>
+                        <ExportButton onClick={handleExport} label="Download Excel" />
+                    </div>
+
+                    {/* Table */}
+                    <div className="piq-table-wrapper" style={{ overflowX: 'auto' }}>
+                        <table style={{ minWidth: '900px', width: '100%', borderCollapse: 'separate', borderSpacing: 0, fontSize: '12px' }}>
+                            <thead>
+                                <tr>
+                                    <th style={{ ...thBase, textAlign: 'left', width: '25%' }}>PO Sr. No. for which supplied</th>
+                                    <th style={{ ...thBase, width: '15%' }}>Batch Number</th>
+                                    <th style={{ ...thBase, width: '15%' }}>Date of Production</th>
+                                    <th style={{ ...thBlue, width: '15%' }}>Qty Supplied</th>
+                                    <th style={{ ...thGreen, width: '15%' }}>Total Qty</th>
+                                    <th style={{ ...thTeal, width: '15%' }}>Date of Final Inspection</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {batches.length > 0 ? (
+                                    batches.map((b, i) => (
+                                        <tr key={i} className="piq-row">
+                                            {i === 0 && (
+                                                <td rowSpan={batches.length} style={{ ...tdCell, ...tdMerged, textAlign: 'left' }}>
+                                                    <span className="lwcl-po">{reportData.rlyPoSrNo || 'N/A'}</span>
+                                                </td>
+                                            )}
+                                            <td style={tdCell}><span className="lwcl-batch">{b.batchNo}</span></td>
+                                            <td style={tdCell}>{formatDate(b.productionDate)}</td>
+                                            <td style={{ ...tdCell, background: '#eff6ff', color: '#1d4ed8', fontWeight: 700 }}>
+                                                {(Number(b.quantity) || 0).toLocaleString()} <small style={unit}>Nos.</small>
+                                            </td>
+                                            {i === 0 && (
+                                                <td rowSpan={batches.length} style={{ ...tdCell, ...tdMerged, background: '#f0fdf4', color: '#15803d', fontWeight: 700, fontSize: '13px' }}>
+                                                    {lotSize.toLocaleString()} <small style={unit}>Nos.</small>
+                                                </td>
+                                            )}
+                                            {i === 0 && (
+                                                <td rowSpan={batches.length} style={{ ...tdCell, ...tdMerged }}>
+                                                    <span className="lwcl-date-chip"><i className="fa-regular fa-calendar-check"></i>{formatDate(reportData.dateOfInspection)}</span>
+                                                </td>
+                                            )}
+                                        </tr>
+                                    ))
+                                ) : (
+                                    <tr>
+                                        <td colSpan="6" style={{ ...tdCell, padding: '28px', color: '#94a3b8' }}>
+                                            <i className="fa-solid fa-inbox" style={{ marginRight: '8px' }}></i>No batches mapped to this inspection lot.
+                                        </td>
+                                    </tr>
+                                )}
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
             ) : (
-                <div className="prof-card p-12 text-center" style={{ border: '2px dashed #e2e8f0', background: 'transparent' }}>
-                    <div style={{ fontSize: '3rem', opacity: 0.3 }}>🔍</div>
-                    <h3 className="mt-4 text-slate-400 font-medium">Please select Manufacturer, Plant, and Lot Number to inspect lifecycle.</h3>
+                <div className="lwcl-empty">
+                    <span className={`lwcl-empty-icon ${filters.lotId ? 'is-warn' : ''}`}>
+                        <i className={`fa-solid ${filters.lotId ? 'fa-triangle-exclamation' : 'fa-magnifying-glass-chart'}`}></i>
+                    </span>
+                    <strong>{filters.lotId ? 'No closed loop data for this lot' : 'Select a lot to trace its closed loop'}</strong>
+                    <span>
+                        {filters.lotId
+                            ? 'This lot has no batch-to-inspection mapping yet. Try another lot.'
+                            : 'Choose Manufacturer → Plant → Year → Lot Number above.'}
+                    </span>
                 </div>
             )}
-            
+
             <style>{`
-                @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+                .lwcl-root .lwcl-filter-card,
+                .lwcl-root .lwcl-result-card {
+                    position: relative;
+                    margin-top: 16px;
+                    padding: 18px 20px;
+                    border-radius: 18px;
+                    background: rgba(255, 255, 255, 0.85);
+                    border: 1px solid rgba(226, 232, 240, 0.9);
+                    box-shadow: 0 14px 30px -24px rgba(15, 23, 42, 0.3);
+                    animation: rpq-row-in 0.4s ease-out both;
+                }
+                .lwcl-root .lwcl-filter-card { z-index: 50; overflow: visible; }
+                .lwcl-steps { display: flex; align-items: center; gap: 8px; margin-bottom: 16px; flex-wrap: wrap; }
+                .lwcl-step { display: inline-flex; align-items: center; gap: 7px; font-size: 11.5px; font-weight: 600; color: #94a3b8; }
+                .lwcl-step-dot { width: 22px; height: 22px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center;
+                    font-size: 10.5px; font-weight: 700; background: #f1f5f9; color: #94a3b8; border: 1px solid #e2e8f0; transition: all .25s; }
+                .lwcl-step.is-done { color: #166534; }
+                .lwcl-step.is-done .lwcl-step-dot { background: linear-gradient(135deg, #16a34a, #0d9488); color: #fff; border-color: transparent;
+                    box-shadow: 0 4px 10px -4px rgba(22,163,74,.7); }
+                .lwcl-step-line { flex: 0 0 34px; height: 2px; border-radius: 2px; background: #e2e8f0; transition: background .25s; }
+                .lwcl-step-line.is-done { background: #86efac; }
+                .lwcl-filter-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 16px; }
+                .lwcl-field { display: flex; flex-direction: column; gap: 7px; min-width: 0; }
+                .lwcl-field > label { display: inline-flex; align-items: center; gap: 6px; margin: 0; font-size: 10.5px; font-weight: 700;
+                    letter-spacing: .6px; text-transform: uppercase; color: #64748b; }
+                .lwcl-field > label i { color: #16a34a; font-size: 11px; }
+                .lwcl-section-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; margin: 6px 0 12px; }
+                .lwcl-section-title { font-size: 13px; font-weight: 700; color: #14532d; letter-spacing: .3px; text-transform: uppercase; }
+                .lwcl-section-sub { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-top: 4px; font-size: 12px; color: #64748b; }
+                .lwcl-coverage { display: inline-flex; align-items: center; gap: 8px; font-weight: 600; color: #475569; }
+                .lwcl-po { font-weight: 700; color: #0f172a; word-break: break-all; }
+                .lwcl-batch { display: inline-block; padding: 3px 10px; border-radius: 8px; font-weight: 700; color: #6d28d9;
+                    background: rgba(237, 233, 254, .85); border: 1px solid rgba(196, 181, 253, .6); }
+                .lwcl-date-chip { display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; border-radius: 999px; font-weight: 700;
+                    color: #0f766e; background: rgba(204, 251, 241, .8); border: 1px solid rgba(94, 234, 212, .6); }
+                .lwcl-loading-row { display: flex; align-items: center; justify-content: center; gap: 12px; padding: 26px 0 10px;
+                    font-size: 13px; font-weight: 600; color: #475569; }
+                .lwcl-empty { margin-top: 16px; padding: 42px 20px; border-radius: 18px; text-align: center; display: flex; flex-direction: column;
+                    align-items: center; gap: 8px; background: rgba(255,255,255,.7); border: 1.5px dashed #cbd5e1; animation: rpq-row-in .4s ease-out both; }
+                .lwcl-empty strong { font-size: 15px; color: #0f172a; }
+                .lwcl-empty span:not(.lwcl-empty-icon) { font-size: 12.5px; color: #64748b; }
+                .lwcl-empty-icon { width: 54px; height: 54px; border-radius: 16px; display: inline-flex; align-items: center; justify-content: center;
+                    font-size: 22px; color: #16a34a; background: linear-gradient(180deg, #ecfdf5, #d1fae5); border: 1px solid rgba(134,239,172,.7); margin-bottom: 4px; }
+                .lwcl-empty-icon.is-warn { color: #b45309; background: linear-gradient(180deg, #fffbeb, #fef3c7); border-color: rgba(252,211,77,.7); }
+                @media (max-width: 600px) {
+                    .lwcl-root .lwcl-filter-card, .lwcl-root .lwcl-result-card { padding: 14px 12px; }
+                    .lwcl-step-line { flex-basis: 16px; }
+                    .lwcl-filter-grid { grid-template-columns: 1fr; }
+                }
             `}</style>
         </div>
     );
 };
 
 export default RailPadLwcpReport;
+
+/* Header cells: light pastel tints, same palette as the other Rail Pad reports */
+const thBase = {
+    padding: '12px 10px',
+    fontWeight: '700',
+    fontSize: '11px',
+    textTransform: 'uppercase',
+    letterSpacing: '0.5px',
+    textAlign: 'center',
+    verticalAlign: 'middle',
+    whiteSpace: 'nowrap',
+    border: '1px solid rgba(255, 255, 255, 0.9)',
+    background: 'linear-gradient(180deg, #f8fafc 0%, #eef2f7 100%)',
+    color: '#334155',
+    '--rpq-th': '#334155',
+};
+const thGreen = { ...thBase, background: 'linear-gradient(180deg, #dcfce7 0%, #bbf7d0 100%)', color: '#166534', '--rpq-th': '#166534' };
+const thBlue = { ...thBase, background: 'linear-gradient(180deg, #dbeafe 0%, #bfdbfe 100%)', color: '#1e40af', '--rpq-th': '#1e40af' };
+const thTeal = { ...thBase, background: 'linear-gradient(180deg, #ccfbf1 0%, #99f6e4 100%)', color: '#115e59', '--rpq-th': '#115e59' };
+
+const tdCell = {
+    padding: '11px 10px',
+    textAlign: 'center',
+    borderBottom: '1px solid #f1f5f9',
+    borderRight: '1px solid #e2e8f0',
+    whiteSpace: 'nowrap',
+    fontSize: '12px',
+    color: '#334155',
+};
+const tdMerged = { verticalAlign: 'middle', background: '#ffffff' };
+const unit = { color: '#94a3b8', fontSize: '10px', fontWeight: 600 };

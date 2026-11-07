@@ -5,10 +5,13 @@ import reportService from '../services/reportService';
 import useReportData, { clearGlobalReportCache } from '../hooks/useReportData';
 import './RailwayBoardDashboard.css';
 import './RailwayBoardDashboardProfessional.css'; // New professional styles
+import './RailwayBoardGlass.css';
 
 // Components
 import { Level1Row } from '../components/railway-board/LevelRows';
 import Pagination from '../components/Pagination';
+import { SearchableDropdown } from '../components/railway-board/SharedComponents';
+import './RailwayBoardFilterBar.css';
 import DashboardGraph from '../components/railway-board/DashboardGraph';
 import ProfessionalCardSection from '../components/railway-board/ProfessionalCardSection';
 import UdmRejectionDashboard from '../components/railway-board/UdmRejectionDashboard';
@@ -43,7 +46,17 @@ const RailwayBoardDashboard = () => {
         () => sessionStorage.getItem('rb_activeTab') || 'summary'
     );
     const [reportSubmenuOpen, setReportSubmenuOpen] = useState(activeMainCard === 'reports');
-    const [activeReport, setActiveReport] = useState('mpr');
+    const [activeReport, setActiveReport] = useState(() => {
+        try { return sessionStorage.getItem('rb_activeReport') || 'mpr'; } catch { return 'mpr'; }
+    });
+
+    // Keep the current tab + report across a browser refresh
+    React.useEffect(() => {
+        try { sessionStorage.setItem('rb_activeTab', activeMainCard); } catch { /* storage unavailable */ }
+    }, [activeMainCard]);
+    React.useEffect(() => {
+        try { sessionStorage.setItem('rb_activeReport', activeReport); } catch { /* storage unavailable */ }
+    }, [activeReport]);
 
     // CM Module state
     const [isCmDropdownOpen, setIsCmDropdownOpen] = useState(false);
@@ -55,7 +68,18 @@ const RailwayBoardDashboard = () => {
 
 
 
-    const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+    const isMobileView = () => typeof window !== 'undefined' && window.innerWidth <= 768;
+    // On phones "collapsed" means the drawer is hidden, so start hidden there
+    const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(isMobileView);
+
+    const handleSidebarNavClick = (e) => {
+        if (!isMobileView()) return;
+        const link = e.target.closest('.report-link, .nav-item');
+        if (!link) return;
+        // Items with a chevron only open a submenu; keep the drawer open for those
+        if (link.querySelector('.fa-chevron-up, .fa-chevron-down')) return;
+        setIsSidebarCollapsed(true);
+    };
     const [isRailwayNavOpen, setIsRailwayNavOpen] = useState(true);
     const [poSearch, setPoSearch] = useState('');
     const [poSort, setPoSort] = useState({ key: 'poNo', direction: 'asc' });
@@ -612,8 +636,18 @@ const RailwayBoardDashboard = () => {
     return (
         <div className={`prof-dashboard-wrapper ${isSidebarCollapsed ? 'sidebar-collapsed' : ''}`}>
             <div className="prof-layout-container">
+                {!isSidebarCollapsed && (
+                    <div className="rb-mobile-backdrop" onClick={() => setIsSidebarCollapsed(true)} />
+                )}
+                <button
+                    className="rb-mobile-menu-btn"
+                    onClick={() => setIsSidebarCollapsed(false)}
+                    aria-label="Open menu"
+                >
+                    <i className="fa-solid fa-bars"></i>
+                </button>
                 {/* SIDEBAR */}
-                <nav id="prof-sidebar" className={isSidebarCollapsed ? 'collapsed' : ''}>
+                <nav id="prof-sidebar" className={isSidebarCollapsed ? 'collapsed' : ''} onClick={handleSidebarNavClick}>
                     <div className="sidebar-top-action" style={{ padding: '30px 14px 10px', display: 'flex', justifyContent: isSidebarCollapsed ? 'center' : 'flex-end' }}>
                         <button className="sidebar-toggle-btn-small" onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}>
                             <i className={`fa-solid ${isSidebarCollapsed ? 'fa-bars' : 'fa-bars-staggered'}`}></i>
@@ -851,7 +885,7 @@ const RailwayBoardDashboard = () => {
                 <div id="prof-main" style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                     {/* GLOBAL PRODUCT SELECTION - Above everything */}
                     {activeMainCard === 'manage-ic-dates' ? null : activeMainCard !== 'cm-module' && activeMainCard !== 'udm' && activeMainCard !== 'active-login' ? (
-                        <div className="sub-tabs" style={{ padding: '0 24px', marginTop: '24px', marginBottom: '4px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <div className="sub-tabs rb-glass-bar" style={{ padding: '0 24px', marginTop: '24px', marginBottom: '4px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                             <div style={{ display: 'flex', gap: '8px' }}>
                                 <button className={`sub-tab-btn ${selectedProduct === 'ERC' ? 'active' : ''}`} onClick={() => setSelectedProduct('ERC')}>ERC</button>
                                 <button className={`sub-tab-btn ${selectedProduct === 'Sleeper' ? 'active' : ''}`} onClick={() => {
@@ -863,8 +897,9 @@ const RailwayBoardDashboard = () => {
                             
                             <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
                                 {activeMainCard !== 'org-structure' && (
-                                    <button 
-                                        onClick={handleDataRefresh} 
+                                    <button
+                                        className="rb-btn rb-btn-refresh"
+                                        onClick={handleDataRefresh}
                                         style={{ 
                                             padding: '6px 12px', 
                                             backgroundColor: '#10b981', 
@@ -884,7 +919,8 @@ const RailwayBoardDashboard = () => {
                                         <i className="fa-solid fa-arrows-rotate"></i> Refresh Data
                                     </button>
                                 )}
-                                <button 
+                                <button
+                                    className="rb-btn rb-btn-pdf"
                                     onClick={handleDownloadDashboardPdf}
                                     disabled={isExportingPdf}
                                     style={{ 
@@ -940,60 +976,57 @@ const RailwayBoardDashboard = () => {
                     )}
 
                     {/* TOPBAR / FILTERS - Hidden on Dashboard (summary), Quality, Lifecycle, Feedback, Scada Monitor, SQC tabs, and ERC/Sleeper SWP Reports, and Lot Wise Closed Loop Reports, and IC Annexures */}
-                    {activeMainCard !== 'manage-ic-dates' && activeMainCard !== 'cm-module' && activeMainCard !== 'active-login' && activeMainCard !== 'summary' && activeMainCard !== 'quality' && activeMainCard !== 'lifecycle' && activeMainCard !== 'feedback' && activeMainCard !== 'udm' && activeMainCard !== 'scada' && activeMainCard !== 'sqc' && activeMainCard !== 'sleeper-anomaly' && activeMainCard !== 'rejection-scrap' && activeMainCard !== 'org-structure' && !(activeMainCard === 'reports' && activeReport === 'swp' && (selectedProduct === 'ERC' || selectedProduct === 'Sleeper')) && !(activeMainCard === 'reports' && activeReport === 'lwcl') && !(activeMainCard === 'reports' && activeReport === 'ic_annexures') && !(activeMainCard === 'reports' && activeReport === 'rmstatus') && (
-                        <div id="prof-topbar">
-                            <label>From</label>
-                            <input type="date" value={draftFromDate} onChange={(e) => setDraftFromDate(e.target.value)} />
-                            <label>To</label>
-                            <input type="date" value={draftToDate} onChange={(e) => setDraftToDate(e.target.value)} />
+                    {activeMainCard !== 'manage-ic-dates' && activeMainCard !== 'cm-module' && activeMainCard !== 'active-login' && activeMainCard !== 'summary' && activeMainCard !== 'quality' && activeMainCard !== 'lifecycle' && activeMainCard !== 'feedback' && activeMainCard !== 'udm' && activeMainCard !== 'scada' && activeMainCard !== 'sqc' && activeMainCard !== 'sleeper-anomaly' && activeMainCard !== 'rejection-scrap' && activeMainCard !== 'org-structure' && !(activeMainCard === 'reports' && activeReport === 'swp' && (selectedProduct === 'ERC' || selectedProduct === 'Sleeper')) && !(activeMainCard === 'reports' && activeReport === 'lwcl') && !(activeMainCard === 'reports' && activeReport === 'ic_annexures') && !(activeMainCard === 'reports' && activeReport === 'rmstatus') && !(activeMainCard === 'reports' && activeReport === 'qrp' && selectedProduct === 'Rail Pad') && (
+                        <div id="prof-topbar" className="rbf-bar">
+                            <div className="rbf-field">
+                                <label htmlFor="rbf-from"><i className="fa-regular fa-calendar"></i>From</label>
+                                <input id="rbf-from" type="date" value={draftFromDate} max={draftToDate || undefined} onChange={(e) => setDraftFromDate(e.target.value)} />
+                            </div>
+                            <span className="rbf-sep" aria-hidden="true"><i className="fa-solid fa-arrow-right-long"></i></span>
+                            <div className="rbf-field">
+                                <label htmlFor="rbf-to"><i className="fa-regular fa-calendar"></i>To</label>
+                                <input id="rbf-to" type="date" value={draftToDate} min={draftFromDate || undefined} onChange={(e) => setDraftToDate(e.target.value)} />
+                            </div>
 
                             {!(activeMainCard === 'reports' && (activeReport === 'mpia' || activeReport === 'vwpqr')) && (
                                 (activeMainCard === 'reports' && activeReport === 'mau') || activeMainCard === 'performance' ? (
-                                    <>
-                                        <label>RIO</label>
-                                        <select 
-                                            className="prof-input"
-                                            value={draftRio} 
-                                            onChange={(e) => setDraftRio(e.target.value || 'all')}
-                                            style={{ width: '110px', marginLeft: '4px', marginRight: '16px' }}
-                                        >
-                                            <option value="all">All RIOs</option>
-                                            {uniqueRios.map(rio => (
-                                                <option key={rio} value={rio}>{rio}</option>
-                                            ))}
-                                        </select>
-                                    </>
+                                    <div className="rbf-field rbf-field-select">
+                                        <label><i className="fa-solid fa-building-shield"></i>RIO</label>
+                                        <SearchableDropdown
+                                            value={draftRio === 'all' ? 'All RIOs' : draftRio}
+                                            onChange={(val) => setDraftRio(!val || val === 'All RIOs' ? 'all' : val)}
+                                            options={[{ label: 'All RIOs', value: 'All RIOs' }, ...uniqueRios.map(rio => ({ label: rio, value: rio }))]}
+                                            placeholder="All RIOs"
+                                        />
+                                    </div>
                                 ) : (
-                                    <>
-                                        <label>Zone</label>
-                                        <select 
-                                            className="prof-input"
-                                            value={draftZone} 
-                                            onChange={(e) => setDraftZone(e.target.value || 'all')}
-                                            style={{ width: '110px', marginLeft: '4px', marginRight: '16px' }}
-                                        >
-                                            <option value="all">All Zones</option>
-                                            {uniqueZones.map(zone => (
-                                                <option key={zone} value={zone}>{zone}</option>
-                                            ))}
-                                        </select>
-                                    </>
+                                    <div className="rbf-field rbf-field-select">
+                                        <label><i className="fa-solid fa-train"></i>Zone</label>
+                                        <SearchableDropdown
+                                            value={draftZone === 'all' ? 'All Zones' : draftZone}
+                                            onChange={(val) => setDraftZone(!val || val === 'All Zones' ? 'all' : val)}
+                                            options={[{ label: 'All Zones', value: 'All Zones' }, ...uniqueZones.map(zone => ({ label: zone, value: zone }))]}
+                                            placeholder="All Zones"
+                                        />
+                                    </div>
                                 )
                             )}
 
-                            <button className="btn-apply" onClick={() => {
-                                setFromDate(draftFromDate);
-                                setToDate(draftToDate);
-                                setSelectedZone(draftZone);
-                                setSelectedRio(draftRio);
-                            }}><i className="fa-solid fa-magnifying-glass" style={{ marginRight: '4px' }}></i>Apply</button>
-                            <button className="btn-reset" onClick={() => {
-                                const d = new Date();
-                                d.setMonth(d.getMonth() - 3);
-                                setFromDate(d.toISOString().split('T')[0]);
-                                setToDate(new Date().toISOString().split('T')[0]);
-                                setSelectedProduct('ERC'); setSelectedZone('all'); setSelectedRio('all');
-                            }}>Reset</button>
+                            <div className="rbf-actions">
+                                <button className="btn-apply rbf-apply" onClick={() => {
+                                    setFromDate(draftFromDate);
+                                    setToDate(draftToDate);
+                                    setSelectedZone(draftZone);
+                                    setSelectedRio(draftRio);
+                                }}><i className="fa-solid fa-magnifying-glass"></i>Apply</button>
+                                <button className="btn-reset rbf-reset" onClick={() => {
+                                    const d = new Date();
+                                    d.setMonth(d.getMonth() - 3);
+                                    setFromDate(d.toISOString().split('T')[0]);
+                                    setToDate(new Date().toISOString().split('T')[0]);
+                                    setSelectedProduct('ERC'); setSelectedZone('all'); setSelectedRio('all');
+                                }}><i className="fa-solid fa-rotate-left"></i>Reset</button>
+                            </div>
                         </div>
                     )}
 

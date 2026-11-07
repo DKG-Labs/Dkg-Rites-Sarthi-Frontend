@@ -11,6 +11,7 @@ const FeedbackSection = ({ selectedProduct }) => {
     const [replyingTo, setReplyingTo] = useState(null);
     const [replyText, setReplyText] = useState('');
     const [filter, setFilter] = useState('all');
+    const [submitting, setSubmitting] = useState(false);
 
     // Initialize filter based on selectedProduct
     useEffect(() => {
@@ -61,6 +62,8 @@ const FeedbackSection = ({ selectedProduct }) => {
 
     const handleSubmit = async (e) => {
         e.preventDefault();
+        if (submitting) return;
+        setSubmitting(true);
         try {
             const newFeedback = {
                 userId: currentUser.userId,
@@ -77,6 +80,8 @@ const FeedbackSection = ({ selectedProduct }) => {
             setView('list');
         } catch (err) {
             alert("Error submitting feedback");
+        } finally {
+            setSubmitting(false);
         }
     };
 
@@ -142,51 +147,67 @@ const FeedbackSection = ({ selectedProduct }) => {
 
             {view === 'submit' ? (
                 <div className="feedback-submit-wrapper animate-up">
-                    <div className="prof-card feedback-form-card">
-                        <div className="sec-title-enhanced">
-                            <i className="fa-solid fa-paper-plane-memo"></i> submit your feedback, issue & Suggestion
+                    <div className="prof-card feedback-form-card fb-modern">
+                        <div className="fb-head">
+                            <span className="fb-head-icon"><i className="fa-solid fa-comment-dots"></i></span>
+                            <div>
+                                <h2 className="fb-head-title">Share your feedback</h2>
+                                <p className="fb-head-sub">Report an issue, suggest an improvement or share an idea. Our team reviews every message.</p>
+                            </div>
                         </div>
                         <form className="feedback-form" onSubmit={handleSubmit}>
                             <div className="form-row">
                                 <div className="form-group flex-2">
-                                    <label><i className="fa-solid fa-bookmark"></i> Subject</label>
+                                    <label htmlFor="fb-subject"><i className="fa-solid fa-bookmark"></i> Subject</label>
                                     <input
+                                        id="fb-subject"
                                         type="text"
                                         className="prof-input"
                                         placeholder="Brief summary of your feedback..."
+                                        maxLength={150}
                                         value={feedbackInput.subject}
                                         onChange={(e) => setFeedbackInput({ ...feedbackInput, subject: e.target.value })}
                                         required
                                     />
+                                    <span className="fb-count">{feedbackInput.subject.length}/150</span>
                                 </div>
                                 <div className="form-group flex-1">
                                     <label><i className="fa-solid fa-gauge-high"></i> Priority</label>
-                                    <select
-                                        className="prof-select"
-                                        value={feedbackInput.priority}
-                                        onChange={(e) => setFeedbackInput({ ...feedbackInput, priority: e.target.value })}
-                                    >
-                                        <option>Low</option>
-                                        <option>Medium</option>
-                                        <option>High</option>
-                                    </select>
+                                    <div className="fb-priority" role="radiogroup" aria-label="Priority">
+                                        {['Low', 'Medium', 'High'].map(p => (
+                                            <button
+                                                type="button"
+                                                key={p}
+                                                role="radio"
+                                                aria-checked={feedbackInput.priority === p}
+                                                className={`fb-priority-opt fb-p-${p.toLowerCase()} ${feedbackInput.priority === p ? 'is-active' : ''}`}
+                                                onClick={() => setFeedbackInput({ ...feedbackInput, priority: p })}
+                                            >
+                                                <span className="fb-priority-dot"></span>{p}
+                                            </button>
+                                        ))}
+                                    </div>
                                 </div>
                             </div>
                             <div className="form-group">
-                                <label><i className="fa-solid fa-envelope-open-text"></i> Message</label>
+                                <label htmlFor="fb-message"><i className="fa-solid fa-envelope-open-text"></i> Message</label>
                                 <textarea
+                                    id="fb-message"
                                     className="prof-textarea-enhanced"
-                                    rows="8"
+                                    rows="7"
                                     placeholder="Describe your suggestions, issues or ideas in detail..."
+                                    maxLength={2000}
                                     value={feedbackInput.message}
                                     onChange={(e) => setFeedbackInput({ ...feedbackInput, message: e.target.value })}
                                     required
                                 ></textarea>
+                                <span className="fb-count">{feedbackInput.message.length}/2000</span>
                             </div>
-                            <div className="form-footer">
-                                <button type="submit" className="btn-submit-feedback-v2">
-                                    <span>Send Feedback Now</span>
-                                    <i className="fa-solid fa-arrow-right-long"></i>
+                            <div className="form-footer fb-footer">
+                                <span className="fb-hint"><i className="fa-solid fa-circle-info"></i> Submitted as {currentUser?.userName || 'you'} · {PRODUCT_CONTEXT}</span>
+                                <button type="submit" className="btn-submit-feedback-v2" disabled={submitting}>
+                                    <span>{submitting ? 'Sending…' : 'Send Feedback'}</span>
+                                    <i className={submitting ? 'fa-solid fa-spinner fa-spin' : 'fa-solid fa-paper-plane'}></i>
                                 </button>
                             </div>
                         </form>
@@ -195,9 +216,28 @@ const FeedbackSection = ({ selectedProduct }) => {
             ) : (
                 <div className="feedback-list-container animate-up">
                     {loading ? (
-                        <div className="loading-state">Loading feedbacks...</div>
+                        Array.from({ length: 3 }).map((_, i) => (
+                            <div key={`fb-sk-${i}`} className="prof-card feedback-item-card fb-skel-card">
+                                <div className="fb-skel-row">
+                                    <span className="fb-skel fb-skel-avatar"></span>
+                                    <div style={{ flex: 1 }}>
+                                        <span className="fb-skel" style={{ width: '180px' }}></span>
+                                        <span className="fb-skel" style={{ width: '110px', marginTop: '8px' }}></span>
+                                    </div>
+                                </div>
+                                <span className="fb-skel" style={{ width: '60%', marginTop: '16px' }}></span>
+                                <span className="fb-skel" style={{ width: '90%', marginTop: '10px' }}></span>
+                            </div>
+                        ))
                     ) : feedbacks.length === 0 ? (
-                        <div className="no-data-state">No feedback found.</div>
+                        <div className="fb-empty">
+                            <span className="fb-empty-icon"><i className="fa-solid fa-inbox"></i></span>
+                            <strong>No feedback yet</strong>
+                            <span>{isRailwayBoard ? 'Nothing has been submitted for this filter.' : 'Feedback you submit will appear here.'}</span>
+                            <button type="button" className="fb-empty-btn" onClick={() => setView('submit')}>
+                                <i className="fa-solid fa-pen-to-square"></i> Submit Feedback
+                            </button>
+                        </div>
                     ) : (
                         feedbacks.map(f => (
                             <div key={f.feedbackId} className="prof-card feedback-item-card">

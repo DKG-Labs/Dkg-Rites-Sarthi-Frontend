@@ -34,13 +34,14 @@ export const fetchSavedCaseLetterInfo = async (callNo) => {
 /**
  * Send ordered files to backend for merging and receive merged PDF Blob for preview
  */
-export const mergePreviewCaseLetter = async (formData) => {
+export const mergePreviewCaseLetter = async (formData, onUploadProgress) => {
   const response = await axios.post(`${API_BASE_URL}/case-letter/merge-preview`, formData, {
     headers: {
       ...getAuthHeaders(),
       'Content-Type': 'multipart/form-data'
     },
-    responseType: 'blob'
+    responseType: 'blob',
+    onUploadProgress
   });
   return response.data;
 };
@@ -48,12 +49,13 @@ export const mergePreviewCaseLetter = async (formData) => {
 /**
  * Merge, compress and save Case Letter to Azure Blob Storage
  */
-export const saveCaseLetter = async (formData) => {
+export const saveCaseLetter = async (formData, onUploadProgress) => {
   const response = await axios.post(`${API_BASE_URL}/case-letter/save`, formData, {
     headers: {
       ...getAuthHeaders(),
       'Content-Type': 'multipart/form-data'
-    }
+    },
+    onUploadProgress
   });
   return response.data;
 };

@@ -284,6 +284,16 @@ const generateQuantityRemarks = (c) => {
     return text;
 };
 
+// Saved edits for IC columns 6-8; only override when a value was actually stored
+const pickSavedQtyNow = (savedEdit) => {
+  const out = {};
+  [["qtyNowOffered"], ["qtyNowPassed"], ["qtyNowRejected"]].forEach(([key]) => {
+    const v = savedEdit?.[key];
+    if (v !== undefined && v !== null && v !== "") out[key] = v;
+  });
+  return out;
+};
+
 const generateReasonsForRejection = (c) => {
     let totalRejected = Number(c.qtyNowRejected || 0);
     if (totalRejected === 0 && c.lotDetails && Array.isArray(c.lotDetails) && c.lotDetails.length > 0) {
@@ -494,6 +504,7 @@ export default function FinalProductCertificate({ call = {}, onBack }) {
               qtyStillDue: (savedEdit.qtyStillDue !== undefined && savedEdit.qtyStillDue !== null && savedEdit.qtyStillDue !== "") 
                 ? savedEdit.qtyStillDue 
                 : initialData.qtyStillDue,
+              ...pickSavedQtyNow(savedEdit),
               maNumberAndDate: savedEdit.maNumberAndDate || initialData.maNumberAndDate,
               billPayingOfficer: savedEdit.billPayingOfficer || initialData.billPayingOfficer,
               purchasingAuthority: savedEdit.purchasingAuthority || initialData.purchasingAuthority,
@@ -567,6 +578,9 @@ export default function FinalProductCertificate({ call = {}, onBack }) {
           cummQtyOfferedPrev: data.qtyOfferedPreviously,
           qtyPrevPassed: data.qtyPassedPreviously,
           qtyStillDue: data.qtyStillDue,
+          qtyNowOffered: data.qtyNowOffered,
+          qtyNowPassed: data.qtyNowPassed,
+          qtyNowRejected: data.qtyNowRejected,
           maNumberAndDate: data.maNumberAndDate,
           billPayingOfficer: data.billPayingOfficer,
           purchasingAuthority: data.purchasingAuthority,
@@ -713,6 +727,9 @@ export default function FinalProductCertificate({ call = {}, onBack }) {
           cummQtyOfferedPrev: data.qtyOfferedPreviously,
           qtyPrevPassed: data.qtyPassedPreviously,
           qtyStillDue: data.qtyStillDue,
+          qtyNowOffered: data.qtyNowOffered,
+          qtyNowPassed: data.qtyNowPassed,
+          qtyNowRejected: data.qtyNowRejected,
           maNumberAndDate: data.maNumberAndDate,
           billPayingOfficer: data.billPayingOfficer,
           purchasingAuthority: data.purchasingAuthority,
@@ -829,6 +846,7 @@ export default function FinalProductCertificate({ call = {}, onBack }) {
           qtyStillDue: (savedEdit.qtyStillDue !== undefined && savedEdit.qtyStillDue !== null && savedEdit.qtyStillDue !== "") 
             ? savedEdit.qtyStillDue 
             : initialData.qtyStillDue,
+          ...pickSavedQtyNow(savedEdit),
           maNumberAndDate: savedEdit.maNumberAndDate || initialData.maNumberAndDate,
           billPayingOfficer: savedEdit.billPayingOfficer || initialData.billPayingOfficer,
           purchasingAuthority: savedEdit.purchasingAuthority || initialData.purchasingAuthority,

@@ -4,7 +4,7 @@ import React from "react";
 const allowedFields = [
   "bookNo", "setNo", "offeredInstNo", "passedInstNo", "maNumberAndDate",
   "billPayingOfficer", "consignee", "purchasingAuthority", "description", 
-  "qtyOfferedPreviously", "qtyPassedPreviously", "qtyStillDue", "trRecDate",
+  "qtyOfferedPreviously", "qtyPassedPreviously", "qtyNowOffered", "qtyNowPassed", "qtyNowRejected", "qtyStillDue", "trRecDate",
   "quantityNowPassedText", "noOfVisits", "datesOfInspection", "sealingPattern",
   "facsimileText", "reasonsForRejection", "inspectingEngineer", "dateOfCall"
 ];

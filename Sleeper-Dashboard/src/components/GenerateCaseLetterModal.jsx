@@ -46,6 +46,85 @@ export const SLEEPER_DOC_DEFINITIONS = [
   { srNo: 25, key: 'IC', name: 'Inspection Certificate IC', currentSource: 'Auto-Fetched', finalSource: 'System Generated', isAutoFetch: true, isSystem: true }
 ];
 
+// Full-card overlay shown while the dossier is uploaded and merged/saved on the server
+const MergeProgressOverlay = ({ mode, progress }) => {
+  const [elapsed, setElapsed] = useState(0);
+  useEffect(() => {
+    const started = Date.now();
+    const t = setInterval(() => setElapsed(Math.floor((Date.now() - started) / 1000)), 1000);
+    return () => clearInterval(t);
+  }, []);
+
+  const { loaded = 0, total = 0 } = progress || {};
+  const pct = total > 0 ? Math.min(100, Math.round((loaded * 100) / total)) : 0;
+  const uploading = total > 0 && loaded < total;
+  const mb = (b) => (b / (1024 * 1024)).toFixed(1);
+  const mmss = `${Math.floor(elapsed / 60)}:${String(elapsed % 60).padStart(2, '0')}`;
+  const isSave = mode === 'save';
+
+  const steps = [
+    { label: 'Uploading documents', done: total > 0 && !uploading, active: uploading || total === 0 },
+    { label: isSave ? 'Merging & saving to storage' : 'Merging & preparing preview', done: false, active: total > 0 && !uploading }
+  ];
+
+  return (
+    <div
+      role="status"
+      aria-live="polite"
+      style={{
+        position: 'absolute', inset: 0, zIndex: 20,
+        background: 'rgba(255, 255, 255, 0.92)', backdropFilter: 'blur(3px)',
+        display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px'
+      }}
+    >
+      <style>{`@keyframes clm-spin { to { transform: rotate(360deg); } }`}</style>
+      <div style={{
+        width: '100%', maxWidth: '420px', background: '#ffffff', border: '1px solid #e2e8f0',
+        borderRadius: '16px', boxShadow: '0 12px 32px rgba(15, 23, 42, 0.12)', padding: '24px', textAlign: 'center'
+      }}>
+        <div style={{
+          width: '52px', height: '52px', margin: '0 auto 14px', borderRadius: '50%',
+          border: '4px solid #e0e7ff', borderTopColor: '#4f46e5', animation: 'clm-spin 0.9s linear infinite'
+        }} />
+        <div style={{ fontSize: '17px', fontWeight: 700, color: '#0f172a' }}>
+          {isSave ? 'Saving Case Letter…' : 'Merging Documents…'}
+        </div>
+        <div style={{ fontSize: '13px', color: '#64748b', marginTop: '4px' }}>
+          Large files can take a minute or two. Please don't close this window.
+        </div>
+
+        <div style={{ marginTop: '18px', textAlign: 'left' }}>
+          {steps.map((s) => (
+            <div key={s.label} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '6px 0', fontSize: '13px' }}>
+              <span style={{
+                width: '20px', height: '20px', borderRadius: '50%', flexShrink: 0,
+                display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: '11px', fontWeight: 700,
+                background: s.done ? '#dcfce7' : s.active ? '#e0e7ff' : '#f1f5f9',
+                color: s.done ? '#16a34a' : s.active ? '#4f46e5' : '#94a3b8'
+              }}>{s.done ? '✓' : '•'}</span>
+              <span style={{ color: s.active || s.done ? '#0f172a' : '#94a3b8', fontWeight: s.active ? 600 : 500 }}>{s.label}</span>
+            </div>
+          ))}
+        </div>
+
+        {uploading && (
+          <div style={{ marginTop: '10px' }}>
+            <div style={{ height: '8px', background: '#eef2ff', borderRadius: '999px', overflow: 'hidden' }}>
+              <div style={{ width: `${pct}%`, height: '100%', background: 'linear-gradient(90deg, #6366f1, #4f46e5)', transition: 'width 0.3s ease' }} />
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', color: '#475569', marginTop: '6px' }}>
+              <span>{mb(loaded)} / {mb(total)} MB</span>
+              <span>{pct}%</span>
+            </div>
+          </div>
+        )}
+
+        <div style={{ fontSize: '12px', color: '#94a3b8', marginTop: '14px' }}>Elapsed {mmss}</div>
+      </div>
+    </div>
+  );
+};
+
 const GenerateCaseLetterModal = ({
   isOpen,
   onClose,
@@ -60,6 +139,8 @@ const GenerateCaseLetterModal = ({
   const [loadingDocs, setLoadingDocs] = useState(false);
   const [merging, setMerging] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(null);
+  const trackUpload = (e) => setUploadProgress({ loaded: e.loaded || 0, total: e.total || 0 });
   const [deletingCaseLetter, setDeletingCaseLetter] = useState(false);
   const [showDeleteConfirmDialog, setShowDeleteConfirmDialog] = useState(false);
   const [previewBlobUrl, setPreviewBlobUrl] = useState(null);
@@ -526,7 +607,7 @@ const GenerateCaseLetterModal = ({
         return;
       }
 
-      const mergedPdfBlob = await mergePreviewCaseLetter(formData);
+      const mergedPdfBlob = await mergePreviewCaseLetter(formData, trackUpload);
       const url = URL.createObjectURL(mergedPdfBlob);
       setPreviewBlobUrl(url);
       setSuccessMessage(`Successfully merged ${attachedCount} documents! Review the preview below.`);
@@ -549,6 +630,7 @@ const GenerateCaseLetterModal = ({
       }
       setErrorMessage(errorMsg);
     } finally {
+      setUploadProgress(null);
       setMerging(false);
     }
   };
@@ -592,7 +674,7 @@ const GenerateCaseLetterModal = ({
         return;
       }
 
-      const res = await saveCaseLetter(formData);
+      const res = await saveCaseLetter(formData, trackUpload);
       if (res && res.status === 'success') {
         setSavedCaseLetter(res.data);
         setSuccessMessage(`Case Letter for call ${callNo} has been merged and saved successfully!`);
@@ -606,6 +688,7 @@ const GenerateCaseLetterModal = ({
       console.error('Save Case Letter error:', err);
       setErrorMessage(err.message || 'Error occurred while saving Case Letter. Please try again.');
     } finally {
+      setUploadProgress(null);
       setSaving(false);
     }
   };
@@ -662,8 +745,10 @@ const GenerateCaseLetterModal = ({
         flexDirection: 'column',
         boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.35)',
         overflow: 'hidden',
+        position: 'relative',
         border: '1px solid #e2e8f0'
       }}>
+        {(merging || saving) && <MergeProgressOverlay mode={saving ? 'save' : 'merge'} progress={uploadProgress} />}
         
         {/* MODAL HEADER */}
         <div style={{

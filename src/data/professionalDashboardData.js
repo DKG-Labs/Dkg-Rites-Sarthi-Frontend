@@ -119,7 +119,7 @@ export const QUALITY_DATA = {
 export const REPORTS_DATA = {
     tabs: [
         { id: 'mpr', label: 'Monthly Progress Report' },
-        { id: 'mau', label: 'Monthly Analysis of Units' },
+        { id: 'mau', label: 'Monthly Analysis of Units - Process Inspection' },
         { id: 'lwcl', label: 'Lot Wise Closed Loop' },
         // { id: 'qmr', label: 'Quality Monitoring Report' }
     ],

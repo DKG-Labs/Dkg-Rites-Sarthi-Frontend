@@ -19,7 +19,7 @@ export const getActiveTabLabel = (activeMainCard, activeReport = '') => {
                 case 'mpr':
                     return 'Monthly Progress Report (MPR)';
                 case 'mau':
-                    return 'Monthly Analysis of Units (MAU)';
+                    return 'Monthly Analysis of Units - Process Inspection';
                 case 'lwcl':
                     return 'Lot Wise Closed Loop (LWCL)';
                 case 'swp':

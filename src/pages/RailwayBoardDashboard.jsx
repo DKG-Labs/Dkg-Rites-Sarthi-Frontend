@@ -686,7 +686,7 @@ const RailwayBoardDashboard = () => {
                                         {reportSubmenuOpen && (
                                             <div style={{ display: 'flex', flexDirection: 'column' }}>
                                                 <div className={`report-link ${activeReport === 'mpr' && activeMainCard === 'reports' ? 'active' : ''}`} onClick={() => handleReportLink('mpr')} style={{ padding: '6px 8px', paddingLeft: '28px', fontSize: '14px' }}>PO Wise Monthly Progress Report</div>
-                                                <div className={`report-link ${activeReport === 'mau' && activeMainCard === 'reports' ? 'active' : ''}`} onClick={() => handleReportLink('mau')} style={{ padding: '6px 8px', paddingLeft: '28px', fontSize: '14px' }}>Monthly Analysis of Units</div>
+                                                <div className={`report-link ${activeReport === 'mau' && activeMainCard === 'reports' ? 'active' : ''}`} onClick={() => handleReportLink('mau')} style={{ padding: '6px 8px', paddingLeft: '28px', fontSize: '14px' }}>Monthly Analysis of Units - Process Inspection</div>
                                                 <div className={`report-link ${activeReport === 'lwcl' && activeMainCard === 'reports' ? 'active' : ''}`} onClick={() => handleReportLink('lwcl')} style={{ padding: '6px 8px', paddingLeft: '28px', fontSize: '14px' }}>Lot Wise Closed Loop</div>
                                                 <div className={`report-link ${activeReport === 'swp' && activeMainCard === 'reports' ? 'active' : ''}`} onClick={() => handleReportLink('swp')} style={{ padding: '6px 8px', paddingLeft: '28px', fontSize: '14px' }}>Shift Wise Production Report</div>
                                                 {selectedProduct === 'Rail Pad' && (
@@ -824,7 +824,7 @@ const RailwayBoardDashboard = () => {
                                 {reportSubmenuOpen && !isSidebarCollapsed && (
                                     <div className="report-submenu open">
                                         <div className={`report-link ${activeReport === 'mpr' && activeMainCard === 'reports' ? 'active' : ''}`} onClick={() => handleReportLink('mpr')}>PO Wise Monthly Progress Report</div>
-                                        <div className={`report-link ${activeReport === 'mau' && activeMainCard === 'reports' ? 'active' : ''}`} onClick={() => handleReportLink('mau')}>Monthly Analysis of Units</div>
+                                        <div className={`report-link ${activeReport === 'mau' && activeMainCard === 'reports' ? 'active' : ''}`} onClick={() => handleReportLink('mau')}>Monthly Analysis of Units - Process Inspection</div>
                                         <div className={`report-link ${activeReport === 'lwcl' && activeMainCard === 'reports' ? 'active' : ''}`} onClick={() => handleReportLink('lwcl')}>Lot Wise Closed Loop</div>
                                         {!isRailwayBoard && (
                                             <div className={`report-link ${activeReport === 'swp' && activeMainCard === 'reports' ? 'active' : ''}`} onClick={() => handleReportLink('swp')}>Shift Wise Production Report</div>

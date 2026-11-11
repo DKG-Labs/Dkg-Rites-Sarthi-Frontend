@@ -2106,18 +2106,26 @@ const ProfessionalCardSection = ({
                                                                 </div>
                                                             </div>
                                                         );
-                                                    case 'mau':
+                                                    case 'mau': {
+                                                        const mauFmt = (v) => (v === undefined || v === null ? '-' : Number(v).toLocaleString('en-IN'));
+                                                        const mauPct = (v) => (v === undefined || v === null ? '-' : `${Number(v).toFixed(2)}%`);
+                                                        const fyStartYear = new Date().getMonth() >= 3 ? new Date().getFullYear() : new Date().getFullYear() - 1;
+                                                        const fyLabel = `Cumulative for FY ${String(fyStartYear).slice(2)}-${String(fyStartYear + 1).slice(2)} (upto Current Month)`;
+                                                        const grpTh = { textAlign: 'center', borderLeft: '2px solid rgba(255,255,255,0.5)' };
+                                                        const grpSep = { borderLeft: '2px solid rgba(255,255,255,0.5)' };
                                                         return (
                                                             <div className="prof-card animate-up">
                                                                 <div className="sec-title" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                                                    <span>Monthly Analysis of Units</span>
+                                                                    <span>Monthly Analysis of Units - Process Inspection</span>
                                                                     <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
                                                                         <ExportButton
                                                                             onClick={() => downloadExcel(
                                                                                 displayMauData.map(row => ({
                                                                                     ...row,
                                                                                     uom: row.uom || '-',
-                                                                                    poQty: row.poQty !== undefined && row.poQty !== null ? row.poQty : '-'
+                                                                                    poQty: row.poQty !== undefined && row.poQty !== null ? row.poQty : '-',
+                                                                                    processRejectionPct: mauPct(row.processRejectionPct),
+                                                                                    fyRejectionPct: mauPct(row.fyRejectionPct)
                                                                                 })),
                                                                                 [
                                                                                     { label: 'Manufacturer', key: 'manufacturer' },
@@ -2125,11 +2133,16 @@ const ProfessionalCardSection = ({
                                                                                     { label: 'UoM', key: 'uom' },
                                                                                     { label: 'No. of PO', key: 'noOfPos' },
                                                                                     { label: 'PO Qty', key: 'poQty' },
-                                                                                    { label: 'Manufactured', key: 'manufactured' },
-                                                                                    { label: 'Inspected', key: 'inspected' },
-                                                                                    { label: 'Rejected', key: 'rejected' }
+                                                                                    { label: 'Monthly - Inspected', key: 'processInspected' },
+                                                                                    { label: 'Monthly - Accepted', key: 'processAccepted' },
+                                                                                    { label: 'Monthly - Rejected', key: 'processRejectedQty' },
+                                                                                    { label: 'Monthly - Rejection %', key: 'processRejectionPct' },
+                                                                                    { label: 'FY - Inspected', key: 'fyInspected' },
+                                                                                    { label: 'FY - Accepted', key: 'fyAccepted' },
+                                                                                    { label: 'FY - Rejected', key: 'fyRejected' },
+                                                                                    { label: 'FY - Rejection %', key: 'fyRejectionPct' }
                                                                                 ],
-                                                                                'Monthly_Analysis_of_Units'
+                                                                                'Monthly_Analysis_of_Units_Process_Inspection'
                                                                             )}
                                                                         />
                                                                         <input type="text" placeholder="Search..." className="prof-search" value={mauSearch} onChange={(e) => setMauSearch(e.target.value)} />
@@ -2139,14 +2152,23 @@ const ProfessionalCardSection = ({
                                                                     <table className="prof-table">
                                                                         <thead>
                                                                             <tr className="sortable-header">
-                                                                                <th onClick={() => handleMauSort('manufacturer')}>Manufacturer {renderSortIcon('manufacturer', mauSort)}</th>
-                                                                                <th onClick={() => handleMauSort('rio')}>RITES RIO {renderSortIcon('rio', mauSort)}</th>
-                                                                                <th onClick={() => handleMauSort('uom')}>UoM {renderSortIcon('uom', mauSort)}</th>
-                                                                                <th className="text-right" onClick={() => handleMauSort('noOfPos')}>No. of PO {renderSortIcon('noOfPos', mauSort)}</th>
-                                                                                <th className="text-right" onClick={() => handleMauSort('poQty')}>PO Qty {renderSortIcon('poQty', mauSort)}</th>
-                                                                                <th className="text-right" onClick={() => handleMauSort('manufactured')}>Manufactured {renderSortIcon('manufactured', mauSort)}</th>
-                                                                                <th className="text-right" onClick={() => handleMauSort('inspected')}>Inspected {renderSortIcon('inspected', mauSort)}</th>
-                                                                                <th className="text-right" onClick={() => handleMauSort('rejected')}>Rejected {renderSortIcon('rejected', mauSort)}</th>
+                                                                                <th rowSpan={2} onClick={() => handleMauSort('manufacturer')}>Manufacturer {renderSortIcon('manufacturer', mauSort)}</th>
+                                                                                <th rowSpan={2} onClick={() => handleMauSort('rio')}>RITES RIO {renderSortIcon('rio', mauSort)}</th>
+                                                                                <th rowSpan={2} onClick={() => handleMauSort('uom')}>UoM {renderSortIcon('uom', mauSort)}</th>
+                                                                                <th rowSpan={2} className="text-right" onClick={() => handleMauSort('noOfPos')}>No. of PO {renderSortIcon('noOfPos', mauSort)}</th>
+                                                                                <th rowSpan={2} className="text-right" onClick={() => handleMauSort('poQty')}>PO Qty {renderSortIcon('poQty', mauSort)}</th>
+                                                                                <th colSpan={4} style={grpTh}>Monthly Process Inspection Data</th>
+                                                                                <th colSpan={4} style={grpTh}>{fyLabel}</th>
+                                                                            </tr>
+                                                                            <tr className="sortable-header">
+                                                                                <th className="text-right" style={grpSep} onClick={() => handleMauSort('processInspected')}>Inspected {renderSortIcon('processInspected', mauSort)}</th>
+                                                                                <th className="text-right" onClick={() => handleMauSort('processAccepted')}>Accepted {renderSortIcon('processAccepted', mauSort)}</th>
+                                                                                <th className="text-right" onClick={() => handleMauSort('processRejectedQty')}>Rejected {renderSortIcon('processRejectedQty', mauSort)}</th>
+                                                                                <th className="text-right" onClick={() => handleMauSort('processRejectionPct')}>Rejection % {renderSortIcon('processRejectionPct', mauSort)}</th>
+                                                                                <th className="text-right" style={grpSep} onClick={() => handleMauSort('fyInspected')}>Inspected {renderSortIcon('fyInspected', mauSort)}</th>
+                                                                                <th className="text-right" onClick={() => handleMauSort('fyAccepted')}>Accepted {renderSortIcon('fyAccepted', mauSort)}</th>
+                                                                                <th className="text-right" onClick={() => handleMauSort('fyRejected')}>Rejected {renderSortIcon('fyRejected', mauSort)}</th>
+                                                                                <th className="text-right" onClick={() => handleMauSort('fyRejectionPct')}>Rejection % {renderSortIcon('fyRejectionPct', mauSort)}</th>
                                                                             </tr>
                                                                         </thead>
                                                                         <tbody>
@@ -2156,10 +2178,15 @@ const ProfessionalCardSection = ({
                                                                                     <td>{row.rio || '-'}</td>
                                                                                     <td>{row.uom || '-'}</td>
                                                                                     <td className="text-right">{row.noOfPos !== undefined && row.noOfPos !== null ? row.noOfPos : '-'}</td>
-                                                                                    <td className="text-right">{row.poQty !== undefined && row.poQty !== null ? row.poQty : '-'}</td>
-                                                                                    <td className="text-right">{row.manufactured}</td>
-                                                                                    <td className="text-right">{row.inspected}</td>
-                                                                                    <td className="text-right" style={{ color: '#dc2626' }}>{row.rejected}</td>
+                                                                                    <td className="text-right">{mauFmt(row.poQty)}</td>
+                                                                                    <td className="text-right" style={{ borderLeft: '2px solid #e2e8f0' }}>{mauFmt(row.processInspected)}</td>
+                                                                                    <td className="text-right">{mauFmt(row.processAccepted)}</td>
+                                                                                    <td className="text-right" style={{ color: '#dc2626' }}>{mauFmt(row.processRejectedQty)}</td>
+                                                                                    <td className="text-right">{mauPct(row.processRejectionPct)}</td>
+                                                                                    <td className="text-right" style={{ borderLeft: '2px solid #e2e8f0' }}>{mauFmt(row.fyInspected)}</td>
+                                                                                    <td className="text-right">{mauFmt(row.fyAccepted)}</td>
+                                                                                    <td className="text-right" style={{ color: '#dc2626' }}>{mauFmt(row.fyRejected)}</td>
+                                                                                    <td className="text-right">{mauPct(row.fyRejectionPct)}</td>
                                                                                 </tr>
                                                                             ))}
                                                                         </tbody>
@@ -2175,6 +2202,7 @@ const ProfessionalCardSection = ({
                                                                 </div>
                                                             </div>
                                                         );
+                                                    }
                                                     case 'lwcl':
                                                         return (
                                                             <div className="prof-card animate-up lwcl-card" style={{ display: 'flex', flexDirection: 'column', height: 'calc(100vh - 240px)', minHeight: '400px', boxSizing: 'border-box', overflow: 'hidden' }}>
@@ -3015,7 +3043,7 @@ const MpiaDrillDown = ({ data = [], manufacturer, onBack, loading }) => {
 };
 
 
-const MpiaReportPage = ({ manufacturer, data, showFooter = true }) => {
+export const MpiaReportPage = ({ manufacturer, data, showFooter = true }) => {
     const defectAgg = {
         'Shearing': 0, 'Turning': 0, 'Forging': 0, 'Finishing': 0, 'Quenching': 0, 'Tempering': 0
     };

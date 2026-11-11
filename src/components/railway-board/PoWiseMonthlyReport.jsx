@@ -280,6 +280,7 @@ const PoWiseMonthlyReport = ({ fromDate, toDate, selectedZone, onZonesUpdate }) 
                     'Qty Offered (Final)': v.offeredForFinalInspectionQty || 0,
                     'No. of IC Issued': v.noOfIcIssued || 0,
                     'IC Issued Qty': v.finalAcceptedQty || 0,
+                    'UoM': v.uom || '',
                     'Last Date of IC': formatPoDate(v.lastIcIssuedDate) || '',
                     'Total Rejected': v.totalRejectedNos || v.totalRejections || 0,
                     'Chemical composition': v.chemicalCompositionRej || 0,
@@ -476,7 +477,7 @@ const PoWiseMonthlyReport = ({ fromDate, toDate, selectedZone, onZonesUpdate }) 
                                             <td className="text-right">{(vendor.processAcceptedQty || 0).toLocaleString()}</td>
                                             <td className="text-right">{(vendor.offeredForFinalInspectionQty || 0).toLocaleString()}</td>
                                             <td className="text-right">{(vendor.noOfIcIssued || 0).toLocaleString()}</td>
-                                            <td className="text-right">{(vendor.finalAcceptedQty || 0).toLocaleString()}</td>
+                                            <td className="text-right">{(vendor.finalAcceptedQty || 0).toLocaleString()}{vendor.uom ? ` ${vendor.uom}` : ''}</td>
                                             <td className="text-center">{formatPoDate(vendor.lastIcIssuedDate) || ''}</td>
                                             <td className="text-right font-bold text-red-600">{fmt(vendor.totalRejectedNos ?? vendor.totalRejections)}</td>
                                             {/* Raw Material Check */}

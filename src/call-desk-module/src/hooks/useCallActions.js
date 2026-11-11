@@ -8,6 +8,7 @@ import { useState, useCallback } from 'react';
 import axios from 'axios';
 import { getStoredUser, getAuthHeaders } from '../../../services/authService';
 import { API_BASE_URL } from '../../../services/apiConfig';
+import { getEffectiveCallDeskRio, isRioMatching } from '../utils/helpers';
 
 const BASE_URL = API_BASE_URL;
 
@@ -338,28 +339,45 @@ export const useCallActions = () => {
    */
   const fetchAllIEs = useCallback(async () => {
     try {
-      const [ieRes, processRes, railRes] = await Promise.all([
-        axios.get(`${API_BASE_URL}/api/auth/api/users/by-role`, { params: { roleName: 'IE' }, headers: getAuthHeaders() }).catch(() => ({ data: { responseData: [] } })),
-        axios.get(`${API_BASE_URL}/api/auth/api/users/by-role`, { params: { roleName: 'Process IE' }, headers: getAuthHeaders() }).catch(() => ({ data: { responseData: [] } })),
-        axios.get(`${API_BASE_URL}/api/auth/api/users/by-role`, { params: { roleName: 'Rail Main IE' }, headers: getAuthHeaders() }).catch(() => ({ data: { responseData: [] } }))
-      ]);
-
-      const combined = [
-        ...(ieRes.data?.responseData || []),
-        ...(processRes.data?.responseData || []),
-        ...(railRes.data?.responseData || [])
+      const activeRio = getEffectiveCallDeskRio();
+      const rioParam = activeRio ? { rio: activeRio } : {};
+      const byRoleUrl = `${API_BASE_URL}/api/auth/api/users/by-role`;
+      const headers = getAuthHeaders();
+      const roleQueries = [
+        { roleName: 'IE', product: 'ERC', ieRole: 'MAIN_IE' },
+        { roleName: 'Process IE', product: 'ERC', ieRole: 'PROCESS_IE' },
+        { roleName: 'Main IE', product: 'SLEEPER', ieRole: 'MAIN_IE' },
+        { roleName: 'Sleeper Process IE', product: 'SLEEPER', ieRole: 'PROCESS_IE' },
+        { roleName: 'Rail Main IE', product: 'RAILPAD', ieRole: 'MAIN_IE' },
+        { roleName: 'Rail Process IE', product: 'RAILPAD', ieRole: 'PROCESS_IE' }
       ];
 
-      // Remove duplicate users by id/employeeCode if any
+      const responses = await Promise.all(
+        roleQueries.map((q) =>
+          axios
+            .get(byRoleUrl, { params: { ...q, ...rioParam }, headers })
+            .catch(() => ({ data: { responseData: [] } }))
+        )
+      );
+
+      const combined = responses.flatMap((res) => res.data?.responseData || []);
+
+      // Remove duplicate users by userId and enforce RIO match
       const uniqueUsersMap = new Map();
       combined.forEach(user => {
         if (user && user.userId && !uniqueUsersMap.has(user.userId)) {
+          if (activeRio && !isRioMatching(activeRio, user.rio)) {
+            return;
+          }
           uniqueUsersMap.set(user.userId, {
             id: user.userId,
-            name: user.fullName || user.userName,
+            name: user.fullName || user.userName || user.username,
             employeeCode: user.employeeCode,
             shortName: user.shortName,
-            roleName: user.roleName || user.role
+            roleName: user.roleName || user.role,
+            roleNames: Array.isArray(user.roleNames) ? user.roleNames : [],
+            productType: user.productType || '',
+            rio: user.rio || ''
           });
         }
       });

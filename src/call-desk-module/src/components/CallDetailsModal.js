@@ -2,7 +2,13 @@ import React, { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
 import { getAuthHeaders, getStoredUser } from '../../../services/authService';
 import { API_BASE_URL } from '../../../services/apiConfig';
-import { formatDateTime } from '../utils/helpers';
+import {
+  formatDateTime,
+  isRioMatching,
+  getEffectiveCallDeskRio,
+  getCallProductAndIeRole,
+  isProductAndIeRoleMatching
+} from '../utils/helpers';
 import { Autocomplete, TextField } from '@mui/material';
 
 const CallDetailsModal = ({
@@ -51,94 +57,90 @@ const CallDetailsModal = ({
   const [remapAvailableUsers, setRemapAvailableUsers] = useState([]);
 
   const filteredIEs = React.useMemo(() => {
-    if (call?.callNumber?.startsWith('SF') || call?.callNumber?.startsWith('SR')) {
-      if (sleeperRemapUsers && sleeperRemapUsers.length > 0) {
-        return sleeperRemapUsers;
-      }
-      return (allIEs || []).filter(ie => {
-        const r = (ie.roleName || ie.role || '').trim().toLowerCase();
-        return r === 'main ie' || r.includes('main ie');
-      });
+    const activeRio = getEffectiveCallDeskRio(call?.rio);
+    const { product, ieRole } = getCallProductAndIeRole(call);
+    const filterMatchingIEs = (list) =>
+      (list || []).filter(
+        (ie) =>
+          (!activeRio || isRioMatching(activeRio, ie.rio)) &&
+          isProductAndIeRoleMatching(ie, product, ieRole)
+      );
+
+    if (product === 'SLEEPER' && sleeperRemapUsers && sleeperRemapUsers.length > 0) {
+      return filterMatchingIEs(sleeperRemapUsers);
     }
-    if (call?.callNumber?.startsWith('RPF') || call?.callNumber?.startsWith('RPP') || call?.callNumber?.startsWith('RP')) {
-      if (railpadRemapUsers && railpadRemapUsers.length > 0) {
-        return railpadRemapUsers;
-      }
-      return (allIEs || []).filter(ie => {
-        const r = (ie.roleName || ie.role || '').trim().toLowerCase();
-        return r === 'rail main ie' || r.includes('rail main ie') || r === 'main ie';
-      });
+    if (product === 'RAILPAD' && railpadRemapUsers && railpadRemapUsers.length > 0) {
+      return filterMatchingIEs(railpadRemapUsers);
     }
-    if (call?.callNumber?.startsWith('ER') || call?.callNumber?.startsWith('EF')) {
-      if (remapAvailableUsers && remapAvailableUsers.length > 0) {
-        return remapAvailableUsers;
-      }
-      return (allIEs || []).filter(ie => {
-        const r = (ie.roleName || ie.role || '').trim().toLowerCase();
-        return r === 'ie' || r.includes('ie');
-      });
+    if (product === 'ERC' && remapAvailableUsers && remapAvailableUsers.length > 0) {
+      return filterMatchingIEs(remapAvailableUsers);
     }
     if (!allIEs || allIEs.length === 0) return [];
-    if (call?.callNumber?.startsWith('EP')) {
-      return allIEs.filter(ie => {
-        const r = (ie.roleName || ie.role || '').trim().toLowerCase();
-        return r === 'process ie' || r.includes('process ie');
-      });
-    }
-    return allIEs.filter(ie => {
-      const r = (ie.roleName || ie.role || '').trim().toLowerCase();
-      return r.includes('ie');
-    });
-  }, [call?.callNumber, allIEs, sleeperRemapUsers, railpadRemapUsers, remapAvailableUsers]);
+    return filterMatchingIEs(allIEs);
+  }, [call, allIEs, sleeperRemapUsers, railpadRemapUsers, remapAvailableUsers]);
 
   const handleOpenRemapping = async () => {
     setChangeIE(true);
     setIsLoadingRemappingIEs(true);
+    const targetRio = getEffectiveCallDeskRio(call?.rio);
+    const { product, ieRole } = getCallProductAndIeRole(call);
+
+    const filterAndMapRemapUsers = (list, fallbackRole) =>
+      (list || [])
+        .filter(
+          (u) =>
+            (!targetRio || isRioMatching(targetRio, u.rio)) &&
+            isProductAndIeRoleMatching(u, product, ieRole)
+        )
+        .map((u) => ({
+          id: u.userId || u.id,
+          name: u.fullName || u.name || u.userName || u.username,
+          employeeCode: u.employeeCode,
+          roleName: u.roleName || u.role || fallbackRole,
+          roleNames: Array.isArray(u.roleNames) ? u.roleNames : [],
+          productType: u.productType || '',
+          rio: u.rio || ''
+        }));
+
     try {
-      if (call.callNumber.startsWith('RPF') || call.callNumber.startsWith('RPP') || call.callNumber.startsWith('RP')) {
+      if (product === 'RAILPAD') {
         try {
-          const ieRes = await axios.get(`${API_BASE_URL}/api/railpad-workflow/remap-available-users`, { headers: getAuthHeaders() });
-          const rawData = ieRes.data?.responseData || [];
-          setRailpadRemapUsers(rawData.map(u => ({
-            id: u.userId || u.id,
-            name: u.fullName || u.name,
-            employeeCode: u.employeeCode,
-            roleName: u.role || 'Rail Main IE'
-          })));
+          const ieRes = await axios.get(`${API_BASE_URL}/api/railpad-workflow/remap-available-users`, {
+            params: { ...(targetRio ? { rio: targetRio } : {}), ...(ieRole ? { ieRole } : {}) },
+            headers: getAuthHeaders()
+          });
+          const fallbackRole = ieRole === 'PROCESS_IE' ? 'Rail Process IE' : 'Rail Main IE';
+          setRailpadRemapUsers(filterAndMapRemapUsers(ieRes.data?.responseData, fallbackRole));
         } catch (e) {
-          console.error("Error fetching Rail Main IE users:", e);
+          console.error("Error fetching Railpad IE users:", e);
         }
         return;
       }
 
-      if (call.callNumber.startsWith('SF') || call.callNumber.startsWith('SR')) {
-        const ieRes = await axios.get(`${API_BASE_URL}/api/sleeper-workflow/remap-available-users`, { headers: getAuthHeaders() });
-        const rawData = ieRes.data?.responseData || [];
-        setSleeperRemapUsers(rawData.map(u => ({
-          id: u.userId || u.id,
-          name: u.fullName || u.name,
-          employeeCode: u.employeeCode,
-          roleName: u.role || 'Main IE'
-        })));
+      if (product === 'SLEEPER') {
+        const ieRes = await axios.get(`${API_BASE_URL}/api/sleeper-workflow/remap-available-users`, {
+          params: { ...(targetRio ? { rio: targetRio } : {}), ...(ieRole ? { ieRole } : {}) },
+          headers: getAuthHeaders()
+        });
+        const fallbackRole = ieRole === 'PROCESS_IE' ? 'Sleeper Process IE' : 'Main IE';
+        setSleeperRemapUsers(filterAndMapRemapUsers(ieRes.data?.responseData, fallbackRole));
         return;
       }
 
-      // For ER / EF calls: Fetch all users whose role is IE
-      if (call.callNumber.startsWith('ER') || call.callNumber.startsWith('EF')) {
+      // For ERC calls (ER / EF -> IE, EP -> Process IE): Fetch users filtered by Product, IE Role, and RIO
+      if (product === 'ERC' || !product) {
         try {
+          const targetRoleName = ieRole === 'PROCESS_IE' ? 'Process IE' : 'IE';
           const res = await axios.get(`${API_BASE_URL}/api/auth/api/users/by-role`, {
-            params: { roleName: 'IE' },
+            params: {
+              roleName: targetRoleName,
+              product: 'ERC',
+              ieRole,
+              ...(targetRio ? { rio: targetRio } : {})
+            },
             headers: getAuthHeaders()
           });
-          const list = res.data?.responseData || [];
-          if (list.length > 0) {
-            setRemapAvailableUsers(list.map(u => ({
-              id: u.userId || u.id,
-              name: u.fullName || u.userName,
-              employeeCode: u.employeeCode,
-              roleName: u.roleName || u.role || 'IE'
-            })));
-          }
+          setRemapAvailableUsers(filterAndMapRemapUsers(res.data?.responseData, targetRoleName));
         } catch (e) {
           console.error("Error fetching IE users by role:", e);
         }
@@ -205,7 +207,7 @@ const CallDetailsModal = ({
         } catch (e) {
           console.warn("Could not fetch Railpad mapped IE:", e);
         }
-      } else if (call.callNumber.startsWith('SF') || call.callNumber.startsWith('SR')) {
+      } else if (call.callNumber.startsWith('SF') || call.callNumber.startsWith('SR') || call.callNumber.startsWith('SP')) {
         try {
           const response = await axios.get(`${API_BASE_URL}/api/sleeper-workflow/call-mapped-ie/${call.callNumber}`, {
             headers: getAuthHeaders()
@@ -251,6 +253,13 @@ const CallDetailsModal = ({
       setSelectedIE('');
       setRemarks('');
       setValidationError('');
+      setMappedIEs([]);
+      setShowWithdrawModal(false);
+      setShowVerifyModal(false);
+      setWithdrawRemarks('');
+      setSleeperRemapUsers([]);
+      setRailpadRemapUsers([]);
+      setRemapAvailableUsers([]);
       setCurrentMappedIEName(call.assignedToUserName || call.assignedIeName || call.assignedIE || null);
       fetchMappedIEs();
     }
@@ -290,7 +299,7 @@ const CallDetailsModal = ({
           call.assignedIeName = newIeName;
         }
         fetchMappedIEs();
-      } else if (call.callNumber.startsWith('SF') || call.callNumber.startsWith('SR')) {
+      } else if (call.callNumber.startsWith('SF') || call.callNumber.startsWith('SR') || call.callNumber.startsWith('SP')) {
         const payload = {
           callNo: call.callNumber,
           plantId: call.plantId,
@@ -383,21 +392,6 @@ const CallDetailsModal = ({
       setIsWithdrawing(false);
     }
   };
-
-  useEffect(() => {
-    if (isOpen) {
-      setSelectedIE('');
-      setRemarks('');
-      setMappedIEs([]);
-      setCurrentMappedIEName(null);
-      setChangeIE(false);
-      setShowWithdrawModal(false);
-      setShowVerifyModal(false);
-      setWithdrawRemarks('');
-      
-      fetchMappedIEs();
-    }
-  }, [isOpen, call, fetchMappedIEs]);
 
   if (!isOpen || !call) return null;
 

@@ -798,6 +798,7 @@ const RailwayBoardDashboard = () => {
                                         )}
                                         <div className={`report-link ${activeMainCard === 'manage-ic-dates' ? 'active' : ''}`} onClick={() => { setActiveMainCard('manage-ic-dates'); setCmCallMenuOpen(false); setCmIeMenuOpen(false); setCmReportsMenuOpen(false); }} style={{ fontSize: '15px' }}><i className="fa-solid fa-calendar-days" style={{ marginRight: '8px' }}></i>Manage IC Dates</div>
                                         <div className={`report-link ${activeMainCard === 'cm-module' && cmActiveTab === 'Notification & Approval' ? 'active' : ''}`} onClick={() => { setActiveMainCard('cm-module'); setCmActiveTab('Notification & Approval'); setCmCallMenuOpen(false); setCmIeMenuOpen(false); setCmReportsMenuOpen(false); }} style={{ fontSize: '15px' }}><i className="fa-solid fa-key" style={{ marginRight: '8px' }}></i>Notification & Approval</div>
+                                        <div className={`report-link ${activeMainCard === 'cm-module' && cmActiveTab === 'Inspection Certificates' ? 'active' : ''}`} onClick={() => { setActiveMainCard('cm-module'); setCmActiveTab('Inspection Certificates'); setCmCallMenuOpen(false); setCmIeMenuOpen(false); setCmReportsMenuOpen(false); }} style={{ fontSize: '15px' }}><i className="fa-solid fa-file-shield" style={{ marginRight: '8px' }}></i>Inspection Certificates</div>
                                     </div>
                                 )}
                             </>

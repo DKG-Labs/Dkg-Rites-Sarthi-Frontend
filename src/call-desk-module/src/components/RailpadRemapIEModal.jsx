@@ -1,5 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { fetchRailpadRemapAvailableUsers, submitRailpadRemap } from '../services/remapIeApi';
+import {
+  getEffectiveCallDeskRio,
+  isRioMatching,
+  getCallProductAndIeRole,
+  isProductAndIeRoleMatching,
+} from '../utils/helpers';
 import SearchableEmployeeSelect from './SearchableEmployeeSelect';
 
 const styles = {
@@ -84,7 +90,7 @@ const styles = {
   },
 };
 
-const RailpadRemapIEModal = ({ callNo, plantId, currentIeUserId, currentIeName, currentIeEmployeeCode, onClose, onSuccess }) => {
+const RailpadRemapIEModal = ({ callNo, plantId, rio, currentIeUserId, currentIeName, currentIeEmployeeCode, onClose, onSuccess }) => {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [availableUsers, setAvailableUsers] = useState([]);
@@ -95,9 +101,17 @@ const RailpadRemapIEModal = ({ callNo, plantId, currentIeUserId, currentIeName, 
     const fetchData = async () => {
       try {
         setLoading(true);
-        const res = await fetchRailpadRemapAvailableUsers();
+        const effectiveRio = getEffectiveCallDeskRio(rio);
+        const { ieRole } = getCallProductAndIeRole({ callNumber: callNo });
+        const res = await fetchRailpadRemapAvailableUsers(effectiveRio, ieRole);
         if (res?.responseStatus?.statusCode === 0) {
-          setAvailableUsers(res.responseData || []);
+          const rawUsers = res.responseData || [];
+          const filtered = rawUsers.filter(
+            (u) =>
+              (!effectiveRio || isRioMatching(effectiveRio, u.rio)) &&
+              isProductAndIeRoleMatching(u, 'RAILPAD', ieRole)
+          );
+          setAvailableUsers(filtered);
         } else {
           setError('Failed to fetch available users');
         }
@@ -108,7 +122,7 @@ const RailpadRemapIEModal = ({ callNo, plantId, currentIeUserId, currentIeName, 
       }
     };
     fetchData();
-  }, []);
+  }, [callNo, rio]);
 
   const handleSubmit = async () => {
     if (!selectedNewUserId) {

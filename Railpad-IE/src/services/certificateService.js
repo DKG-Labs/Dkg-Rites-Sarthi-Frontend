@@ -182,7 +182,7 @@ export const saveFinalIcEditData = async (payload) => {
  */
 export const getFinalIcEditData = async (icNumber) => {
   try {
-    const response = await fetch(`${getBaseUrl()}/railpad-final-ic-edit/${encodeURIComponent(icNumber)}`, {
+    const response = await fetch(`${getBaseUrl()}/railpad-final-ic-edit?icNumber=${encodeURIComponent(icNumber)}`, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
@@ -228,7 +228,7 @@ export const saveFinalIcSaveChanges = async (payload) => {
  */
 export const getFinalIcSaveChanges = async (icNumber) => {
   try {
-    const response = await fetch(`${getBaseUrl()}/railpad-final-ic-save-changes/${encodeURIComponent(icNumber)}`, {
+    const response = await fetch(`${getBaseUrl()}/railpad-final-ic-save-changes?icNumber=${encodeURIComponent(icNumber)}`, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
@@ -479,7 +479,7 @@ export const deleteSignedCertificate = async (icNumber) => {
  */
 export const getProcessIcSaveChanges = async (icNumber) => {
   try {
-    const response = await fetch(`${getBaseUrl()}/railpad-process-ic/save-changes/${encodeURIComponent(icNumber)}`, {
+    const response = await fetch(`${getBaseUrl()}/railpad-process-ic/save-changes?icNumber=${encodeURIComponent(icNumber)}`, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
@@ -526,7 +526,7 @@ export const saveProcessIcSaveChanges = async (payload) => {
  */
 export const getProcessIcEditData = async (icNumber) => {
   try {
-    const response = await fetch(`${getBaseUrl()}/railpad-process-ic/edit/${encodeURIComponent(icNumber)}`, {
+    const response = await fetch(`${getBaseUrl()}/railpad-process-ic/edit?icNumber=${encodeURIComponent(icNumber)}`, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',

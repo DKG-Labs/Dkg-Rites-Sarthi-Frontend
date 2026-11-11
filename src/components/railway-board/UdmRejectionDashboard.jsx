@@ -1,10 +1,18 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import PropTypes from 'prop-types';
 import * as XLSX from 'xlsx';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import './UdmRejectionDashboard.css';
-import { getUdmRejections, syncUdmRejections, getUdmSyncHistory } from '../../services/udmRejectionService';
+import { syncUdmRejections, getUdmSyncHistory } from '../../services/udmRejectionService';
+import { getUdmComplaintList, downloadMergedComplaintPdf } from '../../services/udmComplaintService';
+import {
+    ComplaintStatusChip, ComplaintActionFooter, ComplaintTimeline, SendToCmModal, CloseComplaintModal,
+    useToast, isClosed, COMPLAINT_STATUS,
+} from './UdmComplaintActions';
+import { CmActionButton, ComplaintDocuments } from './UdmCmStageForms';
+import { SbuReviewButton, RbReviewButton } from './UdmSbuReview';
 
 const IREPS_BASE = 'https://ireps.gov.in';
 
@@ -89,28 +97,43 @@ const fmtVal = val => {
 
 const cleanVCode = v => v ? v.replace(/^:/, '') : null;
 
-const CACHE_KEY = 'udm_cache';
-
-const saveCache = (rows, appliedDate) => {
-    try {
-        localStorage.setItem(CACHE_KEY, JSON.stringify({ rows, appliedDate, ts: Date.now() }));
-    } catch (_) {}
-};
-
-const loadCache = () => {
-    try {
-        const raw = localStorage.getItem(CACHE_KEY);
-        return raw ? JSON.parse(raw) : null;
-    } catch (_) { return null; }
-};
+/** Dashboard mode → server list "view" (the backend checks the user holds that role). */
+const VIEW_OF_MODE = { complaintCell: 'cc', cm: 'cm', sbu: 'sbu', rb: 'rb', board: 'board' };
+const EXPORT_PAGE_SIZE = 500;
+const EMPTY_COUNTS = { pendingCount: 0, closedCount: 0, mineCount: 0, allCount: 0 };
 
 /* ─── Main ──────────────────────────────────────────────────────── */
-export default function UdmRejectionDashboard() {
-    const cached = loadCache();
+/**
+ * mode:
+ *  - 'board'         Railway Board / default: view only (tabs + status)
+ *  - 'complaintCell' Complaint Cell: can Send to CM / Close from the View modal
+ *  - 'cm'            Controlling Manager: only complaints assigned to the logged-in CM, view only
+ */
+export default function UdmRejectionDashboard({ mode = 'board' }) {
+    const canAct = mode === 'complaintCell';
+    const cmMode = mode === 'cm';
+    const sbuMode = mode === 'sbu';
+    const rbMode = mode === 'rb';
+    const reviewerMode = sbuMode || rbMode;   // "Pending with Me" = waiting for this role's review
+    const ccMode = canAct;                    // Complaint Cell: "Pending with Me" = not forwarded yet
+    const pendingWithMeMode = reviewerMode || ccMode;
+    const personalMode = cmMode || pendingWithMeMode;   // "mine" vs "all" scope toolbar
+    const currentUserId = (() => { try { return Number(localStorage.getItem('userId')) || null; } catch (_) { return null; } })();
 
-    const [rows,          setRows]          = useState(cached?.rows  || []);
-    const [appliedDate,   setAppliedDate]   = useState(cached?.appliedDate || '');
+    const [tab,      setTab]      = useState('pending');
+    const [cmScope,  setCmScope]  = useState('mine'); // CM only: 'mine' | 'all'
+    const [sendFor,  setSendFor]  = useState(null);
+    const [closeFor, setCloseFor] = useState(null);
+    const [tlKey,    setTlKey]    = useState(0);
+    const toast = useToast();
+
+    const [rows,          setRows]          = useState([]);            // current server page
+    const [total,         setTotal]         = useState(0);             // rows in current scope + tab + search
+    const [totalPages,    setTotalPages]    = useState(1);
+    const [counts,        setCounts]        = useState(EMPTY_COUNTS);
+    const [reloadKey,     setReloadKey]     = useState(0);
     const [search,        setSearch]        = useState('');
+    const [debouncedQ,    setDebouncedQ]    = useState('');
     const [loading,       setLoading]       = useState(false);
     const [error,         setError]         = useState(null);
     const [detail,        setDetail]        = useState(null);
@@ -123,20 +146,45 @@ export default function UdmRejectionDashboard() {
     const [pageSize,      setPageSize]      = useState(10);
     const [showHistory,   setShowHistory]   = useState(false);
 
-    const fetchData = useCallback(async () => {
-        setLoading(true); setError(null);
-        try {
-            const data    = await getUdmRejections({});
-            const newRows = data || [];
-            setRows(newRows);
-            setAppliedDate('');
-            saveCache(newRows, '');
-        } catch (e) { setError(e.message || 'Failed to fetch rejection data.'); }
-        finally     { setLoading(false); }
-    }, []);
+    const view  = VIEW_OF_MODE[mode] || 'board';
+    const scope = personalMode ? cmScope : 'all';
 
-    // Auto-load all records on mount
-    useEffect(() => { fetchData(); }, [fetchData]);
+    // Search is sent to the server after the user pauses typing
+    useEffect(() => {
+        const t = setTimeout(() => setDebouncedQ(search.trim()), 350);
+        return () => clearTimeout(t);
+    }, [search]);
+
+    /** One page of the role-scoped list + badge counts (server-side paging / filtering). */
+    useEffect(() => {
+        let alive = true;
+        setLoading(true); setError(null);
+        getUdmComplaintList({ view, scope, tab, page: page - 1, size: pageSize, q: debouncedQ })
+            .then(d => {
+                if (!alive) return;
+                setRows(d?.content || []);
+                setTotal(d?.totalElements || 0);
+                setTotalPages(Math.max(1, d?.totalPages || 1));
+                setCounts({ ...EMPTY_COUNTS, ...(d || {}) });
+                if (d && typeof d.page === 'number' && d.page + 1 !== page) setPage(d.page + 1);
+            })
+            .catch(e => { if (alive) { setRows([]); setTotal(0); setError(e.message || 'Failed to fetch rejection data.'); } })
+            .finally(() => { if (alive) setLoading(false); });
+        return () => { alive = false; };
+    }, [view, scope, tab, page, pageSize, debouncedQ, reloadKey]);
+
+    const fetchData = useCallback(() => setReloadKey(k => k + 1), []);
+
+    /** Every row of the current scope + tab + search (for Excel / PDF), fetched page by page. */
+    const fetchAllForExport = async () => {
+        const all = [];
+        for (let p = 0; p < 200; p++) {
+            const d = await getUdmComplaintList({ view, scope, tab, page: p, size: EXPORT_PAGE_SIZE, q: debouncedQ });
+            all.push(...(d?.content || []));
+            if (!d || p + 1 >= (d.totalPages || 1)) break;
+        }
+        return all;
+    };
 
     const openSyncModal = () => {
         setSyncDate('');
@@ -170,8 +218,10 @@ export default function UdmRejectionDashboard() {
         }
     };
 
-    const exportExcel = () => {
-        const data = visible.map((r, i) => ({
+    const exportExcel = async () => {
+        let all;
+        try { all = await fetchAllForExport(); } catch (e) { toast.show(e.message || 'Export failed.', 'error'); return; }
+        const data = all.map((r, i) => ({
             '#':                   i + 1,
             'Rejection No.':       r.rejectionNumber  || '',
             'PO Number':           r.poNumber         || '',
@@ -193,6 +243,9 @@ export default function UdmRejectionDashboard() {
             'Source':              r.source           || '',
             'Material Recd. Date': r.materialReceivedDate || '',
             'PO Serial No.':       r.poSerialNumber   || '',
+            'Complaint Status':    (COMPLAINT_STATUS[r.complaintStatus] || {}).label || r.complaintStatus || '',
+            'Assigned RIO':        r.assignedRio      || '',
+            'Assigned CM':         r.assignedCmName   || '',
         }));
 
         const ws = XLSX.utils.json_to_sheet(data);
@@ -203,27 +256,49 @@ export default function UdmRejectionDashboard() {
         const cols = Object.keys(data[0] || {}).map(k => ({ wch: Math.max(k.length, 14) }));
         ws['!cols'] = cols;
 
-        const filename = `UDM_Rejections_${appliedDate || 'export'}.xlsx`;
+        const filename = `UDM_Rejections_${tab}_${new Date().toISOString().slice(0, 10)}.xlsx`;
         XLSX.writeFile(wb, filename);
     };
 
-    const visible = rows.filter(r => {
-        if (!search) return true;
-        const q = search.toLowerCase();
-        return [
-            r.rejectionNumber, r.poNumber, r.plNumber, r.poSerialNumber,
-            r.icNumber, r.icDate,
-            r.vendorName, r.vendorCode, cleanVCode(r.vendorCode),
-            r.consignee, r.itemDescription,
-            r.typeOfRejection, r.inspectionAgency,
-            r.rejectionDate, fmtDate(r.rejectionDate),
-            r.reasonForRejection, r.status, r.source,
-            r.rejectedQty, r.uom,
-            r.rejectionValue, fmtVal(r.rejectionValue),
-        ].some(v => (v || '').toString().toLowerCase().includes(q));
-    });
+    // CM can view all rejections, but may act only on those assigned to them
+    const isAssignedToMe = r => Boolean(currentUserId && Number(r?.assignedCmUserId) === currentUserId);
+    // SBU Head: complaints waiting for SBU review (any SBU Head can act)
+    const isPendingWithSbu = r => ['CAPA_SUBMITTED', 'RETURNED_TO_SBU'].includes(r?.complaintStatus);
+    // Railway Board: complaints forwarded by the SBU Head (any Railway Board user can act)
+    const isPendingWithRb = r => r?.complaintStatus === 'SENT_TO_RAILWAY_BOARD';
+    // Complaint Cell: not yet forwarded to a CM
+    const isPendingWithCc = r => (r?.complaintStatus || 'PENDING_WITH_COMPLAINT_CELL') === 'PENDING_WITH_COMPLAINT_CELL';
+    const isMine = cmMode ? isAssignedToMe : rbMode ? isPendingWithRb : ccMode ? isPendingWithCc : isPendingWithSbu;
+    // Badge counts come from the server (role-scoped; "mine" closed for SBU/RB = closed after their review)
+    const assignedCount = counts.mineCount;
+    const allCount      = counts.allCount;
+    const pendingCount  = counts.pendingCount;
+    const closedCount   = counts.closedCount;
 
-    const downloadPdf = () => {
+    /** Apply a complaint action result to the row in place (no full reload). */
+    const applyActionResult = (res, message) => {
+        if (res && res.udmRejectionId != null) {
+            const patch = {
+                complaintStatus:  res.complaintStatus,
+                pendingWith:      res.pendingWith,
+                assignedRio:      res.assignedRio,
+                assignedCmUserId: res.assignedCmUserId,
+                assignedCmName:   res.assignedCmName,
+                complaintRemarks: res.lastRemarks,
+            };
+            setRows(prev => prev.map(x => (x.id === res.udmRejectionId ? { ...x, ...patch } : x)));
+            setDetail(d => (d && d.id === res.udmRejectionId ? { ...d, ...patch } : d));
+        }
+        setSendFor(null);
+        setCloseFor(null);
+        setTlKey(k => k + 1);
+        setReloadKey(k => k + 1);   // row may move tab / scope: refresh page + counts from the server
+        toast.show(message);
+    };
+
+    const downloadPdf = async () => {
+        let visible;
+        try { visible = await fetchAllForExport(); } catch (e) { toast.show(e.message || 'Export failed.', 'error'); return; }
         const doc = new jsPDF({ orientation: 'landscape', unit: 'pt', format: 'a4' });
         doc.setFontSize(13);
         doc.setFont('helvetica', 'bold');
@@ -231,7 +306,7 @@ export default function UdmRejectionDashboard() {
         doc.setFontSize(9);
         doc.setFont('helvetica', 'normal');
         doc.setTextColor(100);
-        doc.text(`Generated: ${new Date().toLocaleDateString('en-IN', { day:'2-digit', month:'short', year:'numeric' })}  ·  Total records: ${visible.length}`, 40, 52);
+        doc.text(`Generated: ${new Date().toLocaleDateString('en-IN', { day:'2-digit', month:'short', year:'numeric' })}  ·  Total records: ${total}`, 40, 52);
 
         autoTable(doc, {
             startY: 64,
@@ -268,9 +343,9 @@ export default function UdmRejectionDashboard() {
         doc.save(`UDM_Rejections_${new Date().toISOString().slice(0,10)}.pdf`);
     };
 
-    const totalPages = Math.max(1, Math.ceil(visible.length / pageSize));
-    const safePage   = Math.min(page, totalPages);
-    const pageRows   = visible.slice((safePage - 1) * pageSize, safePage * pageSize);
+    // Server-side paging: rows already hold just this page
+    const safePage = Math.min(page, totalPages);
+    const pageRows = rows;
 
     const handleSearch   = v => { setSearch(v); setPage(1); };
     const handlePageSize = v => { setPageSize(Number(v)); setPage(1); };
@@ -307,12 +382,92 @@ export default function UdmRejectionDashboard() {
 
             {/* ── Table panel ── */}
             <div className="udm-panel">
+                {personalMode ? (
+                    /* ── CM / SBU toolbar: scope tabs + exports / status + search ── */
+                    <div className="ucm-head">
+                        <div className="ucm-row">
+                            <div className="ucm-scope" role="tablist" aria-label="Complaint scope">
+                                <button type="button" role="tab" aria-selected={cmScope === 'mine'}
+                                    className={`ucm-scope-tab ${cmScope === 'mine' ? 'on' : ''}`}
+                                    onClick={() => { setCmScope('mine'); setPage(1); }}>
+                                    <i className={`fa-solid ${pendingWithMeMode ? 'fa-user-shield' : 'fa-user-check'}`} /> {pendingWithMeMode ? 'Pending with Me' : 'Assigned to Me'}
+                                    <span className="ucm-count">{assignedCount}</span>
+                                </button>
+                                <button type="button" role="tab" aria-selected={cmScope === 'all'}
+                                    className={`ucm-scope-tab ${cmScope === 'all' ? 'on' : ''}`}
+                                    onClick={() => { setCmScope('all'); setPage(1); }}>
+                                    <i className="fa-solid fa-layer-group" /> All Rejections
+                                    <span className="ucm-count">{allCount}</span>
+                                </button>
+                            </div>
+                            {(total > 0 || ccMode) && (
+                                <div className="ucm-exports">
+                                    {ccMode && (
+                                        <button className="btn-udm-sync" onClick={openSyncModal} disabled={syncing || loading}>
+                                            <i className="fa-solid fa-rotate" /> <span>Manual Sync</span>
+                                        </button>
+                                    )}
+                                    {total > 0 && (<>
+                                        <button className="btn-udm-pdf" onClick={downloadPdf}>
+                                            <i className="fa-solid fa-file-pdf" /> <span>PDF</span>
+                                        </button>
+                                        <button className="btn-udm-excel" onClick={exportExcel}>
+                                            <i className="fa-solid fa-file-excel" /> <span>Excel</span>
+                                        </button>
+                                    </>)}
+                                </div>
+                            )}
+                        </div>
+                        <div className="ucm-row ucm-row-filters">
+                            <div className="ucx-tabs" role="tablist" aria-label="Complaint status">
+                                <button type="button" role="tab" aria-selected={tab === 'pending'}
+                                    className={`ucx-tab ${tab === 'pending' ? 'is-active' : ''}`}
+                                    onClick={() => { setTab('pending'); setPage(1); }}>
+                                    <i className="fa-solid fa-hourglass-half" /> Pending <span className="ucx-tab-count">{pendingCount}</span>
+                                </button>
+                                <button type="button" role="tab" aria-selected={tab === 'closed'}
+                                    className={`ucx-tab ${tab === 'closed' ? 'is-active' : ''}`}
+                                    onClick={() => { setTab('closed'); setPage(1); }}>
+                                    <i className="fa-solid fa-circle-check" /> Closed <span className="ucx-tab-count">{closedCount}</span>
+                                </button>
+                            </div>
+                            <span className="ucm-showing">Showing <strong>{total}</strong> {tab === 'closed' ? 'closed' : 'pending'}</span>
+                            <div className="udm-gsearch-wrap ucm-search">
+                                <i className="fa-solid fa-magnifying-glass udm-gsearch-icon" />
+                                <input
+                                    type="text"
+                                    className="udm-gsearch"
+                                    placeholder="Search rejection no., PO, IC, vendor…"
+                                    value={search}
+                                    onChange={e => handleSearch(e.target.value)}
+                                />
+                                {search && (
+                                    <button className="udm-gsearch-clear" onClick={() => handleSearch('')}>
+                                        <i className="fa-solid fa-xmark" />
+                                    </button>
+                                )}
+                            </div>
+                        </div>
+                    </div>
+                ) : (
                 <div className="udm-panel-head">
                     <div className="udm-panel-head-left">
                         <div className="udm-panel-title">
                             <i className="fa-solid fa-table-list" style={{ color:'#94a3b8' }} />
                             Rejection Records
-                            <span className="udm-count-pill">{visible.length}</span>
+                            <span className="udm-count-pill">{total}</span>
+                        </div>
+                        <div className="ucx-tabs" role="tablist" aria-label="Complaint status">
+                            <button type="button" role="tab" aria-selected={tab === 'pending'}
+                                className={`ucx-tab ${tab === 'pending' ? 'is-active' : ''}`}
+                                onClick={() => { setTab('pending'); setPage(1); }}>
+                                <i className="fa-solid fa-hourglass-half" /> Pending <span className="ucx-tab-count">{pendingCount}</span>
+                            </button>
+                            <button type="button" role="tab" aria-selected={tab === 'closed'}
+                                className={`ucx-tab ${tab === 'closed' ? 'is-active' : ''}`}
+                                onClick={() => { setTab('closed'); setPage(1); }}>
+                                <i className="fa-solid fa-circle-check" /> Closed <span className="ucx-tab-count">{closedCount}</span>
+                            </button>
                         </div>
                         <div className="udm-gsearch-wrap">
                             <i className="fa-solid fa-magnifying-glass udm-gsearch-icon" />
@@ -336,7 +491,7 @@ export default function UdmRejectionDashboard() {
                         </button>
                         {/* Sync History button hidden for now; runs are still recorded in udm_sync_log.
                             To show it again, render a button that calls setShowHistory(true). */}
-                        {visible.length > 0 && (<>
+                        {total > 0 && (<>
                             <button className="btn-udm-pdf" onClick={downloadPdf}>
                                 <i className="fa-solid fa-file-pdf" /> Download PDF
                             </button>
@@ -346,6 +501,7 @@ export default function UdmRejectionDashboard() {
                         </>)}
                     </div>
                 </div>
+                )}
 
                 <div className="udm-scroll">
                     {loading ? (
@@ -356,11 +512,20 @@ export default function UdmRejectionDashboard() {
                             <h4>Loading records…</h4>
                             <p>Fetching rejection data from the database.</p>
                         </div>
-                    ) : visible.length === 0 ? (
+                    ) : total === 0 ? (
                         <div className="udm-state-box">
                             <div className="st-icon"><i className="fa-solid fa-inbox" /></div>
-                            <h4>No records found</h4>
-                            <p>No rejections have been synced yet. Enter a date and click <strong>Manual Sync</strong> to fetch from CRIS.</p>
+                            <h4>{search ? 'No matching records' : tab === 'closed' ? 'No closed complaints'
+                                : cmMode ? 'No complaints assigned to you' : pendingWithMeMode && cmScope === 'mine' ? 'Nothing pending with you' : 'No records found'}</h4>
+                            <p>
+                                {search ? 'Try a different search.'
+                                    : tab === 'closed' ? 'Complaints approved by the Railway Board or closed by the Complaint Cell will appear here.'
+                                    : cmMode ? 'Complaints sent to you by the Complaint Cell will appear here.'
+                                    : sbuMode ? 'Complaints with CAPA submitted by the CM will appear here for your review.'
+                                    : rbMode ? 'Complaints forwarded by the SBU Head will appear here for approval.'
+                                    : ccMode && cmScope === 'mine' ? 'New UDM complaints that are not yet forwarded to a CM will appear here.'
+                                    : <>No rejections have been synced yet. Enter a date and click <strong>Manual Sync</strong> to fetch from CRIS.</>}
+                            </p>
                         </div>
                     ) : (
                         <table className="udm-table">
@@ -372,6 +537,7 @@ export default function UdmRejectionDashboard() {
                                     <th>Firm</th>
                                     <th>Qty / Value</th>
                                     <th>IC No. / Date</th>
+                                    <th>Status</th>
                                     <th>Action</th>
                                 </tr>
                             </thead>
@@ -412,6 +578,12 @@ export default function UdmRejectionDashboard() {
                                                 : <div className="td-muted">—</div>}
                                             {r.icDate && <div className="td-sub">{fmtDate(r.icDate)}</div>}
                                         </td>
+                                        <td className="ucx-td-status">
+                                            <ComplaintStatusChip r={r} />
+                                            {personalMode && cmScope === 'all' && isMine(r) && (
+                                                <span className="ucx-mine-badge"><i className="fa-solid fa-user-check" /> {ccMode ? 'To forward' : reviewerMode ? 'Awaiting your review' : 'Assigned to you'}</span>
+                                            )}
+                                        </td>
                                         <td className="td-nowrap">
                                             <button className="btn-view" onClick={() => setDetail(r)}>
                                                 <i className="fa-solid fa-arrow-up-right-from-square" /> View
@@ -425,7 +597,7 @@ export default function UdmRejectionDashboard() {
                 </div>
 
                 {/* ── Pagination bar ── */}
-                {visible.length > 0 && (
+                {total > 0 && (
                     <div className="udm-pagination">
                         <div className="udm-pg-left">
                             <span className="udm-pg-label">Rows per page</span>
@@ -439,7 +611,7 @@ export default function UdmRejectionDashboard() {
                                 ))}
                             </select>
                             <span className="udm-pg-info">
-                                {(safePage - 1) * pageSize + 1}–{Math.min(safePage * pageSize, visible.length)} of {visible.length}
+                                {(safePage - 1) * pageSize + 1}–{Math.min(safePage * pageSize, total)} of {total}
                             </span>
                         </div>
                         <div className="udm-pg-right">
@@ -497,7 +669,29 @@ export default function UdmRejectionDashboard() {
                 )}
             </div>
 
-            {detail && <DetailModal r={detail} onClose={() => setDetail(null)} />}
+            {/* Portals: some dashboards wrap this screen in an animated (transformed) container, which would make
+                a position:fixed overlay size itself to that container instead of the window → bottom cut off. */}
+            {detail && createPortal(
+                <DetailModal
+                    r={detail}
+                    onClose={() => setDetail(null)}
+                    canAct={canAct}
+                    viewOnlyNote={cmMode && !isAssignedToMe(detail)
+                        ? 'View only — this complaint is not assigned to you.'
+                        : ''}
+                    cmAct={cmMode && isAssignedToMe(detail) && !isClosed(detail)}
+                    sbuAct={sbuMode && isPendingWithSbu(detail)}
+                    rbAct={rbMode && isPendingWithRb(detail)}
+                    onCmDone={applyActionResult}
+                    timelineKey={tlKey}
+                    onSend={() => setSendFor(detail)}
+                    onCloseComplaint={() => setCloseFor(detail)}
+                />,
+                document.body
+            )}
+            {sendFor && createPortal(<SendToCmModal r={sendFor} onCancel={() => setSendFor(null)} onDone={applyActionResult} />, document.body)}
+            {closeFor && createPortal(<CloseComplaintModal r={closeFor} onCancel={() => setCloseFor(null)} onDone={applyActionResult} />, document.body)}
+            {toast.node && createPortal(toast.node, document.body)}
 
             {showHistory && <SyncHistoryModal onClose={() => setShowHistory(false)} />}
 
@@ -598,154 +792,190 @@ const Fv = ({ l, v, cls }) => (
     </div>
 );
 
+/* ─── Download Merged PDF (rejection PDF + timeline + documents) ─── */
+function MergedPdfButton({ r }) {
+    const [busy, setBusy] = useState(false);
+    const [err, setErr] = useState('');
+    const download = async () => {
+        if (busy) return;
+        setBusy(true); setErr('');
+        try {
+            const { blob, fileName } = await downloadMergedComplaintPdf(r.id);
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = fileName;
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+            setTimeout(() => URL.revokeObjectURL(url), 60000);
+        } catch (e) {
+            setErr(e.message || 'Could not prepare the merged PDF.');
+        } finally {
+            setBusy(false);
+        }
+    };
+    return (
+        <button type="button" className="udm-dm-pdf udm-dm-merged" onClick={download} disabled={busy}
+            title={err || 'Download one PDF: rejection document + complaint timeline + uploaded documents'}>
+            {busy ? <span className="ucx-spinner" /> : <i className={`fa-solid ${err ? 'fa-circle-exclamation' : 'fa-file-zipper'}`} />}
+            <span>{busy ? 'Preparing…' : 'Merged PDF'}</span>
+        </button>
+    );
+}
+MergedPdfButton.propTypes = { r: PropTypes.object.isRequired };
+
 /* ─── Detail Modal ───────────────────────────────────────────── */
-function DetailModal({ r, onClose }) {
+function DetailModal({ r, onClose, canAct = false, viewOnlyNote = '', cmAct = false, sbuAct = false, rbAct = false, onCmDone, timelineKey = 0, onSend, onCloseComplaint }) {
     const pdfUrl   = r.pdfPath
         ? (r.pdfPath.startsWith('http') ? r.pdfPath : `${IREPS_BASE}${r.pdfPath}`)
         : null;
     const typeSlug = (r.typeOfRejection || '').toLowerCase();
     const qty      = r.rejectedQty ? `${Number(r.rejectedQty).toLocaleString('en-IN')} ${r.uom || ''}` : null;
+    const [tab, setTab] = useState('details');
 
     return (
         <div className="udm-overlay" onClick={e => e.target === e.currentTarget && onClose()}>
-            <div className="udm-modal">
+            <div className="udm-modal udm-dm" role="dialog" aria-modal="true" aria-labelledby="udm-dm-title">
 
-                {/* ── Dark banner header ── */}
-                <div className="udm-mhead">
-                    <div className="udm-mhead-top">
-                        <div className="udm-mhead-text">
-                            <h3>
-                                <i className="fa-solid fa-triangle-exclamation" style={{marginRight:8,color:'#f59e0b',fontSize:15}} />
-                                Consignee Rejection
-                            </h3>
-                            <div className="udm-chips">
-                                {r.rejectionNumber && <span className="udm-chip hl">{r.rejectionNumber}</span>}
+                {/* ── Light header ── */}
+                <div className="udm-dm-head">
+                    <div className="udm-dm-top">
+                        <span className="udm-dm-icon"><i className="fa-solid fa-triangle-exclamation" /></span>
+                        <div className="udm-dm-titles">
+                            <h3 id="udm-dm-title">Consignee Rejection</h3>
+                            <div className="udm-dm-chips">
+                                {r.rejectionNumber && <span className="udm-dm-chip mono">{r.rejectionNumber}</span>}
                                 {r.typeOfRejection && (
-                                    <span className={`udm-chip ${typeSlug === 'warranty' ? 'warr' : typeSlug === 'initial' ? 'init' : ''}`}>
+                                    <span className={`udm-dm-chip ${typeSlug === 'warranty' ? 'red' : typeSlug === 'initial' ? 'amber' : ''}`}>
                                         {r.typeOfRejection}
                                     </span>
                                 )}
-                                {r.source && <span className="udm-chip">{r.source}</span>}
-                                {r.status && <span className="udm-chip">{r.status === 'RJ' ? '● Rejected' : r.status}</span>}
+                                {r.source && <span className="udm-dm-chip">{r.source}</span>}
+                                {r.status && <span className="udm-dm-chip red"><i className="fa-solid fa-circle" style={{ fontSize: 6 }} /> {r.status === 'RJ' ? 'Rejected' : r.status}</span>}
                             </div>
                         </div>
-                        <button className="btn-mclose" onClick={onClose}><i className="fa-solid fa-xmark" /></button>
+                        <div className="udm-dm-tools">
+                            {pdfUrl && (
+                                <a href={pdfUrl} target="_blank" rel="noopener noreferrer" className="udm-dm-pdf" title="View Rejection Document (PDF)">
+                                    <i className="fa-solid fa-file-pdf" /><span>PDF</span>
+                                </a>
+                            )}
+                            <MergedPdfButton r={r} />
+                            <button type="button" className="udm-dm-x" onClick={onClose} aria-label="Close"><i className="fa-solid fa-xmark" /></button>
+                        </div>
                     </div>
 
-                    {/* Hero stats */}
-                    <div className="udm-mhero">
-                        <div className="udm-mhero-item">
-                            <div className="udm-mhero-label">Rejected Quantity</div>
-                            <div className="udm-mhero-value accent">{qty || '—'}</div>
-                        </div>
-                        <div className="udm-mhero-item">
-                            <div className="udm-mhero-label">Rejection Value</div>
-                            <div className="udm-mhero-value warn">{fmtVal(r.rejectionValue) || '—'}</div>
-                        </div>
-                        <div className="udm-mhero-item">
-                            <div className="udm-mhero-label">Rejection Date</div>
-                            <div className="udm-mhero-value">{fmtDate(r.rejectionDate) || '—'}</div>
-                        </div>
-                        <div className="udm-mhero-item">
-                            <div className="udm-mhero-label">IC Number</div>
-                            <div className="udm-mhero-value">{r.icNumber || '—'}</div>
-                        </div>
+                    {/* KPI tiles */}
+                    <div className="udm-dm-kpis">
+                        <div className="udm-dm-kpi"><span>Rejected Qty</span><strong className="blue">{qty || '—'}</strong></div>
+                        <div className="udm-dm-kpi"><span>Rejection Value</span><strong className="green">{fmtVal(r.rejectionValue) || '—'}</strong></div>
+                        <div className="udm-dm-kpi"><span>Rejection Date</span><strong>{fmtDate(r.rejectionDate) || '—'}</strong></div>
+                        <div className="udm-dm-kpi"><span>IC Number</span><strong title={r.icNumber}>{r.icNumber || '—'}</strong></div>
+                    </div>
+
+                    {/* Tabs */}
+                    <div className="udm-dm-tabs" role="tablist">
+                        <button type="button" role="tab" aria-selected={tab === 'details'}
+                            className={`udm-dm-tab ${tab === 'details' ? 'on' : ''}`} onClick={() => setTab('details')}>
+                            <i className="fa-solid fa-list-ul" /> Details
+                        </button>
+                        <button type="button" role="tab" aria-selected={tab === 'timeline'}
+                            className={`udm-dm-tab ${tab === 'timeline' ? 'on' : ''}`} onClick={() => setTab('timeline')}>
+                            <i className="fa-solid fa-timeline" /> Complaint Timeline
+                        </button>
+                        <button type="button" role="tab" aria-selected={tab === 'documents'}
+                            className={`udm-dm-tab ${tab === 'documents' ? 'on' : ''}`} onClick={() => setTab('documents')}>
+                            <i className="fa-solid fa-folder-open" /> Documents
+                        </button>
                     </div>
                 </div>
 
-                {/* ── Body ── */}
-                <div className="udm-mbody">
+                {/* ── Scrollable body ── */}
+                <div className="udm-dm-body">
+                    {tab === 'details' ? (
+                        <>
+                            {r.reasonForRejection && (
+                                <div className="udm-dm-reason">
+                                    <i className="fa-solid fa-circle-exclamation" />
+                                    <div>
+                                        <span>Reason for Rejection</span>
+                                        <p>{r.reasonForRejection}</p>
+                                    </div>
+                                </div>
+                            )}
 
-                    {/* PDF link */}
-                    {pdfUrl && (
-                        <div className="udm-maction">
-                            <a href={pdfUrl} target="_blank" rel="noopener noreferrer" className="btn-pdf">
-                                <i className="fa-solid fa-file-pdf" /> View Rejection Document (PDF)
-                            </a>
+                            <div className="udm-dm-grid2">
+                                <div className="udm-msect">
+                                    <div className="udm-msect-title"><i className="fa-solid fa-circle-info" /> Rejection</div>
+                                    <div className="udm-fg">
+                                        <Fv l="Inspection Agency"   v={r.inspectionAgency} />
+                                        <Fv l="Consignee"           v={r.consignee} />
+                                        <Fv l="Material Recd. Date" v={fmtDate(r.materialReceivedDate)} />
+                                    </div>
+                                </div>
+                                <div className="udm-msect">
+                                    <div className="udm-msect-title"><i className="fa-solid fa-industry" /> Vendor / Supplier</div>
+                                    <div className="udm-fg">
+                                        <Fv l="Vendor Code" v={cleanVCode(r.vendorCode)} />
+                                        <Fv l="Firm Name"   v={r.vendorName} />
+                                        <Fv l="UOM"         v={r.uom} />
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div className="udm-msect">
+                                <div className="udm-msect-title"><i className="fa-solid fa-file-contract" /> PO &amp; Inspection</div>
+                                <div className="udm-fg">
+                                    <Fv l="PO Number"     v={r.poNumber} />
+                                    <Fv l="PO Date"       v={fmtDate(r.poDate)} />
+                                    <Fv l="PO Serial No." v={r.poSerialNumber} />
+                                    <Fv l="PL Number"     v={r.plNumber} />
+                                    <Fv l="IC Date"       v={fmtDate(r.icDate)} />
+                                </div>
+                                {r.itemDescription && (
+                                    <details className="udm-dm-desc">
+                                        <summary>Item Description</summary>
+                                        <p>{r.itemDescription}</p>
+                                    </details>
+                                )}
+                            </div>
+                        </>
+                    ) : tab === 'timeline' ? (
+                        <div className="udm-msect udm-dm-tl">
+                            <ComplaintTimeline rejectionId={r.id} refreshKey={timelineKey} receivedDate={r.fetchedDate} />
+                        </div>
+                    ) : (
+                        <div className="udm-msect udm-dm-tl">
+                            <ComplaintDocuments rejectionId={r.id} refreshKey={timelineKey} />
                         </div>
                     )}
-
-                    {/* Rejection info */}
-                    <div className="udm-msect">
-                        <div className="udm-msect-title">
-                            <i className="fa-solid fa-circle-exclamation" /> Rejection Details
-                        </div>
-                        <div className="udm-fg">
-                            <Fv l="Rejection No."        v={r.rejectionNumber} />
-                            <Fv l="Type"                 v={r.typeOfRejection} />
-                            <Fv l="Rejection Date"       v={fmtDate(r.rejectionDate)} />
-                            <Fv l="Rejected Quantity"    v={qty} cls="accent" />
-                            <Fv l="Rejection Value"      v={fmtVal(r.rejectionValue)} cls="money" />
-                            <Fv l="Inspection Agency"    v={r.inspectionAgency} />
-                            <Fv l="Status"               v={r.status === 'RJ' ? 'Rejected' : r.status} cls="badge-rj" />
-                            <Fv l="Source"               v={r.source} />
-                        </div>
-                        {/* Reason — full width */}
-                        {r.reasonForRejection && (
-                            <div style={{ background:'#fff7ed', borderTop:'1px solid #fed7aa', padding:'10px 14px' }}>
-                                <div style={{ fontSize:9, fontWeight:800, textTransform:'uppercase', letterSpacing:'0.08em', color:'#f59e0b', marginBottom:4 }}>
-                                    Reason for Rejection
-                                </div>
-                                <div style={{ fontSize:13, fontWeight:600, color:'#9a3412', lineHeight:1.5 }}>
-                                    {r.reasonForRejection}
-                                </div>
-                            </div>
-                        )}
-                    </div>
-
-                    {/* Consignee */}
-                    <div className="udm-msect">
-                        <div className="udm-msect-title">
-                            <i className="fa-solid fa-location-dot" /> Consignee &amp; Delivery
-                        </div>
-                        <div className="udm-fg">
-                            <Fv l="Consignee"            v={r.consignee} />
-                            <Fv l="Material Recd. Date"  v={fmtDate(r.materialReceivedDate)} />
-                        </div>
-                    </div>
-
-                    {/* PO & Inspection */}
-                    <div className="udm-msect">
-                        <div className="udm-msect-title">
-                            <i className="fa-solid fa-file-contract" /> PO &amp; Inspection
-                        </div>
-                        <div className="udm-fg">
-                            <Fv l="PO Number"       v={r.poNumber} />
-                            <Fv l="PO Date"         v={fmtDate(r.poDate)} />
-                            <Fv l="PO Serial No."   v={r.poSerialNumber} />
-                            <Fv l="PL Number"       v={r.plNumber} />
-                            <Fv l="IC Number"       v={r.icNumber} />
-                            <Fv l="IC Date"         v={fmtDate(r.icDate)} />
-                        </div>
-                        {r.itemDescription && (
-                            <div style={{ background:'#f8fafc', borderTop:'1px solid #f1f5f9', padding:'10px 14px' }}>
-                                <div style={{ fontSize:9, fontWeight:800, textTransform:'uppercase', letterSpacing:'0.08em', color:'#94a3b8', marginBottom:4 }}>
-                                    Item Description
-                                </div>
-                                <div style={{ fontSize:12.5, color:'#334155', lineHeight:1.6 }}>{r.itemDescription}</div>
-                            </div>
-                        )}
-                    </div>
-
-                    {/* Vendor */}
-                    <div className="udm-msect">
-                        <div className="udm-msect-title">
-                            <i className="fa-solid fa-industry" /> Vendor / Supplier
-                        </div>
-                        <div className="udm-fg">
-                            <Fv l="Vendor Code" v={cleanVCode(r.vendorCode)} />
-                            <Fv l="Firm Name"   v={r.vendorName} />
-                            <Fv l="UOM"         v={r.uom} />
-                        </div>
-                    </div>
-
                 </div>
+
+                {/* Complaint status + actions (Send to CM / Close for Complaint Cell) */}
+                <ComplaintActionFooter r={r} canAct={canAct} viewOnlyNote={viewOnlyNote} onSend={onSend} onClose={onCloseComplaint}
+                    extraActions={cmAct ? <CmActionButton r={r} refreshKey={timelineKey} onDone={onCmDone} />
+                        : sbuAct ? <SbuReviewButton r={r} refreshKey={timelineKey} onDone={onCmDone} />
+                        : rbAct ? <RbReviewButton r={r} refreshKey={timelineKey} onDone={onCmDone} /> : null} />
             </div>
         </div>
     );
 }
 
-DetailModal.propTypes = { r: PropTypes.object.isRequired, onClose: PropTypes.func.isRequired };
+DetailModal.propTypes = {
+    r: PropTypes.object.isRequired,
+    onClose: PropTypes.func.isRequired,
+    canAct: PropTypes.bool,
+    viewOnlyNote: PropTypes.string,
+    cmAct: PropTypes.bool,
+    sbuAct: PropTypes.bool,
+    rbAct: PropTypes.bool,
+    onCmDone: PropTypes.func,
+    timelineKey: PropTypes.number,
+    onSend: PropTypes.func,
+    onCloseComplaint: PropTypes.func,
+};
+UdmRejectionDashboard.propTypes = { mode: PropTypes.oneOf(['board', 'complaintCell', 'cm', 'sbu', 'rb']) };
 F.propTypes          = { l: PropTypes.string.isRequired, v: PropTypes.any };
 Dropdown.propTypes   = {
     label: PropTypes.string, value: PropTypes.string,

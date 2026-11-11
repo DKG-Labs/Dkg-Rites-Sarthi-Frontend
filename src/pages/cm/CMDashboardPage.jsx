@@ -3560,7 +3560,12 @@ export const CMDashboardPage = ({ isEmbedded = false, activeTabFromProps = null,
         )}
 
         {/* UDM / IMMS Consignee Rejections */}
-        {activeTab === 'UDM Rejections' && <UdmRejectionDashboard />}
+        {activeTab === 'UDM Rejections' && (
+          <UdmRejectionDashboard
+            mode={['CM', 'Control Manager', 'Controlling Manager'].includes(localStorage.getItem('roleName') || '') ? 'cm'
+              : (localStorage.getItem('roleName') || '').trim().toLowerCase() === 'sbu head' ? 'sbu' : 'board'}
+          />
+        )}
 
         {/* 8. All Reports view */}
         {activeTab === 'All Reports' && (

@@ -54,6 +54,7 @@ import { CMDashboardWrapper } from './pages/wrappers/CMWrappers';
 import { CallDeskDashboardWrapper } from './pages/wrappers/CallDeskWrapper';
 import { FinanceDashboardWrapper } from './pages/wrappers/FinanceWrapper';
 import { RailwayBoardDashboardWrapper } from './pages/wrappers/RailwayBoardWrapper';
+import ComplaintCellDashboard from './pages/ComplaintCellDashboard';
 import { AdminDashboardWrapper } from './pages/wrappers/AdminDashboardWrapper';
 import { SmsDashboardWrapper } from './pages/wrappers/SmsWrapper';
 import AnnexurePage from './pages/AnnexurePage';
@@ -281,8 +282,17 @@ const App = () => {
             <Route
               path={ROUTES.RAILWAY_BOARD_DASHBOARD}
               element={
-                <ProtectedRoute allowedRoles={['RAILWAY_BOARD', 'Rites Admin', 'Rites ADMin', 'ZONAL RAILWAY', 'Zonal Railway']}>
+                <ProtectedRoute allowedRoles={['RAILWAY_BOARD', 'Railway Board', 'Rites Admin', 'Rites ADMin', 'ZONAL RAILWAY', 'Zonal Railway']}>
                   <RailwayBoardDashboardWrapper />
+                </ProtectedRoute>
+              }
+            />
+
+            <Route
+              path={ROUTES.COMPLAINT_CELL_DASHBOARD}
+              element={
+                <ProtectedRoute allowedRoles={['Complaint Cell']}>
+                  <ComplaintCellDashboard />
                 </ProtectedRoute>
               }
             />

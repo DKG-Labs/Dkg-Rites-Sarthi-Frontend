@@ -94,6 +94,11 @@ const PortalHome = ({
   const hasProcessAccess = roleHasProcess || roleLower === 'railpad ie' || (!roleIsSpecific && isProcessIeMapped);
   const hasMainAccess = roleHasMain || roleLower === 'railpad ie' || (!roleIsSpecific && isMainIeMapped);
 
+  // Process-only IE has no Plant Setup tab — fall back to Pending if it was remembered
+  useEffect(() => {
+    if (!hasMainAccess && selectedMainTab === 'plant') setSelectedMainTab('pending');
+  }, [hasMainAccess, selectedMainTab]);
+
   const dutyPlantId = hasMainAccess ? null : (currentShift?.unit || null);
   const [showShiftForm, setShowShiftForm] = useState(false);
   const [showPlantDeclaration, setShowPlantDeclaration] = useState(false);
@@ -657,7 +662,7 @@ const PortalHome = ({
       {/* ============================================================ */}
       {/* CASE 1: MAIN IE & DUAL-ROLE (Direct 4 Operational Selection Cards + Table) */}
       {/* ============================================================ */}
-      {hasMainAccess ? (
+      {(hasMainAccess || hasProcessAccess) ? (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
           
           {/* Dual-Role Process Duty Status Banner */}
@@ -871,7 +876,8 @@ const PortalHome = ({
                 </div>
               </div>
 
-              {/* Card 5: Plant Setup & Declaration */}
+              {/* Card 5: Plant Setup & Declaration (Main IE only) */}
+              {hasMainAccess && (
               <div
                 className={`ph-card ${selectedMainTab === 'plant' ? 'ph-card--active-plant' : ''}`}
                 onClick={() => setSelectedMainTab('plant')}
@@ -893,6 +899,7 @@ const PortalHome = ({
                   </div>
                 </div>
               </div>
+              )}
 
               {/* Card 6: Rejection & Disposal */}
               <div
@@ -920,7 +927,7 @@ const PortalHome = ({
             </div>
           ) : (
             <div className="ph-main-embedded-panel">
-              {selectedMainTab === 'plant' ? (
+              {selectedMainTab === 'plant' && hasMainAccess ? (
                 <div style={{ padding: '24px' }}>
                   <PlantDeclarationDashboard dutyPlantId={dutyPlantId} />
                 </div>

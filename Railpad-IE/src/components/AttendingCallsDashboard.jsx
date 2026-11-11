@@ -318,13 +318,18 @@ const AttendingCallsDashboard = ({
       const isMainIeUser = roleStr.includes('main ie') || mappedPlants.length > 0;
       const queryPlantId = isMainIeUser ? '' : dutyPlantId;
 
-      const [pendingDataResponse, completedDataResponse, closedDataResponse] = await Promise.all([
+      // Process IE also handles calls (all types) — include pending items sitting with the Rail Process IE role
+      const isProcessIeUser = roleStr.includes('process ie');
+      const [pendingDataResponse, completedDataResponse, closedDataResponse, processPendingResponse] = await Promise.all([
         fetchPendingWorkflowTransitions('Rail Main IE', queryPlantId, 2).catch(() => []),
         fetchCompletedCalls(queryPlantId, 2).catch(() => []),
-        fetchClosedCalls(queryPlantId, uId).catch(() => [])
+        fetchClosedCalls(queryPlantId, uId).catch(() => []),
+        isProcessIeUser
+          ? fetchPendingWorkflowTransitions('Rail Process IE', queryPlantId, 2).catch(() => [])
+          : Promise.resolve([])
       ]);
 
-      const pendingData = pendingDataResponse || [];
+      const pendingData = [...(pendingDataResponse || []), ...(processPendingResponse || [])];
       const completedDataAll = completedDataResponse || [];
       const closedDataAll = closedDataResponse || [];
 

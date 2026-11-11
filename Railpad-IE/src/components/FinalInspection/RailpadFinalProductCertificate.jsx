@@ -1279,28 +1279,7 @@ export default function RailpadFinalProductCertificate({ call = {}, onBack, isVi
                 📥 Export PDF
               </button>
 
-              {/* Daily Report (Annexure-A) Button for Process Calls */}
-              {isProcessCall && (
-                <button
-                  onClick={() => setShowDailyReportModal(true)}
-                  disabled={isESigning}
-                  style={{
-                    padding: '8px 16px',
-                    border: '1px solid #0d9488',
-                    borderRadius: '6px',
-                    background: '#0d9488',
-                    color: 'white',
-                    fontWeight: '600',
-                    cursor: 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '6px'
-                  }}
-                  title="View Process Inspection Order Activity Report (Annexure-A)"
-                >
-                  📊 Daily Report (Annexure-A)
-                </button>
-              )}
+              {/* Daily Report (Annexure-A) button removed from the IC page; the report is still available from Portal Home */}
             </>
           ) : (
             <>

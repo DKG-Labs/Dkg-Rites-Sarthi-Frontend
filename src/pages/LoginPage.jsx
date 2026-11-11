@@ -411,6 +411,10 @@ const LoginPage = () => {
           label = 'Railway Board Dashboard';
           description = 'Access Railway Board Dashboard';
           icon = '🛤️';
+        } else if (r === 'Complaint Cell') {
+          label = 'Complaint Cell Dashboard';
+          description = 'UDM / IMMS consignee rejections — forward to CM or close';
+          icon = '📮';
         }
         options.push({
           id: r,

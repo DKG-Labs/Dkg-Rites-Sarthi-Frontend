@@ -3562,7 +3562,8 @@ export const CMDashboardPage = ({ isEmbedded = false, activeTabFromProps = null,
         {/* UDM / IMMS Consignee Rejections */}
         {activeTab === 'UDM Rejections' && (
           <UdmRejectionDashboard
-            mode={['CM', 'Control Manager', 'Controlling Manager'].includes(localStorage.getItem('roleName') || '') ? 'cm' : 'board'}
+            mode={['CM', 'Control Manager', 'Controlling Manager'].includes(localStorage.getItem('roleName') || '') ? 'cm'
+              : (localStorage.getItem('roleName') || '').trim().toLowerCase() === 'sbu head' ? 'sbu' : 'board'}
           />
         )}
 

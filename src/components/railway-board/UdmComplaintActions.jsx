@@ -16,6 +16,9 @@ export const COMPLAINT_STATUS = {
     AUDIT_COMPLETED:             { label: 'Audit Completed',             tone: 'blue',  icon: 'fa-clipboard-check' },
     RCA_SUBMITTED:               { label: 'RCA Submitted',               tone: 'blue',  icon: 'fa-sitemap' },
     CAPA_SUBMITTED:              { label: 'Pending with SBU Head',       tone: 'amber', icon: 'fa-user-shield' },
+    RETURNED_TO_CM:              { label: 'Returned to CM (Rework)',     tone: 'red',   icon: 'fa-rotate-left' },
+    SENT_TO_RAILWAY_BOARD:       { label: 'Pending with Railway Board',  tone: 'amber', icon: 'fa-landmark' },
+    RETURNED_TO_SBU:             { label: 'Returned by Railway Board',   tone: 'red',   icon: 'fa-rotate-left' },
     CLOSED:                      { label: 'Closed',                      tone: 'green', icon: 'fa-circle-check' },
 };
 
@@ -126,6 +129,8 @@ const ACTION_LABEL = {
     CM_COMPLETE_AUDIT: 'Audit Completed',
     CM_SUBMIT_RCA: 'RCA Submitted',
     CM_SUBMIT_CAPA: 'CAPA Submitted · Sent to SBU Head',
+    SBU_FORWARD_TO_RB: 'SBU Head · Forwarded to Railway Board',
+    SBU_RETURN_TO_CM: 'SBU Head · Returned to CM for Rework',
 };
 const ACTION_META = {
     UDM_COMPLAINT_RECEIVED: { icon: 'fa-inbox', tone: 'amber' },
@@ -137,6 +142,8 @@ const ACTION_META = {
     CM_COMPLETE_AUDIT: { icon: 'fa-clipboard-check', tone: 'blue' },
     CM_SUBMIT_RCA: { icon: 'fa-sitemap', tone: 'blue' },
     CM_SUBMIT_CAPA: { icon: 'fa-shield-halved', tone: 'amber' },
+    SBU_FORWARD_TO_RB: { icon: 'fa-landmark', tone: 'green' },
+    SBU_RETURN_TO_CM: { icon: 'fa-rotate-left', tone: 'red' },
 };
 const fmtDT = (s) => {
     if (!s) return '';

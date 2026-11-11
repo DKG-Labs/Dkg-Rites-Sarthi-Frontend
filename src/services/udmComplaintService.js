@@ -83,6 +83,20 @@ export const submitCmRca = (rejectionId, payload, file) =>
 export const submitCmCapa = (rejectionId, payload, file) =>
     postMultipart(`${BASE}/${rejectionId}/cm/capa`, payload, file);
 
+/* ─── Phase 3a: SBU Head review ───────────────────────────────────── */
+
+/** { complaintStatus, canAct, currentRound, returnedRemarks } for the logged-in SBU Head. */
+export const getSbuContext = (rejectionId) =>
+    fetch(`${BASE}/${rejectionId}/sbu-context`, { headers: getAuthHeaders() }).then(handleResponse).then(unwrap);
+
+/** SBU Head review: { decision: 'FORWARD'|'RETURN', remarks } (remarks mandatory for RETURN). */
+export const submitSbuReview = (rejectionId, { decision, remarks }) =>
+    fetch(`${BASE}/${rejectionId}/sbu/review`, {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ decision, remarks }),
+    }).then(handleResponse).then(unwrap);
+
 /** Submitted CM stage details. */
 export const getComplaintStages = (rejectionId) =>
     fetch(`${BASE}/${rejectionId}/stages`, { headers: getAuthHeaders() }).then(handleResponse).then(unwrap);

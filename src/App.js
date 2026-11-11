@@ -282,7 +282,7 @@ const App = () => {
             <Route
               path={ROUTES.RAILWAY_BOARD_DASHBOARD}
               element={
-                <ProtectedRoute allowedRoles={['RAILWAY_BOARD', 'Rites Admin', 'Rites ADMin', 'ZONAL RAILWAY', 'Zonal Railway']}>
+                <ProtectedRoute allowedRoles={['RAILWAY_BOARD', 'Railway Board', 'Rites Admin', 'Rites ADMin', 'ZONAL RAILWAY', 'Zonal Railway']}>
                   <RailwayBoardDashboardWrapper />
                 </ProtectedRoute>
               }

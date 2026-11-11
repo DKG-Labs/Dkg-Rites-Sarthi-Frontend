@@ -117,14 +117,52 @@
 .ucm-seg-btn.on { border-color: #16a34a; background: #f0fdf4; color: #15803d; box-shadow: 0 0 0 3px rgba(22, 163, 74, .12); }
 .ucm-seg-sm .ucm-seg-btn { min-height: 40px; }
 
-/* Multi-select chips */
-.ucm-chips { display: flex; flex-wrap: wrap; gap: 6px; }
-.ucm-chip {
-  display: inline-flex; align-items: center; gap: 6px; min-height: 34px; padding: 0 12px; border-radius: 999px;
-  border: 1px solid #e2e8f0; background: #fff; color: #475569; font-size: 12.5px; font-weight: 600; cursor: pointer; transition: all .15s;
+/* Section card (CAPA etc.) */
+.ucm-card {
+  margin-bottom: 14px; padding: 14px; border-radius: 14px; background: #fff; border: 1px solid #e2e8f0;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, .04); transition: border-color .2s;
 }
-.ucm-chip:hover { border-color: #cbd5e1; }
-.ucm-chip.on { border-color: #86efac; background: #dcfce7; color: #15803d; }
+.ucm-card.is-set { border-color: #bbf7d0; }
+.ucm-card-head { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
+.ucm-card-icon {
+  width: 32px; height: 32px; flex-shrink: 0; border-radius: 10px; display: inline-flex; align-items: center; justify-content: center;
+  font-size: 13px; color: #15803d; background: #f0fdf4; border: 1px solid #dcfce7;
+}
+.ucm-card-title { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+.ucm-card-title strong { font-size: 13.5px; font-weight: 700; color: #0f172a; }
+.ucm-card-title small { font-size: 11.5px; color: #94a3b8; }
+.ucm-card-count { flex-shrink: 0; padding: 3px 9px; border-radius: 999px; font-size: 11px; font-weight: 700; color: #94a3b8; background: #f1f5f9; }
+.ucm-card-count.on { color: #15803d; background: #dcfce7; }
+
+/* Multi-select chips */
+.ucm-chips { display: flex; flex-wrap: wrap; gap: 7px; }
+.ucm-chip {
+  display: inline-flex; align-items: center; gap: 6px; min-height: 32px; padding: 0 12px 0 10px; border-radius: 10px;
+  border: 1px solid #e2e8f0; background: #f8fafc; color: #334155; font-size: 12.5px; font-weight: 600; cursor: pointer;
+  transition: background .15s, border-color .15s, color .15s;
+}
+.ucm-chip i { font-size: 10px; color: #94a3b8; }
+.ucm-chip:hover { border-color: #cbd5e1; background: #fff; }
+.ucm-chip.on { border-color: #86efac; background: #dcfce7; color: #166534; }
+.ucm-chip.on i { color: #16a34a; }
+.ucm-chip.nil { border-style: dashed; }
+.ucm-chip:focus-visible { outline: none; box-shadow: 0 0 0 3px rgba(22, 163, 74, .2); }
+
+/* Yes / No rows */
+.ucm-yn-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 4px 0; }
+.ucm-yn-row + .ucm-yn-row { margin-top: 8px; padding-top: 12px; border-top: 1px dashed #e2e8f0; }
+.ucm-yn-label { display: inline-flex; align-items: center; gap: 8px; font-size: 13.5px; font-weight: 700; color: #0f172a; }
+.ucm-yn-label i { color: #16a34a; font-size: 12px; }
+.ucm-yn { display: inline-flex; gap: 4px; padding: 3px; border-radius: 11px; background: #f1f5f9; border: 1px solid #e2e8f0; }
+.ucm-yn-btn {
+  display: inline-flex; align-items: center; gap: 6px; height: 32px; padding: 0 14px; border: none; border-radius: 8px;
+  background: transparent; color: #64748b; font-size: 12.5px; font-weight: 700; cursor: pointer; transition: all .15s;
+}
+.ucm-yn-btn i { font-size: 10px; }
+.ucm-yn-btn:hover { color: #0f172a; }
+.ucm-yn-btn.yes.on { background: #fff; color: #15803d; box-shadow: 0 2px 6px -2px rgba(22, 163, 74, .45); }
+.ucm-yn-btn.no.on { background: #fff; color: #b91c1c; box-shadow: 0 2px 6px -2px rgba(220, 38, 38, .4); }
+.ucm-yn-btn:focus-visible { outline: none; box-shadow: 0 0 0 3px rgba(22, 163, 74, .2); }
 
 /* PDF picker */
 .ucm-drop {
@@ -143,6 +181,26 @@
 .ucm-note { display: flex; align-items: center; gap: 8px; margin-bottom: 14px; padding: 9px 12px; border-radius: 10px; font-size: 12.5px; color: #1e40af; background: #eff6ff; border: 1px solid #bfdbfe; }
 .ucm-spin-white { border-color: rgba(255, 255, 255, .45); border-top-color: #fff; }
 .ucm-act-loading { display: inline-flex; align-items: center; gap: 8px; font-size: 12.5px; color: #64748b; }
+
+/* SBU Head review */
+.usb-icon { color: #b45309; background: linear-gradient(180deg, #fffbeb, #fef3c7); border-color: #fde68a; }
+.usb-returned, .ucm-returned {
+  display: flex; gap: 10px; margin-bottom: 14px; padding: 10px 14px; border-radius: 12px;
+  background: #fef2f2; border: 1px solid #fecaca; color: #991b1b;
+}
+.usb-returned > i, .ucm-returned > i { margin-top: 2px; }
+.usb-returned div, .ucm-returned div { display: flex; flex-direction: column; gap: 2px; font-size: 12.5px; }
+.usb-returned strong, .ucm-returned strong { font-size: 12px; text-transform: uppercase; letter-spacing: .04em; }
+.usb-sum { margin: 0; display: flex; flex-direction: column; }
+.usb-row { display: grid; grid-template-columns: 150px 1fr; gap: 10px; padding: 7px 0; border-top: 1px dashed #eef2f7; }
+.usb-row:first-child { border-top: none; }
+.usb-row dt { font-size: 11px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: #94a3b8; padding-top: 2px; }
+.usb-row dd { margin: 0; font-size: 13px; color: #0f172a; word-break: break-word; }
+.usb-na { color: #cbd5e1; }
+.usb-chips { display: flex; flex-wrap: wrap; gap: 5px; }
+.usb-chip { padding: 2px 8px; border-radius: 8px; font-size: 11.5px; font-weight: 600; color: #166534; background: #f0fdf4; border: 1px solid #bbf7d0; }
+.usb-docs-hint { margin-top: 10px; padding-top: 10px; border-top: 1px solid #f1f5f9; font-size: 12px; color: #64748b; display: flex; align-items: center; gap: 7px; }
+.ucm-seg-btn.usb-return.on { border-color: #dc2626; background: #fef2f2; color: #b91c1c; box-shadow: 0 0 0 3px rgba(220, 38, 38, .12); }
 
 /* Documents list */
 .ucm-docs { display: flex; flex-direction: column; gap: 8px; }
@@ -163,6 +221,12 @@
   .ucm-grid, .ucm-seg { grid-template-columns: 1fr; }
   .ucm-seg-sm { grid-template-columns: 1fr 1fr; }
   .ucm-input-date { max-width: none; }
+  .ucm-card { padding: 12px; }
+  .ucm-card-title small { display: none; }
+  .usb-row { grid-template-columns: 1fr; gap: 2px; }
+  .ucm-yn-row { flex-wrap: wrap; }
+  .ucm-yn { width: 100%; }
+  .ucm-yn-btn { flex: 1; justify-content: center; }
   .ucm-team-type { display: none; }
   .ucm-team-list { max-height: 200px; }
   .ucm-doc { flex-wrap: wrap; }

@@ -159,6 +159,15 @@ function CmStageModal({ r, ctx, onCancel, onDone }) {
                 </div>
 
                 <div className="ucx-dialog-body ucm-body">
+                    {ctx.returnedRemarks && (
+                        <div className="ucm-returned">
+                            <i className="fa-solid fa-rotate-left" />
+                            <div>
+                                <strong>Returned by SBU Head · Round {ctx.currentRound || 2}</strong>
+                                <span>{ctx.returnedRemarks}</span>
+                            </div>
+                        </div>
+                    )}
                     {stage === 'DECISION' && (
                         <>
                             <div className="ucm-flags">
@@ -227,11 +236,13 @@ function CmStageModal({ r, ctx, onCancel, onDone }) {
 
                     {stage === 'CAPA' && (
                         <>
-                            <Field label="Corrective action" req><ChipMulti options={dd.CORRECTIVE_ACTION} value={f.correctiveActions} onChange={set('correctiveActions')} /></Field>
-                            <Field label="Preventive action" req><ChipMulti options={dd.PREVENTIVE_ACTION} value={f.preventiveActions} onChange={set('preventiveActions')} /></Field>
-                            <div className="ucm-grid">
-                                <Field label="Vendor compliance" req><YesNo value={f.vendorCompliance} onChange={set('vendorCompliance')} /></Field>
-                                <Field label="CAPA implemented" req><YesNo value={f.capaImplemented} onChange={set('capaImplemented')} /></Field>
+                            <ChipCard icon="fa-screwdriver-wrench" title="Corrective action" options={dd.CORRECTIVE_ACTION}
+                                value={f.correctiveActions} onChange={set('correctiveActions')} />
+                            <ChipCard icon="fa-shield-halved" title="Preventive action" options={dd.PREVENTIVE_ACTION}
+                                value={f.preventiveActions} onChange={set('preventiveActions')} />
+                            <div className="ucm-card">
+                                <YesNoRow icon="fa-industry" label="Vendor compliance" value={f.vendorCompliance} onChange={set('vendorCompliance')} />
+                                <YesNoRow icon="fa-circle-check" label="CAPA implemented" value={f.capaImplemented} onChange={set('capaImplemented')} />
                             </div>
                             <PdfPicker label="Evidence" file={file} onChange={setFile} />
                             <div className="ucm-note"><i className="fa-solid fa-circle-info" /> After CAPA the complaint goes to the SBU Head for review.</div>
@@ -280,18 +291,6 @@ function Check({ label, checked, onChange, auto }) {
     );
 }
 Check.propTypes = { label: PropTypes.string, checked: PropTypes.bool, onChange: PropTypes.func, auto: PropTypes.bool };
-
-function YesNo({ value, onChange }) {
-    return (
-        <div className="ucm-seg ucm-seg-sm" role="radiogroup">
-            {[['Y', 'Yes'], ['N', 'No']].map(([v, l]) => (
-                <button key={v} type="button" role="radio" aria-checked={value === v}
-                    className={`ucm-seg-btn ${value === v ? 'on' : ''}`} onClick={() => onChange(v)}>{l}</button>
-            ))}
-        </div>
-    );
-}
-YesNo.propTypes = { value: PropTypes.string, onChange: PropTypes.func };
 
 /** JI team: searchable multi-select of all CMs + all IEs (ERC / Sleeper / Rail Pad; no Process IE). */
 function JiTeamPicker({ rejectionId, value = [], onChange }) {
@@ -369,6 +368,42 @@ function JiTeamPicker({ rejectionId, value = [], onChange }) {
 }
 JiTeamPicker.propTypes = { rejectionId: PropTypes.oneOfType([PropTypes.number, PropTypes.string]), value: PropTypes.array, onChange: PropTypes.func };
 
+/** Card wrapping a chip multi-select with a title and selected count. */
+function ChipCard({ icon, title, options, value, onChange }) {
+    return (
+        <div className={`ucm-card ${value.length ? 'is-set' : ''}`}>
+            <div className="ucm-card-head">
+                <span className="ucm-card-icon"><i className={`fa-solid ${icon}`} /></span>
+                <div className="ucm-card-title">
+                    <strong>{title} <span className="ucx-req">*</span></strong>
+                    <small>Select all that apply{value.includes('Nil') ? '' : ' · “Nil” if none'}</small>
+                </div>
+                <span className={`ucm-card-count ${value.length ? 'on' : ''}`}>{value.length} selected</span>
+            </div>
+            <ChipMulti options={options} value={value} onChange={onChange} />
+        </div>
+    );
+}
+ChipCard.propTypes = { icon: PropTypes.string, title: PropTypes.string, options: PropTypes.array, value: PropTypes.array, onChange: PropTypes.func };
+
+/** One Yes / No question as a compact row. */
+function YesNoRow({ icon, label, value, onChange }) {
+    return (
+        <div className="ucm-yn-row">
+            <span className="ucm-yn-label"><i className={`fa-solid ${icon}`} /> {label} <span className="ucx-req">*</span></span>
+            <div className="ucm-yn" role="radiogroup" aria-label={label}>
+                {[['Y', 'Yes', 'fa-check'], ['N', 'No', 'fa-xmark']].map(([v, l, ic]) => (
+                    <button key={v} type="button" role="radio" aria-checked={value === v}
+                        className={`ucm-yn-btn ${v === 'Y' ? 'yes' : 'no'} ${value === v ? 'on' : ''}`} onClick={() => onChange(v)}>
+                        <i className={`fa-solid ${ic}`} /> {l}
+                    </button>
+                ))}
+            </div>
+        </div>
+    );
+}
+YesNoRow.propTypes = { icon: PropTypes.string, label: PropTypes.string, value: PropTypes.string, onChange: PropTypes.func };
+
 /** Multi-select chips; "Nil" is exclusive. */
 function ChipMulti({ options = [], value = [], onChange }) {
     const toggle = (v) => {
@@ -380,8 +415,8 @@ function ChipMulti({ options = [], value = [], onChange }) {
         <div className="ucm-chips">
             {options.map(o => (
                 <button key={o} type="button" aria-pressed={value.includes(o)}
-                    className={`ucm-chip ${value.includes(o) ? 'on' : ''}`} onClick={() => toggle(o)}>
-                    {value.includes(o) && <i className="fa-solid fa-check" />} {o}
+                    className={`ucm-chip ${value.includes(o) ? 'on' : ''} ${o === 'Nil' ? 'nil' : ''}`} onClick={() => toggle(o)}>
+                    <i className={`fa-solid ${value.includes(o) ? 'fa-check' : 'fa-plus'}`} /> {o}
                 </button>
             ))}
         </div>

@@ -10,6 +10,7 @@ import {
     useToast, isClosed, COMPLAINT_STATUS,
 } from './UdmComplaintActions';
 import { CmActionButton, ComplaintDocuments } from './UdmCmStageForms';
+import { SbuReviewButton } from './UdmSbuReview';
 
 const IREPS_BASE = 'https://ireps.gov.in';
 
@@ -120,6 +121,8 @@ export default function UdmRejectionDashboard({ mode = 'board' }) {
     const cached = loadCache();
     const canAct = mode === 'complaintCell';
     const cmMode = mode === 'cm';
+    const sbuMode = mode === 'sbu';
+    const personalMode = cmMode || sbuMode;   // "mine" vs "all" scope toolbar
     const currentUserId = (() => { try { return Number(localStorage.getItem('userId')) || null; } catch (_) { return null; } })();
 
     const [tab,      setTab]      = useState('pending');
@@ -233,8 +236,11 @@ export default function UdmRejectionDashboard({ mode = 'board' }) {
 
     // CM can view all rejections, but may act only on those assigned to them
     const isAssignedToMe = r => Boolean(currentUserId && Number(r?.assignedCmUserId) === currentUserId);
-    const assignedCount = cmMode ? rows.filter(isAssignedToMe).length : 0;
-    const scoped = cmMode && cmScope === 'mine' ? rows.filter(isAssignedToMe) : rows;
+    // SBU Head: complaints waiting for SBU review (any SBU Head can act)
+    const isPendingWithSbu = r => ['CAPA_SUBMITTED', 'RETURNED_TO_SBU'].includes(r?.complaintStatus);
+    const isMine = cmMode ? isAssignedToMe : isPendingWithSbu;
+    const assignedCount = personalMode ? rows.filter(isMine).length : 0;
+    const scoped = personalMode && cmScope === 'mine' ? rows.filter(isMine) : rows;
     const pendingCount = scoped.filter(r => !isClosed(r)).length;
     const closedCount  = scoped.length - pendingCount;
 
@@ -364,15 +370,15 @@ export default function UdmRejectionDashboard({ mode = 'board' }) {
 
             {/* ── Table panel ── */}
             <div className="udm-panel">
-                {cmMode ? (
-                    /* ── CM toolbar: scope tabs + exports / status + search ── */
+                {personalMode ? (
+                    /* ── CM / SBU toolbar: scope tabs + exports / status + search ── */
                     <div className="ucm-head">
                         <div className="ucm-row">
                             <div className="ucm-scope" role="tablist" aria-label="Complaint scope">
                                 <button type="button" role="tab" aria-selected={cmScope === 'mine'}
                                     className={`ucm-scope-tab ${cmScope === 'mine' ? 'on' : ''}`}
                                     onClick={() => { setCmScope('mine'); setPage(1); }}>
-                                    <i className="fa-solid fa-user-check" /> Assigned to Me
+                                    <i className={`fa-solid ${sbuMode ? 'fa-user-shield' : 'fa-user-check'}`} /> {sbuMode ? 'Pending with Me' : 'Assigned to Me'}
                                     <span className="ucm-count">{assignedCount}</span>
                                 </button>
                                 <button type="button" role="tab" aria-selected={cmScope === 'all'}
@@ -490,11 +496,13 @@ export default function UdmRejectionDashboard({ mode = 'board' }) {
                     ) : visible.length === 0 ? (
                         <div className="udm-state-box">
                             <div className="st-icon"><i className="fa-solid fa-inbox" /></div>
-                            <h4>{search ? 'No matching records' : tab === 'closed' ? 'No closed complaints' : cmMode ? 'No complaints assigned to you' : 'No records found'}</h4>
+                            <h4>{search ? 'No matching records' : tab === 'closed' ? 'No closed complaints'
+                                : cmMode ? 'No complaints assigned to you' : sbuMode ? 'Nothing pending with you' : 'No records found'}</h4>
                             <p>
                                 {search ? 'Try a different search.'
                                     : tab === 'closed' ? 'Complaints closed by the Complaint Cell will appear here.'
                                     : cmMode ? 'Complaints sent to you by the Complaint Cell will appear here.'
+                                    : sbuMode ? 'Complaints with CAPA submitted by the CM will appear here for your review.'
                                     : <>No rejections have been synced yet. Enter a date and click <strong>Manual Sync</strong> to fetch from CRIS.</>}
                             </p>
                         </div>
@@ -551,8 +559,8 @@ export default function UdmRejectionDashboard({ mode = 'board' }) {
                                         </td>
                                         <td className="ucx-td-status">
                                             <ComplaintStatusChip r={r} />
-                                            {cmMode && cmScope === 'all' && isAssignedToMe(r) && (
-                                                <span className="ucx-mine-badge"><i className="fa-solid fa-user-check" /> Assigned to you</span>
+                                            {personalMode && cmScope === 'all' && isMine(r) && (
+                                                <span className="ucx-mine-badge"><i className="fa-solid fa-user-check" /> {sbuMode ? 'Awaiting your review' : 'Assigned to you'}</span>
                                             )}
                                         </td>
                                         <td className="td-nowrap">
@@ -649,6 +657,7 @@ export default function UdmRejectionDashboard({ mode = 'board' }) {
                         ? 'View only — this complaint is not assigned to you.'
                         : ''}
                     cmAct={cmMode && isAssignedToMe(detail) && !isClosed(detail)}
+                    sbuAct={sbuMode && isPendingWithSbu(detail)}
                     onCmDone={applyActionResult}
                     timelineKey={tlKey}
                     onSend={() => setSendFor(detail)}
@@ -759,7 +768,7 @@ const Fv = ({ l, v, cls }) => (
 );
 
 /* ─── Detail Modal ───────────────────────────────────────────── */
-function DetailModal({ r, onClose, canAct = false, viewOnlyNote = '', cmAct = false, onCmDone, timelineKey = 0, onSend, onCloseComplaint }) {
+function DetailModal({ r, onClose, canAct = false, viewOnlyNote = '', cmAct = false, sbuAct = false, onCmDone, timelineKey = 0, onSend, onCloseComplaint }) {
     const pdfUrl   = r.pdfPath
         ? (r.pdfPath.startsWith('http') ? r.pdfPath : `${IREPS_BASE}${r.pdfPath}`)
         : null;
@@ -886,7 +895,8 @@ function DetailModal({ r, onClose, canAct = false, viewOnlyNote = '', cmAct = fa
 
                 {/* Complaint status + actions (Send to CM / Close for Complaint Cell) */}
                 <ComplaintActionFooter r={r} canAct={canAct} viewOnlyNote={viewOnlyNote} onSend={onSend} onClose={onCloseComplaint}
-                    extraActions={cmAct ? <CmActionButton r={r} refreshKey={timelineKey} onDone={onCmDone} /> : null} />
+                    extraActions={cmAct ? <CmActionButton r={r} refreshKey={timelineKey} onDone={onCmDone} />
+                        : sbuAct ? <SbuReviewButton r={r} refreshKey={timelineKey} onDone={onCmDone} /> : null} />
             </div>
         </div>
     );
@@ -898,12 +908,13 @@ DetailModal.propTypes = {
     canAct: PropTypes.bool,
     viewOnlyNote: PropTypes.string,
     cmAct: PropTypes.bool,
+    sbuAct: PropTypes.bool,
     onCmDone: PropTypes.func,
     timelineKey: PropTypes.number,
     onSend: PropTypes.func,
     onCloseComplaint: PropTypes.func,
 };
-UdmRejectionDashboard.propTypes = { mode: PropTypes.oneOf(['board', 'complaintCell', 'cm']) };
+UdmRejectionDashboard.propTypes = { mode: PropTypes.oneOf(['board', 'complaintCell', 'cm', 'sbu']) };
 F.propTypes          = { l: PropTypes.string.isRequired, v: PropTypes.any };
 Dropdown.propTypes   = {
     label: PropTypes.string, value: PropTypes.string,

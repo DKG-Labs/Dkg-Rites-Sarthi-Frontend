@@ -1,11 +1,50 @@
 import React, { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import PropTypes from 'prop-types';
-import { getSbuContext, submitSbuReview, getComplaintStages } from '../../services/udmComplaintService';
+import {
+    getSbuContext, submitSbuReview, getRbContext, submitRbReview, getComplaintStages,
+} from '../../services/udmComplaintService';
 import './UdmComplaintActions.css';
 import './UdmCmStageForms.css';
 
-/* SBU Head review (SRS §5 stage 6): Forward to Railway Board, or Return to CM for rework. */
+/*
+ * Reviewer step for UDM complaints (one component, two roles):
+ *  - SBU Head (SRS stage 6):      Forward to Railway Board  |  Return to CM for rework
+ *  - Railway Board (SRS stage 7): Approve & Close           |  Return to SBU Head
+ */
+
+const REVIEWERS = {
+    SBU: {
+        getCtx: getSbuContext,
+        submit: submitSbuReview,
+        title: 'SBU Head Review',
+        icon: 'fa-user-shield',
+        button: 'Review & Decide',
+        primary: { value: 'FORWARD', label: 'Forward to Railway Board', icon: 'fa-landmark', btn: 'Forward to Railway Board', done: 'Forwarded to Railway Board.' },
+        ret: {
+            label: 'Return to CM for Rework', btn: 'Return to CM', done: 'Returned to CM for rework.',
+            placeholder: 'What should the CM rework in RCA / CAPA?',
+            note: (round) => `The CM will resubmit RCA and CAPA as round ${(round || 1) + 1}.`,
+        },
+        primaryPlaceholder: 'Add a note for the Railway Board (optional)…',
+        returnedBanner: 'Returned by Railway Board',
+    },
+    RB: {
+        getCtx: getRbContext,
+        submit: submitRbReview,
+        title: 'Railway Board Review',
+        icon: 'fa-landmark',
+        button: 'Review & Decide',
+        primary: { value: 'APPROVE', label: 'Approve & Close', icon: 'fa-circle-check', btn: 'Approve & Close', done: 'Complaint approved and closed.' },
+        ret: {
+            label: 'Return to SBU Head', btn: 'Return to SBU Head', done: 'Returned to SBU Head.',
+            placeholder: 'Why is it being returned to the SBU Head?',
+            note: () => 'The SBU Head will re-forward it or send it to the CM for rework.',
+        },
+        primaryPlaceholder: 'Closure remarks (optional)…',
+        returnedBanner: null,
+    },
+};
 
 const fmtDate = (s) => {
     if (!s) return '—';
@@ -14,37 +53,44 @@ const fmtDate = (s) => {
 };
 const yn = (v) => (v === 'Y' ? 'Yes' : v === 'N' ? 'No' : '—');
 
-/* ─── Button in the View footer (only when the SBU Head can act now) ─ */
-export function SbuReviewButton({ r, refreshKey, onDone }) {
+/* ─── Button in the View footer (only when the user can act now) ──── */
+export function ReviewButton({ reviewer, r, refreshKey, onDone }) {
+    const cfg = REVIEWERS[reviewer];
     const [ctx, setCtx] = useState(null);
     const [open, setOpen] = useState(false);
 
     useEffect(() => {
         let alive = true;
         setCtx(null);
-        getSbuContext(r.id).then(d => { if (alive) setCtx(d); }).catch(() => { if (alive) setCtx({ canAct: false }); });
+        cfg.getCtx(r.id).then(d => { if (alive) setCtx(d); }).catch(() => { if (alive) setCtx({ canAct: false }); });
         return () => { alive = false; };
-    }, [r.id, r.complaintStatus, refreshKey]);
+    }, [cfg, r.id, r.complaintStatus, refreshKey]);
 
     if (!ctx) return <span className="ucm-act-loading"><span className="ucx-spinner" /> Checking actions…</span>;
     if (!ctx.canAct) return null;
     return (
         <>
             <button type="button" className="ucx-btn ucx-btn-primary" onClick={() => setOpen(true)}>
-                <i className="fa-solid fa-user-shield" /> Review &amp; Decide
+                <i className={`fa-solid ${cfg.icon}`} /> {cfg.button}
             </button>
             {open && createPortal(
-                <SbuReviewModal r={r} ctx={ctx} onCancel={() => setOpen(false)}
+                <ReviewModal cfg={cfg} r={r} ctx={ctx} onCancel={() => setOpen(false)}
                     onDone={(res, msg) => { setOpen(false); onDone(res, msg); }} />,
                 document.body
             )}
         </>
     );
 }
-SbuReviewButton.propTypes = { r: PropTypes.object.isRequired, refreshKey: PropTypes.number, onDone: PropTypes.func.isRequired };
+ReviewButton.propTypes = {
+    reviewer: PropTypes.oneOf(['SBU', 'RB']).isRequired,
+    r: PropTypes.object.isRequired, refreshKey: PropTypes.number, onDone: PropTypes.func.isRequired,
+};
+
+export const SbuReviewButton = (props) => <ReviewButton reviewer="SBU" {...props} />;
+export const RbReviewButton = (props) => <ReviewButton reviewer="RB" {...props} />;
 
 /* ─── Review modal ─────────────────────────────────────────────────── */
-function SbuReviewModal({ r, ctx, onCancel, onDone }) {
+function ReviewModal({ cfg, r, ctx, onCancel, onDone }) {
     const [stages, setStages] = useState(null);
     const [decision, setDecision] = useState('');
     const [remarks, setRemarks] = useState('');
@@ -66,30 +112,31 @@ function SbuReviewModal({ r, ctx, onCancel, onDone }) {
         if (missing || saving) return;
         setSaving(true); setErr('');
         try {
-            const res = await submitSbuReview(r.id, { decision, remarks: remarks.trim() });
-            onDone(res, isReturn ? 'Returned to CM for rework.' : 'Forwarded to Railway Board.');
+            const res = await cfg.submit(r.id, { decision, remarks: remarks.trim() });
+            onDone(res, isReturn ? cfg.ret.done : cfg.primary.done);
         } catch (e) {
             setErr(e.message || 'Could not save. Please try again.');
             setSaving(false);
         }
     };
 
-    // Latest submission of each stage (rework rounds replace RCA/CAPA)
+    // Latest submission of each stage (rework rounds replace earlier RCA / CAPA)
     const latest = (name) => (stages || []).filter(s => s.stage === name).slice(-1)[0];
     const decisionStage = latest('DECISION');
     const jiStage = latest('JI_COMPLETE');
     const auditStage = latest('AUDIT_COMPLETE');
     const rca = latest('RCA');
     const capa = latest('CAPA');
+    const sbu = latest('SBU_REVIEW');
 
     return (
         <div className="ucx-overlay ucm-overlay" onClick={e => e.target === e.currentTarget && !saving && onCancel()}>
-            <div className="ucx-dialog ucm-dialog" role="dialog" aria-modal="true" aria-labelledby="usb-title">
+            <div className="ucx-dialog ucm-dialog" role="dialog" aria-modal="true" aria-labelledby="urv-title">
                 <div className="ucm-head">
                     <div className="ucm-head-top">
-                        <span className="ucm-head-icon usb-icon"><i className="fa-solid fa-user-shield" /></span>
+                        <span className="ucm-head-icon usb-icon"><i className={`fa-solid ${cfg.icon}`} /></span>
                         <div className="ucm-head-text">
-                            <h4 id="usb-title">SBU Head Review{ctx.currentRound > 1 ? ` · Round ${ctx.currentRound}` : ''}</h4>
+                            <h4 id="urv-title">{cfg.title}{ctx.currentRound > 1 ? ` · Round ${ctx.currentRound}` : ''}</h4>
                             <p title={r.vendorName}>
                                 <span className="ucm-head-no">{r.rejectionNumber}</span>
                                 {r.vendorName && <span className="ucm-head-vendor">{r.vendorName}</span>}
@@ -100,14 +147,14 @@ function SbuReviewModal({ r, ctx, onCancel, onDone }) {
                 </div>
 
                 <div className="ucx-dialog-body ucm-body">
-                    {ctx.returnedRemarks && (
+                    {cfg.returnedBanner && ctx.returnedRemarks && (
                         <div className="usb-returned">
                             <i className="fa-solid fa-rotate-left" />
-                            <div><strong>Returned by Railway Board</strong><span>{ctx.returnedRemarks}</span></div>
+                            <div><strong>{cfg.returnedBanner}</strong><span>{ctx.returnedRemarks}</span></div>
                         </div>
                     )}
 
-                    {/* CM work summary */}
+                    {/* Submission summary */}
                     <div className="ucm-card">
                         <div className="ucm-card-head">
                             <span className="ucm-card-icon"><i className="fa-solid fa-clipboard-list" /></span>
@@ -131,6 +178,7 @@ function SbuReviewModal({ r, ctx, onCancel, onDone }) {
                                 <SumRow label="Preventive" value={capa?.preventiveActions} chips />
                                 <SumRow label="Vendor compliance" value={capa ? yn(capa.vendorCompliance) : null} />
                                 <SumRow label="CAPA implemented" value={capa ? yn(capa.capaImplemented) : null} />
+                                {cfg === REVIEWERS.RB && <SumRow label="SBU Head remarks" value={sbu?.remarks} />}
                             </dl>
                         )}
                         <div className="usb-docs-hint"><i className="fa-solid fa-folder-open" /> Reports &amp; evidence are in the <strong>Documents</strong> tab.</div>
@@ -138,15 +186,15 @@ function SbuReviewModal({ r, ctx, onCancel, onDone }) {
 
                     {/* Decision */}
                     <div className="ucx-field">
-                        <label>Recommendation <span className="ucx-req">*</span></label>
+                        <label>Decision <span className="ucx-req">*</span></label>
                         <div className="ucm-seg" role="radiogroup">
-                            <button type="button" role="radio" aria-checked={decision === 'FORWARD'}
-                                className={`ucm-seg-btn ${decision === 'FORWARD' ? 'on' : ''}`} onClick={() => setDecision('FORWARD')}>
-                                <i className="fa-solid fa-landmark" /> Forward to Railway Board
+                            <button type="button" role="radio" aria-checked={decision === cfg.primary.value}
+                                className={`ucm-seg-btn ${decision === cfg.primary.value ? 'on' : ''}`} onClick={() => setDecision(cfg.primary.value)}>
+                                <i className={`fa-solid ${cfg.primary.icon}`} /> {cfg.primary.label}
                             </button>
-                            <button type="button" role="radio" aria-checked={decision === 'RETURN'}
-                                className={`ucm-seg-btn usb-return ${decision === 'RETURN' ? 'on' : ''}`} onClick={() => setDecision('RETURN')}>
-                                <i className="fa-solid fa-rotate-left" /> Return to CM for Rework
+                            <button type="button" role="radio" aria-checked={isReturn}
+                                className={`ucm-seg-btn usb-return ${isReturn ? 'on' : ''}`} onClick={() => setDecision('RETURN')}>
+                                <i className="fa-solid fa-rotate-left" /> {cfg.ret.label}
                             </button>
                         </div>
                     </div>
@@ -154,30 +202,31 @@ function SbuReviewModal({ r, ctx, onCancel, onDone }) {
                     <div className="ucx-field">
                         <label>Remarks {isReturn ? <span className="ucx-req">*</span> : <span className="ucx-opt">(optional)</span>}</label>
                         <textarea rows={3} maxLength={500} value={remarks} onChange={e => setRemarks(e.target.value)}
-                            placeholder={isReturn ? 'What should the CM rework in RCA / CAPA?' : 'Add a note for the Railway Board (optional)…'} />
+                            placeholder={isReturn ? cfg.ret.placeholder : cfg.primaryPlaceholder} />
                         <span className="ucx-count">{remarks.length}/500</span>
                     </div>
 
-                    {isReturn && (
-                        <div className="ucm-note"><i className="fa-solid fa-circle-info" /> The CM will resubmit RCA and CAPA as round {(ctx.currentRound || 1) + 1}.</div>
-                    )}
+                    {isReturn && <div className="ucm-note"><i className="fa-solid fa-circle-info" /> {cfg.ret.note(ctx.currentRound)}</div>}
                     {err && <div className="ucx-err"><i className="fa-solid fa-circle-exclamation" /> {err}</div>}
                 </div>
 
                 <div className="ucx-dialog-foot ucm-foot">
                     <button type="button" className="ucx-btn ucx-btn-ghost" onClick={onCancel} disabled={saving}>Cancel</button>
                     <button type="button" className={`ucx-btn ${isReturn ? 'ucx-btn-danger' : 'ucx-btn-primary'}`} onClick={submit} disabled={missing || saving}
-                        title={missing ? (isReturn ? 'Remarks are required to return' : 'Choose a recommendation') : ''}>
+                        title={missing ? (isReturn ? 'Remarks are required to return' : 'Choose a decision') : ''}>
                         {saving ? <><span className="ucx-spinner ucm-spin-white" /> Saving…</>
-                            : isReturn ? <><i className="fa-solid fa-rotate-left" /> Return to CM</>
-                                : <><i className="fa-solid fa-paper-plane" /> {decision === 'FORWARD' ? 'Forward to Railway Board' : 'Submit'}</>}
+                            : isReturn ? <><i className="fa-solid fa-rotate-left" /> {cfg.ret.btn}</>
+                                : <><i className={`fa-solid ${decision ? cfg.primary.icon : 'fa-check'}`} /> {decision ? cfg.primary.btn : 'Submit'}</>}
                     </button>
                 </div>
             </div>
         </div>
     );
 }
-SbuReviewModal.propTypes = { r: PropTypes.object.isRequired, ctx: PropTypes.object.isRequired, onCancel: PropTypes.func.isRequired, onDone: PropTypes.func.isRequired };
+ReviewModal.propTypes = {
+    cfg: PropTypes.object.isRequired, r: PropTypes.object.isRequired, ctx: PropTypes.object.isRequired,
+    onCancel: PropTypes.func.isRequired, onDone: PropTypes.func.isRequired,
+};
 
 function SumRow({ label, value, chips }) {
     const empty = value == null || value === '' || (Array.isArray(value) && value.length === 0);

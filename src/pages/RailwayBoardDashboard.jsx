@@ -1034,7 +1034,8 @@ const RailwayBoardDashboard = () => {
                     <div id="dashboard-capture-area">
                         <div id="prof-content-area">
                             {activeMainCard === 'udm' ? (
-                                <UdmRejectionDashboard />
+                                <UdmRejectionDashboard
+                                    mode={(localStorage.getItem('roleName') || '').trim().toLowerCase() === 'railway board' ? 'rb' : 'board'} />
                             ) : activeMainCard === 'active-login' ? (
                                 <ActiveLoginDashboard />
                             ) : activeMainCard === 'rejection-scrap' ? (

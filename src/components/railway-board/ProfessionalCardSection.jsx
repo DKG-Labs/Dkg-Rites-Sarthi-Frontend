@@ -2513,7 +2513,8 @@ const ProfessionalCardSection = ({
                             );
 
                         case 'udm':
-                            return <UdmRejectionDashboard />;
+                            return <UdmRejectionDashboard
+                                mode={(localStorage.getItem('roleName') || '').trim().toLowerCase() === 'railway board' ? 'rb' : 'board'} />;
                         case 'feedback':
                             return <FeedbackSection selectedProduct={selectedProduct} />;
                         case 'sqc':

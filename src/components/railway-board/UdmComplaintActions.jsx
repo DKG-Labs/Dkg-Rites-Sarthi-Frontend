@@ -131,6 +131,8 @@ const ACTION_LABEL = {
     CM_SUBMIT_CAPA: 'CAPA Submitted · Sent to SBU Head',
     SBU_FORWARD_TO_RB: 'SBU Head · Forwarded to Railway Board',
     SBU_RETURN_TO_CM: 'SBU Head · Returned to CM for Rework',
+    RB_APPROVE: 'Approved by Railway Board · Closed',
+    RB_RETURN_TO_SBU: 'Railway Board · Returned to SBU Head',
 };
 const ACTION_META = {
     UDM_COMPLAINT_RECEIVED: { icon: 'fa-inbox', tone: 'amber' },
@@ -144,16 +146,44 @@ const ACTION_META = {
     CM_SUBMIT_CAPA: { icon: 'fa-shield-halved', tone: 'amber' },
     SBU_FORWARD_TO_RB: { icon: 'fa-landmark', tone: 'green' },
     SBU_RETURN_TO_CM: { icon: 'fa-rotate-left', tone: 'red' },
+    RB_APPROVE: { icon: 'fa-circle-check', tone: 'green' },
+    RB_RETURN_TO_SBU: { icon: 'fa-rotate-left', tone: 'red' },
 };
-const fmtDT = (s) => {
+/** Long remarks: first 3 lines, then "Show more" (full text stays in the merged PDF). */
+const REMARK_CLAMP_CHARS = 180;
+function TimelineRemark({ text }) {
+    const [open, setOpen] = useState(false);
+    const long = text.length > REMARK_CLAMP_CHARS || (text.match(/\n/g) || []).length >= 3;
+    return (
+        <div className="ucx-tl-remarks">
+            <i className="fa-regular fa-comment-dots" />
+            <div className="ucx-tl-remarks-body">
+                <span className={`ucx-tl-remarks-text ${long && !open ? 'is-clamped' : ''}`}>{text}</span>
+                {long && (
+                    <button type="button" className="ucx-tl-more" onClick={() => setOpen(o => !o)} aria-expanded={open}>
+                        {open ? 'Show less' : 'Show more'} <i className={`fa-solid fa-chevron-${open ? 'up' : 'down'}`} />
+                    </button>
+                )}
+            </div>
+        </div>
+    );
+}
+TimelineRemark.propTypes = { text: PropTypes.string.isRequired };
+
+/** Timeline shows the date only (IST), e.g. "11 Nov 2026". */
+const fmtDay = (s) => {
     if (!s) return '';
     const d = new Date(s);
-    return isNaN(d) ? s : d.toLocaleString('en-IN', {
-        timeZone: 'Asia/Kolkata', day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit',
+    return isNaN(d) ? s : d.toLocaleDateString('en-IN', {
+        timeZone: 'Asia/Kolkata', day: '2-digit', month: 'short', year: 'numeric',
     });
 };
 
-export function ComplaintTimeline({ rejectionId, refreshKey }) {
+/**
+ * @param receivedDate udm_rejection.fetched_date — shown for "Received from UDM"
+ *                     (also used when no action has been taken yet).
+ */
+export function ComplaintTimeline({ rejectionId, refreshKey, receivedDate }) {
     const [items, setItems] = useState(null);
     useEffect(() => {
         let alive = true;
@@ -168,17 +198,23 @@ export function ComplaintTimeline({ rejectionId, refreshKey }) {
     if (items === null) {
         return <div className="ucx-tl"><span className="ucx-skel" style={{ width: '60%' }} /><span className="ucx-skel" style={{ width: '40%' }} /></div>;
     }
-    if (items.length === 0) {
+    // Not actioned yet: still show when it was received from UDM
+    const list = items.length === 0 && receivedDate
+        ? [{ action: 'UDM_COMPLAINT_RECEIVED', actionDate: receivedDate, remarks: 'Pending with Complaint Cell' }]
+        : items;
+    if (list.length === 0) {
         return <div className="ucx-tl-empty"><i className="fa-regular fa-clock" /> No actions yet — pending with Complaint Cell.</div>;
     }
     return (
         <ol className="ucx-tl">
-            {items.map((h, i) => {
+            {list.map((h, i) => {
                 const meta = ACTION_META[h.action] || { icon: 'fa-circle-dot', tone: 'slate' };
                 const title = ACTION_LABEL[h.action] || h.action;
                 // Skip remark when it just repeats the title (e.g. "Received from UDM")
                 const showRemarks = h.remarks && h.remarks.trim().toLowerCase() !== String(title).toLowerCase();
-                const isLatest = i === items.length - 1;
+                const isLatest = i === list.length - 1;
+                // "Received from UDM" = date the rejection was fetched from UDM, not when SARTHI first acted on it
+                const when = h.action === 'UDM_COMPLAINT_RECEIVED' && receivedDate ? receivedDate : h.actionDate;
                 return (
                     <li key={i} className={`ucx-tl-item ${isLatest ? 'is-latest' : ''}`}>
                         <span className={`ucx-tl-icon ucx-tl-${meta.tone}`}><i className={`fa-solid ${meta.icon}`} /></span>
@@ -186,16 +222,22 @@ export function ComplaintTimeline({ rejectionId, refreshKey }) {
                             <div className="ucx-tl-head">
                                 <span className="ucx-tl-title">{title}</span>
                                 {isLatest && <span className="ucx-tl-latest">Latest</span>}
-                                <span className="ucx-tl-time"><i className="fa-regular fa-clock" /> {fmtDT(h.actionDate)}</span>
+                                <span className="ucx-tl-time"><i className="fa-regular fa-calendar" /> {fmtDay(when)}</span>
                             </div>
-                            {h.assignedRio && (
+                            {((h.actionByName && h.action !== 'UDM_COMPLAINT_RECEIVED') || h.assignedRio) && (
                                 <div className="ucx-tl-tags">
-                                    <span className="ucx-tl-tag"><i className="fa-solid fa-building-shield" /> RIO {h.assignedRio}</span>
+                                    {h.actionByName && h.action !== 'UDM_COMPLAINT_RECEIVED' && (
+                                        <span className="ucx-tl-tag ucx-tl-by" title="Performed by">
+                                            <i className="fa-solid fa-user-pen" /> {h.actionByName}
+                                            {h.actionByEmployeeCode && <em>{h.actionByEmployeeCode}</em>}
+                                        </span>
+                                    )}
+                                    {h.assignedRio && (
+                                        <span className="ucx-tl-tag"><i className="fa-solid fa-building-shield" /> RIO {h.assignedRio}</span>
+                                    )}
                                 </div>
                             )}
-                            {showRemarks && (
-                                <div className="ucx-tl-remarks"><i className="fa-regular fa-comment-dots" /> {h.remarks}</div>
-                            )}
+                            {showRemarks && <TimelineRemark text={h.remarks} />}
                         </div>
                     </li>
                 );
@@ -203,7 +245,11 @@ export function ComplaintTimeline({ rejectionId, refreshKey }) {
         </ol>
     );
 }
-ComplaintTimeline.propTypes = { rejectionId: PropTypes.oneOfType([PropTypes.number, PropTypes.string]), refreshKey: PropTypes.number };
+ComplaintTimeline.propTypes = {
+    rejectionId: PropTypes.oneOfType([PropTypes.number, PropTypes.string]),
+    refreshKey: PropTypes.number,
+    receivedDate: PropTypes.string,
+};
 
 /* ─── Send to Controlling Manager modal ─────────────────────────────── */
 export function SendToCmModal({ r, onCancel, onDone }) {

@@ -1,16 +1,18 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import PropTypes from 'prop-types';
 import * as XLSX from 'xlsx';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import './UdmRejectionDashboard.css';
-import { getUdmRejections, syncUdmRejections, getUdmSyncHistory } from '../../services/udmRejectionService';
+import { syncUdmRejections, getUdmSyncHistory } from '../../services/udmRejectionService';
+import { getUdmComplaintList, downloadMergedComplaintPdf } from '../../services/udmComplaintService';
 import {
     ComplaintStatusChip, ComplaintActionFooter, ComplaintTimeline, SendToCmModal, CloseComplaintModal,
     useToast, isClosed, COMPLAINT_STATUS,
 } from './UdmComplaintActions';
 import { CmActionButton, ComplaintDocuments } from './UdmCmStageForms';
-import { SbuReviewButton } from './UdmSbuReview';
+import { SbuReviewButton, RbReviewButton } from './UdmSbuReview';
 
 const IREPS_BASE = 'https://ireps.gov.in';
 
@@ -95,20 +97,10 @@ const fmtVal = val => {
 
 const cleanVCode = v => v ? v.replace(/^:/, '') : null;
 
-const CACHE_KEY = 'udm_cache';
-
-const saveCache = (rows, appliedDate) => {
-    try {
-        localStorage.setItem(CACHE_KEY, JSON.stringify({ rows, appliedDate, ts: Date.now() }));
-    } catch (_) {}
-};
-
-const loadCache = () => {
-    try {
-        const raw = localStorage.getItem(CACHE_KEY);
-        return raw ? JSON.parse(raw) : null;
-    } catch (_) { return null; }
-};
+/** Dashboard mode → server list "view" (the backend checks the user holds that role). */
+const VIEW_OF_MODE = { complaintCell: 'cc', cm: 'cm', sbu: 'sbu', rb: 'rb', board: 'board' };
+const EXPORT_PAGE_SIZE = 500;
+const EMPTY_COUNTS = { pendingCount: 0, closedCount: 0, mineCount: 0, allCount: 0 };
 
 /* ─── Main ──────────────────────────────────────────────────────── */
 /**
@@ -118,11 +110,14 @@ const loadCache = () => {
  *  - 'cm'            Controlling Manager: only complaints assigned to the logged-in CM, view only
  */
 export default function UdmRejectionDashboard({ mode = 'board' }) {
-    const cached = loadCache();
     const canAct = mode === 'complaintCell';
     const cmMode = mode === 'cm';
     const sbuMode = mode === 'sbu';
-    const personalMode = cmMode || sbuMode;   // "mine" vs "all" scope toolbar
+    const rbMode = mode === 'rb';
+    const reviewerMode = sbuMode || rbMode;   // "Pending with Me" = waiting for this role's review
+    const ccMode = canAct;                    // Complaint Cell: "Pending with Me" = not forwarded yet
+    const pendingWithMeMode = reviewerMode || ccMode;
+    const personalMode = cmMode || pendingWithMeMode;   // "mine" vs "all" scope toolbar
     const currentUserId = (() => { try { return Number(localStorage.getItem('userId')) || null; } catch (_) { return null; } })();
 
     const [tab,      setTab]      = useState('pending');
@@ -132,9 +127,13 @@ export default function UdmRejectionDashboard({ mode = 'board' }) {
     const [tlKey,    setTlKey]    = useState(0);
     const toast = useToast();
 
-    const [rows,          setRows]          = useState(cached?.rows  || []);
-    const [appliedDate,   setAppliedDate]   = useState(cached?.appliedDate || '');
+    const [rows,          setRows]          = useState([]);            // current server page
+    const [total,         setTotal]         = useState(0);             // rows in current scope + tab + search
+    const [totalPages,    setTotalPages]    = useState(1);
+    const [counts,        setCounts]        = useState(EMPTY_COUNTS);
+    const [reloadKey,     setReloadKey]     = useState(0);
     const [search,        setSearch]        = useState('');
+    const [debouncedQ,    setDebouncedQ]    = useState('');
     const [loading,       setLoading]       = useState(false);
     const [error,         setError]         = useState(null);
     const [detail,        setDetail]        = useState(null);
@@ -147,20 +146,45 @@ export default function UdmRejectionDashboard({ mode = 'board' }) {
     const [pageSize,      setPageSize]      = useState(10);
     const [showHistory,   setShowHistory]   = useState(false);
 
-    const fetchData = useCallback(async () => {
-        setLoading(true); setError(null);
-        try {
-            const data    = await getUdmRejections({});
-            const newRows = data || [];
-            setRows(newRows);
-            setAppliedDate('');
-            saveCache(newRows, '');
-        } catch (e) { setError(e.message || 'Failed to fetch rejection data.'); }
-        finally     { setLoading(false); }
-    }, []);
+    const view  = VIEW_OF_MODE[mode] || 'board';
+    const scope = personalMode ? cmScope : 'all';
 
-    // Auto-load all records on mount
-    useEffect(() => { fetchData(); }, [fetchData]);
+    // Search is sent to the server after the user pauses typing
+    useEffect(() => {
+        const t = setTimeout(() => setDebouncedQ(search.trim()), 350);
+        return () => clearTimeout(t);
+    }, [search]);
+
+    /** One page of the role-scoped list + badge counts (server-side paging / filtering). */
+    useEffect(() => {
+        let alive = true;
+        setLoading(true); setError(null);
+        getUdmComplaintList({ view, scope, tab, page: page - 1, size: pageSize, q: debouncedQ })
+            .then(d => {
+                if (!alive) return;
+                setRows(d?.content || []);
+                setTotal(d?.totalElements || 0);
+                setTotalPages(Math.max(1, d?.totalPages || 1));
+                setCounts({ ...EMPTY_COUNTS, ...(d || {}) });
+                if (d && typeof d.page === 'number' && d.page + 1 !== page) setPage(d.page + 1);
+            })
+            .catch(e => { if (alive) { setRows([]); setTotal(0); setError(e.message || 'Failed to fetch rejection data.'); } })
+            .finally(() => { if (alive) setLoading(false); });
+        return () => { alive = false; };
+    }, [view, scope, tab, page, pageSize, debouncedQ, reloadKey]);
+
+    const fetchData = useCallback(() => setReloadKey(k => k + 1), []);
+
+    /** Every row of the current scope + tab + search (for Excel / PDF), fetched page by page. */
+    const fetchAllForExport = async () => {
+        const all = [];
+        for (let p = 0; p < 200; p++) {
+            const d = await getUdmComplaintList({ view, scope, tab, page: p, size: EXPORT_PAGE_SIZE, q: debouncedQ });
+            all.push(...(d?.content || []));
+            if (!d || p + 1 >= (d.totalPages || 1)) break;
+        }
+        return all;
+    };
 
     const openSyncModal = () => {
         setSyncDate('');
@@ -194,8 +218,10 @@ export default function UdmRejectionDashboard({ mode = 'board' }) {
         }
     };
 
-    const exportExcel = () => {
-        const data = visible.map((r, i) => ({
+    const exportExcel = async () => {
+        let all;
+        try { all = await fetchAllForExport(); } catch (e) { toast.show(e.message || 'Export failed.', 'error'); return; }
+        const data = all.map((r, i) => ({
             '#':                   i + 1,
             'Rejection No.':       r.rejectionNumber  || '',
             'PO Number':           r.poNumber         || '',
@@ -230,7 +256,7 @@ export default function UdmRejectionDashboard({ mode = 'board' }) {
         const cols = Object.keys(data[0] || {}).map(k => ({ wch: Math.max(k.length, 14) }));
         ws['!cols'] = cols;
 
-        const filename = `UDM_Rejections_${appliedDate || 'export'}.xlsx`;
+        const filename = `UDM_Rejections_${tab}_${new Date().toISOString().slice(0, 10)}.xlsx`;
         XLSX.writeFile(wb, filename);
     };
 
@@ -238,11 +264,16 @@ export default function UdmRejectionDashboard({ mode = 'board' }) {
     const isAssignedToMe = r => Boolean(currentUserId && Number(r?.assignedCmUserId) === currentUserId);
     // SBU Head: complaints waiting for SBU review (any SBU Head can act)
     const isPendingWithSbu = r => ['CAPA_SUBMITTED', 'RETURNED_TO_SBU'].includes(r?.complaintStatus);
-    const isMine = cmMode ? isAssignedToMe : isPendingWithSbu;
-    const assignedCount = personalMode ? rows.filter(isMine).length : 0;
-    const scoped = personalMode && cmScope === 'mine' ? rows.filter(isMine) : rows;
-    const pendingCount = scoped.filter(r => !isClosed(r)).length;
-    const closedCount  = scoped.length - pendingCount;
+    // Railway Board: complaints forwarded by the SBU Head (any Railway Board user can act)
+    const isPendingWithRb = r => r?.complaintStatus === 'SENT_TO_RAILWAY_BOARD';
+    // Complaint Cell: not yet forwarded to a CM
+    const isPendingWithCc = r => (r?.complaintStatus || 'PENDING_WITH_COMPLAINT_CELL') === 'PENDING_WITH_COMPLAINT_CELL';
+    const isMine = cmMode ? isAssignedToMe : rbMode ? isPendingWithRb : ccMode ? isPendingWithCc : isPendingWithSbu;
+    // Badge counts come from the server (role-scoped; "mine" closed for SBU/RB = closed after their review)
+    const assignedCount = counts.mineCount;
+    const allCount      = counts.allCount;
+    const pendingCount  = counts.pendingCount;
+    const closedCount   = counts.closedCount;
 
     /** Apply a complaint action result to the row in place (no full reload). */
     const applyActionResult = (res, message) => {
@@ -255,38 +286,19 @@ export default function UdmRejectionDashboard({ mode = 'board' }) {
                 assignedCmName:   res.assignedCmName,
                 complaintRemarks: res.lastRemarks,
             };
-            setRows(prev => {
-                const next = prev.map(x => (x.id === res.udmRejectionId ? { ...x, ...patch } : x));
-                saveCache(next, appliedDate);
-                return next;
-            });
+            setRows(prev => prev.map(x => (x.id === res.udmRejectionId ? { ...x, ...patch } : x)));
             setDetail(d => (d && d.id === res.udmRejectionId ? { ...d, ...patch } : d));
         }
         setSendFor(null);
         setCloseFor(null);
         setTlKey(k => k + 1);
+        setReloadKey(k => k + 1);   // row may move tab / scope: refresh page + counts from the server
         toast.show(message);
     };
 
-    const visible = scoped.filter(r => (tab === 'closed' ? isClosed(r) : !isClosed(r))).filter(r => {
-        if (!search) return true;
-        const q = search.toLowerCase();
-        return [
-            r.rejectionNumber, r.poNumber, r.plNumber, r.poSerialNumber,
-            r.icNumber, r.icDate,
-            r.vendorName, r.vendorCode, cleanVCode(r.vendorCode),
-            r.consignee, r.itemDescription,
-            r.typeOfRejection, r.inspectionAgency,
-            r.rejectionDate, fmtDate(r.rejectionDate),
-            r.reasonForRejection, r.status, r.source,
-            r.rejectedQty, r.uom,
-            r.rejectionValue, fmtVal(r.rejectionValue),
-            r.assignedCmName, r.assignedRio,
-            (COMPLAINT_STATUS[r.complaintStatus] || {}).label,
-        ].some(v => (v || '').toString().toLowerCase().includes(q));
-    });
-
-    const downloadPdf = () => {
+    const downloadPdf = async () => {
+        let visible;
+        try { visible = await fetchAllForExport(); } catch (e) { toast.show(e.message || 'Export failed.', 'error'); return; }
         const doc = new jsPDF({ orientation: 'landscape', unit: 'pt', format: 'a4' });
         doc.setFontSize(13);
         doc.setFont('helvetica', 'bold');
@@ -294,7 +306,7 @@ export default function UdmRejectionDashboard({ mode = 'board' }) {
         doc.setFontSize(9);
         doc.setFont('helvetica', 'normal');
         doc.setTextColor(100);
-        doc.text(`Generated: ${new Date().toLocaleDateString('en-IN', { day:'2-digit', month:'short', year:'numeric' })}  ·  Total records: ${visible.length}`, 40, 52);
+        doc.text(`Generated: ${new Date().toLocaleDateString('en-IN', { day:'2-digit', month:'short', year:'numeric' })}  ·  Total records: ${total}`, 40, 52);
 
         autoTable(doc, {
             startY: 64,
@@ -331,9 +343,9 @@ export default function UdmRejectionDashboard({ mode = 'board' }) {
         doc.save(`UDM_Rejections_${new Date().toISOString().slice(0,10)}.pdf`);
     };
 
-    const totalPages = Math.max(1, Math.ceil(visible.length / pageSize));
-    const safePage   = Math.min(page, totalPages);
-    const pageRows   = visible.slice((safePage - 1) * pageSize, safePage * pageSize);
+    // Server-side paging: rows already hold just this page
+    const safePage = Math.min(page, totalPages);
+    const pageRows = rows;
 
     const handleSearch   = v => { setSearch(v); setPage(1); };
     const handlePageSize = v => { setPageSize(Number(v)); setPage(1); };
@@ -378,24 +390,31 @@ export default function UdmRejectionDashboard({ mode = 'board' }) {
                                 <button type="button" role="tab" aria-selected={cmScope === 'mine'}
                                     className={`ucm-scope-tab ${cmScope === 'mine' ? 'on' : ''}`}
                                     onClick={() => { setCmScope('mine'); setPage(1); }}>
-                                    <i className={`fa-solid ${sbuMode ? 'fa-user-shield' : 'fa-user-check'}`} /> {sbuMode ? 'Pending with Me' : 'Assigned to Me'}
+                                    <i className={`fa-solid ${pendingWithMeMode ? 'fa-user-shield' : 'fa-user-check'}`} /> {pendingWithMeMode ? 'Pending with Me' : 'Assigned to Me'}
                                     <span className="ucm-count">{assignedCount}</span>
                                 </button>
                                 <button type="button" role="tab" aria-selected={cmScope === 'all'}
                                     className={`ucm-scope-tab ${cmScope === 'all' ? 'on' : ''}`}
                                     onClick={() => { setCmScope('all'); setPage(1); }}>
                                     <i className="fa-solid fa-layer-group" /> All Rejections
-                                    <span className="ucm-count">{rows.length}</span>
+                                    <span className="ucm-count">{allCount}</span>
                                 </button>
                             </div>
-                            {visible.length > 0 && (
+                            {(total > 0 || ccMode) && (
                                 <div className="ucm-exports">
-                                    <button className="btn-udm-pdf" onClick={downloadPdf}>
-                                        <i className="fa-solid fa-file-pdf" /> <span>PDF</span>
-                                    </button>
-                                    <button className="btn-udm-excel" onClick={exportExcel}>
-                                        <i className="fa-solid fa-file-excel" /> <span>Excel</span>
-                                    </button>
+                                    {ccMode && (
+                                        <button className="btn-udm-sync" onClick={openSyncModal} disabled={syncing || loading}>
+                                            <i className="fa-solid fa-rotate" /> <span>Manual Sync</span>
+                                        </button>
+                                    )}
+                                    {total > 0 && (<>
+                                        <button className="btn-udm-pdf" onClick={downloadPdf}>
+                                            <i className="fa-solid fa-file-pdf" /> <span>PDF</span>
+                                        </button>
+                                        <button className="btn-udm-excel" onClick={exportExcel}>
+                                            <i className="fa-solid fa-file-excel" /> <span>Excel</span>
+                                        </button>
+                                    </>)}
                                 </div>
                             )}
                         </div>
@@ -412,7 +431,7 @@ export default function UdmRejectionDashboard({ mode = 'board' }) {
                                     <i className="fa-solid fa-circle-check" /> Closed <span className="ucx-tab-count">{closedCount}</span>
                                 </button>
                             </div>
-                            <span className="ucm-showing">Showing <strong>{visible.length}</strong> {tab === 'closed' ? 'closed' : 'pending'}</span>
+                            <span className="ucm-showing">Showing <strong>{total}</strong> {tab === 'closed' ? 'closed' : 'pending'}</span>
                             <div className="udm-gsearch-wrap ucm-search">
                                 <i className="fa-solid fa-magnifying-glass udm-gsearch-icon" />
                                 <input
@@ -436,7 +455,7 @@ export default function UdmRejectionDashboard({ mode = 'board' }) {
                         <div className="udm-panel-title">
                             <i className="fa-solid fa-table-list" style={{ color:'#94a3b8' }} />
                             Rejection Records
-                            <span className="udm-count-pill">{visible.length}</span>
+                            <span className="udm-count-pill">{total}</span>
                         </div>
                         <div className="ucx-tabs" role="tablist" aria-label="Complaint status">
                             <button type="button" role="tab" aria-selected={tab === 'pending'}
@@ -472,7 +491,7 @@ export default function UdmRejectionDashboard({ mode = 'board' }) {
                         </button>
                         {/* Sync History button hidden for now; runs are still recorded in udm_sync_log.
                             To show it again, render a button that calls setShowHistory(true). */}
-                        {visible.length > 0 && (<>
+                        {total > 0 && (<>
                             <button className="btn-udm-pdf" onClick={downloadPdf}>
                                 <i className="fa-solid fa-file-pdf" /> Download PDF
                             </button>
@@ -493,16 +512,18 @@ export default function UdmRejectionDashboard({ mode = 'board' }) {
                             <h4>Loading records…</h4>
                             <p>Fetching rejection data from the database.</p>
                         </div>
-                    ) : visible.length === 0 ? (
+                    ) : total === 0 ? (
                         <div className="udm-state-box">
                             <div className="st-icon"><i className="fa-solid fa-inbox" /></div>
                             <h4>{search ? 'No matching records' : tab === 'closed' ? 'No closed complaints'
-                                : cmMode ? 'No complaints assigned to you' : sbuMode ? 'Nothing pending with you' : 'No records found'}</h4>
+                                : cmMode ? 'No complaints assigned to you' : pendingWithMeMode && cmScope === 'mine' ? 'Nothing pending with you' : 'No records found'}</h4>
                             <p>
                                 {search ? 'Try a different search.'
-                                    : tab === 'closed' ? 'Complaints closed by the Complaint Cell will appear here.'
+                                    : tab === 'closed' ? 'Complaints approved by the Railway Board or closed by the Complaint Cell will appear here.'
                                     : cmMode ? 'Complaints sent to you by the Complaint Cell will appear here.'
                                     : sbuMode ? 'Complaints with CAPA submitted by the CM will appear here for your review.'
+                                    : rbMode ? 'Complaints forwarded by the SBU Head will appear here for approval.'
+                                    : ccMode && cmScope === 'mine' ? 'New UDM complaints that are not yet forwarded to a CM will appear here.'
                                     : <>No rejections have been synced yet. Enter a date and click <strong>Manual Sync</strong> to fetch from CRIS.</>}
                             </p>
                         </div>
@@ -560,7 +581,7 @@ export default function UdmRejectionDashboard({ mode = 'board' }) {
                                         <td className="ucx-td-status">
                                             <ComplaintStatusChip r={r} />
                                             {personalMode && cmScope === 'all' && isMine(r) && (
-                                                <span className="ucx-mine-badge"><i className="fa-solid fa-user-check" /> {sbuMode ? 'Awaiting your review' : 'Assigned to you'}</span>
+                                                <span className="ucx-mine-badge"><i className="fa-solid fa-user-check" /> {ccMode ? 'To forward' : reviewerMode ? 'Awaiting your review' : 'Assigned to you'}</span>
                                             )}
                                         </td>
                                         <td className="td-nowrap">
@@ -576,7 +597,7 @@ export default function UdmRejectionDashboard({ mode = 'board' }) {
                 </div>
 
                 {/* ── Pagination bar ── */}
-                {visible.length > 0 && (
+                {total > 0 && (
                     <div className="udm-pagination">
                         <div className="udm-pg-left">
                             <span className="udm-pg-label">Rows per page</span>
@@ -590,7 +611,7 @@ export default function UdmRejectionDashboard({ mode = 'board' }) {
                                 ))}
                             </select>
                             <span className="udm-pg-info">
-                                {(safePage - 1) * pageSize + 1}–{Math.min(safePage * pageSize, visible.length)} of {visible.length}
+                                {(safePage - 1) * pageSize + 1}–{Math.min(safePage * pageSize, total)} of {total}
                             </span>
                         </div>
                         <div className="udm-pg-right">
@@ -648,7 +669,9 @@ export default function UdmRejectionDashboard({ mode = 'board' }) {
                 )}
             </div>
 
-            {detail && (
+            {/* Portals: some dashboards wrap this screen in an animated (transformed) container, which would make
+                a position:fixed overlay size itself to that container instead of the window → bottom cut off. */}
+            {detail && createPortal(
                 <DetailModal
                     r={detail}
                     onClose={() => setDetail(null)}
@@ -658,15 +681,17 @@ export default function UdmRejectionDashboard({ mode = 'board' }) {
                         : ''}
                     cmAct={cmMode && isAssignedToMe(detail) && !isClosed(detail)}
                     sbuAct={sbuMode && isPendingWithSbu(detail)}
+                    rbAct={rbMode && isPendingWithRb(detail)}
                     onCmDone={applyActionResult}
                     timelineKey={tlKey}
                     onSend={() => setSendFor(detail)}
                     onCloseComplaint={() => setCloseFor(detail)}
-                />
+                />,
+                document.body
             )}
-            {sendFor && <SendToCmModal r={sendFor} onCancel={() => setSendFor(null)} onDone={applyActionResult} />}
-            {closeFor && <CloseComplaintModal r={closeFor} onCancel={() => setCloseFor(null)} onDone={applyActionResult} />}
-            {toast.node}
+            {sendFor && createPortal(<SendToCmModal r={sendFor} onCancel={() => setSendFor(null)} onDone={applyActionResult} />, document.body)}
+            {closeFor && createPortal(<CloseComplaintModal r={closeFor} onCancel={() => setCloseFor(null)} onDone={applyActionResult} />, document.body)}
+            {toast.node && createPortal(toast.node, document.body)}
 
             {showHistory && <SyncHistoryModal onClose={() => setShowHistory(false)} />}
 
@@ -767,8 +792,41 @@ const Fv = ({ l, v, cls }) => (
     </div>
 );
 
+/* ─── Download Merged PDF (rejection PDF + timeline + documents) ─── */
+function MergedPdfButton({ r }) {
+    const [busy, setBusy] = useState(false);
+    const [err, setErr] = useState('');
+    const download = async () => {
+        if (busy) return;
+        setBusy(true); setErr('');
+        try {
+            const { blob, fileName } = await downloadMergedComplaintPdf(r.id);
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = fileName;
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+            setTimeout(() => URL.revokeObjectURL(url), 60000);
+        } catch (e) {
+            setErr(e.message || 'Could not prepare the merged PDF.');
+        } finally {
+            setBusy(false);
+        }
+    };
+    return (
+        <button type="button" className="udm-dm-pdf udm-dm-merged" onClick={download} disabled={busy}
+            title={err || 'Download one PDF: rejection document + complaint timeline + uploaded documents'}>
+            {busy ? <span className="ucx-spinner" /> : <i className={`fa-solid ${err ? 'fa-circle-exclamation' : 'fa-file-zipper'}`} />}
+            <span>{busy ? 'Preparing…' : 'Merged PDF'}</span>
+        </button>
+    );
+}
+MergedPdfButton.propTypes = { r: PropTypes.object.isRequired };
+
 /* ─── Detail Modal ───────────────────────────────────────────── */
-function DetailModal({ r, onClose, canAct = false, viewOnlyNote = '', cmAct = false, sbuAct = false, onCmDone, timelineKey = 0, onSend, onCloseComplaint }) {
+function DetailModal({ r, onClose, canAct = false, viewOnlyNote = '', cmAct = false, sbuAct = false, rbAct = false, onCmDone, timelineKey = 0, onSend, onCloseComplaint }) {
     const pdfUrl   = r.pdfPath
         ? (r.pdfPath.startsWith('http') ? r.pdfPath : `${IREPS_BASE}${r.pdfPath}`)
         : null;
@@ -803,6 +861,7 @@ function DetailModal({ r, onClose, canAct = false, viewOnlyNote = '', cmAct = fa
                                     <i className="fa-solid fa-file-pdf" /><span>PDF</span>
                                 </a>
                             )}
+                            <MergedPdfButton r={r} />
                             <button type="button" className="udm-dm-x" onClick={onClose} aria-label="Close"><i className="fa-solid fa-xmark" /></button>
                         </div>
                     </div>
@@ -884,7 +943,7 @@ function DetailModal({ r, onClose, canAct = false, viewOnlyNote = '', cmAct = fa
                         </>
                     ) : tab === 'timeline' ? (
                         <div className="udm-msect udm-dm-tl">
-                            <ComplaintTimeline rejectionId={r.id} refreshKey={timelineKey} />
+                            <ComplaintTimeline rejectionId={r.id} refreshKey={timelineKey} receivedDate={r.fetchedDate} />
                         </div>
                     ) : (
                         <div className="udm-msect udm-dm-tl">
@@ -896,7 +955,8 @@ function DetailModal({ r, onClose, canAct = false, viewOnlyNote = '', cmAct = fa
                 {/* Complaint status + actions (Send to CM / Close for Complaint Cell) */}
                 <ComplaintActionFooter r={r} canAct={canAct} viewOnlyNote={viewOnlyNote} onSend={onSend} onClose={onCloseComplaint}
                     extraActions={cmAct ? <CmActionButton r={r} refreshKey={timelineKey} onDone={onCmDone} />
-                        : sbuAct ? <SbuReviewButton r={r} refreshKey={timelineKey} onDone={onCmDone} /> : null} />
+                        : sbuAct ? <SbuReviewButton r={r} refreshKey={timelineKey} onDone={onCmDone} />
+                        : rbAct ? <RbReviewButton r={r} refreshKey={timelineKey} onDone={onCmDone} /> : null} />
             </div>
         </div>
     );
@@ -909,12 +969,13 @@ DetailModal.propTypes = {
     viewOnlyNote: PropTypes.string,
     cmAct: PropTypes.bool,
     sbuAct: PropTypes.bool,
+    rbAct: PropTypes.bool,
     onCmDone: PropTypes.func,
     timelineKey: PropTypes.number,
     onSend: PropTypes.func,
     onCloseComplaint: PropTypes.func,
 };
-UdmRejectionDashboard.propTypes = { mode: PropTypes.oneOf(['board', 'complaintCell', 'cm', 'sbu']) };
+UdmRejectionDashboard.propTypes = { mode: PropTypes.oneOf(['board', 'complaintCell', 'cm', 'sbu', 'rb']) };
 F.propTypes          = { l: PropTypes.string.isRequired, v: PropTypes.any };
 Dropdown.propTypes   = {
     label: PropTypes.string, value: PropTypes.string,

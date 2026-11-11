@@ -210,11 +210,29 @@
   font-size: 11.5px; font-weight: 600; color: #334155; background: #f1f5f9; border: 1px solid #e2e8f0;
 }
 .ucx-tl-tag i { color: #16a34a; font-size: 10.5px; }
+.ucx-tl-by { color: #1e3a8a; background: #eff6ff; border-color: #bfdbfe; max-width: 100%; }
+.ucx-tl-by i { color: #2563eb; }
+.ucx-tl-by em {
+  font-style: normal; font-size: 10.5px; font-weight: 700; padding: 0 6px; border-radius: 6px;
+  color: #1d4ed8; background: #dbeafe;
+}
 .ucx-tl-remarks {
   display: flex; align-items: flex-start; gap: 8px; margin-top: 8px; padding: 8px 12px; border-radius: 10px;
   font-size: 12.5px; color: #334155; background: #f8fafc; border-left: 3px solid #93c5fd; word-break: break-word;
 }
 .ucx-tl-remarks i { margin-top: 2px; color: #64748b; }
+.ucx-tl-remarks-body { flex: 1; min-width: 0; display: flex; flex-direction: column; align-items: flex-start; gap: 4px; }
+.ucx-tl-remarks-text { white-space: pre-line; overflow-wrap: anywhere; line-height: 1.5; }
+.ucx-tl-remarks-text.is-clamped {
+  display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3; line-clamp: 3; overflow: hidden;
+}
+.ucx-tl-more {
+  display: inline-flex; align-items: center; gap: 5px; padding: 0; border: none; background: none; cursor: pointer;
+  font: inherit; font-size: 12px; font-weight: 700; color: #2563eb;
+}
+.ucx-tl-more i { font-size: 9px; margin: 0; color: inherit; }
+.ucx-tl-more:hover { text-decoration: underline; }
+.ucx-tl-more:focus-visible { outline: none; box-shadow: 0 0 0 3px rgba(37, 99, 235, .2); border-radius: 4px; }
 .ucx-tl-empty { font-size: 12.5px; color: #64748b; display: flex; align-items: center; gap: 8px; padding: 6px 4px; }
 
 @media (max-width: 600px) {

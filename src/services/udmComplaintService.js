@@ -5,6 +5,18 @@ const unwrap = (res) => (res && Object.prototype.hasOwnProperty.call(res, 'respo
 
 const BASE = `${API_BASE_URL}/api/udm-complaints`;
 
+/**
+ * Role-scoped, server-paginated complaint list.
+ * view: 'cc' | 'cm' | 'sbu' | 'rb' | 'board' (backend checks the user holds that role)
+ * scope: 'mine' | 'all'; tab: 'pending' | 'closed'; page: 0-based.
+ * Returns { content, page, size, totalElements, totalPages, pendingCount, closedCount, mineCount, allCount }.
+ */
+export const getUdmComplaintList = ({ view = 'board', scope = 'all', tab = 'pending', page = 0, size = 10, q = '' } = {}) => {
+    const params = new URLSearchParams({ view, scope, tab, page: String(page), size: String(size) });
+    if (q) params.set('q', q);
+    return fetch(`${BASE}/list?${params.toString()}`, { headers: getAuthHeaders() }).then(handleResponse).then(unwrap);
+};
+
 /** RIOs that have at least one Controlling Manager. */
 export const getComplaintRios = () =>
     fetch(`${BASE}/rios`, { headers: getAuthHeaders() }).then(handleResponse).then(unwrap);
@@ -97,6 +109,20 @@ export const submitSbuReview = (rejectionId, { decision, remarks }) =>
         body: JSON.stringify({ decision, remarks }),
     }).then(handleResponse).then(unwrap);
 
+/* ─── Phase 3b: Railway Board review ──────────────────────────────── */
+
+/** { complaintStatus, canAct, currentRound } for the logged-in Railway Board user. */
+export const getRbContext = (rejectionId) =>
+    fetch(`${BASE}/${rejectionId}/rb-context`, { headers: getAuthHeaders() }).then(handleResponse).then(unwrap);
+
+/** Railway Board review: { decision: 'APPROVE'|'RETURN', remarks } (APPROVE closes; remarks mandatory for RETURN). */
+export const submitRbReview = (rejectionId, { decision, remarks }) =>
+    fetch(`${BASE}/${rejectionId}/rb/review`, {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ decision, remarks }),
+    }).then(handleResponse).then(unwrap);
+
 /** Submitted CM stage details. */
 export const getComplaintStages = (rejectionId) =>
     fetch(`${BASE}/${rejectionId}/stages`, { headers: getAuthHeaders() }).then(handleResponse).then(unwrap);
@@ -104,6 +130,21 @@ export const getComplaintStages = (rejectionId) =>
 /** Documents of a complaint: [{ id, stage, docType, fileName, sizeBytes, uploadedAt }]. */
 export const getComplaintDocuments = (rejectionId) =>
     fetch(`${BASE}/${rejectionId}/documents`, { headers: getAuthHeaders() }).then(handleResponse).then(unwrap);
+
+/**
+ * Merged PDF (original rejection PDF + timeline report + uploaded documents in workflow order).
+ * Returns { blob, fileName }.
+ */
+export const downloadMergedComplaintPdf = async (rejectionId) => {
+    const res = await fetch(`${BASE}/${rejectionId}/merged-pdf`, { headers: multipartHeaders() });
+    if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.message || err.errorMessage || err?.responseStatus?.message || `HTTP ${res.status}`);
+    }
+    const cd = res.headers.get('Content-Disposition') || '';
+    const m = /filename="?([^";]+)"?/i.exec(cd);
+    return { blob: await res.blob(), fileName: m ? m[1] : `UDM_Complaint_${rejectionId}.pdf` };
+};
 
 /** Downloads a document as a Blob (sent with the auth header; container stays private). */
 export const downloadComplaintDocument = async (documentId) => {

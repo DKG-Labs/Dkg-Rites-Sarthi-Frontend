@@ -303,8 +303,11 @@ const FinalInspectionScreen = ({ call, onBack }) => {
                         place: summary.placeOfInspection || ''
                     }));
                 }
+                // For Set UoM the vendor's call total_offered is the offered SETS — it must win over
+                // header/summary values (which can hold a stale set count, e.g. 1 instead of 18).
                 const initialVendorSets = Number(
-                    sec2?.callQtyMt || 
+                    (isSetUom && Number(call?.totalOffered ?? call?.offeredQty) > 0 ? Number(call?.totalOffered ?? call?.offeredQty) : null) ||
+                    sec2?.callQtyMt ||
                     summary?.qtyOfferedNow || 
                     call?.totalOffered || 
                     (isSetUom && call?.offeredSetsQuantity ? call.offeredSetsQuantity : null) || 
@@ -688,7 +691,8 @@ const FinalInspectionScreen = ({ call, onBack }) => {
                     const finalResResp = await apiService.getSleeperFinalResult(callNo);
                     const finalResData = finalResResp?.responseData || finalResResp;
                     if (finalResData) {
-                        if (finalResData.offeredSetsQuantity != null && Number(finalResData.offeredSetsQuantity) > 0) {
+                        // Offered sets come from the vendor's call; only fall back to the saved value if the call has none.
+                        if (!(Number(call?.totalOffered ?? call?.offeredQty) > 0) && finalResData.offeredSetsQuantity != null && Number(finalResData.offeredSetsQuantity) > 0) {
                             setOfferedSetsQty(Number(finalResData.offeredSetsQuantity));
                         }
                         if (finalResData.rejectedSetsQuantity != null) {

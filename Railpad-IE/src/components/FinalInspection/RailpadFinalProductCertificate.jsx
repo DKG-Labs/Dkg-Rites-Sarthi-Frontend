@@ -22,6 +22,7 @@ import {
 } from "../../services/certificateService";
 import { performTransitionAction } from "../../services/workflowService";
 import { getStoredUser } from "../../services/authService";
+import { getBaseUrl } from "../../services/apiConfig";
 import { finalInspectionLotResultsService } from "../../services/finalInspectionLotResultsService";
 import { generatePdfBase64, calculateSignatureCoords, exportToPdf } from "../../utils/exportUtils";
 
@@ -290,9 +291,9 @@ export default function RailpadFinalProductCertificate({ call = {}, onBack, isVi
             offeredInstNo: fetchedData.offeredInsttNo || "",
             passedInstNo: fetchedData.passedInsttNo || "",
             contractor: fetchedData.contractorName || "",
-            manufacturer: fetchedData.manufacturer || fetchedData.contractorName || "",
-            consigneeManufacturer: fetchedData.consigneeManufacturer || fetchedData.manufacturer || fetchedData.contractorName || "",
-            placeOfInspection: fetchedData.placeOfInspection || fetchedData.manufacturer || fetchedData.contractorName || "",
+            manufacturer: (fetchedData.manufacturer && fetchedData.manufacturer !== 'SARTHI') ? fetchedData.manufacturer : (fetchedData.placeOfInspection || fetchedData.contractorName || ""),
+            consigneeManufacturer: (fetchedData.consigneeManufacturer && fetchedData.consigneeManufacturer !== 'SARTHI') ? fetchedData.consigneeManufacturer : (fetchedData.placeOfInspection || fetchedData.manufacturer || fetchedData.contractorName || ""),
+            placeOfInspection: (fetchedData.placeOfInspection && fetchedData.placeOfInspection !== 'SARTHI') ? fetchedData.placeOfInspection : (fetchedData.manufacturer || fetchedData.contractorName || ""),
             contractRef: fetchedData.contractReferences + (fetchedData.latest4Amendments && fetchedData.latest4Amendments.length > 0 ? "\nUpto Latest 4 Amendments\n" + fetchedData.latest4Amendments.join("\n") : "\nUpto Latest 4 Amendments\nN/A"),
             billPayingOfficer: fetchedData.billPayingOfficer || "",
             consignee: fetchedData.consignee || "",
@@ -325,7 +326,7 @@ export default function RailpadFinalProductCertificate({ call = {}, onBack, isVi
 
         // Fetch region dynamically from API matching ERC
         try {
-          const regionRes = await fetch(`${getBaseUrl()}/api/reports/region?callNo=${encodeURIComponent(callNo)}`, {
+          const regionRes = await fetch(`${getBaseUrl()}/reports/region?callNo=${encodeURIComponent(callNo)}`, {
             headers: {
               'Content-Type': 'application/json',
               'Authorization': `Bearer ${localStorage.getItem('authToken') || ''}`
@@ -432,9 +433,9 @@ export default function RailpadFinalProductCertificate({ call = {}, onBack, isVi
             mappedData.setNo = savedEdit.setNo || mappedData.setNo;
             mappedData.certificateDate = savedEdit.certificateDate || mappedData.certificateDate;
             mappedData.contractor = savedEdit.contractor || mappedData.contractor;
-            mappedData.manufacturer = savedEdit.manufacturer || mappedData.manufacturer;
-            mappedData.consigneeManufacturer = savedEdit.consigneeManufacturer || mappedData.consigneeManufacturer;
-            mappedData.placeOfInspection = savedEdit.placeOfInspection || mappedData.placeOfInspection;
+            mappedData.manufacturer = (savedEdit.manufacturer && savedEdit.manufacturer !== 'SARTHI') ? savedEdit.manufacturer : mappedData.manufacturer;
+            mappedData.consigneeManufacturer = (savedEdit.consigneeManufacturer && savedEdit.consigneeManufacturer !== 'SARTHI') ? savedEdit.consigneeManufacturer : mappedData.consigneeManufacturer;
+            mappedData.placeOfInspection = (savedEdit.placeOfInspection && savedEdit.placeOfInspection !== 'SARTHI') ? savedEdit.placeOfInspection : mappedData.placeOfInspection;
             mappedData.offeredInstNo = savedEdit.offeredInstNo || savedEdit.installmentNo || mappedData.offeredInstNo;
             mappedData.passedInstNo = savedEdit.passedInstNo || mappedData.passedInstNo;
             if (savedEdit.contractRef) {

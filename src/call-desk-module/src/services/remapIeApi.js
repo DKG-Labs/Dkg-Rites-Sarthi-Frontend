@@ -45,9 +45,13 @@ export const fetchRemapAssignedUser = async (callNo, stage, poiCode) => {
  * @param {string} stage - e.g. "ER", "EP", "EF"
  * @returns {Promise<Object>} responseData containing array of available employees
  */
-export const fetchRemapAvailableEmployees = async (stage) => {
+export const fetchRemapAvailableEmployees = async (stage, rio) => {
+    const params = new URLSearchParams({ stage });
+    if (rio && String(rio).trim()) {
+        params.append('rio', String(rio).trim());
+    }
     const response = await fetch(
-        `${API_BASE_URL}/api/call-desk/remap-available-employees?stage=${encodeURIComponent(stage)}`,
+        `${API_BASE_URL}/api/call-desk/remap-available-employees?${params.toString()}`,
         { method: 'GET', headers: getHeaders() }
     );
     return handleResponse(response);
@@ -78,8 +82,12 @@ export const submitRemapIe = async (payload) => {
 /**
  * Fetch available employees for Sleeper remapping.
  */
-export const fetchSleeperRemapAvailableUsers = async () => {
-    const response = await fetch(`${API_BASE_URL}/api/sleeper-workflow/remap-available-users`, {
+export const fetchSleeperRemapAvailableUsers = async (rio, ieRole) => {
+    const params = new URLSearchParams();
+    if (rio && String(rio).trim()) params.set('rio', String(rio).trim());
+    if (ieRole && String(ieRole).trim()) params.set('ieRole', String(ieRole).trim());
+    const query = params.toString() ? `?${params.toString()}` : '';
+    const response = await fetch(`${API_BASE_URL}/api/sleeper-workflow/remap-available-users${query}`, {
         method: 'GET',
         headers: getHeaders()
     });
@@ -102,8 +110,12 @@ export const submitSleeperRemap = async (payload) => {
 /**
  * Fetch available employees for Railpad remapping.
  */
-export const fetchRailpadRemapAvailableUsers = async () => {
-    const response = await fetch(`${API_BASE_URL}/api/railpad-workflow/remap-available-users`, {
+export const fetchRailpadRemapAvailableUsers = async (rio, ieRole) => {
+    const params = new URLSearchParams();
+    if (rio && String(rio).trim()) params.set('rio', String(rio).trim());
+    if (ieRole && String(ieRole).trim()) params.set('ieRole', String(ieRole).trim());
+    const query = params.toString() ? `?${params.toString()}` : '';
+    const response = await fetch(`${API_BASE_URL}/api/railpad-workflow/remap-available-users${query}`, {
         method: 'GET',
         headers: getHeaders()
     });

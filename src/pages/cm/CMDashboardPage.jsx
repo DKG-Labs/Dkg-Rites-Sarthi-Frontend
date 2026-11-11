@@ -10,6 +10,7 @@ import { formatDate } from '../../utils/helpers';
 import CMDiversionApprovalsTab from './tabs/CMDiversionApprovalsTab';
 import UdmRejectionDashboard from '../../components/railway-board/UdmRejectionDashboard';
 import SBUDiversionApprovalsTab from './tabs/SBUDiversionApprovalsTab';
+import { CertificateStorageManager } from '../../components/admin-dashboard/CertificateStorageManager';
 
 const REPORT_NAME_TO_SLUG = {
   'PO Wise Monthly Progress Report': 'mpr',
@@ -1989,6 +1990,24 @@ export const CMDashboardPage = ({ isEmbedded = false, activeTabFromProps = null,
                     }}>{pendingApprovalsCount}</span>
                   )}
                 </span>
+              )}
+            </div>
+          </div>
+          {/* Inspection Certificates (Direct Item) */}
+          <div className="cm-menu-group">
+            <div
+              className={`cm-menu-item ${activeTab === 'Inspection Certificates' ? 'active' : ''}`}
+              onClick={() => {
+                setActiveTab('Inspection Certificates');
+                setCallMenuOpen(false);
+                setIeMenuOpen(false);
+                setVendorMenuOpen(false);
+                setReportsMenuOpen(false);
+              }}
+            >
+              <i className="cm-menu-item-icon fa-solid fa-file-shield"></i>
+              {!isSidebarCollapsed && (
+                <span>Inspection Certificates</span>
               )}
             </div>
           </div>
@@ -4470,6 +4489,12 @@ export const CMDashboardPage = ({ isEmbedded = false, activeTabFromProps = null,
           </>
         )}
 
+        {/* 14. Inspection Certificates / View & Replace IC */}
+        {activeTab === 'Inspection Certificates' && (
+          <div style={{ padding: '0 8px' }}>
+            <CertificateStorageManager onNotify={triggerNotification} isSuperAdmin={true} />
+          </div>
+        )}
       </main>
 
       {/* Approvals Action Remarks Dialog Modal */}

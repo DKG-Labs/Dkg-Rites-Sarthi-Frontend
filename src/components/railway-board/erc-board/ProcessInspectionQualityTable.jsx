@@ -7,6 +7,7 @@ import { jsPDF } from 'jspdf';
 import PptxGenJS from 'pptxgenjs';
 import { PieChart, Pie, Cell } from 'recharts';
 import './ProcessInspectionQualityTable.css';
+import { MpiaReportPage } from '../ProfessionalCardSection';
 
 // Reusable Drilldown Report Page Component
 export const ProcessQualityReportPage = ({ manufacturer, data, summaryRow }) => {
@@ -451,17 +452,28 @@ const ProcessInspectionQualityTable = ({ refreshTick = 0 }) => {
                 }
             }));
 
+            // Printing happens in the effect below (same flow as Vendor Wise Process Quality Report)
             setBatchReportData(results);
-            setTimeout(() => {
-                window.print();
-            }, 1000);
         } catch (err) {
             console.error('Failed to prepare batch PDF:', err);
-            alert('Failed to prepare batch PDF data.');
-        } finally {
             setIsPreparingBatchPdf(false);
+            alert('Failed to prepare batch PDF data.');
         }
     };
+
+    // Same as Vendor Wise Process Quality Report: let all pages/charts render, print, then clear
+    useEffect(() => {
+        if (batchReportData && batchReportData.length > 0) {
+            const timer = setTimeout(() => {
+                window.print();
+                setTimeout(() => {
+                    setBatchReportData(null);
+                    setIsPreparingBatchPdf(false);
+                }, 1000);
+            }, 2000);
+            return () => clearTimeout(timer);
+        }
+    }, [batchReportData]);
 
     // Sorting Logic
     const handleSort = (key) => {
@@ -584,7 +596,7 @@ const ProcessInspectionQualityTable = ({ refreshTick = 0 }) => {
     return (
         <div className="piq-container">
             {/* Top Toolbar */}
-            <div className="piq-topbar">
+            <div className={`piq-topbar ${batchReportData ? 'no-print' : ''}`}>
                 <div className="piq-title-area">
                     <h2 className="piq-heading">
                         <i className="fa-solid fa-table-cells text-emerald-600 mr-2"></i>
@@ -653,19 +665,15 @@ const ProcessInspectionQualityTable = ({ refreshTick = 0 }) => {
                             label="Download Summary"
                             onClick={() => downloadExcel(
                                 filteredAndSortedData,
+                                // Same format as "Download Summary" in Vendor Wise Process Quality Report
                                 [
-                                    { label: 'Manufacturer Name', key: 'manufacturerName' },
-                                    { label: 'Total Inspected Quantity', key: 'totalInspected' },
-                                    { label: 'Total Rejected Quantity', key: 'totalRejected' },
-                                    { label: 'Rejection (%)', key: 'rejectionPercent' },
-                                    { label: 'Shearing Rejection (%)', key: 'shearingRejectionPercent' },
-                                    { label: 'Turning Rejection (%)', key: 'turningRejectionPercent' },
-                                    { label: 'MPI Rejection (%)', key: 'mpiRejectionPercent' },
-                                    { label: 'Forging Rejection (%)', key: 'forgingRejectionPercent' },
-                                    { label: 'Quenching Rejection (%)', key: 'quenchingRejectionPercent' },
-                                    { label: 'Tempering Rejection (%)', key: 'temperingRejectionPercent' }
+                                    { label: 'Manufacture', key: 'manufacturerName' },
+                                    { label: 'Total Inspected', key: 'totalInspected' },
+                                    { label: 'Total Accepted', key: 'totalAccepted' },
+                                    { label: 'Total Rejected', key: 'totalRejected' },
+                                    { label: 'Rejection %', key: 'rejectionPercent' }
                                 ],
-                                `Process_Inspection_Quality_Table_${fromDate}_to_${toDate}`
+                                'Vendor_Wise_Process_Quality_Report_Summary'
                             )}
                         />
 
@@ -686,7 +694,7 @@ const ProcessInspectionQualityTable = ({ refreshTick = 0 }) => {
             )}
 
             {/* Main Table */}
-            <div className="piq-table-wrapper">
+            <div className={`piq-table-wrapper ${batchReportData ? 'no-print' : ''}`}>
                 {loading ? (
                     <div className="piq-loading-state">
                         <div className="piq-spinner"></div>
@@ -725,6 +733,9 @@ const ProcessInspectionQualityTable = ({ refreshTick = 0 }) => {
                                 </th>
                                 <th onClick={() => handleSort('temperingRejectionPercent')} className="text-right">
                                     Tempering Rej (%) {renderSortIcon('temperingRejectionPercent')}
+                                </th>
+                                <th onClick={() => handleSort('otherRejectionPercent')} className="text-right" title="Visual, Dimension, Hardness, Testing & Finishing etc.">
+                                    Other Rej (%) {renderSortIcon('otherRejectionPercent')}
                                 </th>
                             </tr>
                         </thead>
@@ -794,11 +805,16 @@ const ProcessInspectionQualityTable = ({ refreshTick = 0 }) => {
                                     <td className="text-right text-slate-600">
                                         {Number(row.temperingRejectionPercent || 0).toFixed(2)}%
                                     </td>
+
+                                    {/* Column 11: Other stages Rejection % (so stage %s sum to total Rejection %) */}
+                                    <td className="text-right text-slate-600">
+                                        {Number(row.otherRejectionPercent || 0).toFixed(2)}%
+                                    </td>
                                 </tr>
                             ))}
                             {paginatedData.length === 0 && (
                                 <tr>
-                                    <td colSpan="10" className="piq-empty-cell">
+                                    <td colSpan="11" className="piq-empty-cell">
                                         <i className="fa-solid fa-inbox text-3xl text-slate-300 mb-2"></i>
                                         <p>No process inspection records found for the selected criteria.</p>
                                     </td>
@@ -988,11 +1004,9 @@ const ProcessInspectionQualityTable = ({ refreshTick = 0 }) => {
 
             {/* Hidden Batch PDF Print Area */}
             {batchReportData && (
-                <div className="batch-print-area">
+                <div className="mpia-batch-print-viewport">
                     {batchReportData.map((item, idx) => (
-                        <div key={idx} className="page-break" style={{ pageBreakAfter: 'always', padding: '20px' }}>
-                            <ProcessQualityReportPage manufacturer={item.manufacturer} data={item.data} summaryRow={item.summaryRow} />
-                        </div>
+                        <MpiaReportPage key={idx} manufacturer={item.manufacturer} data={item.data} />
                     ))}
                 </div>
             )}

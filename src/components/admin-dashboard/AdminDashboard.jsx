@@ -62,9 +62,14 @@ export const AdminDashboard = () => {
         : (typeof currentUser?.roleName === 'string'
             ? currentUser.roleName.split(',').map(r => r.trim())
             : (currentUser?.roleName ? [currentUser.roleName] : []));
+    const isSuperAdmin = rawRoles.some(r => {
+        const lower = String(r || '').trim().toLowerCase();
+        return lower === 'super admin' || lower === 'superadmin' || lower === 'super_admin' || lower.includes('super');
+    });
+
     const isAdmin = rawRoles.some(r => {
         const lower = String(r || '').trim().toLowerCase();
-        return lower === 'admin' || lower === 'super admin';
+        return lower === 'admin' || lower === 'super admin' || lower.includes('super');
     });
 
     const [activeModule, setActiveModule] = useState(() => {
@@ -632,6 +637,8 @@ export const AdminDashboard = () => {
 
                     {activeModule === 'certificates' && (
                         <CertificateStorageManager
+                            currentUser={currentUser}
+                            isSuperAdmin={isSuperAdmin}
                             onNotify={(msg, severity) => setSnackbar({ open: true, message: msg, severity: severity || 'info' })}
                         />
                     )}

@@ -633,6 +633,7 @@ const VerifiedOpenCallsTab = ({ callType, calls = [], kpis = {}, onViewHistory }
         <RemapIEModal
           callNo={selectedCallForRemap.callNumber}
           stage={selectedCallForRemap.stage}
+          rio={selectedCallForRemap.rio}
           onClose={() => {
             setIsRemapModalOpen(false);
             setSelectedCallForRemap(null);
@@ -650,6 +651,7 @@ const VerifiedOpenCallsTab = ({ callType, calls = [], kpis = {}, onViewHistory }
         <SleeperRemapIEModal
           callNo={selectedSleeperCallForRemap.callNumber}
           plantId={selectedSleeperCallForRemap.plantId}
+          rio={selectedSleeperCallForRemap.rio}
           currentIeUserId={selectedSleeperCallForRemap.assignedToUser}
           currentIeName={selectedSleeperCallForRemap.assignedIE || 'Assigned IE'}
           currentIeEmployeeCode={selectedSleeperCallForRemap.assignedToUserEmployeeCode}
@@ -666,6 +668,7 @@ const VerifiedOpenCallsTab = ({ callType, calls = [], kpis = {}, onViewHistory }
         <RailpadRemapIEModal
           callNo={selectedRailpadCallForRemap.callNumber}
           plantId={selectedRailpadCallForRemap.plantId}
+          rio={selectedRailpadCallForRemap.rio}
           currentIeUserId={selectedRailpadCallForRemap.assignedToUser}
           currentIeName={selectedRailpadCallForRemap.assignedIE || 'Assigned IE'}
           currentIeEmployeeCode={selectedRailpadCallForRemap.assignedToUserEmployeeCode}

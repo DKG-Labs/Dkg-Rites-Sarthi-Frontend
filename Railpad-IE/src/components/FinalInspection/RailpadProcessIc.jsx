@@ -210,7 +210,7 @@ const RailpadProcessIc = ({
 
   const allowedFields = [
     "bookNo", "setNo",
-    "certificateDate", "offeredInstNo", "passedInstNo", "contractor", "manufacturer",
+    "certificateDate", "offeredInstNo", "passedInstNo", "contractor", "manufacturer", "placeOfInspection",
     "contractRef", "billPayingOfficer", "consignee", "consigneeManufacturer", "purchasingAuthority", 
     "description", "drgNo", "specNo", "qapNo", "typeOfInspection", "chpClNo",
     "quantityNowPassedText", "reasonsForRejection",
@@ -403,9 +403,9 @@ const RailpadProcessIc = ({
               </div>
             </td>
             <td colSpan="1" style={{ ...tdStyle, width: '50%' }}>
-              <div style={{ fontWeight: 'bold' }}>Manufacturer:</div>
+              <div style={{ fontWeight: 'bold' }}>Place of Inspection:</div>
               <div style={{ textTransform: 'uppercase', marginTop: '2px' }}>
-                <EditableField value={manufacturer || contractor} fieldName="manufacturer" type="textarea" {...fieldProps} />
+                <EditableField value={placeOfInspection || manufacturer || contractor} fieldName="placeOfInspection" type="textarea" {...fieldProps} />
               </div>
             </td>
           </tr>
@@ -435,7 +435,7 @@ const RailpadProcessIc = ({
               </div>
               <div style={{ fontWeight: 'bold', marginTop: '8px' }}>Consignee (Manufacturer of finished Product):</div>
               <div style={{ textTransform: 'uppercase', marginTop: '2px' }}>
-                <EditableField value={consigneeManufacturer || contractor} fieldName="consigneeManufacturer" type="textarea" {...fieldProps} />
+                <EditableField value={(consigneeManufacturer && consigneeManufacturer !== 'SARTHI') ? consigneeManufacturer : (placeOfInspection || manufacturer || contractor)} fieldName="consigneeManufacturer" type="textarea" {...fieldProps} />
               </div>
             </td>
             <td colSpan="1" style={{ ...tdStyle, width: '50%' }}>

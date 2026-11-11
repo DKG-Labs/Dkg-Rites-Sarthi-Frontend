@@ -6,6 +6,7 @@ import {
   submitRemapIe,
 } from '../services/remapIeApi';
 import SearchableEmployeeSelect from './SearchableEmployeeSelect';
+import { getEffectiveCallDeskRio, isRioMatching, isProductAndIeRoleMatching } from '../utils/helpers';
 
 
 const styles = {
@@ -120,7 +121,7 @@ const InfoCard = ({ label, value }) => (
   </div>
 );
 
-const RemapIEModal = ({ callNo, stage, onClose, onSuccess }) => {
+const RemapIEModal = ({ callNo, stage, rio, onClose, onSuccess }) => {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [details, setDetails] = useState(null);
@@ -149,13 +150,19 @@ const RemapIEModal = ({ callNo, stage, onClose, onSuccess }) => {
         const poiCode = poiData.responseData.poiCode;
 
         // Step 2: Assigned user + available employees in parallel
+        const effectiveRio = getEffectiveCallDeskRio(rio);
+        const targetIeRole = stageCode === 'EP' ? 'PROCESS_IE' : 'MAIN_IE';
         const [userData, empData] = await Promise.all([
           fetchRemapAssignedUser(callNo, stageCode, poiCode),
-          fetchRemapAvailableEmployees(stageCode),
+          fetchRemapAvailableEmployees(stageCode, effectiveRio),
         ]);
 
         if (userData.responseStatus?.statusCode === 0 && empData.responseStatus?.statusCode === 0) {
-          setDetails({ ...poiData.responseData, ...userData.responseData, availableEmployees: empData.responseData });
+          const rawEmployees = Array.isArray(empData.responseData) ? empData.responseData : [];
+          const filteredEmployees = rawEmployees.filter(
+            (emp) => isRioMatching(effectiveRio, emp.rio) && isProductAndIeRoleMatching(emp, 'ERC', targetIeRole)
+          );
+          setDetails({ ...poiData.responseData, ...userData.responseData, availableEmployees: filteredEmployees });
         } else {
           setError(userData.responseStatus?.message || empData.responseStatus?.message || 'Failed to load details');
         }
@@ -166,7 +173,7 @@ const RemapIEModal = ({ callNo, stage, onClose, onSuccess }) => {
       }
     };
     fetchDetails();
-  }, [callNo, stageCode]);
+  }, [callNo, stageCode, rio]);
 
   const handleSubmit = async () => {
     if (!selectedNewEmpCode) { setError('Please select a new employee to reassign.'); return; }

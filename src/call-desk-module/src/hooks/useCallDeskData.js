@@ -5,27 +5,9 @@ import axios from 'axios';
 import { CALL_STATUS } from '../utils/constants';
 import { getStoredUser, getAuthHeaders } from '../../../services/authService';
 import { API_BASE_URL } from '../../../services/apiConfig';
+import { isRioMatching } from '../utils/helpers';
 
 const BASE_URL = API_BASE_URL;
-
-const normalizeRio = (rioStr) => {
-  if (!rioStr) return '';
-  const r = String(rioStr).trim().toUpperCase();
-  if (r === 'ER' || r === 'ERIO' || r.includes('EAST') || r.includes('KOLKATA')) return 'ER';
-  if (r === 'WR' || r === 'WRIO' || r.includes('WEST') || r.includes('MUMBAI')) return 'WR';
-  if (r === 'NR' || r === 'NRIO' || r.includes('NORTH') || r.includes('DELHI')) return 'NR';
-  if (r === 'SR' || r === 'SRIO' || r.includes('SOUTH') || r.includes('CHENNAI')) return 'SR';
-  if (r === 'CR' || r === 'CRIO' || r.includes('CENT') || r.includes('BHILAI')) return 'CR';
-  return r.replace('RIO', '').replace('REGION', '').trim();
-};
-
-const isRioMatching = (userRio, itemRio) => {
-  if (!userRio) return true; // Super admin
-  if (!itemRio) return false;
-  const u = normalizeRio(userRio);
-  const i = normalizeRio(itemRio);
-  return u === i;
-};
 
 const parsePoInfo = (item) => {
   let rlyShortName = item.rlyShortName && item.rlyShortName !== '-' ? item.rlyShortName : '-';

@@ -98,6 +98,10 @@ const HeatDtl = () => {
     return outOfRangeFields[fieldName] ? "out-of-tolerance" : "";
   };
 
+  // Auto remarks set by the O2/N2/H2 checks — cleared once all values are within limit
+  const isAutoChemRejection = (remark) =>
+    /^rejected for (oxygen|nitrogen|hydrogen)$/i.test(String(remark || "").trim());
+
   // Helper function to build heat remark based on latest stage priority
   const buildHeatRemark = (currentData, newFieldValue, fieldName) => {
     const data = { ...currentData, [fieldName]: newFieldValue };
@@ -139,7 +143,8 @@ const HeatDtl = () => {
 
     // If all chemical values are within acceptable range and we have chemical data, return current remark or empty string
     // This preserves existing heat remark when values are acceptable
-    return currentData.heatRemark || "";
+    // Keep a manual remark, but drop a stale auto-rejection (value since corrected)
+    return isAutoChemRejection(currentData.heatRemark) ? "" : (currentData.heatRemark || "");
   };
 
   // Helper function to normalize sequence numbers by removing leading zeros
@@ -792,6 +797,15 @@ const HeatDtl = () => {
         sequenceNo2: data?.responseData?.sequenceNo?.split("/")?.[1] || null,
       } || {};
 
+      // Saved O2/N2/H2 auto-rejection that no longer matches the values → recompute
+      if (!data?.responseData?.isDiverted && isAutoChemRejection(loadedData.heatRemark)) {
+        const h = parseFloat(loadedData.hydris), o = parseFloat(loadedData.oxygen), n = parseFloat(loadedData.nitrogen);
+        loadedData.heatRemark = o > 20 ? "Rejected for oxygen"
+          : n > 0.009 ? "Rejected for nitrogen"
+          : h > 1.6 ? "Rejected for hydrogen" : "";
+        setHeatRemarkDisabled(!!loadedData.heatRemark);
+      }
+
       setFormData(loadedData);
       setDivertedHeat(data?.responseData?.isDiverted);
 
@@ -1046,7 +1060,8 @@ const HeatDtl = () => {
         if (formData.heatRemark === "Rejected for chemistry") {
           newHeatRemark = ""; // Clear chemistry rejection
         } else {
-          newHeatRemark = formData.heatRemark; // Keep existing non-chemistry remark
+          // Keep a manual remark; drop a stale O2/N2/H2 auto-rejection
+          newHeatRemark = isAutoChemRejection(formData.heatRemark) ? "" : formData.heatRemark;
         }
         shouldDisableHeatRemark = false;
       }

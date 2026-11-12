@@ -9,6 +9,7 @@ import Login from "../auth/Login";
 import PageNotFound from "../pageNotFound/PageNotFound";
 import UnderConstruction from "../pageNotFound/UnderConstruction";
 import SmsDutyEnd from "../dashboard/duty/sms/endDuty/SmsDutyEnd";
+import SmsIsoReportsHome from "../dashboard/duty/sms/isoReports/SmsIsoReportsHome";
 import SmsBloomInspection from "../dashboard/duty/sms/bloomInspection/SmsBloomInspection";
 import ShiftReports from "../dashboard/duty/sms/shiftReports/ShiftReports";
 import SmsHeatList from "../dashboard/duty/sms/heatList/SmsHeatList";
@@ -168,6 +169,7 @@ const RoutesComponent = () => {
                   <Route path="heatSummary" element={<SmsHeatSummary />} />
                   <Route path="heatDtl" element={<HeatDtl />} />
                   <Route path="dutyEnd" element={<SmsDutyEnd />} />
+                  <Route path="isoReports" element={<SmsIsoReportsHome />} />
                   <Route
                     path="bloomInspection"
                     element={<SmsBloomInspection />}

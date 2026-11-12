@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { getBaseUrl } from '../services/apiConfig';
 import { getStoredUser } from '../services/authService';
-import { viewSignedCertificate } from '../services/certificateService';
+import { viewSignedCertificate, checkSignedCertificateExists } from '../services/certificateService';
 import { generateRailpadCallLetterPDF } from '../utils/generateCallLetterPDF';
 import { generateInspectionPhotosPDF } from '../utils/generateInspectionPhotosPDF';
 import { 
@@ -45,6 +45,39 @@ const GenerateCaseLetterModal = ({
   const [docList, setDocList] = useState([]);
   const [uploadedFiles, setUploadedFiles] = useState({});
   const [systemDocBlobs, setSystemDocBlobs] = useState({});
+  // Docs confirmed to exist (cheap check on open) but not downloaded yet: docKey -> true.
+  // Their loader runs only on 👁 View or on Save, so opening the popup costs ~0 MB.
+  const [lazyDocs, setLazyDocs] = useState({});
+  const lazyLoadersRef = useRef({}); // docKey -> async () => Blob
+  const registerLazy = (docKey, loader) => {
+    lazyLoadersRef.current[docKey] = loader;
+    setLazyDocs(prev => ({ ...prev, [docKey]: true }));
+  };
+  const loadSignedCertBlob = async (icNo) => {
+    const { signedData } = await viewSignedCertificate(icNo);
+    if (!signedData) throw new Error('Signed certificate not found');
+    const byteCharacters = atob(signedData);
+    const byteNumbers = new Array(byteCharacters.length);
+    for (let i = 0; i < byteCharacters.length; i++) {
+      byteNumbers[i] = byteCharacters.charCodeAt(i);
+    }
+    return new Blob([new Uint8Array(byteNumbers)], { type: 'application/pdf' });
+  };
+  // Download a lazy doc once and keep it for later views / save
+  const ensureLazyBlob = async (docKey) => {
+    if (systemDocBlobs[docKey]) return systemDocBlobs[docKey];
+    const loader = lazyLoadersRef.current[docKey];
+    if (!loader) return null;
+    setLoadingItems(prev => ({ ...prev, [docKey]: true }));
+    try {
+      const blob = await loader();
+      if (!blob || blob.size === 0) throw new Error('Document is empty');
+      setSystemDocBlobs(prev => ({ ...prev, [docKey]: blob }));
+      return blob;
+    } finally {
+      setLoadingItems(prev => ({ ...prev, [docKey]: false }));
+    }
+  };
   const [loadingItems, setLoadingItems] = useState({});
   const [fetchFailed, setFetchFailed] = useState({});
   const [loadingDocs, setLoadingDocs] = useState(false);
@@ -57,6 +90,15 @@ const GenerateCaseLetterModal = ({
   const [viewingDocTitle, setViewingDocTitle] = useState('');
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
   const [savedCaseLetter, setSavedCaseLetter] = useState(null);
+  // One download of the saved Case Letter per version, shared by Preview, Fullscreen and Download
+  const savedPdfCacheRef = useRef({ key: null, blob: null });
+  const getSavedPdfBlob = async () => {
+    const key = `${callNo}|${savedCaseLetter?.id ?? ""}|${savedCaseLetter?.uploadedAt ?? ""}`;
+    if (savedPdfCacheRef.current.key === key && savedPdfCacheRef.current.blob) return savedPdfCacheRef.current.blob;
+    const blob = await viewSavedCaseLetterPdf(callNo);
+    savedPdfCacheRef.current = { key, blob };
+    return blob;
+  };
   const [errorMessage, setErrorMessage] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
   const [orderDirection, setOrderDirection] = useState('bottom-to-top');
@@ -130,6 +172,8 @@ const GenerateCaseLetterModal = ({
     setDocList(filteredDocs);
     setUploadedFiles({});
     setSystemDocBlobs({});
+    setLazyDocs({});
+    lazyLoadersRef.current = {};
     // Pre-populate loading items for all auto-fetched documents so upload button is not shown initially
     const initialLoading = {};
     filteredDocs.forEach(d => {
@@ -242,8 +286,9 @@ const GenerateCaseLetterModal = ({
           }
         });
 
-        let foundPdfBlob = null;
+        let foundPo = false;
 
+        // Only look up the PO path (small JSON) now; the PDF is downloaded on 👁 View or Save
         for (const candidate of allCandidates) {
           if (!candidate || candidate === '-') continue;
           try {
@@ -255,16 +300,15 @@ const GenerateCaseLetterModal = ({
               const pdfPath = poPathData?.responseData;
               if (pdfPath && typeof pdfPath === 'string') {
                 if (pdfPath.startsWith('http') || pdfPath.includes('ireps.gov.in') || pdfPath.includes('blob.core.windows.net')) {
-                  const proxyRes = await fetch(`${baseUrl}/vendor/proxy-pdf?url=${encodeURIComponent(pdfPath)}`, {
-                    headers: token ? { Authorization: `Bearer ${token}` } : {}
+                  registerLazy('PO', async () => {
+                    const proxyRes = await fetch(`${baseUrl}/vendor/proxy-pdf?url=${encodeURIComponent(pdfPath)}`, {
+                      headers: token ? { Authorization: `Bearer ${token}` } : {}
+                    });
+                    if (!proxyRes.ok) throw new Error('PO download failed');
+                    return proxyRes.blob();
                   });
-                  if (proxyRes.ok) {
-                    const blob = await proxyRes.blob();
-                    if (blob && blob.size > 0) {
-                      foundPdfBlob = blob;
-                      break;
-                    }
-                  }
+                  foundPo = true;
+                  break;
                 }
               }
             }
@@ -273,9 +317,7 @@ const GenerateCaseLetterModal = ({
           }
         }
 
-        if (foundPdfBlob) {
-          setSystemDocBlobs(prev => ({ ...prev, PO: foundPdfBlob }));
-        } else {
+        if (!foundPo) {
           setFetchFailed(prev => ({ ...prev, PO: true }));
         }
       } catch (poErr) {
@@ -321,19 +363,15 @@ const GenerateCaseLetterModal = ({
               };
             });
 
-            const photoBlob = await generateInspectionPhotosPDF(formattedImages, {
+            // Photos exist — the photo files are downloaded and the PDF is built on 👁 View or Save
+            registerLazy('PHOTO_PDF', () => generateInspectionPhotosPDF(formattedImages, {
               ...call,
               callNumber: cNo,
               callNo: cNo,
               requestId: cNo,
               poNumber,
               vendorName
-            });
-            if (photoBlob) {
-              setSystemDocBlobs(prev => ({ ...prev, PHOTO_PDF: photoBlob }));
-            } else {
-              setFetchFailed(prev => ({ ...prev, PHOTO_PDF: true }));
-            }
+            }));
           } else {
             setFetchFailed(prev => ({ ...prev, PHOTO_PDF: true }));
           }
@@ -361,27 +399,17 @@ const GenerateCaseLetterModal = ({
             call?.processCallNumber
           ].filter(Boolean);
 
-          let signedBlob = null;
+          // Existence check only (tiny JSON); the signed PDF is downloaded on 👁 View or Save
+          let foundProcess = false;
           for (const cand of processCandidates) {
-            try {
-              const { signedData } = await viewSignedCertificate(cand);
-              if (signedData) {
-                const byteCharacters = atob(signedData);
-                const byteNumbers = new Array(byteCharacters.length);
-                for (let i = 0; i < byteCharacters.length; i++) {
-                  byteNumbers[i] = byteCharacters.charCodeAt(i);
-                }
-                signedBlob = new Blob([new Uint8Array(byteNumbers)], { type: 'application/pdf' });
-                break;
-              }
-            } catch (e) {
-              // try next candidate
+            if (await checkSignedCertificateExists(cand)) {
+              registerLazy('IC_PROCESS', () => loadSignedCertBlob(cand));
+              foundProcess = true;
+              break;
             }
           }
 
-          if (signedBlob) {
-            setSystemDocBlobs(prev => ({ ...prev, IC_PROCESS: signedBlob }));
-          } else {
+          if (!foundProcess) {
             setFetchFailed(prev => ({ ...prev, IC_PROCESS: true }));
           }
         } catch (procErr) {
@@ -405,27 +433,17 @@ const GenerateCaseLetterModal = ({
           cNo
         ].filter(Boolean);
 
-        let signedBlob = null;
+        // Existence check only (tiny JSON); the signed IC is downloaded on 👁 View or Save
+        let foundIc = false;
         for (const candidate of icCandidates) {
-          try {
-            const { signedData } = await viewSignedCertificate(candidate);
-            if (signedData) {
-              const byteCharacters = atob(signedData);
-              const byteNumbers = new Array(byteCharacters.length);
-              for (let i = 0; i < byteCharacters.length; i++) {
-                byteNumbers[i] = byteCharacters.charCodeAt(i);
-              }
-              signedBlob = new Blob([new Uint8Array(byteNumbers)], { type: 'application/pdf' });
-              break;
-            }
-          } catch (e) {
-            // try next
+          if (await checkSignedCertificateExists(candidate)) {
+            registerLazy('IC', () => loadSignedCertBlob(candidate));
+            foundIc = true;
+            break;
           }
         }
 
-        if (signedBlob) {
-          setSystemDocBlobs(prev => ({ ...prev, IC: signedBlob }));
-        } else {
+        if (!foundIc) {
           setFetchFailed(prev => ({ ...prev, IC: true }));
         }
       } catch (icErr) {
@@ -499,6 +517,18 @@ const GenerateCaseLetterModal = ({
       return;
     }
 
+    if (lazyDocs[doc.key]) {
+      // First view: download now, then reuse for later views and for Save
+      ensureLazyBlob(doc.key)
+        .then(blob => {
+          if (!blob) return;
+          setViewingDocTitle(doc.name);
+          setViewingDocUrl(URL.createObjectURL(blob));
+        })
+        .catch(() => setErrorMessage(`Could not load "${doc.name}". Please try again.`));
+      return;
+    }
+
     setErrorMessage(`"${doc.name}" is not available yet. Please upload or generate it.`);
   };
 
@@ -506,6 +536,7 @@ const GenerateCaseLetterModal = ({
   const isDocAvailable = (doc) => {
     if (uploadedFiles[doc.key]) return true;
     if (systemDocBlobs[doc.key]) return true;
+    if (lazyDocs[doc.key]) return true; // exists on server, downloaded on view/save
     return false;
   };
 
@@ -519,6 +550,7 @@ const GenerateCaseLetterModal = ({
   }, [docList, orderDirection]);
 
   // Merge All Available Documents
+  // eslint-disable-next-line no-unused-vars -- old Merge & Preview flow, kept for rollback
   const handleMergePdfs = async () => {
     const anyFetching = Object.values(loadingItems).some(Boolean);
     if (anyFetching) {
@@ -608,11 +640,26 @@ const GenerateCaseLetterModal = ({
       formData.append('stage', stage);
       formData.append('uploadedBy', localStorage.getItem('username') || localStorage.getItem('userName') || 'Inspecting Engineer');
 
+      // Download lazy docs now — only once, at save time — unless the user uploaded a replacement
+      const resolvedBlobs = { ...systemDocBlobs };
+      for (const key of Object.keys(lazyDocs)) {
+        if (!resolvedBlobs[key] && !uploadedFiles[key]?.file) {
+          try {
+            resolvedBlobs[key] = await ensureLazyBlob(key);
+          } catch (e) {
+            const d = orderedList.find(x => x.key === key);
+            setErrorMessage(`Could not download "${d?.name || key}" for merging. Please try again.`);
+            setSaving(false);
+            return;
+          }
+        }
+      }
+
       let attachedCount = 0;
       for (let i = 0; i < orderedList.length; i++) {
         const doc = orderedList[i];
         const uploaded = uploadedFiles[doc.key];
-        const systemBlob = systemDocBlobs[doc.key];
+        const systemBlob = resolvedBlobs[doc.key];
         const filePrefix = String(i + 1).padStart(2, '0');
 
         if (uploaded?.file) {
@@ -657,6 +704,7 @@ const GenerateCaseLetterModal = ({
       setErrorMessage('');
       setSuccessMessage('');
       await deleteSavedCaseLetter(callNo);
+      savedPdfCacheRef.current = { key: null, blob: null }; // drop the cached copy of the deleted letter
       setSavedCaseLetter(null);
       if (previewBlobUrl) {
         URL.revokeObjectURL(previewBlobUrl);
@@ -868,7 +916,7 @@ const GenerateCaseLetterModal = ({
                     const available = isDocAvailable(doc);
                     const uploaded = uploadedFiles[doc.key];
                     const isLoadingThis = loadingItems[doc.key];
-                    const isFetched = Boolean(systemDocBlobs[doc.key]);
+                    const isFetched = Boolean(systemDocBlobs[doc.key] || lazyDocs[doc.key]);
                     const isFailed = Boolean(fetchFailed[doc.key]);
                     const maxMb = getMaxUploadSizeMb(doc.key);
 
@@ -1120,18 +1168,18 @@ const GenerateCaseLetterModal = ({
                 {(() => {
                   const anyFetching = Object.values(loadingItems).some(Boolean);
                   const missingMandatory = docList.filter(d => d.isMandatory && !d.isDisabled && !isDocAvailable(d));
-                  const mergeBlocked = merging || loadingDocs || Boolean(savedCaseLetter) || anyFetching || missingMandatory.length > 0;
+                  const mergeBlocked = merging || saving || loadingDocs || Boolean(savedCaseLetter) || anyFetching || missingMandatory.length > 0;
                   const mergeTitle = savedCaseLetter
                     ? 'Case Letter already saved. Delete current Case Letter below to re-merge.'
                     : anyFetching
                       ? 'Please wait — documents are still being fetched.'
                       : missingMandatory.length > 0
                         ? `Upload mandatory document(s) first: ${missingMandatory.map(d => d.name || d.key).join(', ')}`
-                        : loadingDocs ? 'Please wait while documents are loading...' : 'Merge all available documents';
+                        : loadingDocs ? 'Please wait while documents are loading...' : 'Merge all available documents in the order shown and save';
                   return (
                 <button
                   disabled={mergeBlocked}
-                  onClick={handleMergePdfs}
+                  onClick={() => setShowConfirmDialog(true)}
                   style={{
                     display: 'inline-flex', alignItems: 'center', gap: '6px',
                     padding: '10px 18px',
@@ -1147,12 +1195,12 @@ const GenerateCaseLetterModal = ({
                   }}
                   title={mergeTitle}
                 >
-                  {merging ? 'Merging Documents...' : (loadingDocs ? 'Loading Documents...' : (savedCaseLetter ? '🔒 Dossier Already Merged' : 'Merge & Preview'))}
+                  {saving ? 'Merging & Saving...' : (loadingDocs ? 'Loading Documents...' : (savedCaseLetter ? '🔒 Case Letter Saved' : 'Save Case Letter'))}
                 </button>
                   );
                 })()}
 
-                {previewBlobUrl && !savedCaseLetter && (
+                {false && previewBlobUrl && !savedCaseLetter && ( /* old Save button — replaced by the single Save button above */
                   <button
                     disabled={saving}
                     onClick={() => setShowConfirmDialog(true)}
@@ -1209,11 +1257,13 @@ const GenerateCaseLetterModal = ({
                 </div>
 
                 <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                  {/* Preview Dossier + Fullscreen hidden: saved letter is only downloaded (saves outbound MB) */}
+                  {false && (<>
                   <button
                     onClick={async () => {
                       try {
                         setErrorMessage('');
-                        const blob = await viewSavedCaseLetterPdf(callNo);
+                        const blob = await getSavedPdfBlob();
                         if (previewBlobUrl) {
                           URL.revokeObjectURL(previewBlobUrl);
                         }
@@ -1243,7 +1293,7 @@ const GenerateCaseLetterModal = ({
                   <button
                     onClick={async () => {
                       try {
-                        const blob = await viewSavedCaseLetterPdf(callNo);
+                        const blob = await getSavedPdfBlob();
                         const url = URL.createObjectURL(blob);
                         setViewingDocTitle(`Saved Case Letter: ${callNo}`);
                         setViewingDocUrl(url);
@@ -1265,9 +1315,24 @@ const GenerateCaseLetterModal = ({
                   >
                     🔍 Fullscreen
                   </button>
+                  </>)}
 
                   <button
-                    onClick={() => downloadSavedCaseLetterPdf(callNo)}
+                    onClick={async () => {
+                      try {
+                        const blob = await getSavedPdfBlob();
+                        const url = URL.createObjectURL(new Blob([blob], { type: "application/pdf" }));
+                        const a = document.createElement("a");
+                        a.href = url;
+                        a.download = `Case_Letter_${callNo}.pdf`;
+                        document.body.appendChild(a);
+                        a.click();
+                        document.body.removeChild(a);
+                        setTimeout(() => URL.revokeObjectURL(url), 1000);
+                      } catch (e) {
+                        downloadSavedCaseLetterPdf(callNo);
+                      }
+                    }}
                     style={{
                       display: 'inline-flex', alignItems: 'center', gap: '4px',
                       padding: '7px 13px',

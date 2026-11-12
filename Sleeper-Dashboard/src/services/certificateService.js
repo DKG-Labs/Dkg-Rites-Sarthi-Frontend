@@ -117,6 +117,23 @@ export const viewSignedCertificate = async (icNumber) => {
 };
 
 /**
+ * Check whether a signed IC exists in storage without downloading it (tiny JSON: { exists }).
+ */
+export const checkSignedCertificateExists = async (icNumber) => {
+  try {
+    const response = await fetch(`${CERTIFICATE_STORAGE_URL}/check?icNumber=${encodeURIComponent(icNumber)}`, {
+      method: 'GET',
+      headers: getAuthHeaders()
+    });
+    if (!response.ok) return false;
+    const data = await response.json();
+    return Boolean(data?.exists);
+  } catch (error) {
+    return false;
+  }
+};
+
+/**
 /**
  * Save or update Sleeper Final IC Edit Data (sleeper_final_ic_edit table)
  * @param {Object} payload 

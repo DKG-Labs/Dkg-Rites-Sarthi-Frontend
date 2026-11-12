@@ -3,7 +3,7 @@ import DataTable from './DataTable';
 import StatusBadge from './StatusBadge';
 import Notification from './Notification';
 import { getProductTypeDisplayName, formatDate, getCallDateFromCallNo } from '../utils/helpers';
-import { createStageValidationHandler, stageReverseMapping } from '../utils/stageValidation';
+import { createStageValidationHandler } from '../utils/stageValidation';
 import { getAllSchedules } from '../services/scheduleService';
 import { isCallPaused, isCallInitiated } from '../services/callStatusService';
 import { getAvailableActions, shouldShowScheduleDate, API_STATUS, getDetailedStatus } from '../utils/statusMapper';
@@ -119,6 +119,20 @@ const responsiveStyles = `
   }
 `;
 
+const getNormalizedCallType = (call) => {
+  if (!call) return '';
+  const pt = String(call.product_type || call.stage || '').toUpperCase().trim();
+  if (pt.includes('RAW') || pt === 'RM' || pt === 'ER') return 'Raw Material';
+  if (pt.includes('PROCESS') || pt === 'EP' || pt === 'P') return 'Process';
+  if (pt.includes('FINAL') || pt === 'EF' || pt === 'F') return 'Final';
+
+  const callNo = String(call.call_no || '').toUpperCase().trim();
+  if (callNo.startsWith('ER-') || callNo.startsWith('ER_')) return 'Raw Material';
+  if (callNo.startsWith('EP-') || callNo.startsWith('EP_')) return 'Process';
+  if (callNo.startsWith('EF-') || callNo.startsWith('EF_')) return 'Final';
+  return '';
+};
+
 const PendingCallsTab = ({ calls, onSchedule, onReschedule, onStart, onBulkSchedule, onBulkStart, onEnterShiftDetails, isLoading = false, selectionResetKey = 0 }) => {
   const [selectedRows, setSelectedRows] = useState([]);
   const [showFilters, setShowFilters] = useState(false);
@@ -138,6 +152,7 @@ const PendingCallsTab = ({ calls, onSchedule, onReschedule, onStart, onBulkSched
     poNumbers: [],
     statuses: [],
     stage: '',
+    callType: '',
     callNumbers: []
   });
 
@@ -204,6 +219,11 @@ const PendingCallsTab = ({ calls, onSchedule, onReschedule, onStart, onBulkSched
       result = result.filter(call => call.stage === filters.stage);
     }
 
+    // Type of Call filter (Raw Material, Process, Final)
+    if (filters.callType) {
+      result = result.filter(call => getNormalizedCallType(call) === filters.callType);
+    }
+
     // Call Number filter (multi-select)
     if (filters.callNumbers.length > 0) {
       result = result.filter(call => filters.callNumbers.includes(call.call_no));
@@ -245,6 +265,7 @@ const PendingCallsTab = ({ calls, onSchedule, onReschedule, onStart, onBulkSched
       poNumbers: [],
       statuses: [],
       stage: '',
+      callType: '',
       callNumbers: []
     });
   };
@@ -499,187 +520,6 @@ const PendingCallsTab = ({ calls, onSchedule, onReschedule, onStart, onBulkSched
       {/* Inject responsive styles */}
       <style>{responsiveStyles}</style>
 
-      {/* Active Filters Display */}
-      {(() => {
-        const activeFilters = [];
-
-        // Stage filter
-        if (filters.stage) {
-          const stageColors = { 'RM': '#f59e0b', 'Process Inspection': '#3b82f6', 'Final': '#9333ea' };
-          activeFilters.push({
-            key: 'stage',
-            label: 'Stage',
-            value: stageReverseMapping[filters.stage] || filters.stage,
-            color: stageColors[filters.stage] || '#6b7280',
-            onRemove: () => handleFilterChange('stage', '')
-          });
-        }
-
-        // Product Types filter (multi-select)
-        filters.productTypes.forEach(pt => {
-          // Display just "ERC" for all product types
-          activeFilters.push({
-            key: `productType-${pt}`,
-            label: 'Product Type',
-            value: 'ERC',
-            color: '#10b981',
-            onRemove: () => handleMultiSelectToggle('productTypes', pt)
-          });
-        });
-
-        // Vendors filter (multi-select)
-        filters.vendors.forEach(vendor => {
-          activeFilters.push({
-            key: `vendor-${vendor}`,
-            label: 'Vendor',
-            value: vendor,
-            color: '#0ea5e9',
-            onRemove: () => handleMultiSelectToggle('vendors', vendor)
-          });
-        });
-
-        // Call Number filter (multi-select)
-        filters.callNumbers.forEach(callNo => {
-          activeFilters.push({
-            key: `callNumber-${callNo}`,
-            label: 'Call No',
-            value: callNo,
-            color: '#8b5cf6',
-            onRemove: () => handleMultiSelectToggle('callNumbers', callNo)
-          });
-        });
-
-        // PO Number filter (multi-select)
-        filters.poNumbers.forEach(poNo => {
-          activeFilters.push({
-            key: `poNumber-${poNo}`,
-            label: 'PO No',
-            value: poNo,
-            color: '#ec4899',
-            onRemove: () => handleMultiSelectToggle('poNumbers', poNo)
-          });
-        });
-
-        // Date Range filter
-        if (filters.dateFrom || filters.dateTo) {
-          const fromDate = filters.dateFrom || 'Start';
-          const toDate = filters.dateTo || 'End';
-          activeFilters.push({
-            key: 'dateRange',
-            label: 'Date',
-            value: `${fromDate} to ${toDate}`,
-            color: '#f97316',
-            onRemove: () => {
-              handleFilterChange('dateFrom', '');
-              handleFilterChange('dateTo', '');
-            }
-          });
-        }
-
-        if (activeFilters.length === 0) return null;
-
-        return (
-          <div className="pending-calls-filter-chips" style={{
-            marginBottom: '16px',
-            padding: '12px 16px',
-            backgroundColor: '#f9fafb',
-            borderRadius: '8px',
-            border: '1px solid #e5e7eb'
-          }}>
-            <div className="pending-calls-filter-chips-header" style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              marginBottom: '8px'
-            }}>
-              <span style={{ fontSize: '13px', fontWeight: '600', color: '#374151' }}>
-                Active Filters ({activeFilters.length})
-              </span>
-              <button
-                onClick={clearAllFilters}
-                style={{
-                  background: 'none',
-                  border: 'none',
-                  color: '#dc2626',
-                  fontSize: '12px',
-                  fontWeight: '500',
-                  cursor: 'pointer',
-                  padding: '6px 10px',
-                  borderRadius: '4px',
-                  transition: 'background 0.2s',
-                  minHeight: '36px'
-                }}
-                onMouseOver={(e) => e.target.style.background = '#fef2f2'}
-                onMouseOut={(e) => e.target.style.background = 'none'}
-              >
-                Clear All ×
-              </button>
-            </div>
-            <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-              {activeFilters.map(filter => (
-                <div
-                  className="pending-calls-filter-chip"
-                  key={filter.key}
-                  style={{
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: '6px',
-                    padding: '6px 10px',
-                    backgroundColor: 'white',
-                    border: `1px solid ${filter.color}40`,
-                    borderRadius: '20px',
-                    fontSize: '12px',
-                    boxShadow: '0 1px 2px rgba(0,0,0,0.05)'
-                  }}
-                >
-                  <span style={{
-                    width: '8px',
-                    height: '8px',
-                    borderRadius: '50%',
-                    backgroundColor: filter.color,
-                    flexShrink: 0
-                  }} />
-                  <span style={{ color: '#6b7280', fontWeight: '500', whiteSpace: 'nowrap' }}>{filter.label}:</span>
-                  <span style={{ color: '#1f2937', fontWeight: '600', wordBreak: 'break-word' }}>{filter.value}</span>
-                  <button
-                    onClick={filter.onRemove}
-                    style={{
-                      background: 'none',
-                      border: 'none',
-                      color: '#9ca3af',
-                      cursor: 'pointer',
-                      padding: '0 2px',
-                      fontSize: '14px',
-                      lineHeight: '1',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      borderRadius: '50%',
-                      width: '22px',
-                      height: '22px',
-                      minWidth: '22px',
-                      transition: 'all 0.2s',
-                      flexShrink: 0
-                    }}
-                    onMouseOver={(e) => {
-                      e.target.style.background = '#fee2e2';
-                      e.target.style.color = '#dc2626';
-                    }}
-                    onMouseOut={(e) => {
-                      e.target.style.background = 'none';
-                      e.target.style.color = '#9ca3af';
-                    }}
-                    title={`Remove ${filter.label} filter`}
-                  >
-                    ×
-                  </button>
-                </div>
-              ))}
-            </div>
-          </div>
-        );
-      })()}
-
       <div style={{ marginBottom: 'var(--space-16)' }}>
         <div className="pending-calls-filter-toggle" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '16px', flex: 1 }}>
@@ -732,6 +572,37 @@ const PendingCallsTab = ({ calls, onSchedule, onReschedule, onStart, onBulkSched
                   <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
                 </svg>
               </span>
+            </div>
+
+            {/* Type of Call Dropdown Filter */}
+            <div style={{ minWidth: '170px' }}>
+              <select
+                aria-label="Filter by Type of Call"
+                value={filters.callType || ''}
+                onChange={(e) => {
+                  handleFilterChange('callType', e.target.value);
+                  setSelectedRows([]);
+                }}
+                style={{
+                  width: '100%',
+                  height: '40px',
+                  padding: '8px 12px',
+                  borderRadius: '8px',
+                  border: '1px solid #e2e8f0',
+                  fontSize: '14px',
+                  background: '#fff',
+                  color: '#1e293b',
+                  fontWeight: '500',
+                  outline: 'none',
+                  cursor: 'pointer',
+                  boxShadow: '0 1px 2px rgba(0,0,0,0.05)'
+                }}
+              >
+                <option value="">All Call Types</option>
+                <option value="Raw Material">Raw Material</option>
+                <option value="Process">Process</option>
+                <option value="Final">Final</option>
+              </select>
             </div>
           </div>
           <div style={{ fontSize: 'var(--font-size-sm)', color: 'var(--color-text-secondary)' }}>
@@ -1301,10 +1172,13 @@ const PendingCallsTab = ({ calls, onSchedule, onReschedule, onStart, onBulkSched
                       callNumber: '',
                       poNumber: '',
                       stage: '',
+                      callType: '',
                       dateFrom: '',
                       dateTo: '',
                       productTypes: [],
-                      vendors: []
+                      vendors: [],
+                      callNumbers: [],
+                      poNumbers: []
                     });
                   }
                 }}

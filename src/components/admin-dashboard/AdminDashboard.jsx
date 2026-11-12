@@ -247,8 +247,9 @@ export const AdminDashboard = () => {
         } catch (error) {
             console.error('Error submitting user:', error);
             const userFriendlyMsg = parseUserFriendlyErrorMessage(error.message);
+            // UserForm shows this as a toast (formError is reset at the start of each submit, so repeats still show).
+            // No snackbar here as well — it showed the same message twice.
             setFormError(userFriendlyMsg);
-            setSnackbar({ open: true, message: userFriendlyMsg, severity: 'error' });
         } finally {
             setIsSubmittingUser(false);
         }

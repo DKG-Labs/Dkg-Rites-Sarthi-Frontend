@@ -1,6 +1,6 @@
 /* eslint-disable */
 import React, { useState } from 'react'
-import {FileSearchOutlined, EyeOutlined, PieChartOutlined}from '@ant-design/icons';
+import {FileSearchOutlined, EyeOutlined, PieChartOutlined, FileProtectOutlined}from '@ant-design/icons';
 import { message } from 'antd';
 import FormContainer from '../../../../../components/DKG_FormContainer';
 import SubHeader from '../../../../../components/DKG_SubHeader';
@@ -30,6 +30,12 @@ const smsDutyEndTabs = [
     title: 'Shift Reports',
     icon: <PieChartOutlined />,
     link: "/sms/sms/shiftReports"
+  },
+  {
+    // Separate view with the 3 SMS ISO report cards
+    title: 'SMS ISO Reports',
+    icon: <FileProtectOutlined />,
+    link: "/sms/sms/isoReports"
   },
 ]
 
@@ -68,7 +74,8 @@ const SmsDutyEnd = () => {
     <GeneralInfo data={smsGeneralInfo} />
 
       <section>
-        <TabList tabList={smsDutyEndTabs} />
+        {/* 4 cards: 2 x 2 on small screens, one row of 4 on large screens */}
+        <TabList tabList={smsDutyEndTabs} className="lg:grid-cols-4" />
       </section>
 
       <section>

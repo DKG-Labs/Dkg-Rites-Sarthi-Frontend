@@ -155,21 +155,26 @@ const VerificationIso = () => {
       const degassingDtlList = [];
       const bloomDtlList = [];
 
-      // Process data based on heat stages
+      // A heat appears in every section it has reached. Stages progress
+      // Converter → Degassing → Casting → Bloom Cutting → Complete; any later / unknown
+      // stage (e.g. "Complete") counts as having passed all sections.
+      const STAGE_LEVEL = { 'converter': 1, 'degassing': 2, 'casting': 3, 'bloom cutting': 4, 'complete': 5 };
+      const stageLevel = (stage) => {
+        const key = String(stage || '').trim().toLowerCase();
+        if (!key) return 0;
+        return STAGE_LEVEL[key] ?? 5;
+      };
+
       data?.responseData?.forEach(item => {
-        if (item.heatStage === "Converter") {
+        const level = stageLevel(item.heatStage);
+        if (level >= 1) {
           heatDtlList.push({
             castNo: item.heatNumber,
             castingTemp: item.turnDownTemp,
             castingTempWv: item.turnDownTempWv
           });
         }
-        else if (item.heatStage === "Degassing") {
-          heatDtlList.push({
-            castNo: item.heatNumber,
-            castingTemp: item.turnDownTemp,
-            castingTempWv: item.turnDownTempWv
-          });
+        if (level >= 2) {
           degassingDtlList.push({
             castNo: item.heatNumber,
             vacuum: item.degassingVacuum,
@@ -177,44 +182,17 @@ const VerificationIso = () => {
             castingTimeWv: item.degassingDurationWv
           });
         }
-        else if (item.heatStage === "Casting") {
-          heatDtlList.push({
-            castNo: item.heatNumber,
-            castingTemp: item.turnDownTemp,
-            castingTempWv: item.turnDownTempWv
-          });
-          degassingDtlList.push({
-            castNo: item.heatNumber,
-            vacuum: item.degassingVacuum,
-            time: item.degassingDuration,
-            castingTimeWv: item.degassingDurationWv
-          });
+        if (level >= 3) {
           castingDtlList.push({
             castNo: item.heatNumber,
             firstTemp: item.castingTemp,
-            secondTemp: item.castingTemp
+            secondTemp: item.castingTemp2   // was castingTemp (showed the first temp twice)
           });
         }
-        else if (item.heatStage === "Bloom Cutting") {
+        if (level >= 4) {
           bloomDtlList.push({
             castNo: item.heatNumber,
             noOfCoBlooms: item.numberOfCoBlooms
-          });
-          heatDtlList.push({
-            castNo: item.heatNumber,
-            castingTemp: item.turnDownTemp,
-            castingTempWv: item.turnDownTempWv
-          });
-          degassingDtlList.push({
-            castNo: item.heatNumber,
-            vacuum: item.degassingVacuum,
-            time: item.degassingDuration,
-            castingTimeWv: item.degassingDurationWv
-          });
-          castingDtlList.push({
-            castNo: item.heatNumber,
-            firstTemp: item.castingTemp,
-            secondTemp: item.castingTemp
           });
         }
       });

@@ -825,42 +825,66 @@ const SmsHeatSummary = () => {
       <SubHeader title="SMS - Shift Summary" link="/sms/sms/dutyEnd" />
       <GeneralInfo data={smsGeneralInfo} />
 
-      <div className="flex items-center mb-2">
-        <Button
-          type="primary"
+      {/* Calibration details: compact toggle + two clean cards */}
+      <section className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
+        <button
+          type="button"
           onClick={() => setShowCalibrationDetails(!showCalibrationDetails)}
-          className="mr-4"
+          aria-expanded={showCalibrationDetails}
+          className="w-full flex items-center justify-between gap-3 px-4 py-3 text-left hover:bg-slate-50 transition-colors"
         >
-          {showCalibrationDetails ? "Hide Calibration Details" : "Show Calibration Details"}
-        </Button>
-      </div>
+          <span className="flex items-center gap-3">
+            <span className="inline-flex items-center justify-center w-9 h-9 rounded-xl bg-teal-50 text-teal-700 text-base">
+              ⚙
+            </span>
+            <span className="flex flex-col">
+              <span className="text-sm font-semibold text-slate-800">Calibration Details</span>
+              <span className="text-xs text-slate-500">Hydris &amp; Leco instrument calibration dates</span>
+            </span>
+          </span>
+          <span className="text-xs font-semibold text-teal-700 bg-teal-50 border border-teal-200 rounded-full px-3 py-1 whitespace-nowrap">
+            {showCalibrationDetails ? "Hide ▲" : "Show ▼"}
+          </span>
+        </button>
 
-      {showCalibrationDetails && (
-        <section className="border p-3 rounded bg-lightGray">
-          <div>
-            <h3 className="font-semibold">Hydris Calibration Details</h3>
-            <div className="grid grid-cols-2">
-              {formData.hydrisClb &&
-                Object.keys(formData.hydrisClb).map((key) => (
-                  <h3 key={key}>
-                    {key}: {formData.hydrisClb[key]}
-                  </h3>
-                ))}
-            </div>
+        {showCalibrationDetails && (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 px-4 pb-4 pt-1 border-t border-slate-100">
+            {[
+              {
+                title: "Hydris Calibration",
+                items: formData.hydrisClb
+                  ? Object.keys(formData.hydrisClb).map((key) => ({ key, value: formData.hydrisClb[key] }))
+                  : [],
+              },
+              {
+                title: "Leco Calibration",
+                items: (formData.lecoClbList || []).map((r) => ({ key: r.key, value: r.value })),
+              },
+            ].map((group) => (
+              <div key={group.title} className="rounded-xl border border-slate-200 bg-slate-50/60 p-3 mt-3">
+                <div className="flex items-center justify-between mb-2">
+                  <h3 className="text-xs font-bold uppercase tracking-wide text-slate-500">{group.title}</h3>
+                  <span className="text-[11px] font-semibold text-slate-400">{group.items.length} item(s)</span>
+                </div>
+                {group.items.length === 0 ? (
+                  <p className="text-sm text-slate-400 m-0">No calibration data.</p>
+                ) : (
+                  <div className="grid grid-cols-2 gap-2">
+                    {group.items.map((it) => (
+                      <div key={it.key} className="bg-white border border-slate-200 rounded-lg px-3 py-2">
+                        <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-500 truncate" title={it.key}>
+                          {it.key}
+                        </div>
+                        <div className="text-sm font-semibold text-slate-800">{it.value || "—"}</div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            ))}
           </div>
-          <div className="mt-3">
-            <h3 className="font-semibold">Leco Calibration Details</h3>
-            <div className="grid grid-cols-2">
-              {formData.lecoClbList &&
-                formData.lecoClbList.map((record) => (
-                  <h3 key={record.key}>
-                    {record.key}: {record.value}
-                  </h3>
-                ))}
-            </div>
-          </div>
-        </section>
-      )}
+        )}
+      </section>
 
       <section>
         {/* Desktop / Tablet: Full Table View */}

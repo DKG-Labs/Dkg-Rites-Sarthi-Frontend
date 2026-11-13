@@ -1,11 +1,17 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 
-const globalReportCache = new Map();
+import { currentUserKey } from '../utils/requestCache';
 
+const globalReportCache = new Map();
+const REPORT_CACHE_TTL_MS = 5 * 60 * 1000; // entries older than this are refetched
+
+// Key includes the logged-in user so cached data is never shown to a different user on the same tab
 const getCacheKey = (dep) => {
-    if (dep === undefined || dep === null) return 'null';
-    return JSON.stringify(dep);
+    const depKey = (dep === undefined || dep === null) ? 'null' : JSON.stringify(dep);
+    return `${currentUserKey()}|${depKey}`;
 };
+
+const isFresh = (entry) => entry && (!entry.cachedAt || Date.now() - entry.cachedAt < REPORT_CACHE_TTL_MS);
 
 export const clearGlobalReportCache = () => {
     globalReportCache.clear();
@@ -38,6 +44,9 @@ const useReportData = (fetchFn, dependency = null) => {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
     const activeRequestId = useRef(0);
+    // Key of the request currently in flight: a re-render with an equal (but re-created) params object
+    // must not fire the same request again while the first one is still running
+    const inFlightKey = useRef(null);
     
     const [prevDependencyKey, setPrevDependencyKey] = useState(isEnabled ? getCacheKey(dependency) : null);
     const currentKey = isEnabled ? getCacheKey(dependency) : null;
@@ -68,11 +77,13 @@ const useReportData = (fetchFn, dependency = null) => {
 
         const key = getCacheKey(dependency);
         
-        // Skip fetching if we already have it cached and aren't forcing a refresh
-        if (!force && globalReportCache.has(fetchFn) && globalReportCache.get(fetchFn).has(key)) {
+        // Skip fetching if we have a fresh cached copy and aren't forcing a refresh
+        if (!force && globalReportCache.has(fetchFn) && isFresh(globalReportCache.get(fetchFn).get(key))) {
             return;
         }
 
+        if (!force && inFlightKey.current === key) return;
+        inFlightKey.current = key;
         activeRequestId.current += 1;
         const currentRequestId = activeRequestId.current;
 
@@ -115,7 +126,7 @@ const useReportData = (fetchFn, dependency = null) => {
                 if (!globalReportCache.has(fetchFn)) {
                     globalReportCache.set(fetchFn, new Map());
                 }
-                globalReportCache.get(fetchFn).set(key, { data: newData, pagination: newPagination });
+                globalReportCache.get(fetchFn).set(key, { data: newData, pagination: newPagination, cachedAt: Date.now() });
 
             } else {
                 setError(response?.responseStatus?.message || 'Failed to fetch data');
@@ -127,6 +138,7 @@ const useReportData = (fetchFn, dependency = null) => {
         } finally {
             if (currentRequestId === activeRequestId.current) {
                 setLoading(false);
+                inFlightKey.current = null;
             }
         }
     }, [fetchFn, dependency]);

@@ -42,7 +42,7 @@ const isProcessCall = (call) => {
   if (callNo.startsWith('RPP-') || callNo.startsWith('RPP_') || callNo === 'RPP' || (callNo.startsWith('RPP') && /^RPP[-_0-9]/.test(callNo))) {
     return true;
   }
-  const stage = String(call.stage || call.call_stage || call.callStage || call.callType || call.call_type || '').toUpperCase();
+  const stage = String(call.stage || call.call_stage || call.callStage || call.callType || call.call_type || call.productType || call.product_type || '').toUpperCase();
   if (stage.includes('PROCESS') || stage === 'P' || stage === 'EP' || stage === 'RPP') {
     return true;
   }
@@ -69,6 +69,7 @@ const AttendingCallsDashboard = ({
   const [counts, setCounts] = useState({ pending: 0, certificates: 0, completed: 0, closed: 0 });
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
+  const [callTypeFilter, setCallTypeFilter] = useState('ALL');
   const [selectedCall, setSelectedCall] = useState(null);
   const [showDetailsModal, setShowDetailsModal] = useState(false);
   const [showCancellationModal, setShowCancellationModal] = useState(false);
@@ -223,10 +224,10 @@ const AttendingCallsDashboard = ({
     };
   }, [selectedActionCall, activeTab]);
 
-  // Reset pagination when tab or search changes
+  // Reset pagination when tab, search, or call type filter changes
   useEffect(() => {
     setCurrentPage(1);
-  }, [activeTab, searchTerm]);
+  }, [activeTab, searchTerm, callTypeFilter]);
 
   // Compute filtered calls according to tab, role/assignment access, and search query
   const filteredCalls = useMemo(() => {
@@ -251,6 +252,12 @@ const AttendingCallsDashboard = ({
                             (!assignedUserId && (!call.accessibleUserIds || call.accessibleUserIds.length === 0));
 
           if (!hasAccess) return false;
+
+          if (callTypeFilter !== 'ALL') {
+            const processCall = isProcessCall(call);
+            if (callTypeFilter === 'Process' && !processCall) return false;
+            if (callTypeFilter === 'Final' && processCall) return false;
+          }
         }
 
         const q = (searchTerm || '').toLowerCase().trim();
@@ -269,7 +276,7 @@ const AttendingCallsDashboard = ({
         );
       })
       .sort((a, b) => new Date(b.createdDate || 0) - new Date(a.createdDate || 0));
-  }, [calls, activeTab, user?.userId, searchTerm]);
+  }, [calls, activeTab, user?.userId, searchTerm, callTypeFilter]);
 
   const mappedPlantsKey = (propMappedPlants || []).join(',');
 
@@ -1218,40 +1225,67 @@ const AttendingCallsDashboard = ({
       )}
 
       {/* Search and Filters */}
-      <div style={{ marginBottom: '20px', display: 'flex', gap: '16px', alignItems: 'center', justifyContent: 'space-between' }}>
-        <div style={{ position: 'relative', flex: 1, maxWidth: '420px' }}>
-          <input
-            type="text"
-            placeholder="Search by Call No., PO No., Case No., Vendor..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            style={{
-              width: '100%',
-              padding: '10px 16px 10px 38px',
-              borderRadius: '10px',
-              border: '1px solid #e2e8f0',
-              fontSize: '13px',
-              background: '#f8fafc',
-              color: '#1e293b',
-              outline: 'none',
-              transition: 'all 0.2s ease',
-              boxShadow: '0 1px 2px rgba(0,0,0,0.02)'
-            }}
-            onFocus={(e) => {
-              e.currentTarget.style.background = '#ffffff';
-              e.currentTarget.style.borderColor = '#3b82f6';
-              e.currentTarget.style.boxShadow = '0 0 0 3px rgba(59, 130, 246, 0.1)';
-            }}
-            onBlur={(e) => {
-              e.currentTarget.style.background = '#f8fafc';
-              e.currentTarget.style.borderColor = '#e2e8f0';
-              e.currentTarget.style.boxShadow = '0 1px 2px rgba(0,0,0,0.02)';
-            }}
-          />
-          <svg style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: '#94a3b8' }} width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <circle cx="11" cy="11" r="8"></circle>
-            <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
-          </svg>
+      <div style={{ marginBottom: '20px', display: 'flex', gap: '16px', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', gap: '12px', alignItems: 'center', flex: 1, flexWrap: 'wrap' }}>
+          <div style={{ position: 'relative', flex: 1, minWidth: '240px', maxWidth: '420px' }}>
+            <input
+              type="text"
+              placeholder="Search by Call No., PO No., Case No., Vendor..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              style={{
+                width: '100%',
+                padding: '10px 16px 10px 38px',
+                borderRadius: '10px',
+                border: '1px solid #e2e8f0',
+                fontSize: '13px',
+                background: '#f8fafc',
+                color: '#1e293b',
+                outline: 'none',
+                transition: 'all 0.2s ease',
+                boxShadow: '0 1px 2px rgba(0,0,0,0.02)'
+              }}
+              onFocus={(e) => {
+                e.currentTarget.style.background = '#ffffff';
+                e.currentTarget.style.borderColor = '#3b82f6';
+                e.currentTarget.style.boxShadow = '0 0 0 3px rgba(59, 130, 246, 0.1)';
+              }}
+              onBlur={(e) => {
+                e.currentTarget.style.background = '#f8fafc';
+                e.currentTarget.style.borderColor = '#e2e8f0';
+                e.currentTarget.style.boxShadow = '0 1px 2px rgba(0,0,0,0.02)';
+              }}
+            />
+            <svg style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: '#94a3b8' }} width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="11" cy="11" r="8"></circle>
+              <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+            </svg>
+          </div>
+
+          {activeTab === 'pending' && (
+            <select
+              aria-label="Filter by Type of Call"
+              value={callTypeFilter}
+              onChange={(e) => setCallTypeFilter(e.target.value)}
+              style={{
+                padding: '10px 14px',
+                borderRadius: '10px',
+                border: '1px solid #e2e8f0',
+                fontSize: '13px',
+                background: '#f8fafc',
+                color: '#1e293b',
+                fontWeight: '500',
+                outline: 'none',
+                cursor: 'pointer',
+                minWidth: '170px',
+                boxShadow: '0 1px 2px rgba(0,0,0,0.02)'
+              }}
+            >
+              <option value="ALL">All Call Types</option>
+              <option value="Process">Process</option>
+              <option value="Final">Final</option>
+            </select>
+          )}
         </div>
       </div>
 

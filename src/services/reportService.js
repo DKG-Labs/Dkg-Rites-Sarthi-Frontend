@@ -6,6 +6,21 @@ const poWiseCache = {};
 /**
  * Service for fetching Railway Board Inspection Reports
  */
+// GET /api/rail-dashboard/<path>?startDate=dd/MM/yyyy&endDate=dd/MM/yyyy (input dates are yyyy-MM-dd)
+const fetchRailCmCalls = async (path, params) => {
+    const { startDate, endDate } = params || {};
+    const toDmy = (d) => {
+        if (!d || !d.includes('-')) return d;
+        const [y, m, day] = d.split('-');
+        return `${day}/${m}/${y}`;
+    };
+    const url = new URL(`${API_BASE_URL}/api/rail-dashboard/${path}`);
+    if (startDate) url.searchParams.append('startDate', toDmy(startDate));
+    if (endDate) url.searchParams.append('endDate', toDmy(endDate));
+    const response = await fetch(url.toString(), { headers: getAuthHeaders() });
+    return handleResponse(response);
+};
+
 const reportService = {
     getVendorPlants: async () => {
         const response = await fetch(`${API_BASE_URL}/api/filters/vendor-plants`, {
@@ -497,6 +512,10 @@ const reportService = {
         });
         return handleResponse(response);
     },
+
+    // Rail Pad calls for the CM dashboard (same row shape as the ERC / Sleeper cm-* reports)
+    getCmRailInspectionCalls: async (params) => fetchRailCmCalls('cm-inspection-calls', params),
+    getCmRailOverdueCalls: async (params) => fetchRailCmCalls('cm-overdue-calls', params),
 
     getCmSleeperInspectionCalls: async (params) => {
         const { startDate, endDate } = params || {};

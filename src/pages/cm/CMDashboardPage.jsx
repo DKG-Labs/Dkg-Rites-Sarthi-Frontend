@@ -1,4 +1,5 @@
-import React, { useState, useMemo, useEffect, useCallback } from 'react';
+import React, { useState, useMemo, useEffect, useCallback, useRef, lazy, Suspense } from 'react';
+import { cachedRequest } from '../../utils/requestCache';
 import './CMDashboard.css';
 import '../RailwayBoardDashboardProfessional.css';
 import useReportData from '../../hooks/useReportData';
@@ -7,10 +8,62 @@ import ProfessionalCardSection from '../../components/railway-board/Professional
 import { Level1Row } from '../../components/railway-board/LevelRows';
 import Pagination from '../../components/Pagination';
 import { formatDate } from '../../utils/helpers';
-import CMDiversionApprovalsTab from './tabs/CMDiversionApprovalsTab';
-import UdmRejectionDashboard from '../../components/railway-board/UdmRejectionDashboard';
-import SBUDiversionApprovalsTab from './tabs/SBUDiversionApprovalsTab';
-import { CertificateStorageManager } from '../../components/admin-dashboard/CertificateStorageManager';
+
+// Heavy tabs load on demand (smaller first load)
+const CMDiversionApprovalsTab = lazy(() => import('./tabs/CMDiversionApprovalsTab'));
+const UdmRejectionDashboard = lazy(() => import('../../components/railway-board/UdmRejectionDashboard'));
+const SBUDiversionApprovalsTab = lazy(() => import('./tabs/SBUDiversionApprovalsTab'));
+const CertificateStorageManager = lazy(() => import('../../components/admin-dashboard/CertificateStorageManager'));
+
+/** Employee-code part of a CM label: "11055 - T VIJAY SHANKAR" or "T Vijay Shankar - 11055" -> "11055". */
+const cmCodeOf = (label) => {
+  const parts = String(label || '').split(' - ').map(p => p.trim()).filter(Boolean);
+  const numeric = parts.find(p => /^\d+$/.test(p));
+  return (numeric || parts[0] || '').toLowerCase();
+};
+
+/**
+ * Does this call belong to the given IE? A call's ieName is "CODE - NAME", possibly several comma-separated
+ * (e.g. process calls). Matched by employee code first, then by name.
+ */
+const callHasIe = (call, ieId, ieName) => {
+  const code = String(ieId || '').trim().toLowerCase();
+  const name = String(ieName || '').trim().toLowerCase();
+  return String(call?.ieName || '').split(',').some(entry => {
+    const e = entry.trim().toLowerCase();
+    if (!e) return false;
+    if (code && cmCodeOf(entry) === code) return true;
+    return !!name && (e === name || e.endsWith(' - ' + name) || e.startsWith(name + ' - '));
+  });
+};
+
+// Status buckets, same rules as the KPI cards
+const isPendingStatus = (c) => {
+  const s = (c?.status || '').toLowerCase();
+  return (s.includes('pending') && !/\bic\b/.test(s)) || s.includes('returned');
+};
+const isUnderInspectionStatus = (c) => (c?.status || '').toLowerCase().includes('under inspection');
+const isIcPendingStatus = (c) => {
+  const s = (c?.status || '').toLowerCase();
+  return /\bic\b/.test(s) && s.includes('pending');
+};
+const isCompletedStatus = (c) => (c?.status || '').toLowerCase().includes('completed');
+
+/** Placeholder rows shown in a table while its data is loading. */
+const SkeletonRows = ({ rows = 6, cols = 6 }) => Array.from({ length: rows }).map((_, i) => (
+  <tr key={`sk-${i}`} className="cm-skeleton-row">
+    <td colSpan={cols}><span className="cm-skeleton cm-skeleton-line" /></td>
+  </tr>
+));
+
+/** Single full-width row for an empty result. */
+const EmptyRow = ({ cols = 6, text = 'No data found.' }) => (
+  <tr>
+    <td colSpan={cols} className="cm-empty-row">
+      <i className="fa-regular fa-folder-open" aria-hidden="true" /> {text}
+    </td>
+  </tr>
+);
 
 const REPORT_NAME_TO_SLUG = {
   'PO Wise Monthly Progress Report': 'mpr',
@@ -643,13 +696,13 @@ export const CMDashboardPage = ({ isEmbedded = false, activeTabFromProps = null,
   }), [chartsFromDate, chartsToDate, selectedChartsProduct]);
 
   // Fetch live Quality datasets
-  const { data: qQualityRejectionData } = useReportData(reportService.getQualityRejection, activeTab === 'Charts' ? chartsFilters : undefined);
-  const { data: qManufacturerRejectionData } = useReportData(reportService.getManufacturerRejection, activeTab === 'Charts' ? chartsFilters : undefined);
-  const { data: qStepWiseRejectionData } = useReportData(reportService.getManufacturingStepWiseRejection, activeTab === 'Charts' ? chartsFilters : undefined);
-  const { data: qProcessPerformanceData } = useReportData(reportService.getProcessPerformance, activeTab === 'Charts' ? chartsFilters : undefined);
-  const { data: qParetoAnalysisData } = useReportData(reportService.getParetoAnalysis, activeTab === 'Charts' ? chartsFilters : undefined);
-  const { data: qMonthlyRejectionTrendData } = useReportData(reportService.getMonthlyRejectionTrend, activeTab === 'Charts' ? chartsTrendParams : undefined);
-  const { data: qInspectionDetailsData } = useReportData(reportService.getInspectionDetails, activeTab === 'Charts' ? chartsFilters : undefined);
+  const { data: qQualityRejectionData, loading: chLoad1 } = useReportData(reportService.getQualityRejection, activeTab === 'Charts' ? chartsFilters : undefined);
+  const { data: qManufacturerRejectionData, loading: chLoad2 } = useReportData(reportService.getManufacturerRejection, activeTab === 'Charts' ? chartsFilters : undefined);
+  const { data: qStepWiseRejectionData, loading: chLoad3 } = useReportData(reportService.getManufacturingStepWiseRejection, activeTab === 'Charts' ? chartsFilters : undefined);
+  const { data: qProcessPerformanceData, loading: chLoad4 } = useReportData(reportService.getProcessPerformance, activeTab === 'Charts' ? chartsFilters : undefined);
+  const { data: qParetoAnalysisData, loading: chLoad5 } = useReportData(reportService.getParetoAnalysis, activeTab === 'Charts' ? chartsFilters : undefined);
+  const { data: qMonthlyRejectionTrendData, loading: chLoad6 } = useReportData(reportService.getMonthlyRejectionTrend, activeTab === 'Charts' ? chartsTrendParams : undefined);
+  const { data: qInspectionDetailsData, loading: chLoad7 } = useReportData(reportService.getInspectionDetails, activeTab === 'Charts' ? chartsFilters : undefined);
 
   // PO Lifecycle States & Data Fetching
   const [selectedLifecycleProduct, setSelectedLifecycleProduct] = useState('ERC');
@@ -683,7 +736,7 @@ export const CMDashboardPage = ({ isEmbedded = false, activeTabFromProps = null,
   }), [lcFromDate, lcToDate, selectedLifecycleProduct]);
 
   // Fetch Level 1 data for PO Lifecycle
-  const { data: reportData = [] } = useReportData(
+  const { data: reportData = [], loading: poLifecycleLoading } = useReportData(
     reportService.getLevel1Report,
     activeTab === 'PO Lifecycle' ? lifecycleFilters : undefined
   );
@@ -1002,7 +1055,10 @@ export const CMDashboardPage = ({ isEmbedded = false, activeTabFromProps = null,
   const [calls, setCalls] = useState([]);
   const [overdueCalls, setOverdueCalls] = useState([]);
   // eslint-disable-next-line no-unused-vars
-  const [callsLoading, setCallsLoading] = useState(false);
+  const [callsLoading, setCallsLoading] = useState(true); // true on first paint so cards show skeletons, not 0
+  const [callsRefreshKey, setCallsRefreshKey] = useState(0); // bump to force a fresh (non-cached) load
+  const lastForcedRefreshRef = useRef(0);
+  const [callsUpdatedAt, setCallsUpdatedAt] = useState(null);
   const [approvals, setApprovals] = useState(INITIAL_APPROVALS);
   const [notification, setNotification] = useState(null);
 
@@ -1021,6 +1077,15 @@ export const CMDashboardPage = ({ isEmbedded = false, activeTabFromProps = null,
   const [selectedVendors, setSelectedVendors] = useState([]);
   const [selectedStages, setSelectedStages] = useState([]);
   const [selectedCMs, setSelectedCMs] = useState([]);
+  // CM filter matches on employee code ("11055 - T VIJAY SHANKAR" == "11055 - T Vijay Shankar")
+  // A process call can list several CMs ("10723 - A, 11055 - B"); it matches if ANY of them is selected
+  const matchesSelectedCm = useCallback(
+    (cmName) => {
+      const codes = String(cmName || '').split(',').map(cmCodeOf).filter(Boolean);
+      return codes.length > 0 && selectedCMs.some(c => codes.includes(cmCodeOf(c)));
+    },
+    [selectedCMs]
+  );
   const [hasAutoSelected, setHasAutoSelected] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [startDate, setStartDate] = useState(() => {
@@ -1034,48 +1099,38 @@ export const CMDashboardPage = ({ isEmbedded = false, activeTabFromProps = null,
   });
 
   // Fetch IE Wise Call Status Data (requires selectedProducts to be initialized)
-  const { data: ieWiseCallStatusData = [] } = useReportData(
+  const { data: ieWiseCallStatusData = [], loading: ieWiseLoading } = useReportData(
     reportService.getCmIeWiseCallStatus,
     activeTab === 'IE wise Call Status' && selectedProducts.includes('ERC') ? cmEmpId : undefined
   );
 
-  const { data: sleeperIeWiseCallStatusData = [] } = useReportData(
+  const { data: sleeperIeWiseCallStatusData = [], loading: sleeperIeWiseLoading } = useReportData(
     reportService.getCmSleeperIeWiseCallStatus,
     activeTab === 'IE wise Call Status' && selectedProducts.includes('Sleeper') ? cmEmpId : undefined
   );
 
   // Fetch IE Performance Monitoring Data (requires selectedProducts to be initialized)
-  const { data: cmCompletedCallsAnalysisData = [] } = useReportData(
+  const { data: cmCompletedCallsAnalysisData = [], loading: iePerfLoading } = useReportData(
     reportService.getCmCompletedCallsAnalysis,
     activeTab === 'IE Performance Monitoring' && selectedProducts.includes('ERC') ? cmEmpId : undefined
   );
 
-  const { data: sleeperCompletedCallsAnalysisData = [] } = useReportData(
+  const { data: sleeperCompletedCallsAnalysisData = [], loading: sleeperIePerfLoading } = useReportData(
     reportService.getCmSleeperCompletedCallsAnalysis,
     activeTab === 'IE Performance Monitoring' && selectedProducts.includes('Sleeper') ? cmEmpId : undefined
   );
 
   useEffect(() => {
+    // Set by the cleanup when the dates change / Refresh / unmount: late responses of this run are ignored
+    let cancelled = false;
+    const isStale = () => cancelled;
+
     const fetchCalls = async () => {
       setCallsLoading(true);
       try {
-        let data = [];
-        const fetchErc = true;
-        const fetchSleeper = true;
-
-        if (fetchErc) {
-          try {
-            const resErc = await reportService.getCmInspectionCalls({ startDate, endDate });
-            if (resErc.responseData) data = [...data, ...resErc.responseData];
-          } catch (err) { console.error("Error fetching ERC calls", err); }
-        }
-
-        if (fetchSleeper) {
-          try {
-            const resSleeper = await reportService.getCmSleeperInspectionCalls({ startDate, endDate });
-            if (resSleeper.responseData) data = [...data, ...resSleeper.responseData];
-          } catch (err) { console.error("Error fetching Sleeper calls", err); }
-        }
+        const range = { startDate, endDate };
+        const force = callsRefreshKey > 0 && callsRefreshKey !== lastForcedRefreshRef.current;
+        lastForcedRefreshRef.current = callsRefreshKey;
 
         const formatNameWithId = (rawName) => {
           if (!rawName) return '';
@@ -1092,91 +1147,84 @@ export const CMDashboardPage = ({ isEmbedded = false, activeTabFromProps = null,
           return String(rawName).trim();
         };
 
-        const mappedCalls = data.map((item, index) => {
+        const productOf = (callNumber) => {
+          if (callNumber?.startsWith('SR') || callNumber?.startsWith('SP') || callNumber?.startsWith('SF')) return 'Sleeper';
+          if (callNumber?.startsWith('RR') || callNumber?.startsWith('RP') || callNumber?.startsWith('RF')) return 'Rail Pad';
+          return 'ERC';
+        };
+
+        const mapCall = (item, index, idPrefix) => ({
+          id: idPrefix + item.callNumber + '-' + index,
+          callNumber: item.callNumber,
+          product: productOf(item.callNumber),
+          stage: item.productAndStageOfInspection || 'Process',
+          poNumber: item.poNumber,
+          dpDate: item.deliveryDate || '',
+          extDpDate: item.expectedDeliveryDate || '',
+          vendorName: item.vendorName,
+          desiredInspectionDate: item.inspectionDesiredDate,
+          callDate: item.callDate,
+          ieName: item.ieName ? item.ieName.split(',').map(ie => formatNameWithId(ie.trim())).join(', ') : '',
+          cmName: formatNameWithId(item.cmName),
+          ritesRio: item.ritesRio,
           // Use the raw status coming directly from the API
-          let mappedStatus = item.status || 'Pending';
-          let mappedSubStatus = '';
-
-          let prodType = 'ERC';
-          if (item.callNumber?.startsWith('ER') || item.callNumber?.startsWith('EP') || item.callNumber?.startsWith('EF')) prodType = 'ERC';
-          else if (item.callNumber?.startsWith('SR') || item.callNumber?.startsWith('SP') || item.callNumber?.startsWith('SF')) prodType = 'Sleeper';
-          else if (item.callNumber?.startsWith('RR') || item.callNumber?.startsWith('RP') || item.callNumber?.startsWith('RF')) prodType = 'Rail Pad';
-
-          return {
-            id: item.callNumber + '-' + index,
-            callNumber: item.callNumber,
-            product: prodType,
-            stage: item.productAndStageOfInspection || 'Process',
-            poNumber: item.poNumber,
-            dpDate: item.deliveryDate || '',
-            extDpDate: item.expectedDeliveryDate || '',
-            vendorName: item.vendorName,
-            desiredInspectionDate: item.inspectionDesiredDate,
-            callDate: item.callDate,
-            ieName: item.ieName ? item.ieName.split(',').map(ie => formatNameWithId(ie.trim())).join(', ') : '',
-            cmName: formatNameWithId(item.cmName),
-            ritesRio: item.ritesRio,
-            status: mappedStatus,
-            subStatus: mappedSubStatus,
-            docs: { ic: false, po: !!item.poNumber, itp: false, annexure: false, calibration: false },
-            inspectionStartDate: '',
-            inspectionCompletionDate: ''
-          };
+          status: item.status || 'Pending',
+          subStatus: '',
+          docs: { ic: false, po: !!item.poNumber, itp: false, annexure: false, calibration: false },
+          inspectionStartDate: '',
+          inspectionCompletionDate: ''
         });
 
-        setCalls(mappedCalls);
+        // Progressive loading: all 6 requests start together (5-min per-user cache); each product's rows are
+        // shown as soon as that product returns, so one slow product no longer holds back the others.
+        const callsAcc = [];
+        const overdueAcc = [];
+        let firstBatch = true;
+        const addCalls = (res) => {
+          if (isStale()) return;
+          (res?.responseData || []).forEach(item => callsAcc.push(item));
+          setCalls(callsAcc.map((item, i) => mapCall(item, i, '')));
+          firstBatch = false;
+        };
+        const addOverdue = (res) => {
+          if (isStale()) return;
+          (res?.responseData || []).forEach(item => overdueAcc.push(item));
+          setOverdueCalls(overdueAcc.map((item, i) => mapCall(item, i, 'overdue-')));
+        };
 
-        // Fetch overdue calls dynamically based on selected products
-        let overdueDataRaw = [];
-        if (fetchErc) {
-          try {
-            const overdueResponseErc = await reportService.getCmErcOverdueCalls({ startDate, endDate });
-            if (overdueResponseErc.responseData) overdueDataRaw = [...overdueDataRaw, ...overdueResponseErc.responseData];
-          } catch (err) { console.error("Error fetching ERC overdue calls", err); }
-        }
+        // Clear the previous range's rows only when this is a new range (a Refresh keeps them until data arrives)
+        if (!force) { setCalls([]); setOverdueCalls([]); }
 
-        if (fetchSleeper) {
-          try {
-            const overdueResponseSleeper = await reportService.getCmSleeperOverdueCalls({ startDate, endDate });
-            if (overdueResponseSleeper.responseData) overdueDataRaw = [...overdueDataRaw, ...overdueResponseSleeper.responseData];
-          } catch (err) { console.error("Error fetching Sleeper overdue calls", err); }
-        }
+        const jobs = [
+          ['ERC calls', reportService.getCmInspectionCalls, 'cm-erc-calls', addCalls],
+          ['Sleeper calls', reportService.getCmSleeperInspectionCalls, 'cm-sleeper-calls', addCalls],
+          ['Rail Pad calls', reportService.getCmRailInspectionCalls, 'cm-rail-calls', addCalls],
+          ['ERC overdue', reportService.getCmErcOverdueCalls, 'cm-erc-overdue', addOverdue],
+          ['Sleeper overdue', reportService.getCmSleeperOverdueCalls, 'cm-sleeper-overdue', addOverdue],
+          ['Rail Pad overdue', reportService.getCmRailOverdueCalls, 'cm-rail-overdue', addOverdue],
+        ].map(([label, fn, key, onData]) =>
+          cachedRequest(key, fn, range, { force })
+            .then(onData)
+            .catch(err => console.error(`Error fetching ${label}`, err))
+        );
 
-        const mappedOverdue = overdueDataRaw.map((item, index) => {
-          let prodType = 'ERC';
-          if (item.callNumber?.startsWith('ER') || item.callNumber?.startsWith('EP') || item.callNumber?.startsWith('EF')) prodType = 'ERC';
-          else if (item.callNumber?.startsWith('SR') || item.callNumber?.startsWith('SP') || item.callNumber?.startsWith('SF')) prodType = 'Sleeper';
-          else if (item.callNumber?.startsWith('RR') || item.callNumber?.startsWith('RP') || item.callNumber?.startsWith('RF')) prodType = 'Rail Pad';
-          return {
-            id: 'overdue-' + item.callNumber + '-' + index,
-            callNumber: item.callNumber,
-            product: prodType,
-            stage: item.productAndStageOfInspection || 'Process',
-            poNumber: item.poNumber,
-            dpDate: item.deliveryDate || '',
-            extDpDate: item.expectedDeliveryDate || '',
-            vendorName: item.vendorName,
-            desiredInspectionDate: item.inspectionDesiredDate,
-            callDate: item.callDate,
-            ieName: item.ieName ? item.ieName.split(',').map(ie => formatNameWithId(ie.trim())).join(', ') : '',
-            cmName: formatNameWithId(item.cmName),
-            ritesRio: item.ritesRio,
-            status: item.status || 'Pending',
-            subStatus: '',
-            docs: { ic: false, po: !!item.poNumber, itp: false, annexure: false, calibration: false },
-          };
-        });
-        setOverdueCalls(mappedOverdue);
+        await Promise.allSettled(jobs);
+        // A Refresh where every call list came back empty still has to clear the old rows
+        if (!isStale() && firstBatch && force) setCalls([]);
 
       } catch (error) {
         console.error("Error fetching CM inspection calls:", error);
       } finally {
-        setCallsLoading(false);
+        if (!isStale()) {
+          setCallsLoading(false);
+          setCallsUpdatedAt(new Date());
+        }
       }
     };
 
     fetchCalls();
-  }, [startDate, endDate]);
+    return () => { cancelled = true; };
+  }, [startDate, endDate, callsRefreshKey]);
 
   // Expand/collapse global filters panel
   const [filtersExpanded, setFiltersExpanded] = useState(true);
@@ -1208,12 +1256,13 @@ export const CMDashboardPage = ({ isEmbedded = false, activeTabFromProps = null,
 
     allCalls.forEach(call => {
       if (call.ritesRio) regions.add(call.ritesRio);
-      if (call.ieName) {
+      // Engineer list follows the CM filter: only IEs on the selected CM's calls
+      if (call.ieName && (selectedCMs.length === 0 || matchesSelectedCm(call.cmName))) {
         call.ieName.split(',').forEach(ie => ies.add(ie.trim()));
       }
       if (call.vendorName) vendors.add(call.vendorName);
       if (call.stage) stages.add(call.stage);
-      if (call.cmName) cms.add(call.cmName);
+      if (call.cmName) call.cmName.split(',').map(c => c.trim()).filter(Boolean).forEach(c => cms.add(c)); // one option per CM
     });
 
     return {
@@ -1221,13 +1270,50 @@ export const CMDashboardPage = ({ isEmbedded = false, activeTabFromProps = null,
       ies: Array.from(ies).sort(),
       vendors: Array.from(vendors).sort(),
       stages: Array.from(stages).sort(),
-      cms: Array.from(cms).sort()
+      // One option per CM code (the injected "CODE - NAME" and the API's name casing can differ)
+      cms: Array.from(cms).sort().filter((c, i, arr) =>
+        arr.findIndex(x => cmCodeOf(x) === cmCodeOf(c)) === i)
     };
-  }, [calls, overdueCalls]);
+  }, [calls, overdueCalls, selectedCMs, matchesSelectedCm]);
+  // IE rows from the IE Wise / IE Performance APIs: match the IE filter by employee code (the filter holds
+  // "CODE - NAME" labels, the API gives code and name separately). All engineers selected = no filter, so IEs
+  // with 0 calls (not in the call-based dropdown) are still shown.
+  const allIesCount = dynamicFilterOptions.ies.length;
+  const matchesSelectedIe = useCallback((ie) => {
+    if (selectedIEs.length === 0 || selectedIEs.length >= allIesCount) return true;
+    const code = String(ie.ieId || ie.id || '').trim().toLowerCase();
+    const name = String(ie.ieName || ie.name || '').trim().toLowerCase();
+    return selectedIEs.some(sel => {
+      const label = String(sel).trim().toLowerCase();
+      return (code && cmCodeOf(sel) === code) || (name && (label === name || label.endsWith(' - ' + name)));
+    });
+  }, [selectedIEs, allIesCount]);
+
+  // IE Wise / IE Performance tables: filtered once, then shown one page at a time
+  const [iePage, setIePage] = useState(0);
+  const [ieRowsPerPage, setIeRowsPerPage] = useState(10);
+  const ieWiseList = useMemo(() => (
+    selectedProducts.includes('ERC') ? ieWiseCallStatusData
+      : selectedProducts.includes('Sleeper') ? sleeperIeWiseCallStatusData : INITIAL_IES
+  ).filter(matchesSelectedIe),
+  [selectedProducts, ieWiseCallStatusData, sleeperIeWiseCallStatusData, matchesSelectedIe]);
+  const iePerfList = useMemo(() => (
+    selectedProducts.includes('ERC') ? cmCompletedCallsAnalysisData
+      : selectedProducts.includes('Sleeper') ? sleeperCompletedCallsAnalysisData : INITIAL_IES
+  ).filter(matchesSelectedIe),
+  [selectedProducts, cmCompletedCallsAnalysisData, sleeperCompletedCallsAnalysisData, matchesSelectedIe]);
+  // Back to page 1 when the view or the filters change
+  useEffect(() => { setIePage(0); }, [activeTab, selectedProducts, selectedIEs]);
+
+  // Anything still loading on the current screen -> slim progress bar at the top of the page
+  const anyDataLoading = callsLoading
+    || chLoad1 || chLoad2 || chLoad3 || chLoad4 || chLoad5 || chLoad6 || chLoad7
+    || poLifecycleLoading || mprLoading || mauLoading || mpiaLoading || lwclLoading || level4Loading
+    || ieWiseLoading || sleeperIeWiseLoading || iePerfLoading || sleeperIePerfLoading;
 
   // Pre-select all dropdown options by default when calls data is loaded
   useEffect(() => {
-    if (calls.length > 0 && !hasAutoSelected) {
+    if (calls.length > 0 && !hasAutoSelected && !callsLoading) { // wait for ALL products so the "select all" lists are complete
       setSelectedRegions(dynamicFilterOptions.regions);
       setSelectedIEs(dynamicFilterOptions.ies);
       setSelectedVendors(dynamicFilterOptions.vendors);
@@ -1257,7 +1343,7 @@ export const CMDashboardPage = ({ isEmbedded = false, activeTabFromProps = null,
 
       setHasAutoSelected(true);
     }
-  }, [calls, dynamicFilterOptions, hasAutoSelected]);
+  }, [calls, dynamicFilterOptions, hasAutoSelected, callsLoading]);
 
   // Filter preview string helpers
   const getCMsPreview = () => {
@@ -1349,7 +1435,7 @@ export const CMDashboardPage = ({ isEmbedded = false, activeTabFromProps = null,
       }
 
       // CM Filter
-      if (selectedCMs.length > 0 && !selectedCMs.includes(call.cmName)) return false;
+      if (selectedCMs.length > 0 && !matchesSelectedCm(call.cmName)) return false;
 
       // Region Filter
       if (selectedRegions.length > 0 && !selectedRegions.includes(call.ritesRio)) return false;
@@ -1390,7 +1476,7 @@ export const CMDashboardPage = ({ isEmbedded = false, activeTabFromProps = null,
 
       return true;
     });
-  }, [calls, overdueCalls, searchQuery, selectedCMs, selectedRegions, selectedIEs, selectedProducts, selectedVendors, selectedStages, activeCallFilter, startDate, endDate]);
+  }, [calls, overdueCalls, searchQuery, selectedCMs, matchesSelectedCm, selectedRegions, selectedIEs, selectedProducts, selectedVendors, selectedStages, activeCallFilter, startDate, endDate]);
 
   // Sort Call list
   const sortedCalls = useMemo(() => {
@@ -1430,10 +1516,13 @@ export const CMDashboardPage = ({ isEmbedded = false, activeTabFromProps = null,
   // Total pages
   const totalPages = Math.ceil(sortedCalls.length / pageSize) || 1;
 
+  // Skeletons only while loading with nothing to show yet; a refresh keeps the old numbers visible
+  const showKpiSkeleton = callsLoading && calls.length === 0;
+
   // KPI Dynamic Sum Calculations (Based strictly on the overall loaded calls + global filters)
   const kpiStats = useMemo(() => {
     const baseList = calls.filter(call => {
-      if (selectedCMs.length > 0 && !selectedCMs.includes(call.cmName)) return false;
+      if (selectedCMs.length > 0 && !matchesSelectedCm(call.cmName)) return false;
       if (selectedRegions.length > 0 && !selectedRegions.includes(call.ritesRio)) return false;
       if (selectedIEs.length > 0) {
         const callIEs = call.ieName ? call.ieName.split(',').map(ie => ie.trim()) : [];
@@ -1469,7 +1558,7 @@ export const CMDashboardPage = ({ isEmbedded = false, activeTabFromProps = null,
     }).length;
 
     const baseOverdueList = overdueCalls.filter(call => {
-      if (selectedCMs.length > 0 && !selectedCMs.includes(call.cmName)) return false;
+      if (selectedCMs.length > 0 && !matchesSelectedCm(call.cmName)) return false;
       if (selectedRegions.length > 0 && !selectedRegions.includes(call.ritesRio)) return false;
       if (selectedIEs.length > 0) {
         const callIEs = call.ieName ? call.ieName.split(',').map(ie => ie.trim()) : [];
@@ -1485,7 +1574,7 @@ export const CMDashboardPage = ({ isEmbedded = false, activeTabFromProps = null,
     const overdue = baseOverdueList.length;
 
     return { total, pending, underInspection, icPending, completed, overdue };
-  }, [calls, overdueCalls, selectedCMs, selectedRegions, selectedIEs, selectedProducts, selectedVendors, selectedStages, startDate, endDate]);
+  }, [calls, overdueCalls, selectedCMs, matchesSelectedCm, selectedRegions, selectedIEs, selectedProducts, selectedVendors, selectedStages, startDate, endDate]);
 
   // Handle document PDF mock downloading
   const handleDownloadPdf = (callNumber, docType) => {
@@ -2017,6 +2106,10 @@ export const CMDashboardPage = ({ isEmbedded = false, activeTabFromProps = null,
 
       {/* Main Panel Content Area */}
       <main className="cm-main-panel" style={isEmbedded ? { marginLeft: 0, width: '100%', padding: '10px' } : {}}>
+        <Suspense fallback={<div className="cm-tab-loading" role="status" aria-live="polite"><span className="cm-skeleton cm-skeleton-line" /><span className="cm-skeleton cm-skeleton-line" /><span className="cm-skeleton cm-skeleton-block" /><span className="cm-tab-loading-text">Loading…</span></div>}>
+        {anyDataLoading && (
+          <div className="cm-top-progress" role="progressbar" aria-label="Loading data"><span /></div>
+        )}
 
         {/* Custom Notifications Toast */}
         {notification && (
@@ -2055,9 +2148,24 @@ export const CMDashboardPage = ({ isEmbedded = false, activeTabFromProps = null,
                     'SLA compliance logs, average completed call statistics, and workload capacity ratings.'}
               </p>
             </div>
-            <button className="btn btn--outline" onClick={handleResetFilters}>
-              <i className="fa-solid fa-rotate-left" style={{ marginRight: '6px' }}></i> Reset Filters
-            </button>
+            <div className="cm-header-actions">
+              {callsUpdatedAt && (
+                <span className="cm-updated-at" title="Data is cached for 5 minutes; use Refresh for the latest">
+                  {callsLoading ? 'Updating…' : `Updated ${callsUpdatedAt.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}`}
+                </span>
+              )}
+              <button
+                className="btn btn--outline"
+                onClick={() => setCallsRefreshKey(k => k + 1)}
+                disabled={callsLoading}
+                title="Fetch the latest data"
+              >
+                <i className={`fa-solid fa-arrows-rotate ${callsLoading ? 'fa-spin' : ''}`} style={{ marginRight: '6px' }}></i> Refresh
+              </button>
+              <button className="btn btn--outline" onClick={handleResetFilters}>
+                <i className="fa-solid fa-rotate-left" style={{ marginRight: '6px' }}></i> Reset Filters
+              </button>
+            </div>
           </div>
         )}
 
@@ -2074,7 +2182,7 @@ export const CMDashboardPage = ({ isEmbedded = false, activeTabFromProps = null,
                   <span className="cm-kpi-title">Total Calls</span>
                   <i className="cm-kpi-icon fa-solid fa-list-check"></i>
                 </div>
-                <div className="cm-kpi-value">{kpiStats.total}</div>
+                <div className="cm-kpi-value">{showKpiSkeleton ? <span className="cm-skeleton cm-skeleton-kpi" aria-label="Loading" /> : kpiStats.total}</div>
                 <div className="cm-kpi-footer">Calls in current view</div>
               </div>
 
@@ -2086,7 +2194,7 @@ export const CMDashboardPage = ({ isEmbedded = false, activeTabFromProps = null,
                   <span className="cm-kpi-title">Pending Calls</span>
                   <i className="cm-kpi-icon fa-solid fa-hourglass-half"></i>
                 </div>
-                <div className="cm-kpi-value">{kpiStats.pending}</div>
+                <div className="cm-kpi-value">{showKpiSkeleton ? <span className="cm-skeleton cm-skeleton-kpi" aria-label="Loading" /> : kpiStats.pending}</div>
                 <div className="cm-kpi-footer">Raised & uninitiated by IE</div>
               </div>
 
@@ -2098,7 +2206,7 @@ export const CMDashboardPage = ({ isEmbedded = false, activeTabFromProps = null,
                   <span className="cm-kpi-title">Under Inspection Calls</span>
                   <i className="cm-kpi-icon fa-solid fa-sliders"></i>
                 </div>
-                <div className="cm-kpi-value">{kpiStats.underInspection}</div>
+                <div className="cm-kpi-value">{showKpiSkeleton ? <span className="cm-skeleton cm-skeleton-kpi" aria-label="Loading" /> : kpiStats.underInspection}</div>
                 <div className="cm-kpi-footer">Initiated but not completed</div>
               </div>
             </div>
@@ -2113,7 +2221,7 @@ export const CMDashboardPage = ({ isEmbedded = false, activeTabFromProps = null,
                   <span className="cm-kpi-title">IC Issuance Pending</span>
                   <i className="cm-kpi-icon fa-solid fa-file-invoice"></i>
                 </div>
-                <div className="cm-kpi-value">{kpiStats.icPending}</div>
+                <div className="cm-kpi-value">{showKpiSkeleton ? <span className="cm-skeleton cm-skeleton-kpi" aria-label="Loading" /> : kpiStats.icPending}</div>
                 <div className="cm-kpi-footer">Pending IC issuance</div>
               </div>
 
@@ -2125,7 +2233,7 @@ export const CMDashboardPage = ({ isEmbedded = false, activeTabFromProps = null,
                   <span className="cm-kpi-title">Completed Calls</span>
                   <i className="cm-kpi-icon fa-solid fa-circle-check"></i>
                 </div>
-                <div className="cm-kpi-value">{kpiStats.completed}</div>
+                <div className="cm-kpi-value">{showKpiSkeleton ? <span className="cm-skeleton cm-skeleton-kpi" aria-label="Loading" /> : kpiStats.completed}</div>
                 <div className="cm-kpi-footer">Finished & IC Dispatched</div>
               </div>
 
@@ -2137,7 +2245,7 @@ export const CMDashboardPage = ({ isEmbedded = false, activeTabFromProps = null,
                   <span className="cm-kpi-title">Overdue Calls</span>
                   <i className="cm-kpi-icon fa-solid fa-triangle-exclamation"></i>
                 </div>
-                <div className="cm-kpi-value">{kpiStats.overdue}</div>
+                <div className="cm-kpi-value">{showKpiSkeleton ? <span className="cm-skeleton cm-skeleton-kpi" aria-label="Loading" /> : kpiStats.overdue}</div>
                 <div className="cm-kpi-footer">Crossed desired date by 7d</div>
               </div>
             </div>
@@ -2146,7 +2254,7 @@ export const CMDashboardPage = ({ isEmbedded = false, activeTabFromProps = null,
 
         {/* Global Filters Panel — Premium Redesign (shared across core tabs) */}
         {((activeTab === 'Dashboard' && activeCallFilter !== null) || ['Call Monitoring', 'IE wise Call Status', 'IE Performance Monitoring'].includes(activeTab)) && (
-          <section style={{ background: '#fff', borderRadius: '12px', border: '1px solid #d1fae5', boxShadow: '0 4px 15px rgba(0,0,0,0.05)', overflow: 'visible' }}>
+          <section className="cm-global-filters" style={{ background: '#fff', borderRadius: '12px', border: '1px solid #d1fae5', boxShadow: '0 4px 15px rgba(0,0,0,0.05)', overflow: 'visible' }}>
             {/* Sleek Minimalist Header Bar */}
             <div
               onClick={() => { setFiltersExpanded(!filtersExpanded); setOpenDropdown(null); }}
@@ -3034,7 +3142,14 @@ export const CMDashboardPage = ({ isEmbedded = false, activeTabFromProps = null,
                     </tr>
                   </thead>
                   <tbody>
-                    {paginatedCalls.length > 0 ? (
+                    {showKpiSkeleton ? (
+                      // Skeleton rows while the first load is in progress (instead of "No matching calls")
+                      Array.from({ length: 6 }).map((_, i) => (
+                        <tr key={`sk-${i}`} className="cm-skeleton-row">
+                          <td colSpan="12"><span className="cm-skeleton cm-skeleton-line" /></td>
+                        </tr>
+                      ))
+                    ) : paginatedCalls.length > 0 ? (
                       paginatedCalls.flatMap((call) => {
                         const ies = call.ieName ? call.ieName.split(',').map(ie => ie.trim()) : ['Unassigned'];
                         return ies.map((singleIeName, ieIndex) => {
@@ -3218,11 +3333,12 @@ export const CMDashboardPage = ({ isEmbedded = false, activeTabFromProps = null,
                     </tr>
                   </thead>
                   <tbody>
-                    {(selectedProducts.includes('ERC') ? ieWiseCallStatusData : selectedProducts.includes('Sleeper') ? sleeperIeWiseCallStatusData : INITIAL_IES).filter(ie => selectedIEs.length === 0 || selectedIEs.includes(ie.ieName || ie.name)).map((ie, idx) => {
+                    {(ieWiseLoading || sleeperIeWiseLoading) && ieWiseList.length === 0 ? <SkeletonRows cols={6} /> : ieWiseList.length === 0 ? <EmptyRow cols={6} text="No inspection engineers found for this selection." /> : ieWiseList.slice(iePage * ieRowsPerPage, (iePage + 1) * ieRowsPerPage).map((ie, idx) => {
                       const isApiData = selectedProducts.includes('ERC') || selectedProducts.includes('Sleeper');
                       const ieName = ie.ieName || ie.name;
                       const ieId = ie.ieId || ie.id;
-                      const ieCalls = filteredCalls.filter(c => c.ieName === ieName);
+                      const ieCalls = calls.filter(c => callHasIe(c, ieId, ieName));
+                      const ieOverdueCalls = overdueCalls.filter(c => callHasIe(c, ieId, ieName));
 
                       let pending = 0, underInspection = 0, icPending = 0, overdue = 0;
                       if (isApiData) {
@@ -3231,10 +3347,10 @@ export const CMDashboardPage = ({ isEmbedded = false, activeTabFromProps = null,
                         icPending = ie.noOfCallsPendingForIc || 0;
                         overdue = ie.noOfCallsOverdue || 0;
                       } else {
-                        pending = ieCalls.filter(c => c.status === 'Pending').length;
-                        underInspection = ieCalls.filter(c => c.status === 'Under Inspection').length;
-                        icPending = ieCalls.filter(c => c.status === 'IC Issuance Pending').length;
-                        overdue = ieCalls.filter(c => isOverdue(c)).length;
+                        pending = ieCalls.filter(isPendingStatus).length;
+                        underInspection = ieCalls.filter(isUnderInspectionStatus).length;
+                        icPending = ieCalls.filter(isIcPendingStatus).length;
+                        overdue = ieOverdueCalls.length;
                       }
 
                       return (
@@ -3246,7 +3362,7 @@ export const CMDashboardPage = ({ isEmbedded = false, activeTabFromProps = null,
                               <span
                                 className="cm-table-link"
                                 style={{ cursor: 'pointer', textDecoration: 'underline' }}
-                                onClick={() => handleOpenCallDetailsModal(ieName, 'Pending', ieCalls.filter(c => c.status === 'Pending'))}
+                                onClick={() => handleOpenCallDetailsModal(ieName, 'Pending', ieCalls.filter(isPendingStatus))}
                               >
                                 {pending}
                               </span>
@@ -3259,7 +3375,7 @@ export const CMDashboardPage = ({ isEmbedded = false, activeTabFromProps = null,
                               <span
                                 className="cm-table-link"
                                 style={{ cursor: 'pointer', textDecoration: 'underline' }}
-                                onClick={() => handleOpenCallDetailsModal(ieName, 'Under Inspection', ieCalls.filter(c => c.status === 'Under Inspection'))}
+                                onClick={() => handleOpenCallDetailsModal(ieName, 'Under Inspection', ieCalls.filter(isUnderInspectionStatus))}
                               >
                                 {underInspection}
                               </span>
@@ -3272,7 +3388,7 @@ export const CMDashboardPage = ({ isEmbedded = false, activeTabFromProps = null,
                               <span
                                 className="cm-table-link"
                                 style={{ cursor: 'pointer', textDecoration: 'underline' }}
-                                onClick={() => handleOpenCallDetailsModal(ieName, 'Pending for IC', ieCalls.filter(c => c.status === 'IC Issuance Pending'))}
+                                onClick={() => handleOpenCallDetailsModal(ieName, 'Pending for IC', ieCalls.filter(isIcPendingStatus))}
                               >
                                 {icPending}
                               </span>
@@ -3285,7 +3401,7 @@ export const CMDashboardPage = ({ isEmbedded = false, activeTabFromProps = null,
                               <span
                                 className="cm-table-link"
                                 style={{ cursor: 'pointer', textDecoration: 'underline', color: '#ef4444' }}
-                                onClick={() => handleOpenCallDetailsModal(ieName, 'Overdue', ieCalls.filter(c => isOverdue(c)))}
+                                onClick={() => handleOpenCallDetailsModal(ieName, 'Overdue', ieOverdueCalls)}
                               >
                                 {overdue}
                                 <span style={{ color: '#ef4444', marginLeft: '4px' }} title="Desired Date crossed by 7 Days">⚠️</span>
@@ -3300,6 +3416,16 @@ export const CMDashboardPage = ({ isEmbedded = false, activeTabFromProps = null,
                   </tbody>
                 </table>
               </div>
+                <Pagination
+                  currentPage={iePage}
+                  totalPages={Math.max(1, Math.ceil(ieWiseList.length / ieRowsPerPage))}
+                  start={ieWiseList.length === 0 ? 0 : iePage * ieRowsPerPage}
+                  end={Math.min((iePage + 1) * ieRowsPerPage, ieWiseList.length)}
+                  totalCount={ieWiseList.length}
+                  onPageChange={setIePage}
+                  rows={ieRowsPerPage}
+                  onRowsChange={(r) => { setIeRowsPerPage(r); setIePage(0); }}
+                />
             </section>
           </>
         )}
@@ -3330,7 +3456,7 @@ export const CMDashboardPage = ({ isEmbedded = false, activeTabFromProps = null,
                     </tr>
                   </thead>
                   <tbody>
-                    {(selectedProducts.includes('ERC') ? cmCompletedCallsAnalysisData : selectedProducts.includes('Sleeper') ? sleeperCompletedCallsAnalysisData : INITIAL_IES).filter(ie => selectedIEs.length === 0 || selectedIEs.includes(ie.ieName || ie.name)).map((ie, idx) => {
+                    {(iePerfLoading || sleeperIePerfLoading) && iePerfList.length === 0 ? <SkeletonRows cols={10} /> : iePerfList.length === 0 ? <EmptyRow cols={10} text="No inspection engineers found for this selection." /> : iePerfList.slice(iePage * ieRowsPerPage, (iePage + 1) * ieRowsPerPage).map((ie, idx) => {
                       const isApiData = selectedProducts.includes('ERC') || selectedProducts.includes('Sleeper');
                       if (isApiData) {
                         return (
@@ -3349,7 +3475,7 @@ export const CMDashboardPage = ({ isEmbedded = false, activeTabFromProps = null,
                         );
                       }
 
-                      const completedCalls = filteredCalls.filter(c => c.ieName === ie.name && c.status === 'Completed');
+                      const completedCalls = calls.filter(c => callHasIe(c, ie.ieId || ie.id, ie.ieName || ie.name) && isCompletedStatus(c));
                       const total = completedCalls.length;
 
                       const overdueAttended = completedCalls.filter(c => {
@@ -3385,6 +3511,16 @@ export const CMDashboardPage = ({ isEmbedded = false, activeTabFromProps = null,
                   </tbody>
                 </table>
               </div>
+                <Pagination
+                  currentPage={iePage}
+                  totalPages={Math.max(1, Math.ceil(iePerfList.length / ieRowsPerPage))}
+                  start={iePerfList.length === 0 ? 0 : iePage * ieRowsPerPage}
+                  end={Math.min((iePage + 1) * ieRowsPerPage, iePerfList.length)}
+                  totalCount={iePerfList.length}
+                  onPageChange={setIePage}
+                  rows={ieRowsPerPage}
+                  onRowsChange={(r) => { setIeRowsPerPage(r); setIePage(0); }}
+                />
             </section>
           </>
         )}
@@ -4495,6 +4631,7 @@ export const CMDashboardPage = ({ isEmbedded = false, activeTabFromProps = null,
             <CertificateStorageManager onNotify={triggerNotification} isSuperAdmin={true} />
           </div>
         )}
+        </Suspense>
       </main>
 
       {/* Approvals Action Remarks Dialog Modal */}

@@ -1159,3 +1159,405 @@
         padding: 14px 10px;
     }
 }
+
+/* ============================================================
+   USER ACTIONS BUTTON & RICH POPUP MODAL
+   ============================================================ */
+
+.view-actions-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 13px;
+    font-size: 12px;
+    font-weight: 600;
+    color: #0f4c81;
+    background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
+    border: 1px solid #bae6fd;
+    border-radius: 6px;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: all 0.2s ease;
+    box-shadow: 0 1px 2px rgba(15, 76, 129, 0.06);
+}
+
+.view-actions-btn:hover {
+    background: linear-gradient(135deg, #0f4c81 0%, #17a2b8 100%);
+    color: #ffffff;
+    border-color: #0f4c81;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 10px rgba(23, 162, 184, 0.24);
+}
+
+.user-actions-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(15, 23, 42, 0.58);
+    backdrop-filter: blur(4px);
+    z-index: 1300;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 16px;
+    animation: fadeIn 0.18s ease-out;
+}
+
+.user-actions-dialog {
+    background: #ffffff;
+    border-radius: 16px;
+    width: 100%;
+    max-width: 580px;
+    max-height: 90vh;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 24px 48px -12px rgba(15, 23, 42, 0.25), 0 0 0 1px rgba(226, 232, 240, 0.9);
+    animation: slideUp 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.user-actions-dialog.wide {
+    max-width: 720px;
+}
+
+.user-actions-banner {
+    background: #ffffff;
+    color: #0f172a;
+    padding: 22px 24px 16px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+}
+
+.user-actions-identity {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    min-width: 0;
+}
+
+.user-actions-avatar {
+    width: 44px;
+    height: 44px;
+    border-radius: 12px;
+    background: #e0f2fe;
+    border: 1px solid #bae6fd;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 16px;
+    font-weight: 700;
+    color: #0369a1;
+    flex-shrink: 0;
+    letter-spacing: 0.5px;
+}
+
+.user-actions-avatar.view-mode {
+    background: #d1fae5;
+    border-color: #a7f3d0;
+    color: #047857;
+}
+
+.user-actions-name {
+    margin: 0;
+    font-size: 16.5px;
+    font-weight: 700;
+    color: #0f172a;
+    line-height: 1.3;
+    word-break: break-word;
+}
+
+.user-actions-email {
+    font-size: 13px;
+    color: #64748b;
+    margin-top: 2px;
+    word-break: break-word;
+}
+
+.user-actions-close {
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    border: none;
+    background: transparent;
+    color: #64748b;
+    font-size: 20px;
+    line-height: 1;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    transition: background 0.15s ease, color 0.15s ease;
+}
+
+.user-actions-close:hover {
+    background: #f1f5f9;
+    color: #0f172a;
+}
+
+.user-actions-body {
+    padding: 4px 24px 24px;
+    overflow-y: auto;
+    background: #ffffff;
+}
+
+.user-actions-info-box {
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    padding: 18px 20px;
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 16px 20px;
+    margin-bottom: 20px;
+}
+
+.user-actions-info-item {
+    min-width: 0;
+}
+
+.user-actions-info-label {
+    font-size: 10.5px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: #64748b;
+    margin-bottom: 4px;
+}
+
+.user-actions-info-value {
+    font-size: 13.5px;
+    font-weight: 600;
+    color: #0f172a;
+    word-break: break-word;
+}
+
+.user-actions-status-pill {
+    display: inline-flex;
+    align-items: center;
+    padding: 4px 10px;
+    border-radius: 6px;
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.user-actions-status-pill.active {
+    background: #dcfce7;
+    color: #15803d;
+}
+
+.user-actions-status-pill.inactive {
+    background: #fee2e2;
+    color: #b91c1c;
+}
+
+.user-actions-section-title {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 13.5px;
+    font-weight: 700;
+    color: #1e293b;
+    margin-bottom: 12px;
+}
+
+.user-actions-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+}
+
+.user-action-card {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    gap: 8px;
+    padding: 18px 12px;
+    border-radius: 12px;
+    cursor: pointer;
+    transition: all 0.18s ease;
+    font-family: inherit;
+}
+
+.user-action-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 18px -6px rgba(15, 23, 42, 0.12);
+}
+
+.user-action-icon {
+    width: 42px;
+    height: 42px;
+    border-radius: 50%;
+    background: #ffffff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.18s ease;
+}
+
+.user-action-title {
+    font-size: 14px;
+    font-weight: 700;
+}
+
+.user-action-desc {
+    font-size: 11.5px;
+    color: #64748b;
+    line-height: 1.35;
+}
+
+.user-action-card.view {
+    background: #ecfdf5;
+    border: 1px solid #bbf7d0;
+}
+.user-action-card.view .user-action-icon {
+    color: #15803d;
+    border: 1px solid #bbf7d0;
+}
+.user-action-card.view .user-action-title {
+    color: #15803d;
+}
+.user-action-card.view:hover {
+    border-color: #22c55e;
+    background: #e2fbe9;
+}
+.user-action-card.view:hover .user-action-icon {
+    background: #16a34a;
+    color: #ffffff;
+    border-color: #16a34a;
+}
+
+.user-action-card.edit {
+    background: #eff6ff;
+    border: 1px solid #bfdbfe;
+}
+.user-action-card.edit .user-action-icon {
+    color: #1d4ed8;
+    border: 1px solid #bfdbfe;
+}
+.user-action-card.edit .user-action-title {
+    color: #1d4ed8;
+}
+.user-action-card.edit:hover {
+    border-color: #3b82f6;
+    background: #e4efff;
+}
+.user-action-card.edit:hover .user-action-icon {
+    background: #2563eb;
+    color: #ffffff;
+    border-color: #2563eb;
+}
+
+.user-action-card.delete {
+    background: #fef2f2;
+    border: 1px solid #fecaca;
+}
+.user-action-card.delete .user-action-icon {
+    color: #dc2626;
+    border: 1px solid #fecaca;
+}
+.user-action-card.delete .user-action-title {
+    color: #dc2626;
+}
+.user-action-card.delete:hover {
+    border-color: #ef4444;
+    background: #fee7e7;
+}
+.user-action-card.delete:hover .user-action-icon {
+    background: #dc2626;
+    color: #ffffff;
+    border-color: #dc2626;
+}
+
+.user-profile-box {
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    padding: 20px 24px;
+}
+
+.user-profile-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 18px 28px;
+}
+
+.user-detail-label {
+    font-size: 10.5px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+    color: #64748b;
+    margin-bottom: 4px;
+}
+
+.user-detail-value {
+    font-size: 13.5px;
+    font-weight: 600;
+    color: #0f172a;
+    word-break: break-word;
+}
+
+.user-actions-footer {
+    padding: 16px 24px 20px;
+    background: #ffffff;
+    border-top: 1px solid #e2e8f0;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 10px;
+}
+
+.user-profile-close-btn {
+    padding: 9px 20px;
+    background: #64748b;
+    color: #ffffff;
+    border: none;
+    border-radius: 6px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.15s ease;
+}
+
+.user-profile-close-btn:hover {
+    background: #475569;
+}
+
+.user-header-actions {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.admin-container .btn-excel-export {
+    background-color: #ecfdf5;
+    color: #047857;
+    border: 1px solid #6ee7b7;
+    font-weight: 600;
+}
+
+.admin-container .btn-excel-export:hover:not(:disabled) {
+    background-color: #059669;
+    color: #ffffff;
+    border-color: #059669;
+    box-shadow: 0 2px 6px rgba(5, 150, 105, 0.25);
+}
+
+.admin-container .btn-excel-export:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+}
+
+@media (max-width: 640px) {
+    .user-actions-grid,
+    .user-actions-info-box,
+    .user-profile-grid {
+        grid-template-columns: 1fr;
+    }
+}

@@ -19,7 +19,9 @@ const formatRoles = (val) => {
     if (!val) return 'N/A';
     return String(val)
         .replace(/Rail Process IE/gi, 'Railpad Process IE')
-        .replace(/Rail Main IE/gi, 'Railpad Main IE');
+        .replace(/Rail Main IE/gi, 'Railpad Main IE')
+        .replace(/\bR Process IE\b/g, 'Rail Process IE')
+        .replace(/\bRail SMS\b/g, 'Rail Process IE');
 };
 
 const fmtDOB = (val) => {

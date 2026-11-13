@@ -1536,3 +1536,265 @@
 .col-perf-number-wide {
   width: 125px !important;
 }
+/* ============================================================
+   Loading states, refresh bar & small UX polish (light theme)
+   ============================================================ */
+
+/* Shimmer skeleton used for KPI values, table rows and lazy tabs */
+.cm-skeleton {
+  display: inline-block;
+  border-radius: 8px;
+  background: linear-gradient(90deg, #eef2f7 25%, #f8fafc 37%, #eef2f7 63%);
+  background-size: 400% 100%;
+  animation: cm-shimmer 1.4s ease infinite;
+}
+.cm-skeleton-kpi { width: 72px; height: 34px; vertical-align: middle; }
+.cm-skeleton-line { display: block; width: 100%; height: 14px; margin: 6px 0; }
+.cm-skeleton-block { display: block; width: 100%; height: 180px; margin-top: 12px; border-radius: 12px; }
+.cm-skeleton-row td { padding: 10px 14px !important; border-bottom: 1px solid #f1f5f9; }
+.cm-skeleton-row:nth-child(even) .cm-skeleton-line { width: 85%; }
+
+@keyframes cm-shimmer {
+  0% { background-position: 100% 50%; }
+  100% { background-position: 0 50%; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .cm-skeleton { animation: none; }
+}
+
+/* Lazy-loaded tab placeholder */
+.cm-tab-loading {
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 14px;
+  padding: 20px;
+  margin: 8px 0;
+  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.04);
+}
+.cm-tab-loading .cm-skeleton-line:first-child { width: 40%; height: 20px; }
+.cm-tab-loading-text {
+  display: block;
+  margin-top: 12px;
+  font-size: 12.5px;
+  color: #64748b;
+  text-align: center;
+}
+
+/* Header actions: last-updated + Refresh + Reset */
+.cm-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+.cm-updated-at {
+  font-size: 12px;
+  color: #64748b;
+  background: #f1f5f9;
+  border: 1px solid #e2e8f0;
+  border-radius: 999px;
+  padding: 4px 10px;
+  white-space: nowrap;
+}
+.cm-header-actions .btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* Clear keyboard focus on clickable cards and buttons */
+.cm-kpi-card:focus-visible,
+.cm-header-actions .btn:focus-visible {
+  outline: 3px solid #93c5fd;
+  outline-offset: 2px;
+}
+
+/* Mobile (~375px): stack the header, full-width tappable buttons, 2-up KPI cards */
+@media (max-width: 640px) {
+  .cm-panel-header {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .cm-header-actions {
+    justify-content: stretch;
+  }
+  .cm-header-actions .btn {
+    flex: 1 1 140px;
+    min-height: 44px;
+    justify-content: center;
+  }
+  .cm-updated-at {
+    flex-basis: 100%;
+    text-align: center;
+  }
+  .cm-skeleton-kpi { width: 56px; height: 28px; }
+}
+
+/* ============================================================
+   CM Dashboard — light glassmorphism (light theme only)
+   Scoped to .cm-dashboard-container so other pages are untouched.
+   ============================================================ */
+.cm-dashboard-container {
+  --glass-bg: rgba(255, 255, 255, 0.62);
+  --glass-bg-strong: rgba(255, 255, 255, 0.78);
+  --glass-border: rgba(255, 255, 255, 0.75);
+  --glass-shadow: 0 8px 32px rgba(15, 76, 58, 0.08), 0 1px 2px rgba(15, 76, 58, 0.04);
+  --glass-blur: blur(14px) saturate(150%);
+  --accent: #059669;
+  --accent-soft: rgba(16, 185, 129, 0.12);
+  --text-strong: #0f3d2e;
+  background:
+    radial-gradient(1200px 600px at 85% -10%, rgba(125, 211, 252, 0.35), transparent 60%),
+    radial-gradient(900px 500px at -10% 30%, rgba(167, 243, 208, 0.45), transparent 60%),
+    linear-gradient(180deg, #f0fdf4 0%, #ecfeff 100%);
+  min-height: 100vh;
+}
+
+/* Glass surfaces: filters, list/table cards, KPI cards, IE tables */
+.cm-dashboard-container .cm-global-filters,
+.cm-dashboard-container .cm-list-card,
+.cm-dashboard-container .cm-filters-card,
+.cm-dashboard-container .cm-tab-loading {
+  background: var(--glass-bg) !important;
+  -webkit-backdrop-filter: var(--glass-blur);
+  backdrop-filter: var(--glass-blur);
+  border: 1px solid var(--glass-border) !important;
+  border-radius: 18px !important;
+  box-shadow: var(--glass-shadow) !important;
+}
+
+.cm-dashboard-container .cm-kpi-card {
+  -webkit-backdrop-filter: var(--glass-blur);
+  backdrop-filter: var(--glass-blur);
+  border-radius: 18px !important;
+  border: 1px solid var(--glass-border) !important;
+  box-shadow: var(--glass-shadow) !important;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+.cm-dashboard-container .cm-kpi-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 14px 40px rgba(15, 76, 58, 0.14) !important;
+}
+.cm-dashboard-container .cm-kpi-card.active {
+  outline: 2px solid rgba(5, 150, 105, 0.45);
+  outline-offset: 2px;
+}
+
+/* Header strip */
+.cm-dashboard-container .cm-panel-header {
+  background: var(--glass-bg-strong);
+  -webkit-backdrop-filter: var(--glass-blur);
+  backdrop-filter: var(--glass-blur);
+  border: 1px solid var(--glass-border);
+  border-radius: 18px;
+  padding: 16px 20px;
+  box-shadow: var(--glass-shadow);
+}
+.cm-dashboard-container .cm-panel-title { color: var(--text-strong); letter-spacing: -0.2px; }
+
+/* Buttons in the header: soft glass pills */
+.cm-dashboard-container .cm-header-actions .btn {
+  background: rgba(255, 255, 255, 0.7);
+  border: 1px solid rgba(5, 150, 105, 0.25);
+  color: #065f46;
+  border-radius: 12px;
+  transition: background 0.15s ease, box-shadow 0.15s ease;
+}
+.cm-dashboard-container .cm-header-actions .btn:hover:not(:disabled) {
+  background: #ffffff;
+  box-shadow: 0 4px 14px rgba(5, 150, 105, 0.18);
+}
+
+/* Tables: light header (no dark colours), soft zebra + hover, sticky header */
+.cm-dashboard-container .cm-table-wrapper {
+  border-radius: 14px;
+  overflow: auto;
+  background: rgba(255, 255, 255, 0.55);
+}
+.cm-dashboard-container .cm-table thead th {
+  background: rgba(236, 253, 245, 0.95) !important;
+  color: #065f46 !important;
+  font-weight: 700;
+  border-bottom: 1px solid rgba(5, 150, 105, 0.18) !important;
+  position: sticky;
+  top: 0;
+  z-index: 1;
+}
+.cm-dashboard-container .cm-table tbody tr:nth-child(even) td { background: rgba(240, 253, 244, 0.45); }
+.cm-dashboard-container .cm-table tbody tr:hover td { background: rgba(209, 250, 229, 0.6); }
+.cm-dashboard-container .cm-table td { border-bottom: 1px solid rgba(15, 76, 58, 0.06); }
+
+/* Sidebar: frosted mint */
+.cm-dashboard-container .cm-sidebar {
+  background: rgba(220, 252, 231, 0.72) !important;
+  -webkit-backdrop-filter: var(--glass-blur);
+  backdrop-filter: var(--glass-blur);
+  border-right: 1px solid var(--glass-border) !important;
+}
+
+/* Browsers without backdrop-filter: solid light surfaces instead */
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .cm-dashboard-container .cm-global-filters,
+  .cm-dashboard-container .cm-list-card,
+  .cm-dashboard-container .cm-filters-card,
+  .cm-dashboard-container .cm-panel-header,
+  .cm-dashboard-container .cm-sidebar { background: #ffffff !important; }
+}
+
+/* Mobile (~375px): tighter radii/padding so cards and tables fit */
+@media (max-width: 640px) {
+  .cm-dashboard-container .cm-global-filters,
+  .cm-dashboard-container .cm-list-card,
+  .cm-dashboard-container .cm-kpi-card,
+  .cm-dashboard-container .cm-panel-header { border-radius: 14px !important; }
+  .cm-dashboard-container .cm-panel-header { padding: 12px 14px; }
+}
+
+/* Slim indeterminate progress bar shown while any data on the current screen is loading */
+.cm-top-progress {
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  height: 3px;
+  margin: -8px 0 4px;
+  border-radius: 999px;
+  overflow: hidden;
+  background: rgba(16, 185, 129, 0.15);
+}
+.cm-top-progress span {
+  display: block;
+  height: 100%;
+  width: 35%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #34d399, #0ea5e9);
+  animation: cm-progress 1.1s ease-in-out infinite;
+}
+@keyframes cm-progress {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(300%); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .cm-top-progress span { animation: none; width: 100%; opacity: 0.6; }
+}
+
+/* Empty table result */
+.cm-empty-row {
+  text-align: center;
+  padding: 28px 12px !important;
+  color: #64748b;
+  font-size: 13px;
+}
+.cm-empty-row i { margin-right: 6px; color: #94a3b8; }
+
+/* Glass surfaces (backdrop-filter) each create their own stacking layer, so a later card would paint over
+   the filter panel's open dropdown. Keep the filter panels (and any open dropdown) above the content cards. */
+.cm-dashboard-container .cm-global-filters,
+.cm-dashboard-container .cm-filters-card {
+  position: relative;
+  z-index: 40;
+}
+.cm-dashboard-container .cm-list-card,
+.cm-dashboard-container .cm-kpi-layer-container {
+  position: relative;
+  z-index: 1;
+}

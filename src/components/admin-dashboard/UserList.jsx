@@ -13,7 +13,9 @@ const ROLE_MAPPING = {
     'Rail Vendor': 'Railpad Vendor',
     'Railpad Vendor': 'Railpad Vendor',
     'Rail Main IE': 'Railpad Main IE',
-    'Rail Process IE': 'Railpad Process IE'
+    'Rail Process IE': 'Railpad Process IE',
+    'R Process IE': 'Rail Process IE',
+    'Rail SMS': 'Rail Process IE'
 };
 
 const formatDisplayRoles = (roleName) => (

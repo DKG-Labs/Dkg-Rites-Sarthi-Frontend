@@ -411,6 +411,11 @@ const LoginPage = () => {
           label = 'Railway Board Dashboard';
           description = 'Access Railway Board Dashboard';
           icon = '🛤️';
+        } else if (r === 'R Process IE' || r === 'Rail SMS') {
+          // SMS process role: stored as 'R Process IE', shown as 'Rail Process IE'
+          label = 'Rail Process IE Dashboard';
+          description = 'Access Rail Process IE platform';
+          icon = '🛤️';
         } else if (r === 'Complaint Cell') {
           label = 'Complaint Cell Dashboard';
           description = 'UDM / IMMS consignee rejections — forward to CM or close';

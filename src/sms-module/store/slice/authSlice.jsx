@@ -32,7 +32,7 @@ const authSlice = createSlice({
             
             // Map roleName to userType for SMS module permissions
             const roles = action.payload.roleName || [];
-            if (roles.includes("Rail SMS") || roles.includes("IE") || roles.includes("Process IE")) {
+            if (roles.includes("R Process IE") || roles.includes("Rail SMS") || roles.includes("IE") || roles.includes("Process IE")) {
                 state.userType = "INSPECTING_ENGINEER";
             } else if (roles.includes("Rites Admin") || roles.includes("MAIN_ADMIN")) {
                 state.userType = "MAIN_ADMIN";

@@ -4,6 +4,7 @@ import axios from 'axios';
 import { API_BASE_URL, getAuthHeaders } from '../../services/apiConfig';
 import './PoIssuedModal.css';
 import DownloadIcAnnexures from './DownloadIcAnnexures';
+import { extractVendorName } from '../../utils/helpers';
 
 const PoIssuedModal = ({ isOpen, onClose, data, title, isLoading }) => {
     const [icListPo, setIcListPo] = useState(null);
@@ -67,9 +68,7 @@ const PoIssuedModal = ({ isOpen, onClose, data, title, isLoading }) => {
     };
 
     const formatVendorName = (vendor) => {
-        if (!vendor) return '-';
-        const cleaned = vendor.split('~')[0].trim();
-        return cleaned || vendor;
+        return extractVendorName(vendor);
     };
 
     // Get unique zones for filter

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import reportService from '../../../services/reportService';
 import Pagination from '../../Pagination';
+import { extractVendorName, downloadCrisPoDocument } from '../../../utils/helpers';
 import './RailPadLifecycle.css';
 
 let cachedRailpadLifecycle_PO = null;
@@ -21,6 +22,7 @@ const RailPadLifecycle = ({ refreshTick }) => {
     const [searchQuery, setSearchQuery] = useState('');
     const [currentPage, setCurrentPage] = useState(0);
     const [rowsPerPage, setRowsPerPage] = useState(5);
+    const [downloadingPo, setDownloadingPo] = useState(null);
 
     // Fetch Level 1 data on mount
     useEffect(() => {
@@ -123,6 +125,7 @@ const RailPadLifecycle = ({ refreshTick }) => {
         const isNotDummy = !(po.poNo || '').toLowerCase().includes('dummy');
         const matchesSearch = (po.poNo && po.poNo.toLowerCase().includes(searchQuery.toLowerCase())) ||
             (po.vendor && po.vendor.toLowerCase().includes(searchQuery.toLowerCase())) ||
+            (po.vendor && extractVendorName(po.vendor).toLowerCase().includes(searchQuery.toLowerCase())) ||
             (po.rly && po.rly.toLowerCase().includes(searchQuery.toLowerCase())) ||
             (po.railPadType && po.railPadType.toLowerCase().includes(searchQuery.toLowerCase()));
         return isNotDummy && matchesSearch;
@@ -145,7 +148,7 @@ const RailPadLifecycle = ({ refreshTick }) => {
         const tot = Number(po.totalQty) || 0;
         if (tot > 0 && bal <= 0) a.completed += 1;
         if ((Number(po.acceptedQty) || 0) === 0) a.notStarted += 1;
-        if (po.vendor) a.vendors.add(po.vendor);
+        if (po.vendor) a.vendors.add(extractVendorName(po.vendor));
         return a;
     }, { total: 0, completed: 0, notStarted: 0, vendors: new Set() });
 
@@ -252,10 +255,30 @@ const RailPadLifecycle = ({ refreshTick }) => {
                                                         </button>
                                                     </td>
                                                     <td><span className="rplc-rly">{po.rly || '-'}</span></td>
-                                                    <td className="rplc-po">{po.poNo}</td>
+                                                    <td className="rplc-po">
+                                                        <button
+                                                            type="button"
+                                                            className="po-download-link"
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                downloadCrisPoDocument(po.poNo, po.pdfPath, setDownloadingPo);
+                                                            }}
+                                                            disabled={downloadingPo === po.poNo}
+                                                            title="Click to download CRIS PO document"
+                                                        >
+                                                            {downloadingPo === po.poNo ? (
+                                                                <>
+                                                                    <i className="fa-solid fa-spinner fa-spin"></i>
+                                                                    <span>{po.poNo}</span>
+                                                                </>
+                                                            ) : (
+                                                                <span>{po.poNo}</span>
+                                                            )}
+                                                        </button>
+                                                    </td>
                                                     <td className="rplc-muted">{formatDate(po.poDate)}</td>
                                                     <td><span className="rplc-type">{po.railPadType || '-'}</span></td>
-                                                    <td className="rplc-vendor">{po.vendor}</td>
+                                                    <td className="rplc-vendor" title={po.vendor}>{extractVendorName(po.vendor)}</td>
                                                     <td>{po.rio ? <span className="rplc-rio">{po.rio}</span> : <span className="rplc-muted">-</span>}</td>
                                                     <td className="text-right" style={{ fontWeight: 600 }}>{po.totalQty ? po.totalQty.toLocaleString() : '0'}</td>
                                                     <td className="text-right" style={{ color: '#15803d', fontWeight: 700 }}>{po.acceptedQty ? po.acceptedQty.toLocaleString() : '0'}</td>

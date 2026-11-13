@@ -1,7 +1,8 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import ExcelJS from 'exceljs/dist/exceljs.min.js';
 import reportService from '../../services/reportService';
 import Pagination from '../Pagination';
+import { extractVendorName } from '../../utils/helpers';
 import './PoWiseMonthlyReport.css';
 
 const PoWiseMonthlyReport = ({ fromDate, toDate, selectedZone, onZonesUpdate }) => {
@@ -12,6 +13,71 @@ const PoWiseMonthlyReport = ({ fromDate, toDate, selectedZone, onZonesUpdate }) 
     const [page, setPage] = useState(0);
     const [size, setSize] = useState(30);
     const [paginationInfo, setPaginationInfo] = useState({ totalElements: 0, totalPages: 0 });
+
+    // Dual horizontal scrollbar refs and synchronization
+    const topScrollRef = useRef(null);
+    const tableWrapperRef = useRef(null);
+    const tableRef = useRef(null);
+    const isSyncingRef = useRef(false);
+    const [tableScrollWidth, setTableScrollWidth] = useState(0);
+    const [hasOverflow, setHasOverflow] = useState(false);
+
+    const handleTopScroll = () => {
+        if (isSyncingRef.current) return;
+        isSyncingRef.current = true;
+        if (tableWrapperRef.current && topScrollRef.current) {
+            tableWrapperRef.current.scrollLeft = topScrollRef.current.scrollLeft;
+        }
+        requestAnimationFrame(() => {
+            isSyncingRef.current = false;
+        });
+    };
+
+    const handleTableScroll = () => {
+        if (isSyncingRef.current) return;
+        isSyncingRef.current = true;
+        if (topScrollRef.current && tableWrapperRef.current) {
+            topScrollRef.current.scrollLeft = tableWrapperRef.current.scrollLeft;
+        }
+        requestAnimationFrame(() => {
+            isSyncingRef.current = false;
+        });
+    };
+
+    useEffect(() => {
+        const updateWidth = () => {
+            if (tableRef.current && tableWrapperRef.current) {
+                const scrollW = tableRef.current.scrollWidth;
+                const clientW = tableWrapperRef.current.clientWidth;
+                setTableScrollWidth(scrollW);
+                setHasOverflow(scrollW > clientW);
+                if (topScrollRef.current) {
+                    topScrollRef.current.scrollLeft = tableWrapperRef.current.scrollLeft;
+                }
+            }
+        };
+
+        const timer = setTimeout(updateWidth, 50);
+
+        let resizeObserver = null;
+        if (typeof ResizeObserver !== 'undefined' && tableRef.current) {
+            resizeObserver = new ResizeObserver(() => {
+                updateWidth();
+            });
+            resizeObserver.observe(tableRef.current);
+            if (tableWrapperRef.current) {
+                resizeObserver.observe(tableWrapperRef.current);
+            }
+        }
+
+        window.addEventListener('resize', updateWidth);
+
+        return () => {
+            clearTimeout(timer);
+            if (resizeObserver) resizeObserver.disconnect();
+            window.removeEventListener('resize', updateWidth);
+        };
+    }, [data, loading]);
 
     useEffect(() => {
         setPage(0);
@@ -397,8 +463,23 @@ const PoWiseMonthlyReport = ({ fromDate, toDate, selectedZone, onZonesUpdate }) 
                     <p>No data available for the selected date range.</p>
                 </div>
             ) : (
-                <div className="pwmr-table-wrapper">
-                    <table className="pwmr-table">
+                <>
+                    {hasOverflow && (
+                        <div
+                            ref={topScrollRef}
+                            className="pwmr-top-scrollbar"
+                            onScroll={handleTopScroll}
+                            title="Scroll horizontally"
+                        >
+                            <div style={{ width: `${tableScrollWidth}px`, height: '1px' }} />
+                        </div>
+                    )}
+                    <div
+                        ref={tableWrapperRef}
+                        className="pwmr-table-wrapper"
+                        onScroll={handleTableScroll}
+                    >
+                        <table ref={tableRef} className="pwmr-table">
                         <thead>
                             <tr>
                                 <th rowSpan="3" className="sticky-col col-sno">S.No.</th>
@@ -468,7 +549,7 @@ const PoWiseMonthlyReport = ({ fromDate, toDate, selectedZone, onZonesUpdate }) 
                                                     {zone.zonalRailway}
                                                 </td>
                                             )}
-                                            <td className="sticky-col col-vendor">{vendor.vendor}</td>
+                                            <td className="sticky-col col-vendor" title={vendor.vendor}>{extractVendorName(vendor.vendor)}</td>
                                             <td className="col-type">{vendor.ercType}</td>
                                             <td className="nowrap">{vendor.poNumber}<br/><span className="po-date">Dt:{formatPoDate(vendor.poDate)}</span></td>
                                             <td className="text-center">{vendor.specification || ''}</td>
@@ -604,6 +685,7 @@ const PoWiseMonthlyReport = ({ fromDate, toDate, selectedZone, onZonesUpdate }) 
                         </tbody>
                     </table>
                 </div>
+                </>
             )}
             {groupedData.length > 0 && !loading && (
                 <Pagination

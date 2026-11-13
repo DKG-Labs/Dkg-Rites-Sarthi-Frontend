@@ -929,6 +929,16 @@ tr.row-even td {
     max-width: 40px !important;
 }
 
+/* Vendor column width override so vendor names display cleanly without premature clipping */
+.level-1-table th.col-vendor,
+.level-1-table td.col-vendor {
+    min-width: 180px !important;
+    max-width: 280px !important;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
 
 
 /* --- Level 4 Finalized Design: Neutral High-Contrast Theme --- */

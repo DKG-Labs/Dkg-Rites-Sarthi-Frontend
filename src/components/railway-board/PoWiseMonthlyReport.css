@@ -95,6 +95,38 @@
     transform: none;
 }
 
+/* Dual Horizontal Scrollbar (Top Scrollbar) */
+.pwmr-top-scrollbar {
+    overflow-x: auto;
+    overflow-y: hidden;
+    height: 14px;
+    margin-bottom: 8px;
+    background: #f8fafc;
+    border-radius: 6px;
+    border: 1px solid #e2e8f0;
+    scrollbar-width: thin;
+    scrollbar-color: #94a3b8 #f1f5f9;
+}
+
+.pwmr-top-scrollbar::-webkit-scrollbar {
+    height: 10px;
+}
+
+.pwmr-top-scrollbar::-webkit-scrollbar-track {
+    background: #f1f5f9;
+    border-radius: 4px;
+}
+
+.pwmr-top-scrollbar::-webkit-scrollbar-thumb {
+    background: #94a3b8;
+    border-radius: 4px;
+    border: 2px solid #f1f5f9;
+}
+
+.pwmr-top-scrollbar::-webkit-scrollbar-thumb:hover {
+    background: #64748b;
+}
+
 .pwmr-table-wrapper {
     overflow-x: auto;
     border-radius: 12px;
@@ -102,6 +134,28 @@
     position: relative;
     max-height: 75vh;
     overflow-y: auto;
+    scrollbar-width: thin;
+    scrollbar-color: #94a3b8 #f1f5f9;
+}
+
+.pwmr-table-wrapper::-webkit-scrollbar {
+    width: 8px;
+    height: 10px;
+}
+
+.pwmr-table-wrapper::-webkit-scrollbar-track {
+    background: #f1f5f9;
+    border-radius: 4px;
+}
+
+.pwmr-table-wrapper::-webkit-scrollbar-thumb {
+    background: #94a3b8;
+    border-radius: 4px;
+    border: 2px solid #f1f5f9;
+}
+
+.pwmr-table-wrapper::-webkit-scrollbar-thumb:hover {
+    background: #64748b;
 }
 
 .pwmr-table {

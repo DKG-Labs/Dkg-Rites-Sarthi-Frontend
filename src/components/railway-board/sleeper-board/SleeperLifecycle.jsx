@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import './SleeperSummary.css';
 import { API_ENDPOINTS, getAuthHeaders, handleResponse } from '../../../services/apiConfig';
+import { extractVendorName, downloadCrisPoDocument } from '../../../utils/helpers';
 
 let cachedSleeperLifecycle_PO = null;
 let lastRefreshTick_SleeperLifecycle = -1;
@@ -22,6 +23,7 @@ const SleeperLifecycle = ({ refreshTick }) => {
     // Sort & Search State
     const [searchTerm, setSearchTerm] = useState('');
     const [sortConfig, setSortConfig] = useState({ key: null, direction: 'asc' });
+    const [downloadingPo, setDownloadingPo] = useState(null);
 
     const handleSort = (key) => {
         let direction = 'asc';
@@ -40,6 +42,7 @@ const SleeperLifecycle = ({ refreshTick }) => {
             result = result.filter(po => 
                 String(po.poNo || '').toLowerCase().includes(lowerSearch) ||
                 String(po.vendor || '').toLowerCase().includes(lowerSearch) ||
+                extractVendorName(po.vendor || '').toLowerCase().includes(lowerSearch) ||
                 String(po.rly || '').toLowerCase().includes(lowerSearch)
             );
         }
@@ -49,6 +52,11 @@ const SleeperLifecycle = ({ refreshTick }) => {
             result.sort((a, b) => {
                 let valA = a[sortConfig.key];
                 let valB = b[sortConfig.key];
+
+                if (sortConfig.key === 'vendor') {
+                    valA = extractVendorName(valA || '');
+                    valB = extractVendorName(valB || '');
+                }
 
                 // Handle date sorting
                 if (sortConfig.key === 'poDate') {
@@ -242,7 +250,7 @@ const SleeperLifecycle = ({ refreshTick }) => {
                                 <th style={{ cursor: 'pointer', userSelect: 'none' }} onClick={() => handleSort('poDate')}>
                                     PO DATE {sortConfig.key === 'poDate' ? (sortConfig.direction === 'asc' ? ' ↑' : ' ↓') : ''}
                                 </th>
-                                <th style={{ cursor: 'pointer', userSelect: 'none' }} onClick={() => handleSort('vendor')}>
+                                <th className="col-vendor" style={{ cursor: 'pointer', userSelect: 'none' }} onClick={() => handleSort('vendor')}>
                                     VENDOR {sortConfig.key === 'vendor' ? (sortConfig.direction === 'asc' ? ' ↑' : ' ↓') : ''}
                                 </th>
                                 <th className="text-right" style={{ cursor: 'pointer', userSelect: 'none' }} onClick={() => handleSort('poQty')}>
@@ -269,9 +277,29 @@ const SleeperLifecycle = ({ refreshTick }) => {
                                             </button>
                                         </td>
                                         <td><strong>{po.rly}</strong></td>
-                                        <td>{po.poNo}</td>
+                                        <td>
+                                            <button
+                                                type="button"
+                                                className="po-download-link"
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    downloadCrisPoDocument(po.poNo, po.pdfPath, setDownloadingPo);
+                                                }}
+                                                disabled={downloadingPo === po.poNo}
+                                                title="Click to download CRIS PO document"
+                                            >
+                                                {downloadingPo === po.poNo ? (
+                                                    <>
+                                                        <i className="fa-solid fa-spinner fa-spin"></i>
+                                                        <span>{po.poNo}</span>
+                                                    </>
+                                                ) : (
+                                                    <span>{po.poNo}</span>
+                                                )}
+                                            </button>
+                                        </td>
                                         <td>{po.poDate ? po.poDate.split('-').reverse().join('-') : '-'}</td>
-                                        <td>{po.vendor}</td>
+                                        <td className="col-vendor" title={po.vendor}>{extractVendorName(po.vendor)}</td>
                                         <td className="text-right">{po.poQty.toLocaleString()}{po.uom ? ` ${po.uom}` : ''}</td>
                                         <td className="text-right text-emerald-600 font-bold">{po.accQty.toLocaleString()}{po.uom ? ` ${po.uom}` : ''}</td>
                                         <td className="text-right">{po.balQty.toLocaleString()}{po.uom ? ` ${po.uom}` : ''}</td>

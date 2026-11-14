@@ -1,6 +1,8 @@
 import React, { useState, useMemo } from 'react';
 import { Select } from 'antd';
 import ExcelJS from 'exceljs/dist/exceljs.min.js';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 import { USER_ROLES, REGIONS } from './utils/mockData';
 import { paginate, getInitials } from './utils/helpers';
 import { DEFAULT_PAGE_SIZE } from './utils/constants';
@@ -36,6 +38,7 @@ export const UserList = ({ users = [], roles = [], loading, onEdit, onDelete, on
     const [actionsModalUser, setActionsModalUser] = useState(null);
     const [modalViewMode, setModalViewMode] = useState('actions');
     const [isExporting, setIsExporting] = useState(false);
+    const [isExportingPdf, setIsExportingPdf] = useState(false);
 
     const openActionsModal = (user) => {
         setActionsModalUser(user);
@@ -241,6 +244,157 @@ export const UserList = ({ users = [], roles = [], loading, onEdit, onDelete, on
         }
     };
 
+    const handleDownloadPdf = async () => {
+        if (isExportingPdf || filteredUsers.length === 0) return;
+        setIsExportingPdf(true);
+        try {
+            const doc = new jsPDF({
+                orientation: 'landscape',
+                unit: 'mm',
+                format: 'a4'
+            });
+
+            // Top banner background (RITES Brand Teal)
+            doc.setFillColor(15, 118, 110);
+            doc.rect(0, 0, 297, 22, 'F');
+
+            // Header titles
+            doc.setTextColor(255, 255, 255);
+            doc.setFontSize(13);
+            doc.setFont('helvetica', 'bold');
+            doc.text('SARTHI - SYSTEM USERS DIRECTORY', 12, 10);
+
+            doc.setFontSize(8.5);
+            doc.setFont('helvetica', 'normal');
+            doc.text('RITES Limited | System for Automated Review, Tracking & Holistic Inspection', 12, 16.5);
+
+            // Right side timestamp and record count
+            const exportDateStr = new Date().toLocaleString('en-IN', {
+                dateStyle: 'medium',
+                timeStyle: 'short'
+            });
+            doc.setFontSize(8);
+            doc.text(`Generated: ${exportDateStr}`, 285, 10, { align: 'right' });
+            doc.text(`Total Records: ${filteredUsers.length}`, 285, 16.5, { align: 'right' });
+
+            // Status summary sub-bar
+            doc.setFillColor(241, 245, 249);
+            doc.rect(0, 22, 297, 7.5, 'F');
+            doc.setFontSize(7.5);
+            doc.setTextColor(51, 65, 85);
+            doc.setFont('helvetica', 'normal');
+
+            const activeCount = filteredUsers.filter(u => u.status !== 'Inactive').length;
+            const inactiveCount = filteredUsers.filter(u => u.status === 'Inactive').length;
+            const filterSummary = [
+                `Active: ${activeCount}`,
+                `Inactive: ${inactiveCount}`,
+                searchTerm ? `Search: "${searchTerm}"` : null,
+                filterRole ? `Role: "${ROLE_MAPPING[filterRole] || filterRole}"` : null,
+                filterRegion ? `Region: "${filterRegion}"` : null
+            ].filter(Boolean).join('   |   ');
+            doc.text(`Summary: ${filterSummary}`, 12, 27);
+
+            const tableColumn = [
+                { header: 'S.No', dataKey: 'sNo' },
+                { header: 'Emp Code', dataKey: 'employeeCode' },
+                { header: 'Username', dataKey: 'userName' },
+                { header: 'Full Name', dataKey: 'fullName' },
+                { header: 'Short Name', dataKey: 'shortName' },
+                { header: 'Role(s)', dataKey: 'roleName' },
+                { header: 'Region', dataKey: 'region' },
+                { header: 'Designation', dataKey: 'designation' },
+                { header: 'Mobile', dataKey: 'mobileNumber' },
+                { header: 'Email', dataKey: 'email' },
+                { header: 'Status', dataKey: 'status' }
+            ];
+
+            const tableRows = filteredUsers.map((user, idx) => {
+                const isInactive = user.status && user.status.toLowerCase() === 'inactive';
+                return {
+                    sNo: idx + 1,
+                    employeeCode: user.employeeCode ? String(user.employeeCode) : '-',
+                    userName: user.userName || '-',
+                    fullName: user.fullName || '-',
+                    shortName: user.shortName || '-',
+                    roleName: formatDisplayRoles(user.roleName) || '-',
+                    region: resolveDisplayRegion(user) || '-',
+                    designation: user.designation || '-',
+                    mobileNumber: user.mobileNumber ? String(user.mobileNumber) : '-',
+                    email: user.email || '-',
+                    status: isInactive ? 'Inactive' : 'Active'
+                };
+            });
+
+            autoTable(doc, {
+                columns: tableColumn,
+                body: tableRows,
+                startY: 32,
+                margin: { top: 12, left: 10, right: 10, bottom: 12 },
+                theme: 'grid',
+                styles: {
+                    fontSize: 7.2,
+                    cellPadding: 1.8,
+                    overflow: 'linebreak',
+                    valign: 'middle'
+                },
+                headStyles: {
+                    fillColor: [15, 118, 110],
+                    textColor: [255, 255, 255],
+                    fontStyle: 'bold',
+                    fontSize: 7.8,
+                    halign: 'left',
+                    valign: 'middle',
+                    cellPadding: 2
+                },
+                alternateRowStyles: {
+                    fillColor: [248, 250, 252]
+                },
+                columnStyles: {
+                    sNo: { cellWidth: 10, halign: 'center' },
+                    employeeCode: { cellWidth: 20, halign: 'center', fontStyle: 'bold' },
+                    userName: { cellWidth: 22 },
+                    fullName: { cellWidth: 32 },
+                    shortName: { cellWidth: 18, halign: 'center' },
+                    roleName: { cellWidth: 42 },
+                    region: { cellWidth: 16, halign: 'center' },
+                    designation: { cellWidth: 26 },
+                    mobileNumber: { cellWidth: 23, halign: 'center' },
+                    email: { cellWidth: 46 },
+                    status: { cellWidth: 16, halign: 'center' }
+                },
+                didParseCell: (data) => {
+                    if (data.section === 'body' && data.column.dataKey === 'status') {
+                        if (data.cell.raw === 'Active') {
+                            data.cell.styles.textColor = [21, 128, 61];
+                            data.cell.styles.fontStyle = 'bold';
+                        } else if (data.cell.raw === 'Inactive') {
+                            data.cell.styles.textColor = [220, 38, 38];
+                            data.cell.styles.fontStyle = 'bold';
+                        }
+                    }
+                }
+            });
+
+            // Running footers with page numbers
+            const pageCount = doc.internal.getNumberOfPages();
+            for (let i = 1; i <= pageCount; i++) {
+                doc.setPage(i);
+                doc.setFontSize(7.5);
+                doc.setTextColor(100, 116, 139);
+                doc.text('SARTHI User Directory | Confidential - Internal RITES Use Only', 10, 204);
+                doc.text(`Page ${i} of ${pageCount}`, 287, 204, { align: 'right' });
+            }
+
+            const today = new Date().toISOString().slice(0, 10);
+            doc.save(`SARTHI_Users_List_${today}.pdf`);
+        } catch (err) {
+            console.error('Failed to export users to PDF:', err);
+        } finally {
+            setIsExportingPdf(false);
+        }
+    };
+
     const activeUsers = users.filter(u => u.status !== 'Inactive').length;
     const inactiveUsers = users.filter(u => u.status === 'Inactive').length;
     const totalUsers = users.length;
@@ -302,6 +456,22 @@ export const UserList = ({ users = [], roles = [], loading, onEdit, onDelete, on
                     </div>
                     {activeCard !== 'roles' && (
                         <div className="user-header-actions">
+                            <button
+                                type="button"
+                                className="btn btn-pdf-export"
+                                onClick={handleDownloadPdf}
+                                disabled={loading || isExportingPdf || filteredUsers.length === 0}
+                                title={`Download ${filteredUsers.length} user(s) in PDF`}
+                            >
+                                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                                    <polyline points="14 2 14 8 20 8" />
+                                    <line x1="16" y1="13" x2="8" y2="13" />
+                                    <line x1="16" y1="17" x2="8" y2="17" />
+                                    <polyline points="10 9 9 9 8 9" />
+                                </svg>
+                                <span>{isExportingPdf ? 'Downloading...' : 'Download PDF'}</span>
+                            </button>
                             <button
                                 type="button"
                                 className="btn btn-excel-export"

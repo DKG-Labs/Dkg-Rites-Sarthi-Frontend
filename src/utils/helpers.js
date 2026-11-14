@@ -1,4 +1,6 @@
 import { PRODUCT_TYPE_DISPLAY_NAMES } from '../data/mockData';
+import axios from 'axios';
+import { API_BASE_URL, getAuthHeaders } from '../services/apiConfig';
 
 export const getProductTypeDisplayName = (productType) => {
   return PRODUCT_TYPE_DISPLAY_NAMES[productType] || productType;
@@ -290,4 +292,202 @@ export const getCleanErrorMessage = (error) => {
     .trim();
 
   return msg;
+};
+
+/**
+ * Clean up Vendor Name by stripping out street address, plot numbers,
+ * industrial areas, PIN codes, and city suffixes from IREPS / Railway PO strings.
+ * Keeps the clean legal company name (e.g. "AVDESH TRACKS PRIVATE LIMITED",
+ * "KALIMATA VYAPAAR PRIVATE LIMITED", "VEDKIRAN STEEL INDUSTRIES PVT. LTD.").
+ * 
+ * @param {string} vendor - Raw vendor string from database / IREPS
+ * @returns {string} Clean vendor name
+ */
+export const extractVendorName = (vendor) => {
+  if (!vendor || typeof vendor !== 'string') return vendor || '-';
+  let str = vendor.trim();
+  if (!str || str === '-' || str.toLowerCase() === 'null' || str.toLowerCase() === 'undefined') return '-';
+
+  // 1. If contains newline, take the first line
+  if (str.includes('\n')) {
+    str = str.split('\n')[0].trim();
+  }
+  if (str.includes('\r')) {
+    str = str.split('\r')[0].trim();
+  }
+
+  // 2. If contains tilde (~), IREPS commonly uses "NAME~STREET ADDRESS"
+  if (str.includes('~')) {
+    str = str.split('~')[0].trim();
+  }
+
+  // 3. Cut off at explicit facility / location labels like WORKS:, FACTORY:, PLANT:, REGD OFFICE:, ADDRESS:
+  const labelMatch = str.match(/\b(WORKS|FACTORY|PLANT|REGD\.?\s*OFFICE|OFFICE|ADDRESS|UNIT\s*[-–:]|UNIT\s*NO)\s*[:–-]/i);
+  if (labelMatch && labelMatch.index > 3) {
+    str = str.substring(0, labelMatch.index).trim();
+  }
+
+  // 4. If string contains company legal entity suffixes followed by punctuation/spaces and address
+  // E.g.: "VEDKIRAN STEEL INDUSTRIES PVT. LTD.,-NEW DELHI" -> "VEDKIRAN STEEL INDUSTRIES PVT. LTD."
+  // E.g.: "AVDESH TRACKS PRIVATE LIMITED - MOHALI" -> "AVDESH TRACKS PRIVATE LIMITED"
+  // E.g.: "KALIMATA VYAPAAR PRIVATE LIMITED-KOLKATA" -> "KALIMATA VYAPAAR PRIVATE LIMITED"
+  // E.g.: "M/S. BRIDGE TRACK & TOWER PVT. LTD., URLA INDUSTRIAL ESTATE..." -> "M/S. BRIDGE TRACK & TOWER PVT. LTD."
+  const legalSuffixRegex = /^(.*?\b(?:PVT\.?\s*LTD\.?|PRIVATE\s+LIMITED|LTD\.?|LIMITED|\(P\)\s*LTD\.?|LLP|INC\.?|CORP\.?))(?:\s*[-–,\u002F].*|$)/i;
+  const legalMatch = str.match(legalSuffixRegex);
+  if (legalMatch && legalMatch[1] && legalMatch[1].trim().length >= 3) {
+    return legalMatch[1].trim().replace(/[-–,\s]+$/, '');
+  }
+
+  // 5. Look for address-specific starting keywords after a comma, dash, or hyphen
+  // E.g. "ADINATH INDUSTRIES-PLOT NO. 14..."
+  // E.g. "ABC ENTERPRISES, NEAR RAILWAY..."
+  const addressKeywordRegex = /[-–,]\s*(?:PLOT|SHED|SECTOR|PHASE|INDL|INDUSTRIAL|VILL|VILLAGE|POST|DIST|DISTT|TALUKA|TEHSIL|ROAD|STREET|LANE|NEAR|OPP|OPPOSITE|BEHIND|SURVEY|KHASRA|GATE|KILA|GALI|FLOOR|BLOCK|CITY|PIN|PO\b|P\.O\.|AT\b|NH\b|STATE|MOHALI|DELHI|KOLKATA|MUMBAI|CHENNAI|HYDERABAD|BANGALORE|NAGPUR|RAIPUR|BILASPUR|KANPUR|LUCKNOW|JAIPUR|AHMEDABAD|PATNA|BHOPAL|JABALPUR|PUNE|SECUNDERABAD|GUWAHATI)\b.*$/i;
+  if (addressKeywordRegex.test(str)) {
+    str = str.replace(addressKeywordRegex, '').trim();
+  }
+
+  // 6. If contains " - " (space hyphen space) or " – ", usually separates company name from city/location
+  // E.g. "ADINATH INDUSTRIES - MOHALI" -> "ADINATH INDUSTRIES"
+  if (str.includes(' - ') || str.includes(' – ')) {
+    const parts = str.split(/\s+[-–]\s+/);
+    if (parts[0] && parts[0].trim().length >= 3) {
+      str = parts[0].trim();
+    }
+  }
+
+  // 7. If contains hyphen without spaces after a known company keyword like INDUSTRIES, ENTERPRISES, CORPORATION, STEEL, TRACKS, etc.
+  // E.g. "ADINATH INDUSTRIES-MOHALI" -> "ADINATH INDUSTRIES"
+  const companyWordHyphenRegex = /^(.*?\b(?:INDUSTRIES|ENTERPRISES|CORPORATION|CORP|STEEL|TRACKS|SYSTEMS|PRODUCTS|INFRA|ENGINEERING|ENGINEERS|TECH|TECHNOLOGIES|CASTINGS|FORGINGS|ALLOYS|METALS|WIRES|FASTENERS|FABRICATORS|RUBBER|POLYMERS|SLEEPERS|CONCRETE))\s*[-–].*$/i;
+  const compMatch = str.match(companyWordHyphenRegex);
+  if (compMatch && compMatch[1] && compMatch[1].trim().length >= 3) {
+    str = compMatch[1].trim();
+  }
+
+  // 8. If contains comma followed by location/address
+  // E.g. "ABC COMPANY, 140507" or "ABC COMPANY, INDUSTRIAL AREA"
+  if (str.includes(',')) {
+    const firstPart = str.split(',')[0].trim();
+    if (firstPart.length >= 6 && /\s/.test(firstPart)) {
+      str = firstPart;
+    }
+  }
+
+  // Clean trailing punctuation and spaces
+  str = str.replace(/[-.,–\s]+$/, '').trim();
+
+  return str || vendor;
+};
+
+/**
+ * Downloads or opens the CRIS / IREPS PO document for a given PO number.
+ * Hits /api/vendor/po-pdf-path to get the official PDF URL and proxies it via /api/vendor/proxy-pdf.
+ *
+ * @param {string} rawPoNo - Raw PO Number
+ * @param {string} [existingPdfPath] - Optional pre-loaded PDF path
+ * @param {function} [setDownloadingPo] - Optional state setter to show loading spinner
+ * @param {function} [onNotification] - Optional custom toast notification callback
+ */
+export const downloadCrisPoDocument = async (rawPoNo, existingPdfPath, setDownloadingPo, onNotification) => {
+  if (!rawPoNo) {
+    notify('PO number not found', 'error', onNotification);
+    return;
+  }
+
+  const barePoNo = rawPoNo.includes('/') ? rawPoNo.split('/')[0].trim() : String(rawPoNo).trim();
+
+  if (setDownloadingPo) setDownloadingPo(rawPoNo);
+
+  try {
+    let pdfPath = existingPdfPath;
+
+    if (!pdfPath) {
+      const response = await axios.get(`${API_BASE_URL}/api/vendor/po-pdf-path`, {
+        params: { rawPoNo: barePoNo },
+        headers: getAuthHeaders()
+      });
+      pdfPath = response.data?.responseData;
+    }
+
+    if (!pdfPath) {
+      notify(`No CRIS PO document found for PO #${rawPoNo}`, 'warning', onNotification);
+      return;
+    }
+
+    if (pdfPath.startsWith('http') || pdfPath.includes('ireps.gov.in')) {
+      const proxyUrl = `${API_BASE_URL}/api/vendor/proxy-pdf?url=${encodeURIComponent(pdfPath)}`;
+      const link = document.createElement('a');
+      link.href = proxyUrl;
+      link.download = `PO_${barePoNo}.pdf`;
+      link.target = '_blank';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    } else {
+      window.open(pdfPath, '_blank');
+    }
+  } catch (err) {
+    console.error('Error downloading CRIS PO document:', err);
+    notify(`Failed to download CRIS PO document for #${rawPoNo}`, 'error', onNotification);
+  } finally {
+    if (setDownloadingPo) setDownloadingPo(null);
+  }
+};
+
+const notify = (msg, type = 'info', customCb) => {
+  if (typeof customCb === 'function') {
+    customCb(msg, type);
+    return;
+  }
+  if (typeof window !== 'undefined') {
+    showFloatingToast(msg, type);
+  }
+};
+
+/**
+ * Lightweight floating toast notification that disappears after 3.5s
+ */
+export const showFloatingToast = (text, type = 'info') => {
+  if (typeof document === 'undefined') return;
+  const existing = document.getElementById('sarthi-cris-toast');
+  if (existing) existing.remove();
+
+  const toast = document.createElement('div');
+  toast.id = 'sarthi-cris-toast';
+  toast.style.position = 'fixed';
+  toast.style.bottom = '28px';
+  toast.style.right = '28px';
+  toast.style.padding = '12px 20px';
+  toast.style.borderRadius = '10px';
+  toast.style.fontSize = '13px';
+  toast.style.fontWeight = '600';
+  toast.style.boxShadow = '0 10px 25px -5px rgba(0,0,0,0.2)';
+  toast.style.zIndex = '99999';
+  toast.style.display = 'flex';
+  toast.style.alignItems = 'center';
+  toast.style.gap = '10px';
+  toast.style.transition = 'all 0.25s ease';
+
+  if (type === 'error') {
+    toast.style.backgroundColor = '#fef2f2';
+    toast.style.color = '#991b1b';
+    toast.style.border = '1.5px solid #fecaca';
+    toast.innerHTML = `<i class="fa-solid fa-circle-exclamation" style="font-size: 16px; color: #dc2626;"></i> <span>${text}</span>`;
+  } else if (type === 'warning') {
+    toast.style.backgroundColor = '#fffbeb';
+    toast.style.color = '#92400e';
+    toast.style.border = '1.5px solid #fde68a';
+    toast.innerHTML = `<i class="fa-solid fa-triangle-exclamation" style="font-size: 16px; color: #d97706;"></i> <span>${text}</span>`;
+  } else {
+    toast.style.backgroundColor = '#f0fdf4';
+    toast.style.color = '#166534';
+    toast.style.border = '1.5px solid #bbf7d0';
+    toast.innerHTML = `<i class="fa-solid fa-circle-check" style="font-size: 16px; color: #16a34a;"></i> <span>${text}</span>`;
+  }
+
+  document.body.appendChild(toast);
+  setTimeout(() => {
+    toast.style.opacity = '0';
+    toast.style.transform = 'translateY(10px)';
+    setTimeout(() => toast.remove(), 300);
+  }, 3500);
 };

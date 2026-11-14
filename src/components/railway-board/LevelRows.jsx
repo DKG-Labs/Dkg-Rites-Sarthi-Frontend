@@ -3,7 +3,7 @@ import { StatusBadge, ExpandIcon } from './SharedComponents';
 import reportService from '../../services/reportService';
 import Pagination from '../Pagination';
 import useReportData from '../../hooks/useReportData';
-import { formatDate, formatDecimal } from '../../utils/helpers';
+import { formatDate, formatDecimal, extractVendorName, downloadCrisPoDocument } from '../../utils/helpers';
 import { computeAcceptedQty } from '../ProcessDefectSummaryCard';
 
 // --- Level 3 & 4 Components ---
@@ -393,6 +393,7 @@ export const Level1Row = React.memo(({
     toggleCall
 }) => {
     const isExpanded = expandedPo === po.poNo;
+    const [isDownloading, setIsDownloading] = useState(false);
 
     const rowClass = (index % 2 === 0) ? 'row-odd' : 'row-even';
 
@@ -406,9 +407,29 @@ export const Level1Row = React.memo(({
                     <ExpandIcon isExpanded={isExpanded} />
                 </td>
                 <td><span className="badge-railway">{po?.railway}</span></td>
-                <td className="font-medium text-teal">{po?.poNo}</td>
+                <td>
+                    <button
+                        type="button"
+                        className="po-download-link"
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            downloadCrisPoDocument(po?.poNo, po?.pdfPath, (val) => setIsDownloading(!!val));
+                        }}
+                        disabled={isDownloading}
+                        title="Click to download CRIS PO document"
+                    >
+                        {isDownloading ? (
+                            <>
+                                <i className="fa-solid fa-spinner fa-spin"></i>
+                                <span>{po?.poNo}</span>
+                            </>
+                        ) : (
+                            <span>{po?.poNo}</span>
+                        )}
+                    </button>
+                </td>
                 <td>{po?.poDate ? formatDate(po.poDate) : '-'}</td>
-                <td className="col-vendor" title={po?.vendor}>{po?.vendor}</td>
+                <td className="col-vendor" title={po?.vendor}>{extractVendorName(po?.vendor)}</td>
                 <td>{po?.inspectionRegion || '-'}</td>
                 <td className="text-right">{po?.poQty?.toLocaleString() || '0'}</td>
                 <td className="text-right">{po?.finalQuantityAcceptedByRites?.toLocaleString() || '0'}</td>

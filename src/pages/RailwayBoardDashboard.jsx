@@ -20,6 +20,7 @@ import ManageIcDatesForm from '../components/admin-dashboard/ManageIcDatesForm';
 import RailwayBoardRejectionScrap from '../components/railway-board/RailwayBoardRejectionScrap';
 import OrgStructureViewer, { getOrgStructurePdf } from '../components/railway-board/OrgStructureViewer';
 import { exportDashboardScreenToPdf } from '../utils/dashboardPdfExport';
+import { extractVendorName } from '../utils/helpers';
 
 
 const RailwayBoardDashboard = () => {
@@ -487,6 +488,7 @@ const RailwayBoardDashboard = () => {
                 (po.railway || '').toLowerCase().includes(query) ||
                 (po.poNo || '').toLowerCase().includes(query) ||
                 (po.vendor || '').toLowerCase().includes(query) ||
+                extractVendorName(po.vendor || '').toLowerCase().includes(query) ||
                 (po.inspectionRegion || '').toLowerCase().includes(query)
             );
         }
@@ -496,6 +498,11 @@ const RailwayBoardDashboard = () => {
             result.sort((a, b) => {
                 let aVal = a[poSort.key];
                 let bVal = b[poSort.key];
+
+                if (poSort.key === 'vendor') {
+                    aVal = extractVendorName(aVal);
+                    bVal = extractVendorName(bVal);
+                }
 
                 // Handle numbers
                 const numA = parseFloat(aVal);
@@ -565,7 +572,7 @@ const RailwayBoardDashboard = () => {
                             <th onClick={() => handlePoSort('railway')} style={{ cursor: 'pointer' }}>Rly {renderSortIcon('railway')}</th>
                             <th onClick={() => handlePoSort('poNo')} style={{ cursor: 'pointer' }}>PO No. {renderSortIcon('poNo')}</th>
                             <th onClick={() => handlePoSort('poDate')} style={{ cursor: 'pointer' }}>PO Date {renderSortIcon('poDate')}</th>
-                            <th onClick={() => handlePoSort('vendor')} style={{ cursor: 'pointer' }}>Vendor {renderSortIcon('vendor')}</th>
+                            <th onClick={() => handlePoSort('vendor')} style={{ cursor: 'pointer' }} className="col-vendor">Vendor {renderSortIcon('vendor')}</th>
                             <th onClick={() => handlePoSort('inspectionRegion')} style={{ cursor: 'pointer' }}>Region {renderSortIcon('inspectionRegion')}</th>
                             <th className="text-right" onClick={() => handlePoSort('poQty')} style={{ cursor: 'pointer' }}>PO Qty {renderSortIcon('poQty')}</th>
                             <th className="text-right" onClick={() => handlePoSort('finalQuantityAcceptedByRites')} style={{ cursor: 'pointer' }}>Acc Qty {renderSortIcon('finalQuantityAcceptedByRites')}</th>

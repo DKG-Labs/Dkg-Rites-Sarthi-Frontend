@@ -76,7 +76,7 @@
   display: inline-block; padding: 3px 9px; border-radius: 8px; font-size: 11px; font-weight: 700; white-space: nowrap;
   color: #6d28d9; background: rgba(237, 233, 254, 0.85); border: 1px solid rgba(196, 181, 253, 0.6);
 }
-.rplc-vendor { font-weight: 600; color: #1d4ed8; font-size: 12px; min-width: 200px; }
+.rplc-vendor { font-weight: 600; color: #1d4ed8; font-size: 12px; min-width: 200px; max-width: 300px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .rplc-muted { color: #64748b; white-space: nowrap; }
 
 .rplc-bal { display: flex; flex-direction: column; align-items: flex-end; gap: 5px; min-width: 110px; }
@@ -229,3 +229,50 @@
 
 /* Level-3 rejection badge */
 .rplc .nested-table .prof-badge { border-radius: 999px; padding: 2px 9px; font-weight: 700; font-size: 11px; }
+
+/* CRIS PO Hyperlink Download Styling */
+.po-download-link {
+    color: #1d4ed8 !important;
+    background: transparent !important;
+    border: none !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    font-family: inherit !important;
+    font-size: inherit !important;
+    font-weight: 700 !important;
+    cursor: pointer !important;
+    text-decoration: underline !important;
+    text-underline-offset: 2.5px !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 6px !important;
+    transition: color 0.15s ease-in-out !important;
+    vertical-align: middle;
+}
+
+.po-download-link:hover {
+    color: #0284c7 !important;
+    text-decoration: underline !important;
+}
+
+.po-download-link i.fa-file-pdf,
+.po-download-link i.po-pdf-icon {
+    color: #dc2626 !important;
+    font-size: 12px !important;
+    transition: transform 0.15s ease;
+}
+
+.po-download-link:hover i.fa-file-pdf,
+.po-download-link:hover i.po-pdf-icon {
+    transform: scale(1.15);
+}
+
+.po-download-link i.fa-spinner {
+    color: #0284c7 !important;
+    font-size: 12px !important;
+}
+
+.po-download-link:disabled {
+    opacity: 0.7 !important;
+    cursor: wait !important;
+}

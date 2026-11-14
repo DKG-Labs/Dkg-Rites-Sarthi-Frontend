@@ -237,6 +237,12 @@ const padPhysicalData = (pd) => {
   };
 };
 
+// True when any Resilience impact value was entered for any sample. The screen only has inputs for
+// impacts 4-6, so checking impact 1 alone (as before) was always false and Resilience was never saved
+// for the other lots / on Pause. Also used to avoid saving an all-blank Resilience over saved values.
+const hasResilienceValues = (rows) =>
+  (rows || []).some(r => r && ['i1', 'i2', 'i3', 'i4', 'i5', 'i6'].some(k => String(r[k] ?? '').trim() !== ''));
+
 const padElecData = (ed) => {
   const pad = (arr, size, fill = '') => {
     const a = Array.isArray(arr) ? arr : [];
@@ -2720,7 +2726,7 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
     if (hasSecant) lotPromises.push(finalSecantStiffnessService.save(secantPayload));
 
     if (!isT55_2023) {
-      const hasResilience = (tPhys.resilience || []).some(r => r.i1 !== '');
+      const hasResilience = hasResilienceValues(tPhys.resilience);
       if (hasResilience) lotPromises.push(finalResilienceTestService.save(resiliencePayload));
 
       const hasOzone = (tElec.ozone || []).some(o => o.initial !== '' || o.obs !== '');
@@ -4010,8 +4016,11 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
         };
 
         if (!isT55_2023) {
+          // Only save Resilience when values were entered, so an empty screen can't blank saved values.
+          if (hasResilienceValues(physicalData.resilience)) {
+            savePromises.push(finalResilienceTestService.save(resiliencePayload));
+          }
           savePromises.push(
-            finalResilienceTestService.save(resiliencePayload),
             finalOzoneTestService.save(ozonePayload),
             finalPeriodicTgaService.save(tgaPayload),
             finalPeriodicDurabilityService.save(durabilityPayload),
@@ -5310,7 +5319,7 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
         if (hasSecant) pausePromises.push(finalSecantStiffnessService.save(secantPayloadPause));
 
         if (!isT55_2023) {
-          const hasResilience = (physicalData.resilience || []).some(r => r.i1 !== '');
+          const hasResilience = hasResilienceValues(physicalData.resilience);
           if (hasResilience) pausePromises.push(finalResilienceTestService.save(resiliencePayloadPause));
 
           const hasOzone = (elecData.ozone || []).some(o => o.initial !== '' || o.obs !== '');

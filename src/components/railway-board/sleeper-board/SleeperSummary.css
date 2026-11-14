@@ -209,4 +209,63 @@
 .scada-select-dropdown .rc-virtual-list-scrollbar-thumb {
     background: #cbd5e1 !important;
     border-radius: 4px !important;
-}
+}
+
+/* Sleeper PO Table Vendor column */
+.prof-table th.col-vendor,
+.prof-table td.col-vendor {
+    min-width: 180px !important;
+    max-width: 300px !important;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* CRIS PO Hyperlink Download Styling */
+.po-download-link {
+    color: #1d4ed8 !important;
+    background: transparent !important;
+    border: none !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    font-family: inherit !important;
+    font-size: inherit !important;
+    font-weight: 700 !important;
+    cursor: pointer !important;
+    text-decoration: underline !important;
+    text-underline-offset: 2.5px !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 6px !important;
+    transition: color 0.15s ease-in-out !important;
+    vertical-align: middle;
+}
+
+.po-download-link:hover {
+    color: #0284c7 !important;
+    text-decoration: underline !important;
+}
+
+.po-download-link i.fa-file-pdf,
+.po-download-link i.po-pdf-icon {
+    color: #dc2626 !important;
+    font-size: 12px !important;
+    transition: transform 0.15s ease;
+}
+
+.po-download-link:hover i.fa-file-pdf,
+.po-download-link:hover i.po-pdf-icon {
+    transform: scale(1.15);
+}
+
+.po-download-link i.fa-spinner {
+    color: #0284c7 !important;
+    font-size: 12px !important;
+}
+
+.po-download-link:disabled {
+    opacity: 0.7 !important;
+    cursor: wait !important;
+}
+
+

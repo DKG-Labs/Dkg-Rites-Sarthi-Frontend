@@ -237,11 +237,15 @@ const padPhysicalData = (pd) => {
   };
 };
 
-// True when any Resilience impact value was entered for any sample. The screen only has inputs for
-// impacts 4-6, so checking impact 1 alone (as before) was always false and Resilience was never saved
-// for the other lots / on Pause. Also used to avoid saving an all-blank Resilience over saved values.
-const hasResilienceValues = (rows) =>
-  (rows || []).some(r => r && ['i1', 'i2', 'i3', 'i4', 'i5', 'i6'].some(k => String(r[k] ?? '').trim() !== ''));
+// True when ANY input of a section has a value (any compound, sample, reading or pad).
+// Save checks used to look at only some boxes (e.g. Ash/SG compound A only), so entering only
+// compound B, After readings, pad 2, etc. made Save/Pause skip that section and the values were lost.
+const hasAnyEntry = (v) => {
+  if (v === null || v === undefined) return false;
+  if (Array.isArray(v)) return v.some(hasAnyEntry);
+  if (typeof v === 'object') return Object.values(v).some(hasAnyEntry);
+  return String(v).trim() !== '';
+};
 
 const padElecData = (ed) => {
   const pad = (arr, size, fill = '') => {
@@ -1888,9 +1892,13 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
           { bF: electricalDbData.s1BeforeForward || '', bR: electricalDbData.s1BeforeReverse || '', aF: electricalDbData.s1AfterForward || '', aR: electricalDbData.s1AfterReverse || '' },
           { bF: electricalDbData.s2BeforeForward || '', bR: electricalDbData.s2BeforeReverse || '', aF: electricalDbData.s2AfterForward || '', aR: electricalDbData.s2AfterReverse || '' },
           { bF: electricalDbData.s3BeforeForward || '', bR: electricalDbData.s3BeforeReverse || '', aF: electricalDbData.s3AfterForward || '', aR: electricalDbData.s3AfterReverse || '' },
-          { bF: electricalDbData.s4BeforeForward || '', bR: electricalDbData.s4BeforeReverse || '', aF: electricalDbData.s4AfterForward || '', aR: electricalDbData.s4AfterReverse || '' },
-          { bF: electricalDbData.s5BeforeForward || '', bR: electricalDbData.s5BeforeReverse || '', aF: electricalDbData.s5AfterForward || '', aR: electricalDbData.s5AfterReverse || '' },
-          { bF: electricalDbData.s6BeforeForward || '', bR: electricalDbData.s6BeforeReverse || '', aF: electricalDbData.s6AfterForward || '', aR: electricalDbData.s6AfterReverse || '' }
+          // second-sampling samples 4-9 are stored as m1..m6
+          { bF: electricalDbData.m1BeforeForward || '', bR: electricalDbData.m1BeforeReverse || '', aF: electricalDbData.m1AfterForward || '', aR: electricalDbData.m1AfterReverse || '' },
+          { bF: electricalDbData.m2BeforeForward || '', bR: electricalDbData.m2BeforeReverse || '', aF: electricalDbData.m2AfterForward || '', aR: electricalDbData.m2AfterReverse || '' },
+          { bF: electricalDbData.m3BeforeForward || '', bR: electricalDbData.m3BeforeReverse || '', aF: electricalDbData.m3AfterForward || '', aR: electricalDbData.m3AfterReverse || '' },
+          { bF: electricalDbData.m4BeforeForward || '', bR: electricalDbData.m4BeforeReverse || '', aF: electricalDbData.m4AfterForward || '', aR: electricalDbData.m4AfterReverse || '' },
+          { bF: electricalDbData.m5BeforeForward || '', bR: electricalDbData.m5BeforeReverse || '', aF: electricalDbData.m5AfterForward || '', aR: electricalDbData.m5AfterReverse || '' },
+          { bF: electricalDbData.m6BeforeForward || '', bR: electricalDbData.m6BeforeReverse || '', aF: electricalDbData.m6AfterForward || '', aR: electricalDbData.m6AfterReverse || '' }
         ];
       }
       if (sgDbData) {
@@ -2313,8 +2321,8 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
       shift: call?.shift || 'A',
       railpadType: oRailpadType,
       offeredQty: oOfferedQty,
-      weightMin: tWeight.min,
-      weightMax: tWeight.max,
+      minWeight: tWeight.min,
+      maxWeight: tWeight.max,
       weightStatus: 'PASS',
       samples: weightSamplesList
     };
@@ -2495,18 +2503,25 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
       shift: call?.shift || 'A',
       railpadType: oRailpadType,
       offeredQty: oOfferedQty,
+      // Samples 1-3 = s1..s3, second-sampling samples 4-9 = m1..m6 (backend field names; same as the open-lot save).
       s1BeforeForward: tElec.resistance[0]?.bF || '', s1BeforeReverse: tElec.resistance[0]?.bR || '',
       s2BeforeForward: tElec.resistance[1]?.bF || '', s2BeforeReverse: tElec.resistance[1]?.bR || '',
       s3BeforeForward: tElec.resistance[2]?.bF || '', s3BeforeReverse: tElec.resistance[2]?.bR || '',
-      s4BeforeForward: tElec.resistance[3]?.bF || '', s4BeforeReverse: tElec.resistance[3]?.bR || '',
-      s5BeforeForward: tElec.resistance[4]?.bF || '', s5BeforeReverse: tElec.resistance[4]?.bR || '',
-      s6BeforeForward: tElec.resistance[5]?.bF || '', s6BeforeReverse: tElec.resistance[5]?.bR || '',
+      m1BeforeForward: tElec.resistance[3]?.bF || '', m1BeforeReverse: tElec.resistance[3]?.bR || '',
+      m2BeforeForward: tElec.resistance[4]?.bF || '', m2BeforeReverse: tElec.resistance[4]?.bR || '',
+      m3BeforeForward: tElec.resistance[5]?.bF || '', m3BeforeReverse: tElec.resistance[5]?.bR || '',
+      m4BeforeForward: tElec.resistance[6]?.bF || '', m4BeforeReverse: tElec.resistance[6]?.bR || '',
+      m5BeforeForward: tElec.resistance[7]?.bF || '', m5BeforeReverse: tElec.resistance[7]?.bR || '',
+      m6BeforeForward: tElec.resistance[8]?.bF || '', m6BeforeReverse: tElec.resistance[8]?.bR || '',
       s1AfterForward: tElec.resistance[0]?.aF || '', s1AfterReverse: tElec.resistance[0]?.aR || '',
       s2AfterForward: tElec.resistance[1]?.aF || '', s2AfterReverse: tElec.resistance[1]?.aR || '',
       s3AfterForward: tElec.resistance[2]?.aF || '', s3AfterReverse: tElec.resistance[2]?.aR || '',
-      s4AfterForward: tElec.resistance[3]?.aF || '', s4AfterReverse: tElec.resistance[3]?.aR || '',
-      s5AfterForward: tElec.resistance[4]?.aF || '', s5AfterReverse: tElec.resistance[4]?.aR || '',
-      s6AfterForward: tElec.resistance[5]?.aF || '', s6AfterReverse: tElec.resistance[5]?.aR || '',
+      m1AfterForward: tElec.resistance[3]?.aF || '', m1AfterReverse: tElec.resistance[3]?.aR || '',
+      m2AfterForward: tElec.resistance[4]?.aF || '', m2AfterReverse: tElec.resistance[4]?.aR || '',
+      m3AfterForward: tElec.resistance[5]?.aF || '', m3AfterReverse: tElec.resistance[5]?.aR || '',
+      m4AfterForward: tElec.resistance[6]?.aF || '', m4AfterReverse: tElec.resistance[6]?.aR || '',
+      m5AfterForward: tElec.resistance[7]?.aF || '', m5AfterReverse: tElec.resistance[7]?.aR || '',
+      m6AfterForward: tElec.resistance[8]?.aF || '', m6AfterReverse: tElec.resistance[8]?.aR || '',
       electricalStatus: 'PASS', notOkCount: 0, remarks: tRemarks || ''
     };
 
@@ -2707,38 +2722,38 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
     const hasTension = (tPhys.tension?.initial || []).some(v => v !== '') || (tPhys.tension?.final || []).some(v => v !== '');
     if (hasTension) lotPromises.push(finalTensionSetService.save(tensionPayload));
 
-    const hasLoad = (tPhys.loadTest?.pad1 || []).some(p => p.left !== '' || p.right !== '');
+    const hasLoad = hasAnyEntry([tPhys.loadTest?.pad1, tPhys.loadTest?.pad2, tPhys.loadTest?.mPad1, tPhys.loadTest?.mPad2, tPhys.loadTest?.mPad3, tPhys.loadTest?.mPad4]);
     if (hasLoad) lotPromises.push(finalLoadTestService.save(loadPayload));
 
-    const hasElectrical = (tElec.resistance || []).some(r => r.bF !== '' || r.bR !== '');
+    const hasElectrical = hasAnyEntry(tElec.resistance);
     if (hasElectrical) lotPromises.push(finalElectricalResistanceService.save(electricalPayload));
 
-    const hasSg = (tElec.sg?.compoundA || []).some(s => s.air !== '' || s.water !== '');
+    const hasSg = hasAnyEntry([tElec.sg?.compoundA, tElec.sg?.compoundB]);
     if (hasSg) lotPromises.push(finalSpecificGravityService.save(sgPayload));
 
-    const hasAsh = (tElec.ash?.compoundA || []).some(a => a.crucible !== '' || a.ash !== '');
+    const hasAsh = hasAnyEntry([tElec.ash?.compoundA, tElec.ash?.compoundB]);
     if (hasAsh) lotPromises.push(finalAshContentService.save(ashPayload));
 
     const hasAdhesion = (tSpec.adhesion || []).some(a => a !== '');
     if (hasAdhesion) lotPromises.push(finalAdhesionService.save(adhesionPayload));
 
-    const hasSecant = (tSpec.secant || []).some(s => s.s20?.a !== '');
+    const hasSecant = hasAnyEntry(tSpec.secant);
     if (hasSecant) lotPromises.push(finalSecantStiffnessService.save(secantPayload));
 
     if (!isT55_2023) {
-      const hasResilience = hasResilienceValues(tPhys.resilience);
-      if (hasResilience) lotPromises.push(finalResilienceTestService.save(resiliencePayload));
+      // Every lot is saved as it is: filled lots with their values, empty lots as empty.
+      lotPromises.push(finalResilienceTestService.save(resiliencePayload));
 
       const hasOzone = (tElec.ozone || []).some(o => o.initial !== '' || o.obs !== '');
       if (hasOzone) lotPromises.push(finalOzoneTestService.save(ozonePayload));
 
-      const hasTga = (tPeriodic.tga?.samples || []).some(s => s.lotNo !== '' || s.weight !== '');
+      const hasTga = hasAnyEntry(tPeriodic.tga?.samples);
       if (hasTga) lotPromises.push(finalPeriodicTgaService.save(tgaPayload));
 
-      const hasDurability = (tPeriodic.durability?.samples || []).some(s => s.lotNo !== '' || s.initialThick !== '');
+      const hasDurability = hasAnyEntry(tPeriodic.durability?.samples);
       if (hasDurability) lotPromises.push(finalPeriodicDurabilityService.save(durabilityPayload));
 
-      const hasAbrasion = (tPeriodic.abrasion?.samples || []).some(s => s.lotNo !== '' || s.initialMass !== '');
+      const hasAbrasion = hasAnyEntry(tPeriodic.abrasion?.samples);
       if (hasAbrasion) lotPromises.push(finalPeriodicAbrasionService.save(abrasionPayload));
     }
 
@@ -2800,7 +2815,7 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
       const hasNcrBreaking = (tSpec.ncrgrsp?.breaking || []).some(b => b !== '');
       if (hasNcrBreaking) lotPromises.push(finalNcrBreakingLoadService.save(ncrBreakingPayload));
 
-      const hasNcrCord = (tSpec.ncrgrsp?.nylonCord || []).some(c => c.denier !== '' || c.loadAtBreak !== '');
+      const hasNcrCord = hasAnyEntry(tSpec.ncrgrsp?.nylonCord);
       if (hasNcrCord) lotPromises.push(finalNcrNylonCordService.save(ncrCordPayload));
     }
 
@@ -3119,8 +3134,8 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
           shift: call?.shift || 'A',
           railpadType: activeRailpadType,
           offeredQty: offeredQty,
-          weightMin: weightData.min,
-          weightMax: weightData.max,
+          minWeight: weightData.min,
+          maxWeight: weightData.max,
           weightStatus: weightStatus === 'ACCEPTED' ? 'PASS' : weightStatus === 'REJECTED' ? 'FAIL' : weightStatus,
           samples: weightSamplesList
         };
@@ -4016,11 +4031,8 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
         };
 
         if (!isT55_2023) {
-          // Only save Resilience when values were entered, so an empty screen can't blank saved values.
-          if (hasResilienceValues(physicalData.resilience)) {
-            savePromises.push(finalResilienceTestService.save(resiliencePayload));
-          }
           savePromises.push(
+            finalResilienceTestService.save(resiliencePayload),
             finalOzoneTestService.save(ozonePayload),
             finalPeriodicTgaService.save(tgaPayload),
             finalPeriodicDurabilityService.save(durabilityPayload),
@@ -4403,8 +4415,8 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
           shift: call?.shift || 'A',
           railpadType: activeRailpadType,
           offeredQty: offeredQty,
-          weightMin: weightData.min,
-          weightMax: weightData.max,
+          minWeight: weightData.min,
+          maxWeight: weightData.max,
           weightStatus: weightStatus === 'ACCEPTED' ? 'PASS' : weightStatus === 'REJECTED' ? 'FAIL' : weightStatus,
           samples: weightSamplesList
         };
@@ -5300,38 +5312,38 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
         const hasTension = (physicalData.tension?.initial || []).some(v => v !== '') || (physicalData.tension?.final || []).some(v => v !== '');
         if (hasTension) pausePromises.push(finalTensionSetService.save(tensionPayloadPause));
 
-        const hasLoad = (physicalData.loadTest?.pad1 || []).some(p => p.left !== '' || p.right !== '');
+        const hasLoad = hasAnyEntry([physicalData.loadTest?.pad1, physicalData.loadTest?.pad2, physicalData.loadTest?.mPad1, physicalData.loadTest?.mPad2, physicalData.loadTest?.mPad3, physicalData.loadTest?.mPad4]);
         if (hasLoad) pausePromises.push(finalLoadTestService.save(loadPayloadPause));
 
-        const hasElectrical = (elecData.resistance || []).some(r => r.bF !== '' || r.bR !== '');
+        const hasElectrical = hasAnyEntry(elecData.resistance);
         if (hasElectrical) pausePromises.push(finalElectricalResistanceService.save(electricalPayloadPause));
 
-        const hasSg = (elecData.sg?.compoundA || []).some(s => s.air !== '' || s.water !== '');
+        const hasSg = hasAnyEntry([elecData.sg?.compoundA, elecData.sg?.compoundB]);
         if (hasSg) pausePromises.push(finalSpecificGravityService.save(sgPayloadPause));
 
-        const hasAsh = (elecData.ash?.compoundA || []).some(a => a.crucible !== '' || a.ash !== '');
+        const hasAsh = hasAnyEntry([elecData.ash?.compoundA, elecData.ash?.compoundB]);
         if (hasAsh) pausePromises.push(finalAshContentService.save(ashPayloadPause));
 
         const hasAdhesion = (specData.adhesion || []).some(a => a !== '');
         if (hasAdhesion) pausePromises.push(finalAdhesionService.save(adhesionPayloadPause));
 
-        const hasSecant = (specData.secant || []).some(s => s.s20?.a !== '');
+        const hasSecant = hasAnyEntry(specData.secant);
         if (hasSecant) pausePromises.push(finalSecantStiffnessService.save(secantPayloadPause));
 
         if (!isT55_2023) {
-          const hasResilience = hasResilienceValues(physicalData.resilience);
-          if (hasResilience) pausePromises.push(finalResilienceTestService.save(resiliencePayloadPause));
+          // Saved as it is: values if entered, empty if not.
+          pausePromises.push(finalResilienceTestService.save(resiliencePayloadPause));
 
           const hasOzone = (elecData.ozone || []).some(o => o.initial !== '' || o.obs !== '');
           if (hasOzone) pausePromises.push(finalOzoneTestService.save(ozonePayloadPause));
 
-          const hasTga = (periodicData.tga?.samples || []).some(s => s.lotNo !== '' || s.weight !== '');
+          const hasTga = hasAnyEntry(periodicData.tga?.samples);
           if (hasTga) pausePromises.push(finalPeriodicTgaService.save(tgaPayloadPause));
 
-          const hasDurability = (periodicData.durability?.samples || []).some(s => s.lotNo !== '' || s.initialThick !== '');
+          const hasDurability = hasAnyEntry(periodicData.durability?.samples);
           if (hasDurability) pausePromises.push(finalPeriodicDurabilityService.save(durabilityPayloadPause));
 
-          const hasAbrasion = (periodicData.abrasion?.samples || []).some(s => s.lotNo !== '' || s.initialMass !== '');
+          const hasAbrasion = hasAnyEntry(periodicData.abrasion?.samples);
           if (hasAbrasion) pausePromises.push(finalPeriodicAbrasionService.save(abrasionPayloadPause));
         }
 
@@ -5342,7 +5354,7 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
           const hasNcrBreaking = (specData.ncrgrsp?.breaking || []).some(b => b !== '');
           if (hasNcrBreaking) pausePromises.push(finalNcrBreakingLoadService.save(ncrBreakingPayloadPause));
 
-          const hasNcrCord = (specData.ncrgrsp?.nylonCord || []).some(c => c.denier !== '' || c.loadAtBreak !== '');
+          const hasNcrCord = hasAnyEntry(specData.ncrgrsp?.nylonCord);
           if (hasNcrCord) pausePromises.push(finalNcrNylonCordService.save(ncrCordPayloadPause));
         }
  

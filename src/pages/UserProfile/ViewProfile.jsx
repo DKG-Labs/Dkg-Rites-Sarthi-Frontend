@@ -1,338 +1,385 @@
-import React from 'react';
+import React, { useRef, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { getStoredUser } from '../../services/authService';
 import { API_BASE_URL } from '../../services/apiConfig';
-import { Grid, Typography, Box, Paper, Chip, Avatar } from '@mui/material';
-import PersonIcon from '@mui/icons-material/Person';
-import BusinessCenterIcon from '@mui/icons-material/BusinessCenter';
-import PhoneInTalkIcon from '@mui/icons-material/PhoneInTalk';
-import AdminPanelSettingsIcon from '@mui/icons-material/AdminPanelSettings';
-import BadgeIcon from '@mui/icons-material/Badge';
-import LocationOnIcon from '@mui/icons-material/LocationOn';
+import { formatRoleList } from '../../utils/roleDisplay';
+import { Typography, Box, Avatar, Button } from '@mui/material';
+import PersonOutlineIcon from '@mui/icons-material/PersonOutline';
+import ApartmentIcon from '@mui/icons-material/Apartment';
+import ContactPhoneOutlinedIcon from '@mui/icons-material/ContactPhoneOutlined';
+import ShieldOutlinedIcon from '@mui/icons-material/ShieldOutlined';
+import EditOutlinedIcon from '@mui/icons-material/EditOutlined';
 
-/* ─────────────────────────────────────────────────────────
-   Helpers
-───────────────────────────────────────────────────────── */
-const na = (val) =>
-    val && String(val).trim() !== '' ? String(val).trim() : 'N/A';
-
-const formatRoles = (val) => {
-    if (!val) return 'N/A';
-    return String(val)
-        .replace(/Rail Process IE/gi, 'Railpad Process IE')
-        .replace(/Rail Main IE/gi, 'Railpad Main IE')
-        .replace(/\bR Process IE\b/g, 'Rail Process IE')
-        .replace(/\bRail SMS\b/g, 'Rail Process IE');
+/* ── palette: white on deep navy glass, blue / teal / sky accents (no purple) ── */
+const C = {
+    white: '#ffffff',
+    text: 'rgba(255,255,255,0.92)',
+    sub: 'rgba(255,255,255,0.95)',
+    faint: 'rgba(255,255,255,0.72)',
+    line: 'rgba(255,255,255,0.09)',
+    sky: '#7dd3fc',
+    teal: '#2dd4bf',
+    blue: '#3b82f6',
+    green: '#4ade80',
+    red: '#f87171',
 };
 
-const fmtDOB = (val) => {
-    if (!val) return 'N/A';
-    const parts = val.split('-');
-    return parts.length === 3 ? parts.reverse().join('-') : val;
+const reduce = '@media (prefers-reduced-motion: reduce)';
+
+/* frosted glass surface */
+const glass = {
+    position: 'relative',
+    background: 'linear-gradient(135deg, rgba(30,64,110,0.50) 0%, rgba(14,40,78,0.58) 60%, rgba(10,60,80,0.55) 100%)',
+    backdropFilter: 'blur(28px) saturate(170%)',
+    WebkitBackdropFilter: 'blur(28px) saturate(170%)',
+    border: '1px solid rgba(255,255,255,0.16)',
+    boxShadow: '0 24px 60px rgba(0,0,0,0.38), inset 0 1px 0 rgba(255,255,255,0.22), inset 0 -1px 0 rgba(255,255,255,0.04)',
 };
 
-const fmtDateTime = (val) => {
-    if (!val) return 'First time login';
-    try { return new Date(val).toLocaleString([], { dateStyle: 'short', timeStyle: 'short' }); }
-    catch { return val; }
+/* 3D entrance: panels flip up into place */
+const flipIn = (delay = 0) => ({
+    '@keyframes flipIn': {
+        from: { opacity: 0, transform: 'perspective(1200px) rotateX(18deg) translateY(36px) scale(0.97)' },
+        to: { opacity: 1, transform: 'perspective(1200px) rotateX(0) translateY(0) scale(1)' },
+    },
+    opacity: 0,
+    animation: `flipIn 0.9s cubic-bezier(0.22, 1, 0.36, 1) ${delay}ms forwards`,
+    [reduce]: { animation: 'none', opacity: 1 },
+});
+
+/* ── helpers ─────────────────────────────────────────── */
+const has = (v) => v !== null && v !== undefined && String(v).trim() !== '';
+const clean = (v) => (has(v) ? String(v).trim() : null);
+const titleCase = (s) => {
+    const v = clean(s);
+    if (!v) return null;
+    return v === v.toUpperCase() ? v.toLowerCase().replace(/\b\w/g, (c) => c.toUpperCase()) : v;
+};
+const fmtDOB = (v) => {
+    if (!has(v)) return null;
+    const p = String(v).split('-');
+    if (p.length === 3 && p[0].length === 4) {
+        const d = new Date(`${p[0]}-${p[1]}-${p[2]}T00:00:00`);
+        if (!isNaN(d)) return d.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
+    }
+    return String(v);
+};
+const fmtDate = (v, withTime = false) => {
+    if (!has(v)) return null;
+    const d = new Date(v);
+    if (isNaN(d.getTime())) return String(v);
+    const date = d.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
+    if (!withTime) return date;
+    return `${date}, ${d.toLocaleTimeString('en-IN', { hour: 'numeric', minute: '2-digit' }).toUpperCase()}`;
 };
 
-/* ─────────────────────────────────────────────────────────
-   Field
-───────────────────────────────────────────────────────── */
-const Field = ({ label, value, statusColor }) => (
-    <Box sx={{ mb: 1.5 }}>
-        <Typography sx={{
-            fontSize: '9px', color: '#94a3b8', fontWeight: 700,
-            textTransform: 'uppercase', letterSpacing: '0.06em', mb: 0.3,
-        }}>
-            {label}
-        </Typography>
-        <Typography sx={{
-            fontSize: '11.5px', color: statusColor || '#0f172a',
-            fontWeight: 600, lineHeight: 1.3, wordBreak: 'break-word',
-        }}>
-            {na(value)}
-        </Typography>
-    </Box>
-);
+/* ── 3D tilt: mouse position -> CSS variables (no re-render) ── */
+const useTilt = (max = 6) => {
+    const ref = useRef(null);
+    const onMove = useCallback((e) => {
+        const el = ref.current;
+        if (!el) return;
+        const r = el.getBoundingClientRect();
+        const x = (e.clientX - r.left) / r.width;
+        const y = (e.clientY - r.top) / r.height;
+        el.style.setProperty('--ry', `${(x - 0.5) * max * 2}deg`);
+        el.style.setProperty('--rx', `${(0.5 - y) * max * 2}deg`);
+        el.style.setProperty('--gx', `${x * 100}%`);
+        el.style.setProperty('--gy', `${y * 100}%`);
+        el.style.setProperty('--glare', '1');
+    }, [max]);
+    const onLeave = useCallback(() => {
+        const el = ref.current;
+        if (!el) return;
+        el.style.setProperty('--ry', '0deg');
+        el.style.setProperty('--rx', '0deg');
+        el.style.setProperty('--glare', '0');
+    }, []);
+    return { ref, onMouseMove: onMove, onMouseLeave: onLeave };
+};
 
-const FieldGrid = ({ left, right }) => (
-    <Grid container spacing={1}>
-        <Grid item xs={6}>
-            {left.map(([label, value, color], i) => (
-                <Field key={`l-${i}`} label={label} value={value} statusColor={color} />
-            ))}
-        </Grid>
-        <Grid item xs={6}>
-            {right.map(([label, value, color], i) => (
-                <Field key={`r-${i}`} label={label} value={value} statusColor={color} />
-            ))}
-        </Grid>
-    </Grid>
-);
+const tiltSurface = {
+    '--rx': '0deg', '--ry': '0deg', '--gx': '50%', '--gy': '50%', '--glare': '0',
+    transform: 'perspective(1200px) rotateX(var(--rx)) rotateY(var(--ry))',
+    transformStyle: 'preserve-3d',
+    transition: 'transform 0.25s ease-out, box-shadow 0.3s ease',
+    willChange: 'transform',
+    /* cursor-following glare */
+    '&::after': {
+        content: '""', position: 'absolute', inset: 0, borderRadius: 'inherit', pointerEvents: 'none',
+        background: 'radial-gradient(600px circle at var(--gx) var(--gy), rgba(255,255,255,0.14), transparent 45%)',
+        opacity: 'var(--glare)', transition: 'opacity 0.3s ease',
+    },
+    [reduce]: { transform: 'none' },
+};
 
-/* ─────────────────────────────────────────────────────────
-   Info Card
-───────────────────────────────────────────────────────── */
-const InfoCard = ({ title, Icon, children }) => (
-    <Paper elevation={0} sx={{
-        height: '100%', display: 'flex', flexDirection: 'column',
-        borderRadius: '16px',
-        border: '1px solid #e8edf3',
-        background: '#fff',
-        boxShadow: '0 1px 8px rgba(15,76,129,0.05)',
-        overflow: 'hidden',
-        transition: 'transform 0.2s ease, box-shadow 0.2s ease',
-        '&:hover': {
-            transform: 'translateY(-3px)',
-            boxShadow: '0 10px 32px rgba(15,76,129,0.10)',
-        },
-    }}>
+/* ── building blocks ─────────────────────────────────── */
+const Row = ({ label, value, href, tone }) => {
+    const v = clean(value);
+    return (
         <Box sx={{
-            px: 2.5, py: 1.8,
-            display: 'flex', alignItems: 'center', gap: 1.5,
-            borderBottom: '1px solid #f1f5f9',
-            background: 'linear-gradient(135deg, #f8faff 0%, #fff 100%)',
+            display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '150px 1fr' }, gap: { xs: 0.25, sm: 2 },
+            py: 1.35, borderTop: `1px solid ${C.line}`, '&:first-of-type': { borderTop: 'none' },
         }}>
-            <Box sx={{
-                width: 30, height: 30, borderRadius: '8px',
-                background: 'linear-gradient(135deg, #eff6ff, #dbeafe)',
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                boxShadow: '0 1px 4px rgba(37,99,235,0.15)',
+            <Typography sx={{ fontSize: '13px', color: C.sub }}>{label}</Typography>
+            {v ? (
+                href ? (
+                    <Typography component="a" href={href} sx={{
+                        fontSize: '14px', fontWeight: 500, color: C.sky, textDecoration: 'none', width: 'fit-content',
+                        wordBreak: 'break-word', transition: 'color .15s, text-shadow .15s',
+                        '&:hover': { color: C.white, textShadow: '0 0 12px rgba(125,211,252,0.6)' },
+                    }}>{v}</Typography>
+                ) : (
+                    <Typography sx={{ fontSize: '14px', fontWeight: 500, color: tone || C.text, wordBreak: 'break-word' }}>{v}</Typography>
+                )
+            ) : (
+                <Typography sx={{ fontSize: '14px', color: C.faint }}>Not provided</Typography>
+            )}
+        </Box>
+    );
+};
+
+const GlassSection = ({ title, Icon, delay, children }) => {
+    const tilt = useTilt(3);
+    return (
+        <Box sx={{ ...flipIn(delay), height: '100%' }}>
+            <Box {...tilt} sx={{
+                ...glass, ...tiltSurface,
+                height: '100%', borderRadius: '20px', overflow: 'hidden',
+                p: { xs: 2.5, md: '26px 30px' },
+                /* light sheen sweeping across on hover */
+                '&::before': {
+                    content: '""', position: 'absolute', top: 0, bottom: 0, left: '-60%', width: '40%',
+                    background: 'linear-gradient(100deg, transparent, rgba(255,255,255,0.10), transparent)',
+                    transform: 'skewX(-18deg)', transition: 'left 0.9s ease', pointerEvents: 'none',
+                },
+                '&:hover': { boxShadow: '0 30px 70px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.28)' },
+                '&:hover::before': { left: '120%' },
             }}>
-                <Icon sx={{ fontSize: '15px', color: '#2563eb' }} />
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.25, mb: 1, transform: 'translateZ(30px)' }}>
+                    <Icon sx={{ fontSize: 20, color: C.sky, filter: 'drop-shadow(0 0 8px rgba(125,211,252,0.5))' }} />
+                    <Typography sx={{ fontSize: '15.5px', fontWeight: 600, color: C.white, letterSpacing: '-0.01em' }}>
+                        {title}
+                    </Typography>
+                </Box>
+                <Box sx={{ transform: 'translateZ(18px)' }}>{children}</Box>
             </Box>
-            <Typography sx={{ fontWeight: 700, fontSize: '12.5px', color: '#1e293b' }}>
-                {title}
-            </Typography>
         </Box>
-        <Box sx={{ px: 2.5, py: 2, flexGrow: 1 }}>
-            {children}
-        </Box>
-    </Paper>
-);
+    );
+};
 
-/* ─────────────────────────────────────────────────────────
-   Quick Stat Tile
-───────────────────────────────────────────────────────── */
-const QuickStat = ({ icon: Icon, label, value, accent = '#2563eb' }) => (
-    <Box sx={{
-        display: 'flex', alignItems: 'center', gap: 1.5,
-        px: 2.5, py: 1.5, flex: '1 1 140px',
-        borderRight: '1px solid #f1f5f9',
-        '&:last-child': { borderRight: 'none' },
-    }}>
+const Fact = ({ label, value, delay }) => {
+    const v = clean(value);
+    if (!v) return null;
+    return (
         <Box sx={{
-            width: 34, height: 34, borderRadius: '10px', flexShrink: 0,
-            background: `${accent}18`,
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            ...flipIn(delay),
+            px: 2, py: 1.25, borderRadius: '14px',
+            background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.10)',
+            transition: 'background .2s, transform .2s',
+            '&:hover': { background: 'rgba(255,255,255,0.11)', transform: 'translateY(-2px)' },
         }}>
-            <Icon sx={{ fontSize: '16px', color: accent }} />
+            <Typography sx={{ fontSize: '11.5px', color: C.sub, mb: 0.25 }}>{label}</Typography>
+            <Typography sx={{ fontSize: '14.5px', color: C.white, fontWeight: 600 }}>{v}</Typography>
         </Box>
-        <Box>
-            <Typography sx={{ fontSize: '9px', color: '#94a3b8', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', mb: 0.3 }}>
-                {label}
-            </Typography>
-            <Typography sx={{ fontSize: '12px', color: '#0f172a', fontWeight: 700, lineHeight: 1.2 }}>
-                {na(value)}
-            </Typography>
-        </Box>
-    </Box>
-);
+    );
+};
 
-/* ─────────────────────────────────────────────────────────
-   Main Component
-───────────────────────────────────────────────────────── */
+/* ── page ────────────────────────────────────────────── */
 const ViewProfile = ({ profileData }) => {
+    const navigate = useNavigate();
+    const heroTilt = useTilt(4);
     if (!profileData) return null;
 
-    // Active role = currently logged-in role from localStorage
     const storedUser = getStoredUser();
-    const activeRole = formatRoles(storedUser?.roleName || profileData.activeRole || profileData.assignedRoles);
+    const activeRole = formatRoleList(storedUser?.roleName || profileData.activeRole || '') || null;
+    const roles = has(profileData.assignedRoles)
+        ? formatRoleList(profileData.assignedRoles).split(',').map(r => r.trim()).filter(Boolean)
+        : (activeRole ? [activeRole] : []);
 
-    const initials = profileData.fullName
-        ? profileData.fullName.split(' ').filter(Boolean).map(w => w[0]).slice(0, 2).join('').toUpperCase()
-        : 'U';
+    const name = titleCase(profileData.fullName) || 'User';
+    const initials = name.split(' ').filter(Boolean).map(w => w[0]).slice(0, 2).join('').toUpperCase();
+    const photo = profileData.profilePhotoPath
+        ? (profileData.profilePhotoPath.startsWith('data:')
+            ? profileData.profilePhotoPath
+            : `${API_BASE_URL}${profileData.profilePhotoPath.startsWith('/') ? '' : '/'}${profileData.profilePhotoPath}`)
+        : undefined;
 
-    // Parse multiple roles into chips
-    const roleChips = profileData.assignedRoles
-        ? formatRoles(profileData.assignedRoles).split(',').map(r => r.trim()).filter(Boolean)
-        : [];
+    const status = clean(profileData.userStatus) || 'Active';
+    const isActive = status.toLowerCase() === 'active';
+    const mobile = clean(profileData.registeredMobileNumber);
+    const altMobile = clean(profileData.alternateMobileNumber);
+    const email = clean(profileData.emailAddress);
+    const subtitle = [clean(profileData.designation), clean(profileData.department)].filter(Boolean).join(' · ');
 
     return (
-        <Box sx={{ backgroundColor: '#f8fafc', minHeight: '100%' }}>
+        <Box sx={{ px: { xs: 2, md: '24px' }, pb: 6 }}>
 
-            {/* ══════════════════ PROFILE HEADER CARD (floats over parent banner) ══════════════════ */}
-            <Box sx={{ px: { xs: 2, md: '24px' } }}>
-                <Paper elevation={0} sx={{
-                    mt: '-72px',
-                    mb: 3,
-                    position: 'relative',
-                    zIndex: 10,
-                    borderRadius: '20px',
-                    border: '1px solid #e2e8f0',
-                    background: '#ffffff',
-                    boxShadow: '0 12px 40px rgba(15,76,129,0.08), 0 4px 12px rgba(0,0,0,0.04)',
-                    p: { xs: 3, sm: '28px 36px' },
+            {/* ══════════ HERO (glass, 3D tilt) ══════════ */}
+            <Box sx={{ ...flipIn(0), mt: '-60px', mb: 3 }}>
+                <Box {...heroTilt} sx={{
+                    ...glass, ...tiltSurface,
+                    borderRadius: '26px', overflow: 'hidden',
+                    background: 'linear-gradient(135deg, rgba(30,64,110,0.50) 0%, rgba(14,40,78,0.58) 60%, rgba(10,60,80,0.55) 100%)',
                 }}>
-                    {/* Avatar + info row */}
-                    <Box sx={{ px: 0, pb: 0, mt: 0 }}>
-                        <Box sx={{ display: 'flex', alignItems: 'flex-end', gap: 2.5, flexWrap: 'wrap', mb: 2 }}>
-                            {/* Avatar */}
-                            <Box sx={{ position: 'relative', flexShrink: 0 }}>
-                                <Avatar
-                                    src={
-                                        profileData.profilePhotoPath?.startsWith('data:')
-                                        ? profileData.profilePhotoPath
-                                        : (profileData.profilePhotoPath ? `${API_BASE_URL}${profileData.profilePhotoPath.startsWith('/') ? '' : '/'}${profileData.profilePhotoPath}` : undefined)
-                                    }
-                                    sx={{
-                                        width: 76, height: 76,
-                                        background: 'linear-gradient(135deg, #0f4c81 0%, #2563eb 100%)',
-                                        fontSize: '26px', fontWeight: 800, color: '#fff',
-                                        border: '4px solid #fff',
-                                        boxShadow: '0 4px 16px rgba(37,99,235,0.3)',
-                                    }}
-                                >
-                                    {initials}
-                                </Avatar>
+                    <Box sx={{
+                        p: { xs: 3, md: '34px 40px' },
+                        display: 'flex', alignItems: 'center', gap: { xs: 2.5, md: 4 }, flexWrap: 'wrap',
+                    }}>
+                        {/* avatar: floating, with rotating glow ring */}
+                        <Box sx={{
+                            position: 'relative', flexShrink: 0, transform: 'translateZ(60px)',
+                            '@keyframes float': { '0%,100%': { translate: '0 0' }, '50%': { translate: '0 -6px' } },
+                            animation: 'float 5s ease-in-out infinite',
+                            [reduce]: { animation: 'none' },
+                        }}>
+                            <Box sx={{
+                                position: 'absolute', inset: -6, borderRadius: '50%',
+                                background: `conic-gradient(from 0deg, ${C.blue}, ${C.teal}, ${C.sky}, ${C.blue})`,
+                                filter: 'blur(6px)', opacity: 0.85,
+                                '@keyframes spin': { to: { transform: 'rotate(360deg)' } },
+                                animation: 'spin 7s linear infinite',
+                                [reduce]: { animation: 'none' },
+                            }} />
+                            <Avatar src={photo} sx={{
+                                position: 'relative', width: 92, height: 92,
+                                border: '3px solid rgba(255,255,255,0.85)',
+                                background: 'linear-gradient(145deg, #1e3a8a 0%, #2563eb 55%, #0e7490 100%)',
+                                fontSize: '30px', fontWeight: 600, color: '#fff',
+                                boxShadow: '0 12px 30px rgba(0,0,0,0.45)',
+                            }}>
+                                {initials}
+                            </Avatar>
+                            {isActive && (
                                 <Box sx={{
-                                    position: 'absolute', bottom: 5, right: 2,
-                                    width: 13, height: 13, borderRadius: '50%',
-                                    bgcolor: '#22c55e', border: '2px solid #fff',
+                                    position: 'absolute', bottom: 6, right: 6, width: 15, height: 15, borderRadius: '50%',
+                                    bgcolor: '#22c55e', border: '2.5px solid #0b2447',
+                                    '@keyframes ping': {
+                                        '0%': { boxShadow: '0 0 0 0 rgba(34,197,94,0.6)' },
+                                        '80%,100%': { boxShadow: '0 0 0 10px rgba(34,197,94,0)' },
+                                    },
+                                    animation: 'ping 2.4s ease-out infinite',
+                                    [reduce]: { animation: 'none' },
                                 }} />
-                            </Box>
+                            )}
+                        </Box>
 
-                            {/* Name / role / designation */}
-                            <Box sx={{ mb: 0.5 }}>
+                        {/* identity */}
+                        <Box sx={{ flex: '1 1 320px', minWidth: 0, transform: 'translateZ(40px)' }}>
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, flexWrap: 'wrap' }}>
                                 <Typography sx={{
-                                    fontSize: '19px', fontWeight: 800, color: '#0f172a',
-                                    letterSpacing: '-0.02em', lineHeight: 1.2,
+                                    fontSize: { xs: '24px', md: '30px' }, fontWeight: 700, letterSpacing: '-0.02em', lineHeight: 1.15,
+                                    background: 'linear-gradient(90deg, #ffffff 0%, #dbeafe 60%, #a5f3fc 100%)',
+                                    WebkitBackgroundClip: 'text', backgroundClip: 'text', color: 'transparent',
                                 }}>
-                                    {na(profileData.fullName)}
+                                    {name}
                                 </Typography>
-                                <Typography sx={{ fontSize: '12.5px', color: '#2563eb', fontWeight: 600, mb: 1 }}>
-                                    {na(profileData.designation)}
-                                    {profileData.department ? ` · ${profileData.department}` : ''}
-                                </Typography>
-                                {/* Role chips */}
-                                <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.7 }}>
-                                    {roleChips.map((role, i) => (
-                                        <Chip
-                                            key={i}
-                                            label={role}
-                                            size="small"
-                                            sx={{
-                                                height: '22px',
-                                                fontSize: '10.5px', fontWeight: 700,
-                                                backgroundColor: '#eff6ff',
-                                                color: '#1d4ed8',
-                                                border: '1px solid #bfdbfe',
-                                                borderRadius: '6px',
-                                                '& .MuiChip-label': { px: 1 },
-                                            }}
-                                        />
-                                    ))}
+                                <Box sx={{
+                                    display: 'inline-flex', alignItems: 'center', gap: 0.7, px: 1.2, py: 0.3, borderRadius: '999px',
+                                    fontSize: '12px', fontWeight: 600,
+                                    color: isActive ? C.green : C.red,
+                                    background: isActive ? 'rgba(74,222,128,0.12)' : 'rgba(248,113,113,0.12)',
+                                    border: `1px solid ${isActive ? 'rgba(74,222,128,0.35)' : 'rgba(248,113,113,0.35)'}`,
+                                }}>
+                                    <Box sx={{ width: 6, height: 6, borderRadius: '50%', bgcolor: 'currentColor' }} />
+                                    {status}
                                 </Box>
                             </Box>
+                            {subtitle && <Typography sx={{ fontSize: '15px', color: C.sub, mt: 0.6 }}>{subtitle}</Typography>}
+                            {roles.length > 0 && (
+                                <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, mt: 1.5 }}>
+                                    {roles.map((r) => {
+                                        const current = r === activeRole;
+                                        return (
+                                            <Box key={r} sx={{
+                                                px: 1.4, py: 0.45, borderRadius: '10px', fontSize: '12.5px', fontWeight: 600,
+                                                color: current ? C.white : C.text,
+                                                background: current ? 'linear-gradient(90deg, rgba(59,130,246,0.55), rgba(45,212,191,0.45))' : 'rgba(255,255,255,0.08)',
+                                                border: `1px solid ${current ? 'rgba(125,211,252,0.55)' : 'rgba(255,255,255,0.14)'}`,
+                                                boxShadow: current ? '0 0 18px rgba(59,130,246,0.35)' : 'none',
+                                            }}>
+                                                {r}
+                                            </Box>
+                                        );
+                                    })}
+                                </Box>
+                            )}
                         </Box>
 
-                        {/* Quick stats bar */}
-                        <Box sx={{
-                            display: 'flex', flexWrap: 'wrap',
-                            border: '1px solid #f1f5f9',
-                            borderRadius: '12px',
-                            background: '#fafbfc',
-                            overflow: 'hidden',
-                        }}>
-                            <QuickStat icon={BadgeIcon}           label="Employee Code"  value={profileData.employeeCode || profileData.employeeNumber} accent="#2563eb" />
-                            <QuickStat icon={BusinessCenterIcon}  label="Department"     value={profileData.department}    accent="#0891b2" />
-                            <QuickStat icon={PersonIcon}          label="Organization"   value={profileData.organization}  accent="#7c3aed" />
-                            <QuickStat icon={LocationOnIcon}      label="Region / SBU"   value={profileData.region}        accent="#059669" />
-                            <QuickStat icon={AdminPanelSettingsIcon} label="Active Role" value={activeRole} accent="#d97706" />
-                            <QuickStat icon={PhoneInTalkIcon}     label="Last Login"     value={fmtDateTime(profileData.lastLoginDate)} accent="#dc2626" />
-                        </Box>
+                        {/* action */}
+                        <Button
+                            onClick={() => navigate('?tab=1')}
+                            startIcon={<EditOutlinedIcon sx={{ fontSize: 18 }} />}
+                            sx={{
+                                ml: 'auto', transform: 'translateZ(50px)',
+                                textTransform: 'none', fontWeight: 600, fontSize: '14px', color: C.white,
+                                px: 2.5, py: 1, borderRadius: '12px',
+                                background: 'rgba(255,255,255,0.10)',
+                                border: '1px solid rgba(255,255,255,0.22)',
+                                backdropFilter: 'blur(10px)',
+                                transition: 'all .2s ease',
+                                '&:hover': {
+                                    background: 'rgba(255,255,255,0.18)',
+                                    borderColor: 'rgba(125,211,252,0.6)',
+                                    boxShadow: '0 0 22px rgba(125,211,252,0.35)',
+                                },
+                            }}
+                        >
+                            Edit profile
+                        </Button>
                     </Box>
-                </Paper>
+
+                    {/* key facts (real values only) */}
+                    <Box sx={{
+                        px: { xs: 3, md: '40px' }, pb: { xs: 3, md: '30px' },
+                        display: 'flex', flexWrap: 'wrap', gap: 1.5, transform: 'translateZ(25px)',
+                    }}>
+                        <Fact label="Employee code" value={profileData.employeeCode || profileData.employeeNumber} delay={250} />
+                        <Fact label="Region / SBU" value={profileData.region} delay={320} />
+                        <Fact label="Organization" value={profileData.organization} delay={390} />
+                        <Fact label="Last login" value={fmtDate(profileData.lastLoginDate, true)} delay={460} />
+                    </Box>
+                </Box>
             </Box>
 
-            {/* ══════════════════ INFO CARDS  2 × 2 ══════════════════ */}
-            <Box sx={{ px: { xs: 2, md: '24px' }, pb: 4 }}>
-                <Grid container spacing={2.5}>
+            {/* ══════════ DETAIL PANELS ══════════ */}
+            <Box sx={{
+                display: 'grid',
+                gridTemplateColumns: { xs: '1fr', lg: '1fr 1fr' },
+                gap: 3,
+            }}>
+                <GlassSection title="Personal" Icon={PersonOutlineIcon} delay={200}>
+                    <Row label="Full name" value={name} />
+                    <Row label="Employee code" value={profileData.employeeCode} />
+                    <Row label="Date of birth" value={fmtDOB(profileData.dateOfBirth)} />
+                    <Row label="Designation" value={profileData.designation} />
+                    <Row label="Discipline" value={profileData.discipline || profileData.department} />
+                    <Row label="Employment type" value={profileData.employmentType} />
+                </GlassSection>
 
-                    {/* Basic Information */}
-                    <Grid item xs={12} md={6}>
-                        <InfoCard title="Basic Information" Icon={PersonIcon}>
-                            <FieldGrid
-                                left={[
-                                    ['Full Name', profileData.fullName],
-                                    ['Employee Code', profileData.employeeCode],
-                                    ['Date of Birth', fmtDOB(profileData.dateOfBirth)],
-                                ]}
-                                right={[
-                                    ['Designation', profileData.designation],
-                                    ['Discipline', profileData.department],
-                                    ['Employment Type', profileData.employmentType || 'Regular'],
-                                ]}
-                            />
-                        </InfoCard>
-                    </Grid>
+                <GlassSection title="Organization" Icon={ApartmentIcon} delay={300}>
+                    <Row label="Organization" value={profileData.organization} />
+                    <Row label="Department" value={profileData.department} />
+                    <Row label="Region / SBU" value={profileData.region} />
+                    <Row label="Product type" value={profileData.productType} />
+                    <Row label="Zonal railway" value={profileData.zonalRailway} />
+                    <Row label="Office location" value={profileData.officeLocation} />
+                </GlassSection>
 
-                    {/* Organization Information */}
-                    <Grid item xs={12} md={6}>
-                        <InfoCard title="Organization Information" Icon={BusinessCenterIcon}>
-                            <FieldGrid
-                                left={[
-                                    ['Organization', profileData.organization],
-                                    ['Department', profileData.department],
-                                    ['Region', profileData.region],
-                                ]}
-                                right={[
-                                    ['Product Type', profileData.productType],
-                                    ['Zonal Railway', profileData.zonalRailway || profileData.organization],
-                                    ['Office Location', profileData.officeLocation],
-                                ]}
-                            />
-                        </InfoCard>
-                    </Grid>
+                <GlassSection title="Contact" Icon={ContactPhoneOutlinedIcon} delay={400}>
+                    <Row label="Mobile" value={mobile} href={mobile ? `tel:${mobile}` : undefined} />
+                    <Row label="Alternate mobile" value={altMobile} href={altMobile ? `tel:${altMobile}` : undefined} />
+                    <Row label="Email" value={email} href={email ? `mailto:${email}` : undefined} />
+                    <Row label="Office address" value={profileData.officeAddress} />
+                </GlassSection>
 
-                    {/* Contact Information */}
-                    <Grid item xs={12} md={6}>
-                        <InfoCard title="Contact Information" Icon={PhoneInTalkIcon}>
-                            <FieldGrid
-                                left={[
-                                    ['Mobile Number', profileData.registeredMobileNumber],
-                                    ['Alternate Mobile', profileData.alternateMobileNumber],
-                                ]}
-                                right={[
-                                    ['Email Address', profileData.emailAddress],
-                                    ['Office Address', profileData.officeAddress],
-                                ]}
-                            />
-                        </InfoCard>
-                    </Grid>
-
-                    {/* System Information */}
-                    <Grid item xs={12} md={6}>
-                        <InfoCard title="System Information" Icon={AdminPanelSettingsIcon}>
-                            <FieldGrid
-                                left={[
-                                    ['Assigned Role(s)', formatRoles(profileData.assignedRoles)],
-                                    ['Active Role', activeRole],
-                                    ['User Status', profileData.userStatus || 'Active',
-                                        (profileData.userStatus || 'Active').toLowerCase() === 'active'
-                                            ? '#16a34a' : '#dc2626'],
-                                ]}
-                                right={[
-                                    ['Account Creation Date', profileData.accountCreationDate],
-                                    ['Last Login Date', fmtDateTime(profileData.lastLoginDate)],
-                                    ['Updated Date', profileData.updatedDate || profileData.updatedAt],
-                                ]}
-                            />
-                        </InfoCard>
-                    </Grid>
-
-                </Grid>
+                <GlassSection title="Account" Icon={ShieldOutlinedIcon} delay={500}>
+                    <Row label="Assigned roles" value={roles.join(', ')} />
+                    <Row label="Signed in as" value={activeRole} />
+                    <Row label="Status" value={status} tone={isActive ? C.green : C.red} />
+                    <Row label="Account created" value={fmtDate(profileData.accountCreationDate)} />
+                    <Row label="Last updated" value={fmtDate(profileData.updatedDate || profileData.updatedAt, true)} />
+                </GlassSection>
             </Box>
         </Box>
     );

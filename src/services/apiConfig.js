@@ -124,7 +124,9 @@ export const getAuthHeaders = (customHeaders = {}) => {
 export const handleResponse = async (response) => {
     if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
-        const errorMessage = errorData.message || errorData.errorMessage || `HTTP ${response.status}: ${response.statusText}`;
+        // backend APIResponse puts the readable text in responseStatus.message
+        const errorMessage = errorData.message || errorData.errorMessage || errorData.responseStatus?.message
+            || `HTTP ${response.status}: ${response.statusText}`;
         throw new Error(errorMessage);
     }
     return response.json();

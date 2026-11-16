@@ -3517,12 +3517,11 @@ const ProcessDashboard = ({ call, onBack, onNavigateToSubModule, productionLines
         if (!totals && call?.call_no && call.call_no !== activeCallNo) {
           totals = await getAcceptedQuantitySum(call.call_no, activeLotNo);
         }
-        if (totals) {
-          console.log('✅ [Process Dashboard] Historical totals fetched:', totals);
-          lotHistoricalTotalsRef.current = totals;
-          if (!lotHistoricalTotalsMapRef.current) lotHistoricalTotalsMapRef.current = {};
-          lotHistoricalTotalsMapRef.current[activeLotNo] = totals;
-        }
+        // Store even an empty result ({} = no previous shifts) so validation knows it is loaded
+        console.log('✅ [Process Dashboard] Historical totals fetched:', totals);
+        lotHistoricalTotalsRef.current = totals || {};
+        if (!lotHistoricalTotalsMapRef.current) lotHistoricalTotalsMapRef.current = {};
+        lotHistoricalTotalsMapRef.current[activeLotNo] = totals || {};
       } catch (err) {
         console.error('❌ [Process Dashboard] Error fetching historical totals:', err);
       }
@@ -4652,9 +4651,21 @@ const ProcessDashboard = ({ call, onBack, onNavigateToSubModule, productionLines
       let historicalProducedOthers = 0;
       let currentShiftProducedOthers = 0;
 
-      // Map frontend fields to lotHistoricalTotals properties
-      const historicalTotalsForValidation = lotHistoricalTotalsMapRef.current?.[cleanLot] || lotHistoricalTotalsRef.current;
-      
+      // Map frontend fields to lotHistoricalTotals properties.
+      // Use ONLY this lot's totals. Falling back to the last fetched lot (old behaviour) made the
+      // check pass or fail depending on which lot/line had loaded last.
+      const historicalTotalsForValidation = lotHistoricalTotalsMapRef.current?.[cleanLot];
+      if (!historicalTotalsForValidation && field !== 'shearing') {
+        const callNoForTotals = String(currentProductionLine?.icNumber || call?.call_no || '').trim();
+        if (callNoForTotals && cleanLot) {
+          getAcceptedQuantitySum(callNoForTotals, cleanLot)
+            .then(t => { lotHistoricalTotalsMapRef.current[cleanLot] = t || {}; })
+            .catch(err => console.error('❌ [Process Dashboard] Error fetching historical totals:', err));
+        }
+        showNotification('warning', `Loading previous shift totals for Lot ${lotNo}. Please enter the value again in a moment.`);
+        return;
+      }
+
       const getHistoricalAccepted = (field) => {
         const val = parseInt(historicalTotalsForValidation?.[field]);
         return (!isNaN(val) && val >= 0) ? val : 0;

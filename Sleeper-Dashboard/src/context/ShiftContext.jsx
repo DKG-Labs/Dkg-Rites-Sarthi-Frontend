@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
-import { apiService } from '../services/api';
+import { apiService, onApiWrite, clearApiCache } from '../services/api';
 import { useToast } from '../context/ToastContext';
 import { mapWireTensionRecords, mapCompactionRecords, mapSteamCuringRecords, mapBatchWeighmentData } from '../utils/shiftMappingUtils';
 import { getISTDate, formatToIST } from '../utils/helpers';
@@ -124,6 +124,11 @@ export const ShiftProvider = ({ children }) => {
         localStorage.removeItem('companyName');
         localStorage.removeItem('vendorId');
         localStorage.removeItem('userId');
+
+        // A new duty must start from fresh server data
+        loadedAtRef.current = {};
+        inflightRef.current = {};
+        clearApiCache();
     };
 
     // Persist basic shift state
@@ -245,12 +250,12 @@ export const ShiftProvider = ({ children }) => {
     const activeContainer = containers.find(c => c.id === activeContainerId);
 
     // Granular fetch functions for better performance and targeted updates
-    const fetchMoisture = useCallback(async () => {
+    const rawFetchMoisture = useCallback(async () => {
         const res = await apiService.getAllMoistureAnalysis();
         if (res?.responseData) setMoistureRecords(res.responseData);
     }, []);
 
-    const fetchManualChecks = useCallback(async () => {
+    const rawFetchManualChecks = useCallback(async () => {
         const currentUserId = userId || localStorage.getItem('userId');
         const currentVendorCode = vendorCode || localStorage.getItem('vendorCode');
         const currentShift = selectedShift || localStorage.getItem('selectedShift');
@@ -288,7 +293,7 @@ export const ShiftProvider = ({ children }) => {
         }
     }, [userId, vendorCode, selectedShift, dutyUnit, dutyDate, dutyLocation]);
 
-    const fetchWireTension = useCallback(async () => {
+    const rawFetchWireTension = useCallback(async () => {
         const currentUserId = userId || localStorage.getItem('userId');
         const currentVendorCode = vendorCode || localStorage.getItem('vendorCode');
         const currentShift = selectedShift || localStorage.getItem('selectedShift');
@@ -337,7 +342,7 @@ export const ShiftProvider = ({ children }) => {
         }
     }, [userId, vendorCode, selectedShift, dutyUnit, dutyDate, activeContainerId, containers]);
 
-    const fetchCompaction = useCallback(async () => {
+    const rawFetchCompaction = useCallback(async () => {
         const currentUserId = userId || localStorage.getItem('userId');
         const currentVendorCode = vendorCode || localStorage.getItem('vendorCode');
         const currentShift = selectedShift || localStorage.getItem('selectedShift');
@@ -369,7 +374,7 @@ export const ShiftProvider = ({ children }) => {
         }
     }, [userId, vendorCode, selectedShift, dutyUnit, dutyDate, activeContainerId]);
 
-    const fetchBatchWeighment = useCallback(async () => {
+    const rawFetchBatchWeighment = useCallback(async () => {
         const currentUserId = userId || localStorage.getItem('userId');
         const currentVendorCode = vendorCode || localStorage.getItem('vendorCode');
         const currentShift = selectedShift || localStorage.getItem('selectedShift');
@@ -402,7 +407,7 @@ export const ShiftProvider = ({ children }) => {
         }
     }, [userId, vendorCode, selectedShift, dutyUnit, dutyDate, containers]);
 
-    const fetchSteamCuring = useCallback(async () => {
+    const rawFetchSteamCuring = useCallback(async () => {
         const currentUserId = userId || localStorage.getItem('userId');
         const currentVendorCode = vendorCode || localStorage.getItem('vendorCode');
         const currentShift = selectedShift || localStorage.getItem('selectedShift');
@@ -431,7 +436,7 @@ export const ShiftProvider = ({ children }) => {
         }
     }, [userId, vendorCode, selectedShift, dutyUnit, dutyDate]);
 
-    const fetchBenchMoulds = useCallback(async () => {
+    const rawFetchBenchMoulds = useCallback(async () => {
         const [benchMould, stressBenches] = await Promise.all([
             apiService.getAllBenchMouldInspections(),
             apiService.getAllStressBenches()
@@ -457,31 +462,114 @@ export const ShiftProvider = ({ children }) => {
         }
     }, []);
 
-    const isFetchingShiftDataRef = useRef(false);
+    // ---------- Freshness-aware loading (stale-while-revalidate) ----------
+    // A module is fetched only if it was never loaded for the current duty/line, is older than
+    // MODULE_FRESH_MS, or any save (POST/PUT/DELETE) happened since it was loaded. Data already on
+    // screen stays visible while a refresh runs. Every save marks all modules stale, so the refetch
+    // each screen already does after saving always goes to the server.
+    const MODULE_FRESH_MS = 30000;
+    const loadedAtRef = useRef({});   // key -> time the successful fetch started
+    const inflightRef = useRef({});   // key -> { promise, started }
+    const lastWriteAtRef = useRef(0);
 
-    const loadShiftData = useCallback(async () => {
-        if (isFetchingShiftDataRef.current) {
-            return;
-        }
-        isFetchingShiftDataRef.current = true;
-        setIsLoading(true);
+    useEffect(() => onApiWrite(() => { lastWriteAtRef.current = Date.now(); }), []);
+
+    // Duty parameters every module query depends on; a change gives a new cache key
+    const dutyKey = [userId, vendorCode, selectedShift, dutyUnit, dutyDate, dutyLocation].join('|');
+    const containersKey = containers.map(c => c.id + ':' + c.name).join(',');
+
+    const runModule = useCallback((key, fetcher, force) => {
+        const t = loadedAtRef.current[key];
+        const fresh = !!t && t > lastWriteAtRef.current && Date.now() - t < MODULE_FRESH_MS;
+        if (!force && fresh) return Promise.resolve();
+        const running = inflightRef.current[key];
+        // Re-use a request already in flight unless a save happened after it started
+        if (running && running.started > lastWriteAtRef.current) return running.promise;
+        const started = Date.now();
+        const promise = (async () => {
+            await fetcher();
+            loadedAtRef.current[key] = started;
+        })().finally(() => {
+            if (inflightRef.current[key] && inflightRef.current[key].started === started) delete inflightRef.current[key];
+        });
+        inflightRef.current[key] = { promise, started };
+        return promise;
+    }, []);
+
+    // Line-dependent modules include the line/containers in the key, so switching line loads that line's data
+    const moduleKeys = {
+        moisture: 'moisture|' + dutyUnit,
+        manualChecks: 'manual|' + dutyKey,
+        wireTension: 'wire|' + dutyKey + '|' + containersKey,
+        compaction: 'compaction|' + dutyKey + '|' + activeContainerId,
+        batchWeighment: 'batch|' + dutyKey + '|' + containersKey,
+        steamCuring: 'steam|' + dutyKey,
+        benchMoulds: 'benchMoulds'
+    };
+    const rawFetchers = {
+        moisture: rawFetchMoisture,
+        manualChecks: rawFetchManualChecks,
+        wireTension: rawFetchWireTension,
+        compaction: rawFetchCompaction,
+        batchWeighment: rawFetchBatchWeighment,
+        steamCuring: rawFetchSteamCuring,
+        benchMoulds: rawFetchBenchMoulds
+    };
+    const moduleKeysRef = useRef(moduleKeys);
+    moduleKeysRef.current = moduleKeys;
+    const rawFetchersRef = useRef(rawFetchers);
+    rawFetchersRef.current = rawFetchers;
+
+    // Cached list URLs behind a module; dropped on a forced refresh so it really hits the server
+    const LIST_CACHE_PREFIXES = {
+        moisture: ['/MoistureAnalysis'],
+        benchMoulds: ['/bench-mould-inspection', '/stress-bench']
+    };
+
+    const loadModule = useCallback((name, opts) => {
+        const force = !!(opts && opts.force === true);
+        if (force && LIST_CACHE_PREFIXES[name]) clearApiCache(LIST_CACHE_PREFIXES[name]);
+        return runModule(moduleKeysRef.current[name], () => rawFetchersRef.current[name](), force);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [runModule]);
+
+    // Public fetchers keep their old names and behaviour; they only skip the call while data is fresh.
+    // Identity changes with the inputs that change the query (as before), so effects depending on them still re-run.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    const fetchMoisture = useCallback((opts) => loadModule('moisture', opts), [loadModule, moduleKeys.moisture]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    const fetchManualChecks = useCallback((opts) => loadModule('manualChecks', opts), [loadModule, moduleKeys.manualChecks]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    const fetchWireTension = useCallback((opts) => loadModule('wireTension', opts), [loadModule, moduleKeys.wireTension]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    const fetchCompaction = useCallback((opts) => loadModule('compaction', opts), [loadModule, moduleKeys.compaction]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    const fetchBatchWeighment = useCallback((opts) => loadModule('batchWeighment', opts), [loadModule, moduleKeys.batchWeighment]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    const fetchSteamCuring = useCallback((opts) => loadModule('steamCuring', opts), [loadModule, moduleKeys.steamCuring]);
+    const fetchBenchMoulds = useCallback((opts) => loadModule('benchMoulds', opts), [loadModule]);
+
+    // Load a set of modules. Shows the "Updating" indicator only for a first load or a forced refresh;
+    // otherwise data on screen stays and is refreshed quietly.
+    const ensureModulesLoaded = useCallback(async (names, opts) => {
+        const unique = Array.from(new Set(names || []));
+        if (!unique.length) return;
+        const force = !!(opts && opts.force === true);
+        const firstLoad = unique.some(n => !loadedAtRef.current[moduleKeysRef.current[n]]);
+        const showLoader = firstLoad || force;
+        if (showLoader) setIsLoading(true);
         try {
-            await Promise.allSettled([
-                fetchMoisture(),
-                fetchManualChecks(),
-                fetchWireTension(),
-                fetchCompaction(),
-                fetchBatchWeighment(),
-                fetchSteamCuring(),
-                fetchBenchMoulds()
-            ]);
-        } catch (error) {
-            console.error("Error loading shift data:", error);
+            await Promise.allSettled(unique.map(n => loadModule(n, opts)));
         } finally {
-            setIsLoading(false);
-            isFetchingShiftDataRef.current = false;
+            if (showLoader) setIsLoading(false);
         }
-    }, [fetchMoisture, fetchManualChecks, fetchWireTension, fetchCompaction, fetchBatchWeighment, fetchSteamCuring, fetchBenchMoulds]);
+    }, [loadModule]);
+
+    // All modules; freshness-aware like the single fetchers
+    const loadShiftData = useCallback((opts) => ensureModulesLoaded(
+        ['moisture', 'manualChecks', 'wireTension', 'compaction', 'batchWeighment', 'steamCuring', 'benchMoulds'],
+        (opts && opts.force === true) ? { force: true } : undefined
+    ), [ensureModulesLoaded]);
 
 
     const value = {
@@ -544,6 +632,7 @@ export const ShiftProvider = ({ children }) => {
         plantVerificationData,
         setPlantVerificationData,
         loadShiftData,
+        ensureModulesLoaded,
         fetchMoisture,
         fetchManualChecks,
         fetchWireTension,

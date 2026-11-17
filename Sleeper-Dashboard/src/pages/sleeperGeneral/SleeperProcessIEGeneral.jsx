@@ -67,7 +67,13 @@ const SUB_COLUMNS = [
 
 
 const SleeperProcessIEGeneral = () => {
-    const { dutyDate, selectedShift, dutyLocation, plantVerificationData, dutyStarted } = useShift();
+    const { dutyDate, selectedShift, dutyLocation, plantVerificationData, dutyStarted, ensureModulesLoaded } = useShift();
+
+    // Bench verification counts come from the bench list; it used to arrive only as a side effect of
+    // the duty page loading every module, so load it here (cached, no-op while fresh)
+    useEffect(() => {
+        if (dutyStarted && ensureModulesLoaded) ensureModulesLoaded(["benchMoulds"]);
+    }, [dutyStarted, ensureModulesLoaded]);
     const [activeSubView, setActiveSubView] = useState(() => {
         return localStorage.getItem('activeSubView_General') || 'plant-declaration-verification';
     });

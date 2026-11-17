@@ -68,17 +68,41 @@ const pendingRequests = new Map();
 
 // Short-lived result cache for the heavy list endpoints below. A write to the same resource clears
 // it (see request interceptor), as does session expiry, so it only absorbs repeated reads between edits.
-const RECENT_LIST_TTL_MS = 60000;
-const RECENT_LIST_URLS = ['/MoistureAnalysis/list', '/bench-mould-inspection/get-all-lite'];
+// TTL per cached URL. Live lists are short (other devices' saves show within 30 s);
+// master data (sheds, benches, mix designs, company mapping) rarely changes during a shift.
+const LIVE_TTL_MS = 30000;
+const MASTER_TTL_MS = 30 * 60 * 1000;
+const CACHE_TTL_BY_URL = {
+    '/MoistureAnalysis/list': LIVE_TTL_MS,
+    '/bench-mould-inspection/get-all-lite': LIVE_TTL_MS,
+    '/stress-bench/getAll': MASTER_TTL_MS,
+    '/plant-profile/sheds': MASTER_TTL_MS,
+    '/mix-design/approvedMixDesign': MASTER_TTL_MS,
+    '/sleeper-mapping/company-units': MASTER_TTL_MS
+};
 const recentListCache = new Map();
 
 const resourceOf = (url) => '/' + String(url || '').split('?')[0].split('/').filter(Boolean)[0];
+// Listeners told about every write (POST/PUT/PATCH/DELETE) so screen-level caches can mark data stale
+const writeListeners = new Set();
+export const onApiWrite = (listener) => {
+    writeListeners.add(listener);
+    return () => writeListeners.delete(listener);
+};
 function invalidateRecentLists(writeUrl) {
     const resource = resourceOf(writeUrl);
     for (const key of Array.from(recentListCache.keys())) {
         if (resourceOf(key) === resource) recentListCache.delete(key);
     }
+    writeListeners.forEach((l) => { try { l(writeUrl); } catch (e) { /* ignore */ } });
 }
+// Drop cached responses: all of them, or only URLs starting with one of the given prefixes
+export const clearApiCache = (prefixes) => {
+    if (!prefixes) { recentListCache.clear(); return; }
+    for (const key of Array.from(recentListCache.keys())) {
+        if (prefixes.some((p) => key.startsWith(p))) recentListCache.delete(key);
+    }
+};
 
 // Bench/mould checks have no plant column, so the list is limited by age instead
 const BENCH_MOULD_WINDOW_DAYS = 90;
@@ -104,12 +128,14 @@ if (typeof window !== 'undefined') {
     window.addEventListener('sarthi:session_expired', () => recentListCache.clear());
 }
 
-const getWithCache = (url, options) => {
+// cacheId: optional stable key used for the TTL lookup when the real URL carries path variables
+const getWithCache = (url, options, cacheId) => {
     const cacheKey = options?.params ? `${url}?${JSON.stringify(options.params)}` : url;
-    const cacheable = RECENT_LIST_URLS.includes(url);
+    const ttl = CACHE_TTL_BY_URL[cacheId || url];
+    const cacheable = !!ttl;
     if (cacheable) {
         const hit = recentListCache.get(cacheKey);
-        if (hit && Date.now() - hit.time < RECENT_LIST_TTL_MS) {
+        if (hit && Date.now() - hit.time < ttl) {
             return Promise.resolve(hit.data);
         }
     }
@@ -129,9 +155,15 @@ const getWithCache = (url, options) => {
 
 
 // Response interceptor for standardized error handling
+// A finished write also marks data stale, so a refresh that started while the save was running cannot hide it
+const isWrite = (cfg) => !!(cfg && cfg.method && cfg.method.toLowerCase() !== "get");
 api.interceptors.response.use(
-    (response) => response.data,
+    (response) => {
+        if (isWrite(response.config)) invalidateRecentLists(response.config.url);
+        return response.data;
+    },
     (error) => {
+        if (isWrite(error && error.config)) invalidateRecentLists(error.config.url);
         const status = error?.response?.status;
         if (status === 401 && typeof window !== 'undefined') {
             window.dispatchEvent(new CustomEvent('sarthi:session_expired', {
@@ -365,7 +397,7 @@ export const apiService = {
     // getPlantProfileById:       (id) => api.get(`/plant-profile/getById/${id}`),
     getPlantProfileById: (id) => api.get(`/plant-profile/${id}`),
     getDistinctShedsByVendorCode: (vendorCode) => api.get(`/plant-profile/vendor/${vendorCode}/sheds`),
-    getPlantSheds: (vendorId, plantId) => api.get(`/plant-profile/vendor/%7BvendorId%7D/%7BplantId%7D/sheds?vendorId=${vendorId}&plantId=${encodeURIComponent(plantId)}`),
+    getPlantSheds: (vendorId, plantId) => getWithCache(`/plant-profile/vendor/%7BvendorId%7D/%7BplantId%7D/sheds?vendorId=${vendorId}&plantId=${encodeURIComponent(plantId)}`, undefined, '/plant-profile/sheds'),
 
     // moduleId=2  STRESS_BENCH_MASTER
     getBenchMouldMasterById: (id) => api.get(`/stress-bench/get/${id}`),
@@ -376,7 +408,7 @@ export const apiService = {
     // moduleId=4  MIX_DESIGN
     getMixDesignById: (id) => api.get(`/mix-design/${id}`),
     getVerifiedMixDesignIdentifications: () => api.get('/mix-design/verified-identifications'),
-    getApprovedMixDesigns: (moduleId = 4, vendorId = '', plantId = '') => api.get(`/mix-design/approvedMixDesign?moduleId=${moduleId}${vendorId ? `&vendorId=${vendorId}` : ''}${plantId ? `&plantId=${plantId}` : ''}`),
+    getApprovedMixDesigns: (moduleId = 4, vendorId = '', plantId = '') => getWithCache(`/mix-design/approvedMixDesign?moduleId=${moduleId}${vendorId ? `&vendorId=${vendorId}` : ''}${plantId ? `&plantId=${plantId}` : ''}`, undefined, '/mix-design/approvedMixDesign'),
 
     // moduleId=5  PRODUCTION_DECLARATION
     getProductionDeclarationById: (id) => api.get(`/production-declaration/${id}`),
@@ -420,7 +452,7 @@ export const apiService = {
 
 
     // ================= POI IE Mapping ================= //
-    getCompanyUnitsByUser: (userId) => api.get(`/sleeper-mapping/company-units/${userId}`),
+    getCompanyUnitsByUser: (userId) => getWithCache(`/sleeper-mapping/company-units/${userId}`, undefined, '/sleeper-mapping/company-units'),
 
     // ================= Final Inspection Controller ================= //
     getFinalInspectionBatches: (moduleId = 1, params = {}) => api.get('/FinalInspectionController/inspection/batches', {

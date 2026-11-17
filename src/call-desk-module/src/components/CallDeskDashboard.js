@@ -120,8 +120,34 @@ const CallDeskDashboard = () => {
 
     try {
       const data = await viewCallHistory(call.callNumber, callType); //  API CALL
-      setHistoryData(data);
-      console.log("history data", data);
+      const getStatusPriority = (status, action) => {
+        const s = String(status || '').toUpperCase().trim();
+        const a = String(action || '').toUpperCase().trim();
+        if (s === 'CREATED' || a === 'CREATED' || a.includes('CREATE')) return 1;
+        if (s.includes('VERIF') || a.includes('VERIF')) return 2;
+        if (s.includes('REGISTER') || a.includes('REGISTER')) return 3;
+        if (s.includes('SCHEDULE') || a.includes('SCHEDULE')) return 4;
+        if (s.includes('WITHHELD') || a.includes('WITHHELD')) return 5;
+        if (s.includes('RETURN') || a.includes('RETURN')) return 6;
+        return 10;
+      };
+      const sortedData = Array.isArray(data) ? [...data].sort((a, b) => {
+        const orderA = getStatusPriority(a.status, a.action);
+        const orderB = getStatusPriority(b.status, b.action);
+        if (orderA !== orderB) return orderA - orderB;
+        if (a.workflowSequence != null && b.workflowSequence != null && a.workflowSequence !== b.workflowSequence) {
+          return a.workflowSequence - b.workflowSequence;
+        }
+        if (a.workflowTransitionId != null && b.workflowTransitionId != null && a.workflowTransitionId !== b.workflowTransitionId) {
+          return a.workflowTransitionId - b.workflowTransitionId;
+        }
+        if (a.createdDate && b.createdDate) {
+          return new Date(a.createdDate) - new Date(b.createdDate);
+        }
+        return 0;
+      }) : [];
+      setHistoryData(sortedData);
+      console.log("history data", sortedData);
     } catch (err) {
       showAppNotification(err.message || 'Failed to load history', 'error');
     } finally {

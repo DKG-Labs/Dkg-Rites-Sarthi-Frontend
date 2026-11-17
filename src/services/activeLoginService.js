@@ -6,6 +6,25 @@ export const getActiveLogins = ({ page = 0, size = 10, search = '' } = {}) => {
     return fetch(`${API_BASE_URL}/api/active-logins?${params}`, { headers: getAuthHeaders() }).then(handleResponse);
 };
 
+/**
+ * Fetches all active logins by paginating through the backend in batches of 100.
+ */
+export const getAllActiveLogins = async ({ search = '' } = {}) => {
+    const all = [];
+    let page = 0;
+    const size = 100;
+    while (true) {
+        const data = await getActiveLogins({ page, size, search });
+        const content = data?.content || [];
+        all.push(...content);
+        if (!data || page + 1 >= (data.totalPages || 1) || content.length === 0) {
+            break;
+        }
+        page++;
+    }
+    return all;
+};
+
 export const getActiveLoginSelfie = (id) =>
     fetch(`${API_BASE_URL}/api/active-logins/${id}/selfie`, { headers: getAuthHeaders() }).then(handleResponse);
 

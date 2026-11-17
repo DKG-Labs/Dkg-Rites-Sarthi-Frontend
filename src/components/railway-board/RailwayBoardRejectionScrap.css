@@ -1041,7 +1041,26 @@
   border: 1px solid rgba(226, 232, 240, 0.9) !important;
   background: rgba(255, 255, 255, 0.92) !important;
   box-shadow: 0 14px 30px -24px rgba(15, 23, 42, 0.3) !important;
-  overflow: hidden;
+  overflow-x: auto !important;
+  overflow-y: auto !important;
+  max-height: 560px;
+  scrollbar-width: thin;
+  scrollbar-color: #cbd5e1 transparent;
+  -webkit-overflow-scrolling: touch;
+}
+.rbrs-modern .rbrs-table-wrap::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+.rbrs-modern .rbrs-table-wrap::-webkit-scrollbar-track {
+  background: transparent;
+}
+.rbrs-modern .rbrs-table-wrap::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 10px;
+}
+.rbrs-modern .rbrs-table-wrap::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
 }
 .rbrs-modern .rbrs-table thead th {
   background: linear-gradient(180deg, #ecfdf5 0%, #d1fae5 100%) !important;

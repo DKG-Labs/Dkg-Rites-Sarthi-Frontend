@@ -292,6 +292,55 @@ export const clearCorrectionSlipCache = (callNo) => {
   if (callNo) localStorage.removeItem(`${LS_KEY_PREFIX}${callNo}`);
 };
 
+/**
+ * Download merged original IC and all correction slips for a call number into a single PDF.
+ * If no correction slips exist, throws or calls callbacks.onNotFound.
+ */
+export const downloadMergedIcAndCorrectionSlip = async (callNo, callbacks = {}) => {
+  if (!callNo) throw new Error('Call number is required.');
+  const cleanCallNo = callNo.replace(/^:+/, '').trim();
+  const token = getToken();
+  const url = `${getEndpoint()}/download-merged-ic?callNo=${encodeURIComponent(cleanCallNo)}`;
+
+  const headers = {};
+  if (token) {
+    headers['Authorization'] = token.startsWith('Bearer ') ? token : `Bearer ${token}`;
+  }
+
+  const response = await fetch(url, { method: 'GET', headers });
+
+  if (response.status === 404 || response.status === 204) {
+    const data = await response.json().catch(() => ({}));
+    const msg = data.message || 'No correction slip has been found this call';
+    if (typeof callbacks.onNotFound === 'function') {
+      callbacks.onNotFound(msg);
+      return false;
+    }
+    throw new Error(msg);
+  }
+
+  if (!response.ok) {
+    const errData = await response.json().catch(() => ({}));
+    throw new Error(errData.error || errData.message || `Failed to download merged PDF (HTTP ${response.status})`);
+  }
+
+  const blob = await response.blob();
+  const pdfBlob = new Blob([blob], { type: 'application/pdf' });
+  const blobUrl = window.URL.createObjectURL(pdfBlob);
+
+  const safeCall = cleanCallNo.replace(/[^a-zA-Z0-9_-]/g, '_');
+  const filename = `Merged_IC_${safeCall}.pdf`;
+
+  const link = document.createElement('a');
+  link.href = blobUrl;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  setTimeout(() => window.URL.revokeObjectURL(blobUrl), 30000);
+  return true;
+};
+
 const getLocalSlips = (callNo) => {
   try {
     const raw = localStorage.getItem(`${LS_KEY_PREFIX}${callNo}`);

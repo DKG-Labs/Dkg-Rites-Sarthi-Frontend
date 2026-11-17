@@ -19,7 +19,8 @@ import {
     fetchCorrectionSlipDocuments,
     fetchCorrectionSlip,
     viewCorrectionSlipPdf,
-    downloadAllCorrectionSlips
+    downloadAllCorrectionSlips,
+    downloadMergedIcAndCorrectionSlip
 } from '../../../services/correctionSlipService';
 import { downloadOrNotifyCaseLetter, fetchSavedCaseLetterInfo, viewSavedCaseLetterPdf } from '../../../services/caseLetterService';
 
@@ -174,6 +175,7 @@ const AttendingCallDashboard = ({ mode }) => {
     const [slipStatusMap, setSlipStatusMap] = useState({});
     const [slipDocsMap, setSlipDocsMap] = useState({});
     const [slipDownloadState, setSlipDownloadState] = useState({});
+    const [mergedDownloadState, setMergedDownloadState] = useState({});
     const [sendIbsCallRow, setSendIbsCallRow] = useState(null);
     const [selectedActionCall, setSelectedActionCall] = useState(null);
     const [pdfLoading, setPdfLoading] = useState(false);
@@ -282,6 +284,41 @@ const AttendingCallDashboard = ({ mode }) => {
                     return next;
                 });
             }, 4000);
+        }
+    };
+
+    const handleDownloadMerged = async (call) => {
+        const callNo = call?.requestId || call?.call_no || call?.callNo || call?.id || '';
+        if (!callNo) {
+            showNotification('Call number not found.', 'error');
+            return;
+        }
+
+        const docs = slipDocsMap[callNo];
+        if (docs !== undefined && (!docs || docs.length === 0)) {
+            showNotification('No correction slip has been found this call', 'info');
+            return;
+        }
+
+        setMergedDownloadState(prev => ({ ...prev, [callNo]: true }));
+        try {
+            const res = await downloadMergedIcAndCorrectionSlip(callNo, {
+                onNotFound: (msg) => {
+                    showNotification(msg || 'No correction slip has been found this call', 'info');
+                }
+            });
+            if (res) {
+                showNotification('Merged IC & Correction Slips downloaded successfully!', 'success');
+            }
+        } catch (err) {
+            const msg = err.message || '';
+            if (msg.toLowerCase().includes('no correction slip')) {
+                showNotification('No correction slip has been found this call', 'info');
+            } else {
+                showNotification('Failed to download merged IC & Correction Slips: ' + msg, 'error');
+            }
+        } finally {
+            setMergedDownloadState(prev => ({ ...prev, [callNo]: false }));
         }
     };
 
@@ -2478,6 +2515,80 @@ const AttendingCallDashboard = ({ mode }) => {
                                                 );
                                             })()}
                                         </React.Fragment>
+                                    );
+                                })()}
+
+                                {/* Merged IC & Correction Slip Button (for Completed & Closed Calls) */}
+                                {(
+                                    selectedActionCall.isClosed || 
+                                    activeTab === 'closed' || 
+                                    activeTab === 'completed' || 
+                                    String(selectedActionCall.status || '').toUpperCase().includes('IBS') || 
+                                    String(selectedActionCall.latestAction || '').toUpperCase().includes('IBS') || 
+                                    String(selectedActionCall.action || '').toUpperCase().includes('IBS') ||
+                                    String(selectedActionCall.jobStatus || '').toUpperCase().includes('IBS') ||
+                                    String(selectedActionCall.status || '').toUpperCase().includes('COMPLET') ||
+                                    String(selectedActionCall.status || '').toUpperCase().includes('IC')
+                                ) && (() => {
+                                    const callNo = selectedActionCall.requestId || selectedActionCall.call_no || selectedActionCall.callNo || selectedActionCall.id || '';
+                                    const isDownloading = !!mergedDownloadState[callNo];
+
+                                    return (
+                                        <button
+                                            type="button"
+                                            disabled={isDownloading}
+                                            onClick={() => handleDownloadMerged(selectedActionCall)}
+                                            style={{
+                                                display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '8px',
+                                                padding: '16px 12px',
+                                                background: 'linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%)',
+                                                border: '1px solid #bfdbfe',
+                                                borderRadius: '14px',
+                                                cursor: isDownloading ? 'wait' : 'pointer',
+                                                opacity: isDownloading ? 0.85 : 1,
+                                                transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                                                color: '#1d4ed8',
+                                                width: '100%',
+                                                boxShadow: '0 4px 6px -1px rgba(29, 78, 216, 0.1), 0 2px 4px -1px rgba(29, 78, 216, 0.06)'
+                                            }}
+                                            onMouseEnter={(e) => { 
+                                                if (!isDownloading) {
+                                                    e.currentTarget.style.transform = 'translateY(-3px)';
+                                                    e.currentTarget.style.boxShadow = '0 10px 15px -3px rgba(29, 78, 216, 0.2), 0 4px 6px -2px rgba(29, 78, 216, 0.1)'; 
+                                                }
+                                            }}
+                                            onMouseLeave={(e) => { 
+                                                if (!isDownloading) {
+                                                    e.currentTarget.style.transform = 'translateY(0)';
+                                                    e.currentTarget.style.boxShadow = '0 4px 6px -1px rgba(29, 78, 216, 0.1), 0 2px 4px -1px rgba(29, 78, 216, 0.06)'; 
+                                                }
+                                            }}
+                                            title="Download Merged IC & Correction Slips"
+                                        >
+                                            <div style={{
+                                                width: '42px', height: '42px',
+                                                background: '#ffffff',
+                                                borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                                boxShadow: '0 2px 4px rgba(0,0,0,0.05)'
+                                            }}>
+                                                {isDownloading ? (
+                                                    <svg style={{ animation: 'spin 0.8s linear infinite' }} width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#1d4ed8" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                                        <path d="M21 12a9 9 0 1 1-6.219-8.56" />
+                                                    </svg>
+                                                ) : (
+                                                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#1d4ed8" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                                                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                                                        <polyline points="14 2 14 8 20 8" />
+                                                        <line x1="16" y1="13" x2="8" y2="13" />
+                                                        <line x1="16" y1="17" x2="8" y2="17" />
+                                                        <polyline points="10 9 9 9 8 9" />
+                                                    </svg>
+                                                )}
+                                            </div>
+                                            <span style={{ fontWeight: '700', fontSize: isDownloading ? '12px' : '14px', textAlign: 'center', lineHeight: '1.2' }}>
+                                                {isDownloading ? 'Merging...' : 'IC & Correction Slips'}
+                                            </span>
+                                        </button>
                                     );
                                 })()}
 

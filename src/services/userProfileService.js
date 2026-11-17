@@ -69,6 +69,23 @@ export const changePassword = async (passwordData) => {
     }
 };
 
+// Step 1 of password change: backend checks the passwords, then SMSes an OTP.
+// Returns { transactionId, noticeMessage }.
+export const requestChangePasswordOtp = async (passwordData) => {
+    try {
+        const response = await fetch(`${API_ENDPOINTS.PROFILE}/change-password/request-otp`, {
+            method: 'POST',
+            headers: getAuthHeaders(),
+            body: JSON.stringify(passwordData),
+        });
+        const data = await handleResponse(response);
+        return data.responseData;
+    } catch (error) {
+        console.error('Error requesting password change OTP:', error);
+        throw error;
+    }
+};
+
 export const updateSecuritySettings = async (securityData) => {
     try {
         const response = await fetch(`${API_ENDPOINTS.PROFILE}/security-settings`, {

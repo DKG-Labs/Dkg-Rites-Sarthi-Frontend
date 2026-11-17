@@ -363,7 +363,17 @@ export const AdminDashboard = () => {
                 }
 
                 if (role === 'Process IE') {
+                    // When editing, send the id of the mapping row ("proc_<id>") so the backend updates it
+                    // instead of inserting a new row next to the old one.
+                    let existingProcId = null;
+                    if (selectedItem && selectedItem.id) {
+                        const idStr = String(selectedItem.id);
+                        if (idStr.startsWith('proc_')) {
+                            existingProcId = parseInt(idStr.substring(5), 10) || null;
+                        }
+                    }
                     const processData = {
+                        id: existingProcId,
                         iePoiMappings: mappingData.iePoiMappings.map(item => ({
                             ieUserId: item.ieUserId,
                             poiCodes: [item.poiCode]

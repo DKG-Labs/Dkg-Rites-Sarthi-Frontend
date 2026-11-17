@@ -954,7 +954,7 @@ const RailwayBoardDashboard = () => {
                                 </button>
                             </div>
                         </div>
-                    ) : activeMainCard !== 'udm' && (
+                    ) : activeMainCard !== 'udm' && activeMainCard !== 'active-login' && (
                         <div className="sub-tabs" style={{ padding: '0 24px', marginTop: '16px', marginBottom: '4px', display: 'flex', justifyContent: 'flex-end', alignItems: 'center' }}>
                             <button
                                 onClick={handleDownloadDashboardPdf}

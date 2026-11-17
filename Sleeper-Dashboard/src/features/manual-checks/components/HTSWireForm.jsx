@@ -76,7 +76,8 @@ const drawingOptions = {
         "RT-8978",
         "RT-4149",
         "RT-8838",
-        "RT-4852"
+        "RT-4852",
+        "RT-8326"
     ]
 };
 
@@ -240,7 +241,7 @@ const HTSWireForm = ({ onSave, onCancel, isLongLine, existingEntries = [], initi
     // Auto Overall Status calculation
     useEffect(() => {
         const rules = SLEEPER_RULES[formData.sleeperType] || { wires: '10/16/18/20/24/27', diaMin: 2.87, diaMax: 3.03 };
-        
+
         const { noOfWires, wireDia, layLength, observedWeight, arrangement } = formData;
 
         // If mandatory measurement fields and arrangement are empty, keep status as '--'
@@ -268,7 +269,7 @@ const HTSWireForm = ({ onSave, onCancel, isLongLine, existingEntries = [], initi
         // 1. 'Not OK' if any filled field is incorrect OR arrangement is 'Not OK'
         // 2. 'OK' if arrangement is 'OK' (assuming dimensions are either correct or not yet filled)
         // 3. '--' otherwise (blank initial state)
-        
+
         let calculatedStatus = '--';
         if (!isWiresOk || !isDiaOk || !isLayLenOk || isArrangementFailed) {
             calculatedStatus = 'Not OK';
@@ -279,8 +280,8 @@ const HTSWireForm = ({ onSave, onCancel, isLongLine, existingEntries = [], initi
         }
 
         if (formData.status !== calculatedStatus) {
-            setFormData(prev => ({ 
-                ...prev, 
+            setFormData(prev => ({
+                ...prev,
                 status: calculatedStatus
             }));
         }
@@ -289,7 +290,7 @@ const HTSWireForm = ({ onSave, onCancel, isLongLine, existingEntries = [], initi
     const handleChange = (field, value) => {
         setFormData(prev => {
             const newState = { ...prev, [field]: value };
-            
+
             if (field === 'sleeperCategory') {
                 newState.sleeperType = drawingOptions[value][0] || '';
                 // Auto fill number of wires when sleeper category (and therefore type) changes
@@ -302,7 +303,7 @@ const HTSWireForm = ({ onSave, onCancel, isLongLine, existingEntries = [], initi
             if (field === 'sleeperType' && SLEEPER_RULES[value]) {
                 newState.noOfWires = SLEEPER_RULES[value].wires.toString();
             }
-            
+
             return newState;
         });
     };
@@ -645,11 +646,11 @@ const HTSWireForm = ({ onSave, onCancel, isLongLine, existingEntries = [], initi
                         <p style={{ margin: '0 0 1.5rem 0', fontSize: '0.9rem', color: '#64748b', lineHeight: '1.5' }}>
                             The following parameters must be entered before saving:
                         </p>
-                        
-                        <div style={{ 
-                            background: '#f8fafc', 
-                            borderRadius: '12px', 
-                            padding: '16px', 
+
+                        <div style={{
+                            background: '#f8fafc',
+                            borderRadius: '12px',
+                            padding: '16px',
                             marginBottom: '2rem',
                             textAlign: 'left',
                             border: '1px solid #f1f5f9'

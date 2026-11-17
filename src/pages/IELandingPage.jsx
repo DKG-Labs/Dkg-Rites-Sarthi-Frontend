@@ -26,6 +26,12 @@ import { useInspection } from '../context/InspectionContext';
 const IELandingPage = ({ onStartInspection, onStartMultipleInspections, setSelectedCall, setContextSelectedCalls, setCurrentPage, initialTab = 'pending', setInspectionShift, setInspectionDate, setProcessShift }) => {
   const { completedCallsCache, setCompletedCallsCache } = useInspection();
 
+  // Pure white background only while this page is shown
+  useEffect(() => {
+    document.body.classList.add('ie-landing-white');
+    return () => document.body.classList.remove('ie-landing-white');
+  }, []);
+
   // Restore active tab from sessionStorage on page load, fallback to initialTab
   const [activeTab, setActiveTab] = useState(() => {
     const savedTab = sessionStorage.getItem('ie_landing_active_tab');
@@ -966,7 +972,7 @@ const IELandingPage = ({ onStartInspection, onStartMultipleInspections, setSelec
   };
 
   return (
-    <div style={{ padding: '20px 40px' }}>
+    <div style={{ padding: '20px 40px', background: '#ffffff', minHeight: '100%' }}>
       {/* In-app Notification */}
       <Notification
         message={notification.message}

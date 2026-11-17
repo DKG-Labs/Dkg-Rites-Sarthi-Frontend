@@ -1,5 +1,8 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { getActiveLogins, fetchSelfieBlob, getNearestPlant } from '../../services/activeLoginService';
+import * as XLSX from 'xlsx';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
+import { getActiveLogins, getAllActiveLogins, fetchSelfieBlob, getNearestPlant } from '../../services/activeLoginService';
 
 // Fires fetchFn for each item but keeps at most `limit` in-flight at once
 async function throttledFetch(items, limit, fetchFn) {
@@ -67,6 +70,8 @@ export default function ActiveLoginDashboard() {
     const [modalData, setModalData] = useState(null);       // full modal { userName, data }
     // map: userId -> { loading, np: NearestPlantDto|null, error }
     const [plantMap, setPlantMap] = useState({});
+    const [exportingExcel, setExportingExcel] = useState(false);
+    const [exportingPdf, setExportingPdf] = useState(false);
 
 
     const load = useCallback(() => {
@@ -151,24 +156,250 @@ export default function ActiveLoginDashboard() {
     const from = total === 0 ? 0 : page * size + 1;
     const to = Math.min((page + 1) * size, total);
 
+    const enrichWithPlants = async (records) => {
+        const currentPlantMap = { ...plantMap };
+        const needFetch = records.filter(r => r.latitude != null && r.userId != null && !currentPlantMap[String(r.userId)]?.np);
+        if (needFetch.length > 0) {
+            await throttledFetch(needFetch, 10, async r => {
+                const uid = String(r.userId);
+                try {
+                    const d = await getNearestPlant(uid);
+                    const rd = d.responseData || d.data || d;
+                    currentPlantMap[uid] = { loading: false, np: rd?.nearestPlant || null, data: rd };
+                } catch {
+                    currentPlantMap[uid] = { loading: false, np: null };
+                }
+            });
+            setPlantMap(currentPlantMap);
+        }
+        return records.map(r => {
+            const uid = String(r.userId);
+            const pm = currentPlantMap[uid];
+            return {
+                ...r,
+                nearestPlant: pm?.np || null
+            };
+        });
+    };
+
+    const handleExportExcel = async () => {
+        setExportingExcel(true);
+        try {
+            const allLogins = await getAllActiveLogins({ search: query });
+            if (!allLogins || allLogins.length === 0) {
+                alert('No active logins found to export.');
+                return;
+            }
+            const enriched = await enrichWithPlants(allLogins);
+
+            const exportData = enriched.map((r, i) => {
+                const np = r.nearestPlant;
+                return {
+                    'S.No': i + 1,
+                    'Name': r.userName || '—',
+                    'Status': r.status || 'AUTHENTICATED',
+                    'Login Time': fmtDateTime(r.verifiedAt),
+                    'Latitude': r.latitude != null ? r.latitude : '—',
+                    'Longitude': r.longitude != null ? r.longitude : '—',
+                    'Plant Type': np?.type || '—',
+                    'Nearest Plant': np ? (np.plantName || np.plantId || '—') : (r.latitude != null ? 'No plant mapped' : '—'),
+                    'Distance (m)': np?.distanceMeters != null ? np.distanceMeters : '—',
+                    'Company': np?.companyName || '—',
+                    'Plant Address': np?.address || '—',
+                    'Selfie': r.hasSelfie ? 'Available' : 'No',
+                    'Device Info': r.deviceInfo || '—',
+                    'IP Address': r.ipAddress || '—',
+                };
+            });
+
+            const ws = XLSX.utils.json_to_sheet(exportData);
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, 'Active Logins');
+
+            // Auto-size columns
+            const colWidths = Object.keys(exportData[0] || {}).map(key => {
+                const maxLen = Math.max(
+                    ...exportData.map(row => String(row[key] ?? '').length),
+                    key.length
+                );
+                return { wch: Math.min(Math.max(maxLen + 2, 10), 45) };
+            });
+            ws['!cols'] = colWidths;
+
+            const dateStr = new Date().toISOString().slice(0, 10);
+            XLSX.writeFile(wb, `Active_Logins_${dateStr}.xlsx`);
+        } catch (err) {
+            console.error('Failed to export Excel:', err);
+            alert('Failed to export Excel: ' + (err.message || 'Unknown error'));
+        } finally {
+            setExportingExcel(false);
+        }
+    };
+
+    const handleExportPdf = async () => {
+        setExportingPdf(true);
+        try {
+            const allLogins = await getAllActiveLogins({ search: query });
+            if (!allLogins || allLogins.length === 0) {
+                alert('No active logins found to export.');
+                return;
+            }
+            const enriched = await enrichWithPlants(allLogins);
+
+            const doc = new jsPDF({ orientation: 'landscape', unit: 'pt', format: 'a4' });
+
+            // Title
+            doc.setFontSize(14);
+            doc.setFont('helvetica', 'bold');
+            doc.setTextColor(22, 101, 52); // #166534
+            doc.text('SARTHI - Active Login Details', 30, 32);
+
+            // Subtitle
+            doc.setFontSize(9);
+            doc.setFont('helvetica', 'normal');
+            doc.setTextColor(100, 116, 139);
+            const genDate = new Date().toLocaleString('en-IN', {
+                timeZone: 'Asia/Kolkata',
+                day: '2-digit', month: 'short', year: 'numeric',
+                hour: '2-digit', minute: '2-digit'
+            });
+            const subtitle = `Generated on: ${genDate} IST  |  Total Active Users: ${enriched.length}${query ? `  |  Filter: "${query}"` : ''}`;
+            doc.text(subtitle, 30, 46);
+
+            const tableHead = [[
+                '#', 'Name', 'Status', 'Login Time', 'Latitude', 'Longitude', 'Nearest Plant / Unit', 'Distance', 'Selfie'
+            ]];
+
+            const tableBody = enriched.map((r, i) => {
+                const np = r.nearestPlant;
+                const plantText = np ? (np.plantName || np.plantId || '—') : (r.latitude != null ? 'No plant mapped' : '—');
+                const plantDisplay = np?.type ? `[${np.type}] ${plantText}` : plantText;
+                const distDisplay = np?.distanceMeters != null ? `${np.distanceMeters} m` : '—';
+                return [
+                    i + 1,
+                    r.userName || '—',
+                    r.status || 'AUTHENTICATED',
+                    fmtDateTime(r.verifiedAt),
+                    r.latitude != null ? String(r.latitude) : '—',
+                    r.longitude != null ? String(r.longitude) : '—',
+                    plantDisplay,
+                    distDisplay,
+                    r.hasSelfie ? 'Yes' : 'No'
+                ];
+            });
+
+            const runAutoTable = typeof autoTable === 'function' ? autoTable : autoTable.default;
+            runAutoTable(doc, {
+                startY: 58,
+                head: tableHead,
+                body: tableBody,
+                styles: { fontSize: 8, cellPadding: 5, valign: 'middle' },
+                headStyles: { fillColor: [22, 101, 52], textColor: 255, fontStyle: 'bold' },
+                alternateRowStyles: { fillColor: [248, 250, 252] },
+                columnStyles: {
+                    0: { cellWidth: 26, halign: 'center' },
+                    1: { cellWidth: 110, fontStyle: 'bold' },
+                    2: { cellWidth: 70, halign: 'center' },
+                    3: { cellWidth: 95 },
+                    4: { cellWidth: 55 },
+                    5: { cellWidth: 55 },
+                    6: { cellWidth: 240 },
+                    7: { cellWidth: 55, halign: 'right' },
+                    8: { cellWidth: 40, halign: 'center' },
+                }
+            });
+
+            // Add page numbers
+            const pageCount = doc.internal.getNumberOfPages();
+            for (let i = 1; i <= pageCount; i++) {
+                doc.setPage(i);
+                doc.setFontSize(8);
+                doc.setTextColor(150);
+                doc.text(
+                    `Page ${i} of ${pageCount}`,
+                    doc.internal.pageSize.getWidth() - 70,
+                    doc.internal.pageSize.getHeight() - 15
+                );
+            }
+
+            const dateStr = new Date().toISOString().slice(0, 10);
+            doc.save(`Active_Logins_${dateStr}.pdf`);
+        } catch (err) {
+            console.error('Failed to export PDF:', err);
+            alert('Failed to export PDF: ' + (err.message || 'Unknown error'));
+        } finally {
+            setExportingPdf(false);
+        }
+    };
+
     return (
         <div style={{ padding: '24px' }}>
             <style>{SKELETON_CSS}</style>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', gap: '12px', flexWrap: 'wrap' }}>
-                <h2 style={{ margin: 0, fontSize: '20px' }}>
+                <h2 style={{ margin: 0, fontSize: '20px', display: 'flex', alignItems: 'center' }}>
                     <i className="fa-solid fa-id-card" style={{ marginRight: '8px' }}></i>
                     Active Login ({total})
                 </h2>
-                <div style={{ display: 'flex', gap: '8px' }}>
+                <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
                     <input
                         placeholder="Search name…"
                         value={search}
                         onChange={e => setSearch(e.target.value)}
-                        style={{ padding: '8px 12px', border: '1px solid #d1d5db', borderRadius: '8px', minWidth: '260px' }}
+                        style={{ padding: '8px 12px', border: '1px solid #d1d5db', borderRadius: '8px', minWidth: '220px', height: '36px', boxSizing: 'border-box' }}
                     />
-                    <button className="sub-tab-btn active" onClick={load} disabled={loading}>
+                    <button className="sub-tab-btn active" onClick={load} disabled={loading} style={{ margin: 0, padding: '0 16px', height: '36px', display: 'inline-flex', alignItems: 'center' }}>
                         <i className={`fa-solid fa-rotate${loading ? ' fa-spin' : ''}`} style={{ marginRight: '6px' }}></i>
                         {loading ? 'Loading…' : 'Refresh'}
+                    </button>
+                    <button
+                        onClick={handleExportExcel}
+                        disabled={exportingExcel || exportingPdf || total === 0}
+                        style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '6px',
+                            height: '36px',
+                            padding: '0 14px',
+                            backgroundColor: '#16a34a',
+                            color: '#ffffff',
+                            border: 'none',
+                            borderRadius: '8px',
+                            fontWeight: '600',
+                            fontSize: '13px',
+                            cursor: (exportingExcel || exportingPdf || total === 0) ? 'not-allowed' : 'pointer',
+                            opacity: (exportingExcel || exportingPdf || total === 0) ? 0.65 : 1,
+                            boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
+                            transition: 'all 0.15s ease'
+                        }}
+                        title="Download all active login details in Excel"
+                    >
+                        <i className={`fa-solid ${exportingExcel ? 'fa-spinner fa-spin' : 'fa-file-excel'}`}></i>
+                        {exportingExcel ? 'Exporting…' : 'Download Excel'}
+                    </button>
+                    <button
+                        onClick={handleExportPdf}
+                        disabled={exportingExcel || exportingPdf || total === 0}
+                        style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '6px',
+                            height: '36px',
+                            padding: '0 14px',
+                            backgroundColor: '#dc2626',
+                            color: '#ffffff',
+                            border: 'none',
+                            borderRadius: '8px',
+                            fontWeight: '600',
+                            fontSize: '13px',
+                            cursor: (exportingExcel || exportingPdf || total === 0) ? 'not-allowed' : 'pointer',
+                            opacity: (exportingExcel || exportingPdf || total === 0) ? 0.65 : 1,
+                            boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
+                            transition: 'all 0.15s ease'
+                        }}
+                        title="Download all active login details in PDF"
+                    >
+                        <i className={`fa-solid ${exportingPdf ? 'fa-spinner fa-spin' : 'fa-file-pdf'}`}></i>
+                        {exportingPdf ? 'Generating…' : 'Download PDF'}
                     </button>
                 </div>
             </div>

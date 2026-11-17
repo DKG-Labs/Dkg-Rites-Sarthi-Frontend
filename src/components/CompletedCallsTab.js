@@ -27,6 +27,7 @@ import PictureAsPdfRoundedIcon from '@mui/icons-material/PictureAsPdfRounded';
 import AssignmentReturnRoundedIcon from '@mui/icons-material/AssignmentReturnRounded';
 import { fetchSavedCaseLetterInfo } from '../services/caseLetterService';
 import { RailpadProcessAnnexureAModal } from './annexures/RailpadProcessAnnexureA';
+import { downloadMergedIcAndCorrectionSlip } from '../services/correctionSlipService';
 
 
 const CompletedCallsTab = ({ setSelectedCall, setCurrentPage, onCallSentToIbs }) => {
@@ -61,6 +62,41 @@ const CompletedCallsTab = ({ setSelectedCall, setCurrentPage, onCallSentToIbs })
   const [tcPdfLoading, setTcPdfLoading] = useState(false);
   const [showAnnexureAModal, setShowAnnexureAModal] = useState(false);
   const [annexureACall, setAnnexureACall] = useState(null);
+  const [mergedDownloadState, setMergedDownloadState] = useState({});
+
+  const handleDownloadMerged = async (call) => {
+    const callNo = call?.call_no || call?.callNumber || call?.requestId || '';
+    if (!callNo) {
+      setNotificationMessage('Call number not found.');
+      setNotificationType('error');
+      return;
+    }
+
+    setMergedDownloadState(prev => ({ ...prev, [callNo]: true }));
+    try {
+      const res = await downloadMergedIcAndCorrectionSlip(callNo, {
+        onNotFound: (msg) => {
+          setNotificationMessage(msg || 'No correction slip has been found this call');
+          setNotificationType('info');
+        }
+      });
+      if (res) {
+        setNotificationMessage('Merged IC & Correction Slips downloaded successfully!');
+        setNotificationType('success');
+      }
+    } catch (err) {
+      const msg = err.message || '';
+      if (msg.toLowerCase().includes('no correction slip')) {
+        setNotificationMessage('No correction slip has been found this call');
+        setNotificationType('info');
+      } else {
+        setNotificationMessage('Failed to download merged IC & Correction Slips: ' + msg);
+        setNotificationType('error');
+      }
+    } finally {
+      setMergedDownloadState(prev => ({ ...prev, [callNo]: false }));
+    }
+  };
 
   const hasFetchedRef = useRef(false);
 
@@ -641,6 +677,64 @@ const CompletedCallsTab = ({ setSelectedCall, setCurrentPage, onCallSentToIbs })
                   </div>
                   <span style={{ fontWeight: '700', fontSize: '15px' }}>View IC</span>
                 </button>
+
+                {/* 1b. IC & Correction Slips */}
+                {(() => {
+                  const currentCallNo = selectedActionCall?.call_no || selectedActionCall?.callNumber || selectedActionCall?.requestId || '';
+                  const isDownloading = !!mergedDownloadState[currentCallNo];
+
+                  return (
+                    <button
+                      type="button"
+                      disabled={isDownloading}
+                      onClick={() => handleDownloadMerged(selectedActionCall)}
+                      style={{
+                        display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '12px',
+                        padding: '24px 16px',
+                        background: 'linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%)',
+                        border: '1px solid #bfdbfe',
+                        borderRadius: '16px',
+                        cursor: isDownloading ? 'wait' : 'pointer',
+                        opacity: isDownloading ? 0.85 : 1,
+                        transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                        color: '#1d4ed8',
+                        width: '100%',
+                        boxShadow: '0 4px 6px -1px rgba(29, 78, 216, 0.1), 0 2px 4px -1px rgba(29, 78, 216, 0.06)'
+                      }}
+                      onMouseEnter={(e) => {
+                        if (!isDownloading) {
+                          e.currentTarget.style.transform = 'translateY(-4px)';
+                          e.currentTarget.style.boxShadow = '0 10px 15px -3px rgba(29, 78, 216, 0.2), 0 4px 6px -2px rgba(29, 78, 216, 0.1)';
+                        }
+                      }}
+                      onMouseLeave={(e) => {
+                        if (!isDownloading) {
+                          e.currentTarget.style.transform = 'translateY(0)';
+                          e.currentTarget.style.boxShadow = '0 4px 6px -1px rgba(29, 78, 216, 0.1), 0 2px 4px -1px rgba(29, 78, 216, 0.06)';
+                        }
+                      }}
+                      title="Download Merged IC & Correction Slips"
+                    >
+                      <div style={{
+                        width: '48px', height: '48px',
+                        background: '#ffffff',
+                        borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        boxShadow: '0 2px 4px rgba(0,0,0,0.05)'
+                      }}>
+                        {isDownloading ? (
+                          <svg style={{ animation: 'spin 0.8s linear infinite' }} width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#1d4ed8" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M21 12a9 9 0 1 1-6.219-8.56" />
+                          </svg>
+                        ) : (
+                          <PictureAsPdfRoundedIcon style={{ fontSize: '26px', color: '#1d4ed8' }} />
+                        )}
+                      </div>
+                      <span style={{ fontWeight: '700', fontSize: isDownloading ? '13px' : '15px', textAlign: 'center', lineHeight: '1.2' }}>
+                        {isDownloading ? 'Merging & Downloading...' : 'IC & Correction Slips'}
+                      </span>
+                    </button>
+                  );
+                })()}
 
                 {/* 2. Annexures */}
                 <button

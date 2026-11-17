@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import DataTable from './DataTable';
 import StatusBadge from './StatusBadge';
 import Notification from './Notification';
@@ -131,6 +131,90 @@ const getNormalizedCallType = (call) => {
   if (callNo.startsWith('EP-') || callNo.startsWith('EP_')) return 'Process';
   if (callNo.startsWith('EF-') || callNo.startsWith('EF_')) return 'Final';
   return '';
+};
+
+// Line icons for the filter popup (replace the emoji icons)
+const FILTER_ICON_PATHS = {
+  search: <><circle cx="11" cy="11" r="7" /><line x1="21" y1="21" x2="16.65" y2="16.65" /></>,
+  box: <><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" /><polyline points="3.27 6.96 12 12.01 20.73 6.96" /><line x1="12" y1="22.08" x2="12" y2="12" /></>,
+  building: <><rect x="4" y="2" width="16" height="20" rx="2" /><line x1="9" y1="6" x2="9" y2="6.01" /><line x1="15" y1="6" x2="15" y2="6.01" /><line x1="9" y1="10" x2="9" y2="10.01" /><line x1="15" y1="10" x2="15" y2="10.01" /><line x1="9" y1="14" x2="9" y2="14.01" /><line x1="15" y1="14" x2="15" y2="14.01" /><path d="M10 22v-4h4v4" /></>,
+  layers: <><polygon points="12 2 2 7 12 12 22 7 12 2" /><polyline points="2 17 12 22 22 17" /><polyline points="2 12 12 17 22 12" /></>,
+  phone: <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.13.96.36 1.9.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.91.34 1.85.57 2.81.7A2 2 0 0 1 22 16.92z" />,
+  file: <><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" /><line x1="8" y1="13" x2="16" y2="13" /><line x1="8" y1="17" x2="13" y2="17" /></>,
+  calendar: <><rect x="3" y="4" width="18" height="18" rx="2" /><line x1="16" y1="2" x2="16" y2="6" /><line x1="8" y1="2" x2="8" y2="6" /><line x1="3" y1="10" x2="21" y2="10" /></>
+};
+const FIcon = ({ name, size = 18 }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ display: 'block' }}>
+    {FILTER_ICON_PATHS[name]}
+  </svg>
+);
+
+// Styled replacement for the native <select> (its option list can't be styled by the browser)
+const CALL_TYPE_OPTIONS = [
+  { value: '', label: 'All Call Types' },
+  { value: 'Raw Material', label: 'Raw Material' },
+  { value: 'Process', label: 'Process' },
+  { value: 'Final', label: 'Final' }
+];
+
+const CallTypeSelect = ({ value, onChange }) => {
+  const [open, setOpen] = useState(false);
+  const ref = useRef(null);
+
+  useEffect(() => {
+    if (!open) return undefined;
+    const close = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
+    const onKey = (e) => { if (e.key === 'Escape') setOpen(false); };
+    document.addEventListener('mousedown', close);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('mousedown', close);
+      document.removeEventListener('keydown', onKey);
+    };
+  }, [open]);
+
+  const current = CALL_TYPE_OPTIONS.find(o => o.value === (value || '')) || CALL_TYPE_OPTIONS[0];
+
+  return (
+    <div ref={ref} className="ct-select">
+      <button
+        type="button"
+        aria-label="Filter by Type of Call"
+        aria-haspopup="listbox"
+        aria-expanded={open}
+        className={`ct-select-trigger ${open ? 'open' : ''}`}
+        onClick={() => setOpen(o => !o)}
+      >
+        <span>{current.label}</span>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="ct-select-chevron">
+          <polyline points="6 9 12 15 18 9"></polyline>
+        </svg>
+      </button>
+      {open && (
+        <ul role="listbox" className="ct-select-menu">
+          {CALL_TYPE_OPTIONS.map(o => {
+            const selected = o.value === (value || '');
+            return (
+              <li
+                key={o.label}
+                role="option"
+                aria-selected={selected}
+                className={`ct-select-option ${selected ? 'selected' : ''}`}
+                onClick={() => { onChange(o.value); setOpen(false); }}
+              >
+                <span>{o.label}</span>
+                {selected && (
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                    <polyline points="20 6 9 17 4 12"></polyline>
+                  </svg>
+                )}
+              </li>
+            );
+          })}
+        </ul>
+      )}
+    </div>
+  );
 };
 
 const PendingCallsTab = ({ calls, onSchedule, onReschedule, onStart, onBulkSchedule, onBulkStart, onEnterShiftDetails, isLoading = false, selectionResetKey = 0 }) => {
@@ -525,27 +609,15 @@ const PendingCallsTab = ({ calls, onSchedule, onReschedule, onStart, onBulkSched
           <div style={{ display: 'flex', alignItems: 'center', gap: '16px', flex: 1 }}>
             <button
               onClick={() => setShowFilters(!showFilters)}
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '8px',
-                minHeight: '40px',
-                padding: '0 16px',
-                backgroundColor: showFilters ? '#3b5a82' : '#476b9b', // matching the blue color from screenshot
-                color: 'white',
-                border: 'none',
-                borderRadius: '6px',
-                cursor: 'pointer',
-                fontWeight: '500',
-                boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
-                transition: 'background-color 0.2s'
-              }}
+              className={`pcf-toggle-btn ${showFilters ? 'open' : ''}`}
             >
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                 <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon>
               </svg>
               <span>Show Filters</span>
-              <span style={{ transform: showFilters ? 'rotate(180deg)' : 'none', transition: 'transform 0.3s ease', fontSize: '12px' }}>▼</span>
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" style={{ transform: showFilters ? 'rotate(180deg)' : 'none', transition: 'transform 0.3s ease' }}>
+                <polyline points="6 9 12 15 18 9"></polyline>
+              </svg>
             </button>
 
             {/* Global Search Bar */}
@@ -576,33 +648,13 @@ const PendingCallsTab = ({ calls, onSchedule, onReschedule, onStart, onBulkSched
 
             {/* Type of Call Dropdown Filter */}
             <div style={{ minWidth: '170px' }}>
-              <select
-                aria-label="Filter by Type of Call"
+              <CallTypeSelect
                 value={filters.callType || ''}
-                onChange={(e) => {
-                  handleFilterChange('callType', e.target.value);
+                onChange={(v) => {
+                  handleFilterChange('callType', v);
                   setSelectedRows([]);
                 }}
-                style={{
-                  width: '100%',
-                  height: '40px',
-                  padding: '8px 12px',
-                  borderRadius: '8px',
-                  border: '1px solid #e2e8f0',
-                  fontSize: '14px',
-                  background: '#fff',
-                  color: '#1e293b',
-                  fontWeight: '500',
-                  outline: 'none',
-                  cursor: 'pointer',
-                  boxShadow: '0 1px 2px rgba(0,0,0,0.05)'
-                }}
-              >
-                <option value="">All Call Types</option>
-                <option value="Raw Material">Raw Material</option>
-                <option value="Process">Process</option>
-                <option value="Final">Final</option>
-              </select>
+              />
             </div>
           </div>
           <div style={{ fontSize: 'var(--font-size-sm)', color: 'var(--color-text-secondary)' }}>
@@ -614,7 +666,7 @@ const PendingCallsTab = ({ calls, onSchedule, onReschedule, onStart, onBulkSched
       {showFilters && (
         <>
           {/* Backdrop overlay */}
-          <div
+          <div className="pending-calls-filter-backdrop"
             style={{
               position: 'fixed',
               top: 0,
@@ -691,7 +743,7 @@ const PendingCallsTab = ({ calls, onSchedule, onReschedule, onStart, onBulkSched
                   transform: 'translateY(-50%)',
                   color: '#9ca3af',
                   fontSize: '18px'
-                }}>🔍</span>
+                }}><FIcon name="search" /></span>
                 <input
                   type="search"
                   placeholder="Search across filters..."
@@ -735,9 +787,9 @@ const PendingCallsTab = ({ calls, onSchedule, onReschedule, onStart, onBulkSched
                       cursor: 'pointer',
                       fontSize: '13px',
                       fontWeight: selectedCategory === cat ? '600' : '400',
-                      color: selectedCategory === cat ? '#16a34a' : '#4b5563',
-                      backgroundColor: selectedCategory === cat ? '#f0fdf4' : 'transparent',
-                      borderLeft: selectedCategory === cat ? '3px solid #16a34a' : '3px solid transparent',
+                      color: selectedCategory === cat ? '#0d9488' : '#4b5563',
+                      backgroundColor: selectedCategory === cat ? '#f0fdfa' : 'transparent',
+                      borderLeft: selectedCategory === cat ? '3px solid #0d9488' : '3px solid transparent',
                       transition: 'all 0.2s',
                       minHeight: '44px',
                       display: 'flex',
@@ -820,7 +872,7 @@ const PendingCallsTab = ({ calls, onSchedule, onReschedule, onStart, onBulkSched
                             alignItems: 'center',
                             justifyContent: 'center',
                             fontSize: '18px'
-                          }}>📦</div>
+                          }} className="pcf-opt-icon"><FIcon name="box" /></div>
                           <div style={{ flex: 1 }}>
                             <div style={{
                               fontSize: '14px',
@@ -836,7 +888,7 @@ const PendingCallsTab = ({ calls, onSchedule, onReschedule, onStart, onBulkSched
                               width: '20px',
                               height: '20px',
                               cursor: 'pointer',
-                              accentColor: '#16a34a'
+                              accentColor: '#0d9488'
                             }}
                           />
                         </label>
@@ -879,7 +931,7 @@ const PendingCallsTab = ({ calls, onSchedule, onReschedule, onStart, onBulkSched
                               alignItems: 'center',
                               justifyContent: 'center',
                               fontSize: '18px'
-                            }}>🏢</div>
+                            }} className="pcf-opt-icon"><FIcon name="building" /></div>
                             <div style={{ flex: 1 }}>
                               <div style={{
                                 fontSize: '14px',
@@ -895,7 +947,7 @@ const PendingCallsTab = ({ calls, onSchedule, onReschedule, onStart, onBulkSched
                                 width: '20px',
                                 height: '20px',
                                 cursor: 'pointer',
-                                accentColor: '#16a34a'
+                                accentColor: '#0d9488'
                               }}
                             />
                           </label>
@@ -939,7 +991,7 @@ const PendingCallsTab = ({ calls, onSchedule, onReschedule, onStart, onBulkSched
                               alignItems: 'center',
                               justifyContent: 'center',
                               fontSize: '18px'
-                            }}>⚙️</div>
+                            }} className="pcf-opt-icon"><FIcon name="layers" /></div>
                             <div style={{ flex: 1 }}>
                               <div style={{
                                 fontSize: '14px',
@@ -955,7 +1007,7 @@ const PendingCallsTab = ({ calls, onSchedule, onReschedule, onStart, onBulkSched
                                 width: '20px',
                                 height: '20px',
                                 cursor: 'pointer',
-                                accentColor: '#16a34a'
+                                accentColor: '#0d9488'
                               }}
                             />
                           </label>
@@ -998,7 +1050,7 @@ const PendingCallsTab = ({ calls, onSchedule, onReschedule, onStart, onBulkSched
                               alignItems: 'center',
                               justifyContent: 'center',
                               fontSize: '18px'
-                            }}>📞</div>
+                            }} className="pcf-opt-icon"><FIcon name="phone" /></div>
                             <div style={{ flex: 1 }}>
                               <div style={{
                                 fontSize: '14px',
@@ -1014,7 +1066,7 @@ const PendingCallsTab = ({ calls, onSchedule, onReschedule, onStart, onBulkSched
                                 width: '20px',
                                 height: '20px',
                                 cursor: 'pointer',
-                                accentColor: '#16a34a'
+                                accentColor: '#0d9488'
                               }}
                             />
                           </label>
@@ -1057,7 +1109,7 @@ const PendingCallsTab = ({ calls, onSchedule, onReschedule, onStart, onBulkSched
                               alignItems: 'center',
                               justifyContent: 'center',
                               fontSize: '18px'
-                            }}>📄</div>
+                            }} className="pcf-opt-icon"><FIcon name="file" /></div>
                             <div style={{ flex: 1 }}>
                               <div style={{
                                 fontSize: '14px',
@@ -1073,7 +1125,7 @@ const PendingCallsTab = ({ calls, onSchedule, onReschedule, onStart, onBulkSched
                                 width: '20px',
                                 height: '20px',
                                 cursor: 'pointer',
-                                accentColor: '#16a34a'
+                                accentColor: '#0d9488'
                               }}
                             />
                           </label>
@@ -1098,7 +1150,7 @@ const PendingCallsTab = ({ calls, onSchedule, onReschedule, onStart, onBulkSched
                         <span style={{
                           fontSize: '18px',
                           marginRight: '8px'
-                        }}>📅</span>
+                        }}><FIcon name="calendar" size={16} /></span>
                         From Date
                       </label>
                       <input
@@ -1114,7 +1166,7 @@ const PendingCallsTab = ({ calls, onSchedule, onReschedule, onStart, onBulkSched
                           outline: 'none',
                           transition: 'border-color 0.2s'
                         }}
-                        onFocus={(e) => e.target.style.borderColor = '#16a34a'}
+                        onFocus={(e) => e.target.style.borderColor = '#0d9488'}
                         onBlur={(e) => e.target.style.borderColor = '#e5e7eb'}
                       />
                     </div>
@@ -1132,7 +1184,7 @@ const PendingCallsTab = ({ calls, onSchedule, onReschedule, onStart, onBulkSched
                         <span style={{
                           fontSize: '18px',
                           marginRight: '8px'
-                        }}>📅</span>
+                        }}><FIcon name="calendar" size={16} /></span>
                         To Date
                       </label>
                       <input
@@ -1148,7 +1200,7 @@ const PendingCallsTab = ({ calls, onSchedule, onReschedule, onStart, onBulkSched
                           outline: 'none',
                           transition: 'border-color 0.2s'
                         }}
-                        onFocus={(e) => e.target.style.borderColor = '#16a34a'}
+                        onFocus={(e) => e.target.style.borderColor = '#0d9488'}
                         onBlur={(e) => e.target.style.borderColor = '#e5e7eb'}
                       />
                     </div>
@@ -1205,7 +1257,7 @@ const PendingCallsTab = ({ calls, onSchedule, onReschedule, onStart, onBulkSched
               >
                 Clear Filter
               </button>
-              <button
+              <button className="pcf-apply-btn"
                 onClick={() => {
                   setShowFilters(false);
                 }}
@@ -1217,12 +1269,12 @@ const PendingCallsTab = ({ calls, onSchedule, onReschedule, onStart, onBulkSched
                   fontSize: '14px',
                   fontWeight: '500',
                   color: 'white',
-                  backgroundColor: '#16a34a',
+                  backgroundColor: '#0d9488',
                   cursor: 'pointer',
                   transition: 'background-color 0.2s'
                 }}
-                onMouseEnter={(e) => e.target.style.backgroundColor = '#15803d'}
-                onMouseLeave={(e) => e.target.style.backgroundColor = '#16a34a'}
+                onMouseEnter={(e) => e.target.style.backgroundColor = '#0f766e'}
+                onMouseLeave={(e) => e.target.style.backgroundColor = '#0d9488'}
               >
                 Apply
               </button>

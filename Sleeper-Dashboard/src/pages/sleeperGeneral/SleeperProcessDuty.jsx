@@ -24,9 +24,24 @@ import EpoxyTreatedSleepers from './finalInspection/EpoxyTreatedSleepers';
 import { apiService } from '../../services/api';
 import './SleeperProcessDuty.css';
 
+// Data each tab reads from ShiftContext. Steam Cube Testing, Epoxy Treated Sleepers and
+// Raw Material Inventory load their own data, so they need nothing here.
+const TAB_MODULES = {
+    'Manual Checks': ['manualChecks', 'batchWeighment'],          // forms read witnessed batches
+    'Moisture Analysis': ['moisture'],
+    'Batch Weighment': ['batchWeighment'],
+    'Wire Tensioning': ['wireTension', 'batchWeighment'],        // uses batch declarations + witnessed records
+    'Compaction of Concrete (Vibrator Report)': ['compaction', 'batchWeighment', 'wireTension'],
+    'Steam Curing': ['steamCuring', 'batchWeighment'],
+    'Mould & Bench Checking': ['benchMoulds']
+};
+// Tab cards show "N logs today" (moisture) and "N witnessed" (batch weighment) for every tab
+const CARD_MODULES = ['moisture', 'batchWeighment'];
+
 const SleeperProcessDuty = () => {
     const {
         dutyStarted,
+        ensureModulesLoaded,
         activeContainer,
         activeContainerId,
         setActiveContainerId,
@@ -92,9 +107,30 @@ const SleeperProcessDuty = () => {
     const [showMouldBenchForm, setShowMouldBenchForm] = useState(false);
     const [showMoistureForm, setShowMoistureForm] = useState(false);
 
+    // Load only what the open tab needs (plus the data behind the tab-card counts).
+    // Data already loaded and still fresh is not fetched again; see ensureModulesLoaded in ShiftContext.
+    const modulesForTab = (tab) => [...CARD_MODULES, ...(TAB_MODULES[tab] || [])];
+
     useEffect(() => {
-        loadShiftData();
-    }, []);
+        if (!dutyStarted) return;
+        ensureModulesLoaded(modulesForTab(activeTab));
+        // fetchers change identity when duty/line inputs change, so this also reloads for a new line
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [activeTab, dutyStarted, fetchManualChecks, fetchWireTension, fetchCompaction, fetchBatchWeighment, fetchSteamCuring]);
+
+    // Coming back to the browser tab: refresh the open tab's data if it has gone stale
+    useEffect(() => {
+        const onVisible = () => {
+            if (document.visibilityState === 'visible' && dutyStarted) {
+                ensureModulesLoaded(modulesForTab(activeTab));
+            }
+        };
+        document.addEventListener('visibilitychange', onVisible);
+        return () => document.removeEventListener('visibilitychange', onVisible);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [activeTab, dutyStarted, ensureModulesLoaded]);
+
+    const refreshActiveTab = () => ensureModulesLoaded(modulesForTab(activeTab), { force: true });
 
     const tabs = [
         { id: 'Manual Checks', title: 'Manual Checks', description: 'Hourly plant & quality inspection', alert: manualChecksAlert },
@@ -157,6 +193,30 @@ const SleeperProcessDuty = () => {
                         moistureRecordsCount={moistureRecords.length}
                     />
 
+                    {TAB_MODULES[activeTab] && (
+                        <div style={{ display: 'flex', justifyContent: 'flex-end', margin: '4px 0 8px' }}>
+                            <button
+                                type="button"
+                                onClick={refreshActiveTab}
+                                disabled={isLoading}
+                                title="Get the latest data from the server"
+                                style={{
+                                    display: 'inline-flex', alignItems: 'center', gap: '6px',
+                                    padding: '6px 12px', borderRadius: '8px',
+                                    border: '1px solid #e2e8f0', background: '#fff',
+                                    color: '#0f766e', fontSize: '12px', fontWeight: 700,
+                                    cursor: isLoading ? 'default' : 'pointer', opacity: isLoading ? 0.6 : 1
+                                }}
+                            >
+                                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                    <polyline points="23 4 23 10 17 10"></polyline>
+                                    <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path>
+                                </svg>
+                                Refresh
+                            </button>
+                        </div>
+                    )}
+
                     <FeatureToolbar
                         activeTab={activeTab}
                         witnessedRecordsCount={witnessedRecords.length}
@@ -203,7 +263,7 @@ const SleeperProcessDuty = () => {
                                 activeContainer={activeContainer}
                                 showForm={showWireTensionForm}
                                 setShowForm={setShowWireTensionForm}
-                                loadShiftData={loadShiftData}
+                                loadShiftData={fetchWireTension}
                             />
                         </div>
                     )}
@@ -216,7 +276,7 @@ const SleeperProcessDuty = () => {
                                 onSave={() => {
                                     setMoistureAlert(false);
                                     setShowMoistureForm(false);
-                                    loadShiftData();
+                                    fetchMoisture();
                                 }}
                                 records={moistureRecords}
                                 setRecords={setMoistureRecords}

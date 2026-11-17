@@ -134,6 +134,9 @@ const ProfileDashboard = () => {
 
     return (
         <Container maxWidth={false} className="profile-dashboard-container">
+            {/* animated background: approaching Vande Bharat + speed streaks */}
+            <div className="profile-scene" aria-hidden="true" />
+            <div className="profile-speed-lines" aria-hidden="true" />
             <Box className="profile-banner-section">
                 <Box className="profile-banner-content">
                     <Typography variant="h4" className="profile-page-title">

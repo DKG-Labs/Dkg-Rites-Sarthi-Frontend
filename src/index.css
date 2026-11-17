@@ -3879,3 +3879,269 @@ input[type="number"] {
 .pwmr-table-wrapper::-webkit-scrollbar-thumb:hover {
   background: #64748b !important;
 }
+/* IE landing page: pure white background (class toggled by IELandingPage.jsx) */
+body.ie-landing-white,
+body.ie-landing-white .main-content {
+  background-color: #ffffff !important;
+}
+
+/* ===== IE landing page: glossy look (scoped to body.ie-landing-white) ===== */
+body.ie-landing-white .tab-card {
+  position: relative;
+  overflow: hidden;
+  background: #ffffff !important;
+  border: 1px solid #e2e8f0 !important;
+  border-radius: 14px !important;
+  box-shadow: 0 1px 2px rgba(15,23,42,.04), 0 6px 16px -8px rgba(15,23,42,.12) !important;
+  transition: transform .2s ease, box-shadow .2s ease, border-color .2s ease !important;
+}
+/* keep text above the shine */
+body.ie-landing-white .tab-card > * { position: relative; z-index: 1; }
+body.ie-landing-white .tab-card .tab-card-label { color: #0f172a !important; font-weight: 600 !important; }
+body.ie-landing-white .tab-card .tab-card-desc { color: #64748b !important; }
+/* thin glass reflection line at the top edge + hover sweep */
+body.ie-landing-white .tab-card::after {
+  content: '';
+  position: absolute;
+  top: 0; left: -70%;
+  width: 45%; height: 100%;
+  background: linear-gradient(105deg, transparent, rgba(255,255,255,.55), transparent);
+  transform: skewX(-20deg);
+  pointer-events: none;
+  z-index: 2;
+  transition: left .6s ease;
+}
+body.ie-landing-white .tab-card:hover {
+  transform: translateY(-2px);
+  border-color: #99d5cf !important;
+  box-shadow: 0 12px 24px -12px rgba(13,148,136,.35) !important;
+}
+body.ie-landing-white .tab-card:hover::after { left: 130%; }
+
+/* active card: glossy teal */
+body.ie-landing-white .tab-card.active {
+  background: linear-gradient(160deg, #14b8a6 0%, #0d9488 55%, #0f766e 100%) !important;
+  border-color: #0f766e !important;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.35), 0 12px 26px -10px rgba(13,148,136,.6) !important;
+}
+body.ie-landing-white .tab-card.active .tab-card-label,
+body.ie-landing-white .tab-card.active .tab-card-desc { color: #ffffff !important; }
+body.ie-landing-white .tab-card.active .tab-card-desc { opacity: .9; }
+
+/* table card */
+body.ie-landing-white .pending-calls-table-container,
+body.ie-landing-white .data-table-wrapper {
+  background: #ffffff !important;
+  border: 1px solid #e2e8f0 !important;
+  border-radius: 14px !important;
+  box-shadow: 0 8px 24px -14px rgba(15,23,42,.18) !important;
+}
+body.ie-landing-white .data-table thead th {
+  background: #f8fafc !important;
+  color: #334155 !important;
+}
+body.ie-landing-white .data-table tbody tr:hover { background: #f0fdfa !important; }
+
+@media (prefers-reduced-motion: reduce) {
+  body.ie-landing-white .tab-card,
+  body.ie-landing-white .tab-card::after { transition: none !important; }
+  body.ie-landing-white .tab-card:hover { transform: none; }
+}
+
+/* ===== Call-type dropdown (custom, PendingCallsTab.js) ===== */
+.ct-select { position: relative; width: 100%; }
+.ct-select-trigger {
+  width: 100%; height: 40px; padding: 0 12px 0 14px;
+  display: flex; align-items: center; justify-content: space-between; gap: 8px;
+  background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+  border: 1px solid #e2e8f0; border-radius: 10px;
+  font-size: 14px; font-weight: 500; color: #1e293b; cursor: pointer;
+  box-shadow: inset 0 1px 0 #fff, 0 1px 2px rgba(15,23,42,.05);
+  transition: border-color .2s, box-shadow .2s;
+}
+.ct-select-trigger:hover { border-color: #99d5cf; }
+.ct-select-trigger.open,
+.ct-select-trigger:focus-visible {
+  outline: none; border-color: #0d9488;
+  box-shadow: 0 0 0 3px rgba(13,148,136,.15);
+}
+.ct-select-chevron { color: #64748b; transition: transform .2s; }
+.ct-select-trigger.open .ct-select-chevron { transform: rotate(180deg); color: #0d9488; }
+.ct-select-menu {
+  position: absolute; top: calc(100% + 6px); left: 0; right: 0; z-index: 50;
+  margin: 0; padding: 6px; list-style: none;
+  background: rgba(255,255,255,.96);
+  backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+  border: 1px solid #e2e8f0; border-radius: 12px;
+  box-shadow: 0 16px 36px -12px rgba(15,23,42,.25);
+  animation: ctMenuIn .16s ease-out;
+}
+.ct-select-option {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 9px 12px; border-radius: 8px;
+  font-size: 14px; color: #334155; cursor: pointer;
+  transition: background .15s, color .15s;
+}
+.ct-select-option:hover { background: #f1f5f9; color: #0f172a; }
+.ct-select-option.selected { background: #f0fdfa; color: #0f766e; font-weight: 600; }
+@keyframes ctMenuIn { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: none; } }
+
+/* ===== Filter popup (IE landing page): clean white card ===== */
+body.ie-landing-white .pending-calls-filter-backdrop {
+  background: rgba(15, 23, 42, 0.40) !important;
+  backdrop-filter: blur(3px); -webkit-backdrop-filter: blur(3px);
+}
+body.ie-landing-white .pending-calls-filter-modal {
+  border-radius: 18px !important;
+  background: #ffffff !important;
+  border: 1px solid #e2e8f0 !important;
+  box-shadow: 0 24px 60px -18px rgba(15,23,42,.40) !important;
+  overflow: hidden;
+}
+/* header: soft teal wash */
+body.ie-landing-white .pending-calls-filter-modal > div:first-child {
+  background: linear-gradient(180deg, #f0fdfa 0%, #ffffff 100%);
+  border-bottom: 1px solid #e2e8f0 !important;
+}
+body.ie-landing-white .pending-calls-filter-modal h3 { color: #0f172a !important; font-weight: 700 !important; }
+body.ie-landing-white .pending-calls-filter-modal > div { border-color: #eef2f6 !important; }
+body.ie-landing-white .pending-calls-filter-modal input[type="search"] {
+  border-radius: 10px !important;
+  background: #f8fafc !important;
+  border: 1px solid #e2e8f0 !important;
+  font-size: 14px !important;
+}
+body.ie-landing-white .pending-calls-filter-modal input[type="search"]:focus {
+  background: #ffffff !important;
+  border-color: #0d9488 !important;
+  box-shadow: 0 0 0 3px rgba(13,148,136,.15);
+}
+body.ie-landing-white .pending-calls-filter-modal-sidebar {
+  background: #f8fafc !important;
+  border-right: 1px solid #eef2f6 !important;
+  padding: 8px 0;
+}
+body.ie-landing-white .pending-calls-filter-modal-sidebar > div {
+  margin: 2px 8px; border-radius: 8px; border-left: none !important;
+}
+body.ie-landing-white .pending-calls-filter-modal-options label {
+  margin-bottom: 8px; border-radius: 10px; padding: 10px 12px !important;
+  background: #ffffff;
+  border: 1px solid #e2e8f0 !important;
+  transition: border-color .15s, box-shadow .15s;
+}
+body.ie-landing-white .pending-calls-filter-modal-options label:hover {
+  background: #ffffff !important;
+  border-color: #99d5cf !important;
+  box-shadow: 0 4px 12px -6px rgba(13,148,136,.35);
+}
+body.ie-landing-white .pending-calls-filter-modal-options label > div:first-child {
+  background: #f1f5f9 !important;
+}
+/* footer */
+body.ie-landing-white .pending-calls-filter-modal > div:last-child {
+  background: #f8fafc;
+  border-top: 1px solid #eef2f6 !important;
+}
+body.ie-landing-white .pcf-apply-btn {
+  background-image: linear-gradient(180deg, rgba(255,255,255,.20), rgba(255,255,255,0) 60%) !important;
+  box-shadow: 0 6px 14px -6px rgba(13,148,136,.55) !important;
+}
+
+/* ===== "Syncing Inspection Calls" loader (IE landing page only) ===== */
+body.ie-landing-white .annexure-loader-card {
+  background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%) !important;
+  border: 1px solid #e2e8f0 !important;
+  border-radius: 20px !important;
+  box-shadow: 0 24px 50px -20px rgba(15,23,42,.25), inset 0 1px 0 #fff !important;
+}
+body.ie-landing-white .loader-spinner-ring {
+  border-top-color: #0d9488 !important;
+  border-right-color: #14b8a6 !important;
+}
+body.ie-landing-white .loader-main-text { color: #0f172a !important; }
+body.ie-landing-white .loader-sub-text { color: #64748b !important; }
+
+/* ===== "Show Filters" button (PendingCallsTab.js) ===== */
+.pcf-toggle-btn {
+  display: inline-flex; align-items: center; gap: 8px;
+  height: 40px; padding: 0 16px;
+  background: linear-gradient(180deg, #14b8a6 0%, #0d9488 100%);
+  background-image: linear-gradient(180deg, rgba(255,255,255,.22) 0%, rgba(255,255,255,0) 55%), linear-gradient(180deg, #14b8a6 0%, #0d9488 100%);
+  color: #fff; border: none; border-radius: 10px;
+  font-size: 14px; font-weight: 600; cursor: pointer;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.35), 0 6px 14px -6px rgba(13,148,136,.55);
+  transition: transform .15s ease, box-shadow .2s ease, filter .2s ease;
+}
+.pcf-toggle-btn:hover { filter: brightness(1.05); transform: translateY(-1px); box-shadow: inset 0 1px 0 rgba(255,255,255,.35), 0 10px 18px -8px rgba(13,148,136,.6); }
+.pcf-toggle-btn:active { transform: none; }
+.pcf-toggle-btn.open { background-image: linear-gradient(180deg, rgba(255,255,255,.12) 0%, rgba(255,255,255,0) 55%), linear-gradient(180deg, #0d9488 0%, #0f766e 100%); }
+.pcf-toggle-btn:focus-visible { outline: none; box-shadow: 0 0 0 3px rgba(13,148,136,.25); }
+
+/* ===== Filter popup polish (IE landing page) ===== */
+/* icon tiles */
+body.ie-landing-white .pending-calls-filter-modal .pcf-opt-icon {
+  width: 38px !important; height: 38px !important; border-radius: 10px !important;
+  background: linear-gradient(145deg, #f0fdfa, #ccfbf1) !important;
+  color: #0d9488;
+  box-shadow: inset 0 1px 0 #fff;
+}
+body.ie-landing-white .pending-calls-filter-modal input[type="search"] + * ,
+body.ie-landing-white .pending-calls-filter-modal span:has(> svg) { color: #94a3b8 !important; }
+
+/* custom teal checkbox */
+body.ie-landing-white .pending-calls-filter-modal input[type="checkbox"] {
+  appearance: none; -webkit-appearance: none;
+  width: 20px !important; height: 20px !important; margin: 0;
+  border: 1.5px solid #cbd5e1; border-radius: 6px;
+  background: #fff; display: grid; place-content: center;
+  transition: background .15s, border-color .15s, box-shadow .15s;
+}
+body.ie-landing-white .pending-calls-filter-modal input[type="checkbox"]::after {
+  content: ''; width: 10px; height: 6px;
+  border-left: 2.5px solid #fff; border-bottom: 2.5px solid #fff;
+  transform: rotate(-45deg) translate(1px, -1px) scale(0);
+  transition: transform .15s ease;
+}
+body.ie-landing-white .pending-calls-filter-modal input[type="checkbox"]:checked {
+  background: linear-gradient(180deg, #14b8a6, #0d9488); border-color: #0d9488;
+  box-shadow: 0 2px 6px -2px rgba(13,148,136,.6);
+}
+body.ie-landing-white .pending-calls-filter-modal input[type="checkbox"]:checked::after {
+  transform: rotate(-45deg) translate(1px, -1px) scale(1);
+}
+body.ie-landing-white .pending-calls-filter-modal input[type="checkbox"]:focus-visible {
+  outline: none; box-shadow: 0 0 0 3px rgba(13,148,136,.2);
+}
+
+/* selected option row */
+body.ie-landing-white .pending-calls-filter-modal-options label:has(input:checked) {
+  background: #f0fdfa !important; border-color: #5eead4 !important;
+}
+body.ie-landing-white .pending-calls-filter-modal-options label > div:nth-child(2) > div {
+  font-weight: 600 !important; color: #0f172a !important;
+}
+
+/* left categories */
+body.ie-landing-white .pending-calls-filter-modal-sidebar > div {
+  font-size: 13.5px !important; color: #475569 !important; min-height: 40px !important;
+}
+body.ie-landing-white .pending-calls-filter-modal-sidebar > div:hover { background: #eef2f6 !important; }
+body.ie-landing-white .pending-calls-filter-modal-sidebar > div[style*="font-weight: 600"] {
+  background: #ffffff !important; color: #0f766e !important;
+  box-shadow: 0 1px 2px rgba(15,23,42,.06), 0 4px 10px -6px rgba(13,148,136,.4), inset 3px 0 0 #0d9488;
+}
+
+/* header close button */
+body.ie-landing-white .pending-calls-filter-modal > div:first-child button {
+  width: 36px !important; height: 36px !important; font-size: 22px !important;
+  color: #64748b !important; border-radius: 10px !important; transition: background .15s, color .15s !important;
+}
+body.ie-landing-white .pending-calls-filter-modal > div:first-child button:hover {
+  background: #f1f5f9 !important; color: #0f172a !important;
+}
+
+/* footer buttons */
+body.ie-landing-white .pending-calls-filter-modal > div:last-child button {
+  border-radius: 10px !important; padding: 11px 20px !important; font-weight: 600 !important;
+}

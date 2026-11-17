@@ -4058,6 +4058,29 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
         }
 
         await Promise.all(savePromises);
+
+        // NCRGRSP: Sets Offered/Accepted/Rejected are one value for the whole call.
+        // Write them onto every lot row of the call, so lots saved earlier (before Sets Accepted
+        // was entered, which stored the lot size in pads) are corrected. Other lot data is kept as is.
+        if (isNCRGRSP && ncrSetsAccepted !== '') {
+          const setsOff = ncrSetsOffered !== '' ? parseInt(ncrSetsOffered, 10) : null;
+          const setsAcc = parseInt(ncrSetsAccepted, 10);
+          const setsRej = ncrSetsRejected !== ''
+            ? parseInt(ncrSetsRejected, 10)
+            : (setsOff !== null ? Math.max(0, setsOff - setsAcc) : null);
+          const allLotRows = await finalInspectionLotResultsService.getByCallNo(currentCallId);
+          await Promise.all((allLotRows || []).map(row => {
+            const { id, createdBy, createdDate, updatedBy, updatedDate, sectionResults, ...rest } = row;
+            return finalInspectionLotResultsService.save({
+              ...rest,
+              offeredQty: setsOff !== null ? setsOff : row.offeredQty,
+              acceptedQty: setsAcc,
+              rejectedQty: setsRej !== null ? setsRej : row.rejectedQty,
+              sectionResults: (sectionResults || []).map(({ id: _sid, ...s }) => s)
+            });
+          }));
+        }
+
         setDbDimensionalStatus(dimensionalResult);
 
         // Save captured inspection photos

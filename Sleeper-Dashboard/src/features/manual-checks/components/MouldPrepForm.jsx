@@ -76,7 +76,8 @@ const drawingOptions = {
         "RT-8978",
         "RT-4149",
         "RT-8838",
-        "RT-4852"
+        "RT-4852",
+        "RT-8326"
     ]
 };
 
@@ -129,28 +130,28 @@ const MouldPrepForm = ({ onSave, onCancel, isLongLine, existingEntries = [], ini
                 return '';
             };
 
-                let initialCat = 'Mainline';
-                let typeToMatch = initialData.sleeperType || '';
-                if (drawingOptions.Turnout.includes(typeToMatch) || typeToMatch.includes('Turnout') || typeToMatch.includes('1 in')) {
-                    initialCat = 'Turnout';
-                } else if (drawingOptions.Special.includes(typeToMatch) || (initialData.sleeperCategory === 'Special')) {
-                    initialCat = 'Special';
-                }
+            let initialCat = 'Mainline';
+            let typeToMatch = initialData.sleeperType || '';
+            if (drawingOptions.Turnout.includes(typeToMatch) || typeToMatch.includes('Turnout') || typeToMatch.includes('1 in')) {
+                initialCat = 'Turnout';
+            } else if (drawingOptions.Special.includes(typeToMatch) || (initialData.sleeperCategory === 'Special')) {
+                initialCat = 'Special';
+            }
 
-                setFormData({
-                    ...initialData,
-                    location: initialData.lineShedNo || initialData.location || activeContainer?.name || 'N/A',
-                    dateTime: formatForInput(initialData.dateTime || initialData.preparationDate || initialData.date || initialData.createdDate, initialData.preparationTime || initialData.time),
-                    batchNo: initialData.batchNo || initialData.batch || '',
-                    benchNo: initialData.benchNo || initialData.benchGangNo || '',
-                    sleeperCategory: initialCat,
-                    sleeperType: initialData.sleeperType || drawingOptions[initialCat][0],
-                    mouldCleaned: convertToYesNo(initialData.mouldCleaned !== undefined ? initialData.mouldCleaned : initialData.lumpsFree),
-                    oilApplied: convertToYesNo(initialData.oilApplied)
-                });
+            setFormData({
+                ...initialData,
+                location: initialData.lineShedNo || initialData.location || activeContainer?.name || 'N/A',
+                dateTime: formatForInput(initialData.dateTime || initialData.preparationDate || initialData.date || initialData.createdDate, initialData.preparationTime || initialData.time),
+                batchNo: initialData.batchNo || initialData.batch || '',
+                benchNo: initialData.benchNo || initialData.benchGangNo || '',
+                sleeperCategory: initialCat,
+                sleeperType: initialData.sleeperType || drawingOptions[initialCat][0],
+                mouldCleaned: convertToYesNo(initialData.mouldCleaned !== undefined ? initialData.mouldCleaned : initialData.lumpsFree),
+                oilApplied: convertToYesNo(initialData.oilApplied)
+            });
         }
     }, [initialData, activeContainer]);
-    
+
     // Fetch Dynamic Locations for current Unit
     useEffect(() => {
         const fetchLocations = async () => {
@@ -233,11 +234,11 @@ const MouldPrepForm = ({ onSave, onCancel, isLongLine, existingEntries = [], ini
         setValidationErrors([]);
 
         if (!initialData) {
-            const isDuplicate = (existingEntries || []).some(entry => 
-                String(entry.batchNo || entry.batch) === String(formData.batchNo) && 
+            const isDuplicate = (existingEntries || []).some(entry =>
+                String(entry.batchNo || entry.batch) === String(formData.batchNo) &&
                 String(entry.benchNo || entry.benchGangNo) === String(formData.benchNo)
             );
-            
+
             if (isDuplicate) {
                 alert(`Record already exists: Batch ${formData.batchNo} with ${fieldLabel} ${formData.benchNo} has already been recorded.`);
                 return;
@@ -451,11 +452,11 @@ const MouldPrepForm = ({ onSave, onCancel, isLongLine, existingEntries = [], ini
                         <p style={{ margin: '0 0 1.5rem 0', fontSize: '0.9rem', color: '#64748b', lineHeight: '1.5' }}>
                             Please provide the following required details:
                         </p>
-                        
-                        <div style={{ 
-                            background: '#f8fafc', 
-                            borderRadius: '12px', 
-                            padding: '16px', 
+
+                        <div style={{
+                            background: '#f8fafc',
+                            borderRadius: '12px',
+                            padding: '16px',
                             marginBottom: '2rem',
                             textAlign: 'left',
                             border: '1px solid #f1f5f9'

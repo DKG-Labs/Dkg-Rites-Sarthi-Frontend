@@ -62,6 +62,13 @@ export default function RejectionBasket({ dutyPlantId, readOnly = false, ieType 
   const [deleting, setDeleting] = useState(false);
 
   const [lightboxUrls, setLightboxUrls] = useState(null);
+
+  useEffect(() => {
+    if (!lightboxUrls) return;
+    const handleKeyDown = (e) => { if (e.key === 'Escape') setLightboxUrls(null); };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [lightboxUrls]);
   const [toast, setToast] = useState(null);
 
   const showToast = (msg, type = 'success') => {
@@ -764,11 +771,12 @@ export default function RejectionBasket({ dutyPlantId, readOnly = false, ieType 
             className="rs-lightbox-close"
             onClick={() => setLightboxUrls(null)}
             aria-label="Close lightbox"
+            title="Close (Esc)"
           >
             ✕
           </button>
           {lightboxUrls.map((url, i) => (
-            <AuthedLightboxImg key={i} url={url} alt={`Scrap Photo ${i + 1}`} />
+            <AuthedLightboxImg key={i} url={url} alt={`Scrap Photo ${i + 1}`} onClick={e => e.stopPropagation()} />
           ))}
         </div>
       )}

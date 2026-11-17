@@ -435,7 +435,7 @@ const RailpadProcessIc = ({
               </div>
               <div style={{ fontWeight: 'bold', marginTop: '8px' }}>Consignee (Manufacturer of finished Product):</div>
               <div style={{ textTransform: 'uppercase', marginTop: '2px' }}>
-                <EditableField value={(consigneeManufacturer && consigneeManufacturer !== 'SARTHI') ? consigneeManufacturer : (placeOfInspection || manufacturer || contractor)} fieldName="consigneeManufacturer" type="textarea" {...fieldProps} />
+                <EditableField value={consigneeManufacturer || placeOfInspection || manufacturer || contractor} fieldName="consigneeManufacturer" type="textarea" {...fieldProps} />
               </div>
             </td>
             <td colSpan="1" style={{ ...tdStyle, width: '50%' }}>

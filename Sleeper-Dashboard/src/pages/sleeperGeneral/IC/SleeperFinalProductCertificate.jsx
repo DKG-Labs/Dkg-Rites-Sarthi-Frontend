@@ -236,8 +236,8 @@ export default function SleeperFinalProductCertificate() {
         setNo: ic?.setNo || c?.setNo || "",
         offeredInstNo: ic?.offeredInstallmentNumber ? String(ic.offeredInstallmentNumber) : (c?.offeredInstNo || "1"),
         passedInstNo: ic?.passedInstallmentNumber ? String(ic.passedInstallmentNumber) : (c?.passedInstNo || "1"),
-        contractor: ic?.contractor || c?.vendorName || c?.vendorCode || c?.contractor || "",
-        placeOfInspection: ic?.placeOfInspection || c?.placeOfInspection || c?.vendorName || "",
+        contractor: (ic?.contractor || c?.contractor || c?.vendorName || c?.vendorCode || "").replace(/~/g, ',\n'),
+        placeOfInspection: (ic?.placeOfInspection || c?.placeOfInspection || "").replace(/~/g, ',\n'),
         contractRef: (() => {
             if (ic?.contractRefAndDate) return ic.contractRefAndDate;
             if (c?.contractRef) return c.contractRef;
@@ -337,8 +337,8 @@ export default function SleeperFinalProductCertificate() {
                           billPayingOfficer: savedEdit.billPayingOfficer || updated.billPayingOfficer || prev.billPayingOfficer,
                           purchasingAuthority: savedEdit.purchasingAuthority || updated.purchasingAuthority || prev.purchasingAuthority,
                           description: cleanSavedDesc || updated.description || prev.description,
-                          contractor: savedEdit.contractor || (savedEdit.manufacturer && !savedEdit.placeOfInspection ? savedEdit.manufacturer : null) || updated.contractor || prev.contractor,
-                          placeOfInspection: savedEdit.placeOfInspection || (savedEdit.manufacturer && savedEdit.contractor && savedEdit.manufacturer !== savedEdit.contractor ? savedEdit.manufacturer : null) || updated.placeOfInspection || prev.placeOfInspection,
+                          contractor: (updated.contractor || savedEdit.contractor || (savedEdit.manufacturer && !savedEdit.placeOfInspection ? savedEdit.manufacturer : null) || prev.contractor || "").replace(/~/g, ',\n'),
+                          placeOfInspection: (updated.placeOfInspection || savedEdit.placeOfInspection || (savedEdit.manufacturer && savedEdit.contractor && savedEdit.manufacturer !== savedEdit.contractor ? savedEdit.manufacturer : null) || prev.placeOfInspection || "").replace(/~/g, ',\n'),
                           trRecDate: savedEdit.trRecDate || updated.trRecDate || prev.trRecDate,
                           noOfVisits: savedEdit.noOfVisits || updated.noOfVisits || prev.noOfVisits,
                           datesOfInspection: savedEdit.datesOfInspection || updated.datesOfInspection || prev.datesOfInspection,

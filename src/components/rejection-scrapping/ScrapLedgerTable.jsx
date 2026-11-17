@@ -34,6 +34,13 @@ export default function ScrapLedgerTable({ rows, loading, ieUserId, onRefresh, r
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState('');
   const [lightboxUrls, setLightboxUrls] = useState(null);
+
+  useEffect(() => {
+    if (!lightboxUrls) return;
+    const handleKeyDown = (e) => { if (e.key === 'Escape') setLightboxUrls(null); };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [lightboxUrls]);
   const [pageSize, setPageSize] = useState(10);
   const [page, setPage] = useState(1);
   const [typeFilter, setTypeFilter] = useState('ALL'); // ALL | REJECTION | SCRAP
@@ -283,9 +290,9 @@ export default function ScrapLedgerTable({ rows, loading, ieUserId, onRefresh, r
       {/* Lightbox */}
       {lightboxUrls && (
         <div className="rs-lightbox" onClick={() => setLightboxUrls(null)}>
-          <button className="rs-lightbox-close" onClick={() => setLightboxUrls(null)} title="Close">✕</button>
+          <button className="rs-lightbox-close" onClick={() => setLightboxUrls(null)} title="Close (Esc)">✕</button>
           {lightboxUrls.map((url, i) => (
-            <AuthedImg key={i} src={url} alt={`${i + 1} of ${lightboxUrls.length}`} onClick={e => e.stopPropagation()} />
+            <AuthedImg key={i} src={url} alt={`Photo ${i + 1}`} onClick={e => e.stopPropagation()} />
           ))}
         </div>
       )}

@@ -55,6 +55,13 @@ export default function SleeperScrapLedgerTable({
   const [deleteError, setDeleteError] = useState('');
   const [lightboxUrls, setLightboxUrls] = useState(null);
 
+  useEffect(() => {
+    if (!lightboxUrls) return;
+    const handleKeyDown = (e) => { if (e.key === 'Escape') setLightboxUrls(null); };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [lightboxUrls]);
+
   const isPending = typeFilter === 'PENDING';
   const isDisposalOnly = typeFilter === 'SCRAP';
   const baseCols = isDisposalOnly ? DISPOSAL_COLS : ALL_COLUMNS;
@@ -315,9 +322,9 @@ export default function SleeperScrapLedgerTable({
       {/* Lightbox */}
       {lightboxUrls && (
         <div className="rs-lightbox" onClick={() => setLightboxUrls(null)}>
-          <button className="rs-lightbox-close" onClick={() => setLightboxUrls(null)} title="Close">✕</button>
+          <button className="rs-lightbox-close" onClick={() => setLightboxUrls(null)} title="Close (Esc)">✕</button>
           {lightboxUrls.map((url, i) => (
-            <AuthedImg key={i} src={url} alt={`${i + 1} of ${lightboxUrls.length}`} onClick={e => e.stopPropagation()} />
+            <AuthedImg key={i} src={url} alt={`Photo ${i + 1}`} onClick={e => e.stopPropagation()} />
           ))}
         </div>
       )}

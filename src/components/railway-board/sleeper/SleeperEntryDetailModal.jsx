@@ -64,6 +64,13 @@ export default function SleeperEntryDetailModal({ row, onClose }) {
   const [lightbox, setLightbox] = useState(null);
 
   useEffect(() => {
+    if (!lightbox) return;
+    const handleKeyDown = (e) => { if (e.key === 'Escape') setLightbox(null); };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [lightbox]);
+
+  useEffect(() => {
     if (!isScrap || !row.verificationId) return;
     setLoading(true);
     getSleeperScrapVerification(row.verificationId)
@@ -186,9 +193,9 @@ export default function SleeperEntryDetailModal({ row, onClose }) {
 
       {lightbox && (
         <div className="rs-lightbox" onClick={() => setLightbox(null)}>
-          <button className="rs-lightbox-close" onClick={() => setLightbox(null)} title="Close">✕</button>
+          <button className="rs-lightbox-close" onClick={() => setLightbox(null)} title="Close (Esc)">✕</button>
           {lightbox.map((url, i) => (
-            <AuthedImg key={i} src={url} alt={`${i + 1} of ${lightbox.length}`} onClick={e => e.stopPropagation()} />
+            <AuthedImg key={i} src={url} alt={`Photo ${i + 1}`} onClick={e => e.stopPropagation()} />
           ))}
         </div>
       )}

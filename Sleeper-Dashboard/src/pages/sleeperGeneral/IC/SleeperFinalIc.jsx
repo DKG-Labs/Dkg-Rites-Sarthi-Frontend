@@ -102,8 +102,8 @@ const SleeperFinalIc = ({
     certificateDate = "",
     offeredInstNo = "",
     passedInstNo = "",
-    contractor = "",
-    placeOfInspection = "",
+    contractor: rawContractor = "",
+    placeOfInspection: rawPlaceOfInspection = "",
     contractRef = "",
     maNumberAndDate = "",
     billPayingOfficer = "",
@@ -133,6 +133,9 @@ const SleeperFinalIc = ({
     region = "",
     rio = ""
   } = data;
+
+  const contractor = (rawContractor || "").replace(/~/g, ',\n');
+  const placeOfInspection = (rawPlaceOfInspection || "").replace(/~/g, ',\n');
 
   const getRegionHeader = (rioCode) => {
     const code = String(rioCode || '').trim().toUpperCase();

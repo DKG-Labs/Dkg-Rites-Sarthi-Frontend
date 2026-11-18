@@ -199,6 +199,18 @@ export default function RawMaterialCertificate({ call = {}, onBack }) {
           remarkBody = c.remarks || "";
         }
 
+        // Diverted IC (partial or complete): keep the backend's "[Material diverted from Source IC: …]" note,
+        // which is lost when the remark is rebuilt from heat details above.
+        const divNoteMatch = typeof c.remarks === 'string' ? c.remarks.match(/\[Material diverted from Source IC:[^\]]*\]/i) : null;
+        const divNote = divNoteMatch
+          ? divNoteMatch[0]
+          : ((c.isDivertedMaterial || c.callCategory === 'DIVERTED_PASSED') && c.sourceIcNo
+              ? `[Material diverted from Source IC: ${c.sourceIcNo}]`
+              : "");
+        if (divNote && !remarkBody.toLowerCase().includes('diverted from source ic')) {
+          remarkBody = `${remarkBody} ${divNote}`.trim();
+        }
+
         if (c.ibsCaseNo && c.ibsCaseNo !== '-') {
           return `(IBS Case No: ${c.ibsCaseNo}), ${remarkBody}`.trim();
         }

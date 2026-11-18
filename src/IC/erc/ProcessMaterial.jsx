@@ -99,16 +99,28 @@ export default function ProcessMaterialCertificate({ call = {}, onBack }) {
       manDays: c.manDays || "",
       sealingPattern: c.sealingPattern || "NA",
       inspectingEngineer: c.inspectingEngineer ? c.inspectingEngineer.replace(/Mr\.?\s/gi, "") : "",
+      workflowId: c.workflowId ?? c.workflow_id,
+      callNo: c.call_no || c.callNo || c.requestId || "",
+      isDivertedMaterial: Boolean(c.isDivertedMaterial || c.is_diverted_material),
+      diversionRequestNo: c.diversionRequestNo || c.diversion_request_no || "",
+      diversionNo: c.diversionNo || c.diversion_no || "",
+      isPostDiversion: Boolean(c.isPostDiversion || c.isPostDiversionIc || c.isAfterDiversionRequest),
+      // Diverted IC tag is ONLY shown on ICs made after an approved Diversion Request (Workflow 4),
+      // and NOT for inspection calls raised by Vendor (even when vendor used diverted material).
       isDiverted: Boolean(
-        c.isDiverted ||
-        c.isDivertedMaterial ||
-        c.is_diverted ||
+        c.isPostDiversion ||
+        c.isPostDiversionIc ||
+        c.isAfterDiversionRequest ||
         c.workflowId === 4 ||
-        c.callCategory === 'DIVERTED_PASSED' ||
-        c.call_category === 'DIVERTED_PASSED' ||
-        c.diversionRequestNo ||
-        (typeof c.remarks === 'string' && c.remarks.toLowerCase().includes('diversion')) ||
-        (typeof c.reference === 'string' && c.reference.toLowerCase().includes('diverted from'))
+        c.workflow_id === 4 ||
+        String(c.workflowId) === '4' ||
+        String(c.workflow_id) === '4' ||
+        (typeof c.diversionNo === 'string' && c.diversionNo.trim() !== '') ||
+        (typeof (c.call_no || c.callNo || c.requestId) === 'string' && /^(DEF|DEP|DER|DR|DIV)[-_]/i.test(c.call_no || c.callNo || c.requestId)) ||
+        (c.diversionRequestNo && (
+          c.diversionRequestNo === (c.call_no || c.callNo || c.requestId) ||
+          (typeof (c.certificateNo || c.icNo) === 'string' && (c.certificateNo || c.icNo).includes(c.diversionRequestNo))
+        ) && c.workflowId !== 1 && c.workflowId !== 2 && c.workflow_id !== 1 && c.workflow_id !== 2)
       ),
       diversionType: c.diversionType || null,
     };
@@ -130,7 +142,7 @@ export default function ProcessMaterialCertificate({ call = {}, onBack }) {
               try {
                 const parsedLots = JSON.parse(savedEdit.lotDetails);
                 if (Array.isArray(parsedLots) && parsedLots.length > 0) {
-                  if (initialData.isDiverted && Array.isArray(initialData.lots) && initialData.lots.length > 0) {
+                  if ((initialData.isDiverted || initialData.isDivertedMaterial) && Array.isArray(initialData.lots) && initialData.lots.length > 0) {
                     const allowedLabels = new Set(initialData.lots.map(l => (l.heatNo || '').trim().toUpperCase()));
                     const filtered = parsedLots.filter(l => allowedLabels.has((l.heatNo || '').trim().toUpperCase()));
                     restoredLots = filtered.length > 0 ? filtered : initialData.lots;

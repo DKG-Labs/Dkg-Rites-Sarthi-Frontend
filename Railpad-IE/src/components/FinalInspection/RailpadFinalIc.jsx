@@ -299,6 +299,14 @@ const RailpadFinalIc = ({ data = {}, isEditing = false, isBusy = false, isViewOn
           textTransform: 'uppercase'
         }}>
           {data?.region || "RITES LIMITED, NORTHERN REGION, DELHI"}
+          {data?.callCategory === 'DIVERTED_PASSED' && (
+            <div style={{ fontSize: '9px', marginTop: '2px' }}>
+              {data?.diversionType === 'PARTIAL' ? '(PARTIAL DIVERSION IC)' : '(DIVERTED IC)'}
+            </div>
+          )}
+          {data?.diversionNote && (
+            <div style={{ fontSize: '8px', fontWeight: 'normal', textTransform: 'none', marginTop: '1px' }}>{data.diversionNote}</div>
+          )}
         </div>
         <div style={{
           flex: 1,

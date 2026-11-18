@@ -284,6 +284,10 @@ export default function RailpadFinalProductCertificate({ call = {}, onBack, isVi
         }
 
         const mappedData = {
+            // Material diversion (header tag + note on the IC)
+            callCategory: fetchedData.callCategory || "FRESH",
+            diversionType: fetchedData.diversionType || "",
+            diversionNote: fetchedData.diversionNote || "",
             certificateNo: fetchedData.certificateNo || "",
             certificateDate: fetchedData.certificateDate,
             bookNo: fetchedData.bookNo || "",

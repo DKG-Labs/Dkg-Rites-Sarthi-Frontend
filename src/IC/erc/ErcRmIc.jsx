@@ -72,17 +72,25 @@ const ErcRmIC = ({ data = {}, isEditing = false, isBusy = false, onChange = () =
     .replace(/[\r\n]+/g, ' ')
     .trim();
 
-  const isDiverted = Boolean(
-    data?.isDiverted ||
-    data?.isDivertedMaterial ||
-    data?.is_diverted ||
-    data?.callCategory === 'DIVERTED_PASSED' ||
-    data?.call_category === 'DIVERTED_PASSED' ||
+  // Diverted IC tag should ONLY be shown on ICs made after an approved Diversion Request (Workflow 4),
+  // and MUST BE REMOVED from ICs made for Diversion calls raised by Vendor (e.g. EF/EP/ER inspection calls).
+  const isPostDiversionIc = Boolean(
+    data?.isPostDiversion ||
+    data?.isPostDiversionIc ||
+    data?.isAfterDiversionRequest ||
     data?.workflowId === 4 ||
-    data?.diversionRequestNo ||
-    (typeof data?.remarks === 'string' && data.remarks.toLowerCase().includes('diversion')) ||
-    (typeof data?.reference === 'string' && data.reference.toLowerCase().includes('diverted'))
+    data?.workflow_id === 4 ||
+    String(data?.workflowId) === '4' ||
+    String(data?.workflow_id) === '4' ||
+    (typeof data?.diversionNo === 'string' && data.diversionNo.trim() !== '') ||
+    (typeof (data?.callNo || data?.requestId) === 'string' && /^(DEF|DEP|DER|DR|DIV)[-_]/i.test(data?.callNo || data?.requestId)) ||
+    (data?.diversionRequestNo && (
+      data?.diversionRequestNo === (data?.callNo || data?.requestId) ||
+      (typeof data?.certificateNo === 'string' && data.certificateNo.includes(data.diversionRequestNo))
+    ) && data?.workflowId !== 1 && data?.workflowId !== 2 && data?.workflow_id !== 1 && data?.workflow_id !== 2)
   );
+
+  const isDiverted = isPostDiversionIc;
 
   // Default value for Consignee (Manufacturer): place of inspection always takes priority
   const defaultConsigneeManufacturer = placeOfInspection || consigneeManufacturer;

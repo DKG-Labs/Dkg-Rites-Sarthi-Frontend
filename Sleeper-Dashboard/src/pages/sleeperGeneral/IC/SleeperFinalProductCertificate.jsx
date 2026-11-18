@@ -11,8 +11,27 @@ import {
   getFinalIcEditData 
 } from "../../../services/certificateService";
 
+// Formats a quantity exactly as stored (up to 3 decimals), dropping trailing zeros: 15.00 -> "15", 14.91 -> "14.91"
+const formatQty = (num) => {
+    const n = parseFloat(num);
+    if (isNaN(n)) return "0";
+    return String(parseFloat(n.toFixed(3)));
+};
+
+const DIGIT_WORDS = ["Zero", "One", "Two", "Three", "Four", "Five", "Six", "Seven", "Eight", "Nine"];
+
 const numberToWords = (num) => {
     num = parseFloat(num) || 0;
+    const [intStr, decStr] = formatQty(Math.abs(num)).split('.');
+    if (decStr) {
+        const decWords = decStr.split('').map(d => DIGIT_WORDS[Number(d)]).join(' ');
+        return `${integerToWords(Number(intStr))} Point ${decWords}`;
+    }
+    return integerToWords(Number(intStr));
+};
+
+const integerToWords = (num) => {
+    num = Math.floor(num) || 0;
     if (num === 0) return "Zero";
     const a = ["", "One ", "Two ", "Three ", "Four ", "Five ", "Six ", "Seven ", "Eight ", "Nine ", "Ten ", "Eleven ", "Twelve ", "Thirteen ", "Fourteen ", "Fifteen ", "Sixteen ", "Seventeen ", "Eighteen ", "Nineteen "];
     const b = ["", "", "Twenty", "Thirty", "Forty", "Fifty", "Sixty", "Seventy", "Eighty", "Ninety"];
@@ -46,13 +65,13 @@ const formatDate = (val) => {
 
 const extractNumber = (val, fallback = "") => {
     if (val === null || val === undefined || val === "") return fallback;
-    if (typeof val === 'number') return Math.round(val).toString();
+    if (typeof val === 'number') return formatQty(val);
     const str = String(val).trim();
     const parts = str.split('-');
     const numPart = parts.length > 1 ? parts[parts.length - 1].trim() : str;
     const parsed = parseFloat(numPart.replace(/[^0-9.-]/g, ''));
     if (isNaN(parsed)) return str.replace(/\D/g, '') || fallback;
-    return Math.round(parsed).toString();
+    return formatQty(parsed);
 };
 
 const resolveSleeperCaseNo = (rawCaseNo, rio) => {
@@ -121,14 +140,14 @@ export default function SleeperFinalProductCertificate() {
     const qtyNowPassed = extractNumber(ic?.qtyNowPassed, c?.qtyNowPassed || c?.accepted || c?.totalAccepted || "");
     const qtyNowRejected = extractNumber(ic?.qtyNowRejected, c?.qtyNowRejected || c?.rejected || c?.totalRejected || "0");
     const sumOffered = (parseFloat(qtyNowPassed || 0) + parseFloat(qtyNowRejected || 0));
-    const fallbackOffered = sumOffered > 0 ? String(sumOffered) : (c?.qtyNowOffered || c?.qtyOfferedNow || c?.totalOfferedQuantity || c?.total_offered_quantity || c?.totalOffered || c?.qty || "");
+    const fallbackOffered = sumOffered > 0 ? formatQty(sumOffered) : (c?.qtyNowOffered || c?.qtyOfferedNow || c?.totalOfferedQuantity || c?.total_offered_quantity || c?.totalOffered || c?.qty || "");
     const qtyNowOffered = extractNumber(ic?.qtyNowOffered, c?.qtyNowOffered || fallbackOffered);
 
     const numOrder = parseFloat(qtyOnOrder) || 0;
     const numPrevPassed = parseFloat(qtyPassedPreviously) || 0;
     const numNowPassed = parseFloat(qtyNowPassed) || 0;
     const calculatedStillDue = Math.max(0, numOrder - numPrevPassed - numNowPassed);
-    const qtyStillDue = extractNumber(ic?.qtyStillDue, String(calculatedStillDue));
+    const qtyStillDue = extractNumber(ic?.qtyStillDue, formatQty(calculatedStillDue));
 
     // Date of call + Desired date
     let dateOfCall = ic?.dateOfCall || c?.dateOfCall || "";
@@ -550,7 +569,7 @@ export default function SleeperFinalProductCertificate() {
         const order = parseFloat(updated.qtyOnOrder) || 0;
         const prevPassed = parseFloat(updated.qtyPassedPreviously) || 0;
         const nowPassed = parseFloat(updated.qtyNowPassed) || 0;
-        updated.qtyStillDue = String(Math.max(0, order - prevPassed - nowPassed));
+        updated.qtyStillDue = formatQty(Math.max(0, order - prevPassed - nowPassed));
       }
       return updated;
     });

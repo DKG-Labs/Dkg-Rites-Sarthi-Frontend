@@ -507,8 +507,15 @@ const AttendingCallDashboard = ({ mode }) => {
                        status.includes('SEND_CALL_TO_IBS') || status.includes('SENT_TO_IBS') || status.includes('CLOSED') ||
                        jobStatus.includes('SEND_CALL_TO_IBS') || jobStatus.includes('SENT_TO_IBS') || jobStatus.includes('CLOSED') ||
                        action.includes('CANCEL') || status.includes('CANCEL') || jobStatus.includes('CANCEL') ||
-                       action.includes('WITHDRAW') || status.includes('WITHDRAW') || jobStatus.includes('WITHDRAW') ||
                        action === 'BLOCKED' || status === 'BLOCKED' || jobStatus === 'BLOCKED';
+            };
+
+            // Vendor-withdrawn calls are listed under Completed Calls (same as RailPad / ERC)
+            const isWithdrawn = (c) => {
+                const action = (c.action || '').toUpperCase();
+                const status = (c.status || '').toUpperCase();
+                const jobStatus = (c.jobStatus || '').toUpperCase();
+                return action.includes('WITHDRAW') || status.includes('WITHDRAW') || jobStatus.includes('WITHDRAW');
             };
 
             if (tabToLoad === 'closed') {
@@ -606,7 +613,7 @@ const AttendingCallDashboard = ({ mode }) => {
 
                 const finalCompletedCalls = dedupedCompleted.filter(c => {
                     const matchesPlant = allowedPlants.length === 0 || isPlantMatching(c.plantId, allowedPlants);
-                    return matchesPlant && isSignedOrArchived(c) && !isClosedOrSentToIbs(c);
+                    return matchesPlant && (isSignedOrArchived(c) || isWithdrawn(c)) && !isClosedOrSentToIbs(c);
                 }).map(item => {
                     const action = (item.action || '').toUpperCase();
                     const jobStatus = (item.jobStatus || '').toUpperCase();

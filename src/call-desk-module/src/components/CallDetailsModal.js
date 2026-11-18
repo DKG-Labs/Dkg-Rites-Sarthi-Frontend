@@ -22,7 +22,8 @@ const CallDetailsModal = ({
   onWithdraw,
   onDownloadLetter,
   showNotification,
-  onRemap
+  onRemap,
+  updatePlantMappingOnRemap = false
 }) => {
   const notify = (msg, type = 'success') => {
     if (showNotification) {
@@ -304,7 +305,8 @@ const CallDetailsModal = ({
           callNo: call.callNumber,
           plantId: call.plantId,
           oldUserId: Number(call.assignedToUser || 0),
-          newUserId: Number(selectedIEData.id)
+          newUserId: Number(selectedIEData.id),
+          updatePlantMapping: Boolean(updatePlantMappingOnRemap)
         };
         await axios.post(`${API_BASE_URL}/api/sleeper-workflow/remap-submit`, payload, { headers: getAuthHeaders() });
         notify('Sleeper Main IE remapped successfully', 'success');

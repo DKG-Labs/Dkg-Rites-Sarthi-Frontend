@@ -497,6 +497,7 @@ const CallDeskDashboard = () => {
         onDownloadLetter={handleDownloadLetter}
         showNotification={showAppNotification}
         onRemap={refreshData}
+        updatePlantMappingOnRemap={activeTab === 'pending'}
       />
 
       {/* Verify & Accept Modal */}

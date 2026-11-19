@@ -1958,7 +1958,16 @@ const AttendingCallDashboard = ({ mode }) => {
                                         <div>
                                             <label style={{ fontSize: '11px', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: '700', marginBottom: '2px', display: 'block' }}>Total Offered</label>
                                             <div style={{ fontWeight: '700', fontSize: '15px', color: '#0f172a' }}>
-                                                {selectedActionCall.qty ?? selectedActionCall.offeredQty ?? selectedActionCall.totalOffered ?? '-'} {getEffectiveUom(selectedActionCall)}
+                                                {(() => {
+                                                    // Issuance popup: accepted/rejected are sleeper counts (sleeper_final_result), while qty is
+                                                    // call.total_offered (good-only for Nos, set count for Set UOM) — show offered = accepted + rejected.
+                                                    const acceptedNos = Number(selectedActionCall.accepted);
+                                                    const rejectedNos = Number(selectedActionCall.rejected);
+                                                    if (selectedActionCall.isIssuance && Number.isFinite(acceptedNos) && Number.isFinite(rejectedNos) && (acceptedNos + rejectedNos) > 0) {
+                                                        return `${acceptedNos + rejectedNos} ${getEffectiveUom(null)}`;
+                                                    }
+                                                    return `${selectedActionCall.qty ?? selectedActionCall.offeredQty ?? selectedActionCall.totalOffered ?? '-'} ${getEffectiveUom(selectedActionCall)}`;
+                                                })()}
                                             </div>
                                         </div>
                                     )}

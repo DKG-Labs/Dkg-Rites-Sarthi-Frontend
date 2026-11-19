@@ -17,6 +17,18 @@ import { getCurrentUserId } from "../../services/workflowApiService";
 import { getStoredUser } from "../../services/authService";
 import reportService from "../../services/reportService";
 
+// IC number in "RIO/call/IE" form: the backend certificate no. when it has that form, else the one the
+// Issuance list builds (RIO letter / call no / IE short name) — same as the Process IC. Diversion ICs
+// (partial or complete) have no completion row, so the backend sends only the bare call no.
+const pickIcNumber = (c) => {
+  const cert = (c && c.certificateNo) ? String(c.certificateNo) : "";
+  const listNo = (c && c.icNo) ? String(c.icNo) : "";
+  if (cert.includes("/")) return cert;
+  if (listNo.includes("/")) return listNo;
+  return cert || listNo || "";
+};
+
+
 const numberToWords = (num) => {
     if (num === 0) return "Zero";
     const a = ["", "One ", "Two ", "Three ", "Four ", "Five ", "Six ", "Seven ", "Eight ", "Nine ", "Ten ", "Eleven ", "Twelve ", "Thirteen ", "Fourteen ", "Fifteen ", "Sixteen ", "Seventeen ", "Eighteen ", "Nineteen "];
@@ -418,7 +430,7 @@ export default function FinalProductCertificate({ call = {}, onBack }) {
       : Math.max(0, Number(c.qtyOnOrder || 0) - Number(c.qtyPassedPreviously || 0) - passedVal);
 
     return {
-      certificateNo: c.certificateNo || c.icNo || "",
+      certificateNo: pickIcNumber(c),
       certificateDate: c.certificateDate || formatDate(new Date().toISOString()),
       offeredInstNo: c.offeredInstNo || "",
       passedInstNo: c.passedInstNo || "",
@@ -498,6 +510,10 @@ export default function FinalProductCertificate({ call = {}, onBack }) {
           let savedEdit = await getFinalIcSaveChanges(icNumber);
           if (!savedEdit) {
             savedEdit = await getFinalIcEditData(icNumber);
+          }
+          const bareIcNo = (String(icNumber).split("/").map((s) => s.trim()).find((s) => /^(ER|EP|EF)-/i.test(s))) || call.ic_number;
+          if (!savedEdit && bareIcNo && bareIcNo !== icNumber) {
+            savedEdit = (await getFinalIcSaveChanges(bareIcNo)) || (await getFinalIcEditData(bareIcNo));
           }
           if (savedEdit) {
             initialData = {

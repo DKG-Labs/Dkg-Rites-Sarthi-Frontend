@@ -14,6 +14,13 @@ import { scheduleInspection } from '../services/scheduleService';
 import { viewSignedCertificate, getAnnexureDocuments, getProcessInspectionResult } from '../services/certificateService';
 import { getBaseUrl } from '../services/apiConfig';
 import Notification from './Notification';
+import SelectMenu from './common/SelectMenu';
+
+const CALL_TYPE_OPTIONS = [
+  { value: 'ALL', label: 'All Call Types' },
+  { value: 'Process', label: 'Process' },
+  { value: 'Final', label: 'Final' },
+];
 import { getStoredUser } from '../services/authService';
 import CorrectionSlipModal from './CorrectionSlipModal';
 import CorrectionSlipListModal from './CorrectionSlipListModal';
@@ -1300,28 +1307,12 @@ const AttendingCallsDashboard = ({
           </div>
 
           {activeTab === 'pending' && (
-            <select
-              aria-label="Filter by Type of Call"
+            <SelectMenu
+              ariaLabel="Filter by Type of Call"
               value={callTypeFilter}
-              onChange={(e) => setCallTypeFilter(e.target.value)}
-              style={{
-                padding: '10px 14px',
-                borderRadius: '10px',
-                border: '1px solid #e2e8f0',
-                fontSize: '13px',
-                background: '#f8fafc',
-                color: '#1e293b',
-                fontWeight: '500',
-                outline: 'none',
-                cursor: 'pointer',
-                minWidth: '170px',
-                boxShadow: '0 1px 2px rgba(0,0,0,0.02)'
-              }}
-            >
-              <option value="ALL">All Call Types</option>
-              <option value="Process">Process</option>
-              <option value="Final">Final</option>
-            </select>
+              onChange={setCallTypeFilter}
+              options={CALL_TYPE_OPTIONS}
+            />
           )}
         </div>
       </div>

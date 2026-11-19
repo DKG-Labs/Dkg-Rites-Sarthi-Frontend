@@ -7,7 +7,8 @@ import {
   isRioMatching,
   getEffectiveCallDeskRio,
   getCallProductAndIeRole,
-  isProductAndIeRoleMatching
+  isProductAndIeRoleMatching,
+  railpadRoleLabel
 } from '../utils/helpers';
 import { Autocomplete, TextField } from '@mui/material';
 
@@ -71,7 +72,7 @@ const CallDetailsModal = ({
       return filterMatchingIEs(sleeperRemapUsers);
     }
     if (product === 'RAILPAD' && railpadRemapUsers && railpadRemapUsers.length > 0) {
-      return filterMatchingIEs(railpadRemapUsers);
+      return railpadRemapUsers; // already filtered to RIO + Main/Process IE
     }
     if (product === 'ERC' && remapAvailableUsers && remapAvailableUsers.length > 0) {
       return filterMatchingIEs(remapAvailableUsers);
@@ -106,12 +107,24 @@ const CallDetailsModal = ({
     try {
       if (product === 'RAILPAD') {
         try {
+          // Rail Pad: list both Main IEs and Process IEs
           const ieRes = await axios.get(`${API_BASE_URL}/api/railpad-workflow/remap-available-users`, {
-            params: { ...(targetRio ? { rio: targetRio } : {}), ...(ieRole ? { ieRole } : {}) },
+            params: { ...(targetRio ? { rio: targetRio } : {}), ieRole: 'ALL' },
             headers: getAuthHeaders()
           });
-          const fallbackRole = ieRole === 'PROCESS_IE' ? 'Rail Process IE' : 'Rail Main IE';
-          setRailpadRemapUsers(filterAndMapRemapUsers(ieRes.data?.responseData, fallbackRole));
+          const rpUsers = (ieRes.data?.responseData || []).filter(
+            (u) => (!targetRio || isRioMatching(targetRio, u.rio)) &&
+              (isProductAndIeRoleMatching(u, 'RAILPAD', 'MAIN_IE') || isProductAndIeRoleMatching(u, 'RAILPAD', 'PROCESS_IE'))
+          ).map((u) => ({
+            id: u.userId || u.id,
+            name: u.fullName || u.name || u.userName || u.username,
+            employeeCode: u.employeeCode,
+            roleName: railpadRoleLabel(u.role || u.roleName || 'Rail Main IE'), // shown as "Railpad Main/Process IE"
+            roleNames: Array.isArray(u.roleNames) ? u.roleNames : [],
+            productType: u.productType || '',
+            rio: u.rio || ''
+          }));
+          setRailpadRemapUsers(rpUsers);
         } catch (e) {
           console.error("Error fetching Railpad IE users:", e);
         }

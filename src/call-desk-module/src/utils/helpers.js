@@ -218,6 +218,12 @@ export const isRioMatching = (targetRio, itemRio) => {
  * Resolve the active Call Desk RIO: prefers logged-in user's RIO and falls back
  * to the supplied call RIO when the user's RIO is not set.
  */
+/** Display label for Rail Pad IE roles: "Rail Main IE" -> "Railpad Main IE", "Rail Process IE" -> "Railpad Process IE". */
+export const railpadRoleLabel = (role) => {
+  if (!role) return role;
+  return String(role).replace(/\bRail (Main|Process) IE\b/gi, (_, r) => `Railpad ${r} IE`);
+};
+
 export const getEffectiveCallDeskRio = (fallbackRio = '') => {
   if (typeof window !== 'undefined' && window.localStorage) {
     const token = window.localStorage.getItem('authToken');

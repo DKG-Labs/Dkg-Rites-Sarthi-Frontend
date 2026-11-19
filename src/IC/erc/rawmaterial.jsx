@@ -18,6 +18,18 @@ import reportService from "../../services/reportService";
 import { fetchPoDataForSections } from "../../services/poDataService";
 import { normalizeErcType } from "../../utils/ercUtils";
 
+// IC number in "RIO/call/IE" form: the backend certificate no. when it has that form, else the one the
+// Issuance list builds (RIO letter / call no / IE short name) — same as the Process IC. Diversion ICs
+// (partial or complete) have no completion row, so the backend sends only the bare call no.
+const pickIcNumber = (c) => {
+  const cert = (c && c.certificateNo) ? String(c.certificateNo) : "";
+  const listNo = (c && c.icNo) ? String(c.icNo) : "";
+  if (cert.includes("/")) return cert;
+  if (listNo.includes("/")) return listNo;
+  return cert || listNo || "";
+};
+
+
 export default function RawMaterialCertificate({ call = {}, onBack }) {
   const printAreaRef = useRef();
   const [poDetails, setPoDetails] = useState(null);
@@ -106,7 +118,7 @@ export default function RawMaterialCertificate({ call = {}, onBack }) {
     const consigneeManufacturerDefault = inspPlace || storedConsigneeManuf;
 
     return {
-      certificateNo: c.certificateNo || c.icNo || "",
+      certificateNo: pickIcNumber(c),
       certificateDate: c.certificateDate || "",
       offeredInstNo: c.offeredInstNo || "",
       passedInstNo: c.passedInstNo || "",
@@ -272,6 +284,10 @@ export default function RawMaterialCertificate({ call = {}, onBack }) {
           let savedEdit = await getRmIcSaveChanges(icNumber);
           if (!savedEdit) {
             savedEdit = await getRmIcEditData(icNumber);
+          }
+          const bareIcNo = (String(icNumber).split("/").map((s) => s.trim()).find((s) => /^(ER|EP|EF)-/i.test(s))) || call.ic_number;
+          if (!savedEdit && bareIcNo && bareIcNo !== icNumber) {
+            savedEdit = (await getRmIcSaveChanges(bareIcNo)) || (await getRmIcEditData(bareIcNo));
           }
           if (savedEdit) {
             initialData = {

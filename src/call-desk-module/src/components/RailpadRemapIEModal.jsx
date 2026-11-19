@@ -3,8 +3,8 @@ import { fetchRailpadRemapAvailableUsers, submitRailpadRemap } from '../services
 import {
   getEffectiveCallDeskRio,
   isRioMatching,
-  getCallProductAndIeRole,
   isProductAndIeRoleMatching,
+  railpadRoleLabel,
 } from '../utils/helpers';
 import SearchableEmployeeSelect from './SearchableEmployeeSelect';
 
@@ -102,16 +102,17 @@ const RailpadRemapIEModal = ({ callNo, plantId, rio, currentIeUserId, currentIeN
       try {
         setLoading(true);
         const effectiveRio = getEffectiveCallDeskRio(rio);
-        const { ieRole } = getCallProductAndIeRole({ callNumber: callNo });
-        const res = await fetchRailpadRemapAvailableUsers(effectiveRio, ieRole);
+        // Rail Pad: list both Main IEs and Process IEs
+        const res = await fetchRailpadRemapAvailableUsers(effectiveRio, 'ALL');
         if (res?.responseStatus?.statusCode === 0) {
           const rawUsers = res.responseData || [];
           const filtered = rawUsers.filter(
             (u) =>
               (!effectiveRio || isRioMatching(effectiveRio, u.rio)) &&
-              isProductAndIeRoleMatching(u, 'RAILPAD', ieRole)
+              (isProductAndIeRoleMatching(u, 'RAILPAD', 'MAIN_IE') || isProductAndIeRoleMatching(u, 'RAILPAD', 'PROCESS_IE'))
           );
-          setAvailableUsers(filtered);
+          // Display "Railpad Main IE" / "Railpad Process IE" instead of "Rail ..."
+          setAvailableUsers(filtered.map((u) => ({ ...u, role: railpadRoleLabel(u.role || u.roleName) })));
         } else {
           setError('Failed to fetch available users');
         }

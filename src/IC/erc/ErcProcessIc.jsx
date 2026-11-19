@@ -509,11 +509,11 @@ const ErcProcessIC = ({ data = {}, isEditing = false, isBusy = false, onChange =
             <div className="border-r border-black p-1.5 pb-3.5">
               <div>
                 <span className="font-semibold text-[10px]">ड्रॉइंग सं. / Drg. No. </span>
-                <EditableField isEditing={false} value={drgNo} onChange={(val) => onChange("drgNo", val)} className="leading-tight mt-0.5" />
+                <EditableField isEditing={isEditing} value={drgNo} onChange={(val) => onChange("drgNo", val)} className="leading-tight mt-0.5" />
               </div>
               <div className="mt-1.5">
                 <span className="font-semibold text-[10px]">विनिर्देश सं. / Specn. No. </span>
-                <EditableField isEditing={false} value={specNo} onChange={(val) => onChange("specNo", val)} className="leading-tight mt-0.5" />
+                <EditableField isEditing={isEditing} value={specNo} onChange={(val) => onChange("specNo", val)} className="leading-tight mt-0.5" />
               </div>
             </div>
             <div className="p-1.5 pb-3.5">

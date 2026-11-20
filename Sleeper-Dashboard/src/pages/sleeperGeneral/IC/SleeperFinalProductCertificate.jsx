@@ -604,7 +604,8 @@ export default function SleeperFinalProductCertificate() {
           EMP_NO: empNo,
           BK_NO: data.bookNo,
           SET_NO: data.setNo,
-          STATUS: "F"
+          STATUS: "F",
+          IC_NO: data.certificateNo || call.certificateNo || call.icNo || call.requestId || call.callNo || call.call_no
         })
       });
       

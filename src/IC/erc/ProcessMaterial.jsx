@@ -320,7 +320,7 @@ export default function ProcessMaterialCertificate({ call = {}, onBack }) {
     setBookSetValidation(prev => ({ ...prev, isValidating: true }));
     try {
       const empNo = getStoredUser()?.employeeCode || "UNKNOWN";
-      const result = await validateBookSetNo(empNo, bookNo, setNo, "S");
+      const result = await validateBookSetNo(empNo, bookNo, setNo, "S", dataToPass?.certificateNo || call.icNo || call.call_no);
       
       if (result.resultFlag === 1) {
         setBookSetValidation({ isValid: true, message: null, isValidating: false });

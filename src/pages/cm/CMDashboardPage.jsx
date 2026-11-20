@@ -7,7 +7,7 @@ import reportService from '../../services/reportService';
 import ProfessionalCardSection from '../../components/railway-board/ProfessionalCardSection';
 import { Level1Row } from '../../components/railway-board/LevelRows';
 import Pagination from '../../components/Pagination';
-import { formatDate } from '../../utils/helpers';
+import { formatDate, downloadCrisPoDocument } from '../../utils/helpers';
 
 // Heavy tabs load on demand (smaller first load)
 const CMDiversionApprovalsTab = lazy(() => import('./tabs/CMDiversionApprovalsTab'));
@@ -1084,6 +1084,7 @@ export const CMDashboardPage = ({ isEmbedded = false, activeTabFromProps = null,
   const [callsUpdatedAt, setCallsUpdatedAt] = useState(null);
   const [approvals, setApprovals] = useState(INITIAL_APPROVALS);
   const [notification, setNotification] = useState(null);
+  const [downloadingPo, setDownloadingPo] = useState(null);
 
   const handleOpenCallDetailsModal = (ieName, type, callsList) => {
     setCallPopupData({
@@ -1182,6 +1183,7 @@ export const CMDashboardPage = ({ isEmbedded = false, activeTabFromProps = null,
           product: productOf(item.callNumber),
           stage: item.productAndStageOfInspection || 'Process',
           poNumber: item.poNumber,
+          pdfPath: item.pdfPath || item.poPdfPath || '',
           dpDate: item.deliveryDate || '',
           extDpDate: item.expectedDeliveryDate || '',
           vendorName: item.vendorName,
@@ -3229,13 +3231,40 @@ export const CMDashboardPage = ({ isEmbedded = false, activeTabFromProps = null,
 
                               {/* PO Number - hyperlink to download PO */}
                               <td className="wrap-cell">
-                                <a
-                                  href="#download-po"
+                                <button
+                                  type="button"
                                   className="cm-table-link"
-                                  onClick={(e) => { e.preventDefault(); handleDownloadPdf(call.callNumber, 'PO'); }}
+                                  style={{
+                                    background: 'none',
+                                    border: 'none',
+                                    color: '#2563eb',
+                                    textDecoration: 'underline',
+                                    cursor: 'pointer',
+                                    padding: 0,
+                                    font: 'inherit',
+                                    textAlign: 'left',
+                                    fontWeight: '600',
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    gap: '6px'
+                                  }}
+                                  disabled={downloadingPo === call.poNumber}
+                                  title="Click to download PO document"
+                                  onClick={(e) => {
+                                    e.preventDefault();
+                                    downloadCrisPoDocument(
+                                      call.poNumber,
+                                      call.pdfPath,
+                                      setDownloadingPo,
+                                      triggerNotification
+                                    );
+                                  }}
                                 >
                                   {call.poNumber}
-                                </a>
+                                  {downloadingPo === call.poNumber && (
+                                    <i className="fa-solid fa-spinner fa-spin" style={{ fontSize: '11px', color: '#2563eb' }} />
+                                  )}
+                                </button>
                               </td>
 
                               {/* DP Date & Ext DP Date */}
@@ -4766,7 +4795,32 @@ export const CMDashboardPage = ({ isEmbedded = false, activeTabFromProps = null,
                         <tr key={call.id}>
                           <td style={{ fontWeight: 'bold', color: '#0f172a', border: '1px solid #cbd5e1' }}>{call.callNumber}</td>
                           <td className="vendor-cell" style={{ border: '1px solid #cbd5e1' }}>{call.vendorName}</td>
-                          <td style={{ fontFamily: 'monospace', fontSize: '11px', color: '#475569', border: '1px solid #cbd5e1' }}>{call.poNumber}</td>
+                          <td style={{ fontFamily: 'monospace', fontSize: '11px', color: '#475569', border: '1px solid #cbd5e1' }}>
+                            <button
+                              type="button"
+                              style={{
+                                background: 'none',
+                                border: 'none',
+                                color: '#2563eb',
+                                textDecoration: 'underline',
+                                cursor: 'pointer',
+                                padding: 0,
+                                font: 'inherit',
+                                textAlign: 'left',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '4px'
+                              }}
+                              title="Click to download PO document"
+                              disabled={downloadingPo === call.poNumber}
+                              onClick={() => downloadCrisPoDocument(call.poNumber, call.pdfPath, setDownloadingPo, triggerNotification)}
+                            >
+                              {call.poNumber}
+                              {downloadingPo === call.poNumber && (
+                                <i className="fa-solid fa-spinner fa-spin" style={{ fontSize: '10px', color: '#2563eb' }} />
+                              )}
+                            </button>
+                          </td>
                           <td style={{ fontWeight: '500', border: '1px solid #cbd5e1' }}>{call.desiredInspectionDate ? formatDate(call.desiredInspectionDate) : ''}</td>
                           <td style={{ border: '1px solid #cbd5e1' }}>{call.callDate ? formatDate(call.callDate) : ''}</td>
                           <td style={{ fontWeight: '500', color: call.inspectionStartDate ? '#166534' : 'inherit', border: '1px solid #cbd5e1' }}>

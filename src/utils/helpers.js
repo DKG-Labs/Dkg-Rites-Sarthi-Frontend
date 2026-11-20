@@ -393,19 +393,53 @@ export const downloadCrisPoDocument = async (rawPoNo, existingPdfPath, setDownlo
     return;
   }
 
-  const barePoNo = rawPoNo.includes('/') ? rawPoNo.split('/')[0].trim() : String(rawPoNo).trim();
-
   if (setDownloadingPo) setDownloadingPo(rawPoNo);
 
   try {
     let pdfPath = existingPdfPath;
+    let resolvedPoNo = null;
 
     if (!pdfPath) {
-      const response = await axios.get(`${API_BASE_URL}/api/vendor/po-pdf-path`, {
-        params: { rawPoNo: barePoNo },
-        headers: getAuthHeaders()
-      });
-      pdfPath = response.data?.responseData;
+      const str = String(rawPoNo).trim();
+      const candidates = [];
+
+      // 1. Bare digits if >= 5 digits (e.g. "63245440202594" from "NCR-63245440202594/002")
+      const digitMatch = str.match(/\d{5,}/);
+      if (digitMatch && !candidates.includes(digitMatch[0])) {
+        candidates.push(digitMatch[0]);
+      }
+
+      // 2. Part before slash, stripped of prefix and as-is
+      if (str.includes('/')) {
+        const beforeSlash = str.split('/')[0].trim();
+        const stripped = beforeSlash.replace(/^[A-Za-z\s]+[-/]\s*/, '').trim();
+        if (stripped && !candidates.includes(stripped)) candidates.push(stripped);
+        if (beforeSlash && !candidates.includes(beforeSlash)) candidates.push(beforeSlash);
+      }
+
+      // 3. String without railway prefix (e.g. "NCR-...")
+      const noPrefix = str.replace(/^[A-Za-z\s]+[-/]\s*/, '').trim();
+      if (noPrefix && !candidates.includes(noPrefix)) candidates.push(noPrefix);
+
+      // 4. Raw string
+      if (!candidates.includes(str)) candidates.push(str);
+
+      for (const cand of candidates) {
+        try {
+          const response = await axios.get(`${API_BASE_URL}/api/vendor/po-pdf-path`, {
+            params: { rawPoNo: cand },
+            headers: getAuthHeaders()
+          });
+          const path = response.data?.responseData;
+          if (path && typeof path === 'string' && path.trim()) {
+            pdfPath = path.trim();
+            resolvedPoNo = cand;
+            break;
+          }
+        } catch (e) {
+          // continue to next candidate
+        }
+      }
     }
 
     if (!pdfPath) {
@@ -413,18 +447,31 @@ export const downloadCrisPoDocument = async (rawPoNo, existingPdfPath, setDownlo
       return;
     }
 
+    notify(`Downloading PO document for #${rawPoNo}...`, 'info', onNotification);
+
+    const downloadFileName = `PO_${resolvedPoNo || String(rawPoNo).replace(/[^\w-]/g, '_')}.pdf`;
+
     if (pdfPath.startsWith('http') || pdfPath.includes('ireps.gov.in')) {
       const proxyUrl = `${API_BASE_URL}/api/vendor/proxy-pdf?url=${encodeURIComponent(pdfPath)}`;
       const link = document.createElement('a');
       link.href = proxyUrl;
-      link.download = `PO_${barePoNo}.pdf`;
+      link.download = downloadFileName;
       link.target = '_blank';
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
     } else {
-      window.open(pdfPath, '_blank');
+      const baseUrl = API_BASE_URL.replace(/\/api$/, '');
+      const fullUrl = pdfPath.startsWith('http') ? pdfPath : `${baseUrl}/${pdfPath.replace(/^\//, '')}`;
+      const link = document.createElement('a');
+      link.href = fullUrl;
+      link.download = downloadFileName;
+      link.target = '_blank';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
     }
+    notify(`PO document for #${rawPoNo} downloaded successfully!`, 'success', onNotification);
   } catch (err) {
     console.error('Error downloading CRIS PO document:', err);
     notify(`Failed to download CRIS PO document for #${rawPoNo}`, 'error', onNotification);

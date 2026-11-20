@@ -112,7 +112,7 @@ export default function RawMaterialCertificate({ call = {}, onBack }) {
     }
 
     const vendorName = c.contractor || c.vendorName || c.vendor_name || "";
-    const inspPlace = po?.placeOfInspection || po?.inspPlace || c.placeOfInspection || "";
+    const inspPlace = c.placeOfInspection || po?.placeOfInspection || po?.inspPlace || "";
     // Always use place of inspection as default (overrides old stored vendor name for old ICs too)
     const storedConsigneeManuf = c.consigneeManufacturer || c.consigneeFinished || "";
     const consigneeManufacturerDefault = inspPlace || storedConsigneeManuf;

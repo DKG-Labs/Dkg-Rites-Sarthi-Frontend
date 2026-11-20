@@ -2,8 +2,14 @@ import React, { useState, useMemo, useEffect } from 'react';
 import EnhancedDataTable from '../../../components/common/EnhancedDataTable';
 import CollapsibleSection from '../../../components/common/CollapsibleSection';
 import TrendChart from '../../../components/common/TrendChart';
-import { apiService } from '../../../services/api';
+import { apiService, api } from '../../../services/api';
 import { useShift } from '../../../context/ShiftContext';
+
+// Plant ids may be stored with or without a leading ':' (e.g. ':41647/Kargi' vs '41647/Kargi')
+const isSamePlant = (itemPlant, targetPlant) => {
+    if (!targetPlant || !itemPlant) return true;
+    return String(itemPlant).replace(':', '').trim().toLowerCase() === String(targetPlant).replace(':', '').trim().toLowerCase();
+};
 
 const ModulusOfRupture = () => {
     const { dutyUnit, vendorCode, selectedShift, userId, dutyDate } = useShift();
@@ -22,16 +28,17 @@ const ModulusOfRupture = () => {
         try {
             setLoading(true);
             const activePlantId = dutyUnit || localStorage.getItem('dutyUnit');
+            // Always hit the server (not the shared request cache) so a save / modify / delete shows up immediately
             const [samplesRes, testsRes] = await Promise.all([
-                apiService.getAllMORSamples(),
-                apiService.getAllMORTests()
+                api.get('/FinalInspectionController'),
+                api.get('/mor-test')
             ]);
 
-            const currentUserId = parseInt(userId || localStorage.getItem('userId') || '0', 10);
+            // Show every IE's entries for the duty plant (not only the logged-in user's)
             const filteredSamples = (samplesRes.responseData || [])
-                .filter(s => s.plantId === activePlantId && s.createdBy === currentUserId);
+                .filter(s => isSamePlant(s.plantId, activePlantId));
             const filteredTests = (testsRes.responseData || [])
-                .filter(t => t.plantId === activePlantId && t.createdBy === currentUserId);
+                .filter(t => isSamePlant(t.plantId, activePlantId));
 
             setDeclaredSamples(filteredSamples);
             setTestedSamples(filteredTests);
@@ -114,7 +121,7 @@ const ModulusOfRupture = () => {
                 });
             }
             setShowDeclareModal(false);
-            fetchData();
+            await fetchData();
         } catch (error) {
             alert('Failed to save declaration: ' + error.message);
         } finally {
@@ -143,7 +150,8 @@ const ModulusOfRupture = () => {
                 await apiService.createMORTest(payload);
             }
             setShowTestModal(false);
-            fetchData();
+            await fetchData();
+            setViewMode('tested'); // show the saved/modified result in Testing Completed
         } catch (error) {
             alert('Failed to save test results: ' + error.message);
         } finally {
@@ -151,10 +159,47 @@ const ModulusOfRupture = () => {
         }
     };
 
+    // Date filter (From / To). Declared tab filters on sampling date, Testing Completed on testing date.
+    const [fromDate, setFromDate] = useState('');
+    const [toDate, setToDate] = useState('');
+    const inDateRange = (value) => {
+        if (!fromDate && !toDate) return true;
+        if (!value) return false;
+        const d = String(value).slice(0, 10); // yyyy-MM-dd
+        if (fromDate && d < fromDate) return false;
+        if (toDate && d > toDate) return false;
+        return true;
+    };
+
     // Derived Data
     const pendingSamples = useMemo(() => {
         return declaredSamples.filter(s => !testedSamples.some(t => t.morSampleId === s.id));
     }, [declaredSamples, testedSamples]);
+
+    const filteredPendingSamples = pendingSamples.filter(s => inDateRange(s.samplingDate));
+    const filteredTestedSamples = testedSamples.filter(t => inDateRange(t.testingDate));
+
+    const dateFilterBar = (
+        <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'flex-end', gap: '12px', marginBottom: '16px', flexWrap: 'wrap' }}>
+            <div className="input-group" style={{ margin: 0 }}>
+                <label style={{ fontSize: '11px', fontWeight: '700', color: '#64748b' }}>From Date</label>
+                <input type="date" value={fromDate} max={toDate || undefined} onChange={e => setFromDate(e.target.value)} />
+            </div>
+            <div className="input-group" style={{ margin: 0 }}>
+                <label style={{ fontSize: '11px', fontWeight: '700', color: '#64748b' }}>To Date</label>
+                <input type="date" value={toDate} min={fromDate || undefined} onChange={e => setToDate(e.target.value)} />
+            </div>
+            {(fromDate || toDate) && (
+                <button
+                    className="btn-save"
+                    style={{ background: '#f1f5f9', color: '#64748b', border: 'none', padding: '10px 16px' }}
+                    onClick={() => { setFromDate(''); setToDate(''); }}
+                >
+                    Clear
+                </button>
+            )}
+        </div>
+    );
 
     const isActionable = (dateString) => {
         if (!dateString) return true;
@@ -175,8 +220,8 @@ const ModulusOfRupture = () => {
                 alert('Sample declaration deleted successfully.');
                 setViewMode('declared');
             }
-            fetchData();
             setShowViewModal(false);
+            await fetchData();
         } catch (error) {
             console.error('Failed to delete MOR record:', error);
             alert('Delete failed.');
@@ -358,7 +403,8 @@ const ModulusOfRupture = () => {
                             <h4 style={{ margin: 0, color: '#475569' }}>MOR Samples Pending Testing</h4>
                             <button className="btn-verify" onClick={handleAddSample}>+ Declare New Sample</button>
                         </div>
-                        <EnhancedDataTable columns={columnsDeclared} data={pendingSamples} />
+                        {dateFilterBar}
+                        <EnhancedDataTable columns={columnsDeclared} data={filteredPendingSamples} />
                     </div>
                 )}
 
@@ -367,7 +413,8 @@ const ModulusOfRupture = () => {
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
                             <h4 style={{ margin: 0, color: '#475569' }}>MOR Analysis Log</h4>
                         </div>
-                        <EnhancedDataTable columns={columnsTested} data={testedSamples} />
+                        {dateFilterBar}
+                        <EnhancedDataTable columns={columnsTested} data={filteredTestedSamples} />
                     </div>
                 )}
             </div>
@@ -611,7 +658,10 @@ const MORDetailsModal = ({ sample, onClose, onModify, onEnterTest, onDelete }) =
     if (!sample) return null;
 
     const createdTime = sample.createdDate ? new Date(sample.createdDate) : new Date();
-    const canModifyOrDelete = (Date.now() - createdTime.getTime()) <= (8 * 60 * 60 * 1000);
+    // Everyone can view all entries, but only the IE who created a record may modify/delete it (within 8 hours)
+    const currentUserId = parseInt(localStorage.getItem('userId') || '0', 10);
+    const isOwner = sample.createdBy == null || Number(sample.createdBy) === currentUserId;
+    const canModifyOrDelete = isOwner && (Date.now() - createdTime.getTime()) <= (8 * 60 * 60 * 1000);
 
     // Recalculate result from strength (same logic as table) to avoid stale DB value
     let computedResult = sample.result || 'N/A';

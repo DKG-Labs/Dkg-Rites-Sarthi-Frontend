@@ -782,7 +782,7 @@ export const IEFieldsForm = ({
                 try {
                     const result = await checkDuplicateSleeper(formData.sleeperMapping.employeeId, value, formData.sleeperMapping.poiCode, ieType);
                     if (result?.exists) {
-                        setMappingErrors(prev => ({ ...prev, sleeper: 'This mapping already exists.' }));
+                        setMappingErrors(prev => ({ ...prev, sleeper: result?.message || 'This plant is already mapped to an IE for Sleeper Final (Main IE).' }));
                     } else {
                         setMappingErrors(prev => { const n = {...prev}; delete n.sleeper; return n; });
                     }
@@ -859,7 +859,7 @@ export const IEFieldsForm = ({
                 try {
                     const result = await checkDuplicateRailpad(formData.railpadMapping.employeeId, plantIdVal, newEntries[index].poiCode, ieType);
                     if (result?.exists) {
-                        setMappingErrors(prev => ({ ...prev, [`railpad_${index}`]: 'This mapping already exists.' }));
+                        setMappingErrors(prev => ({ ...prev, [`railpad_${index}`]: result?.message || 'This plant is already mapped to an IE for Rail Pad.' }));
                     } else {
                         setMappingErrors(prev => { const n = {...prev}; delete n[`railpad_${index}`]; return n; });
                     }
@@ -951,13 +951,14 @@ export const IEFieldsForm = ({
         }
 
         // DB duplicate check for ERC Main IE
-        if (checkDuplicateErcMain && newList[index].poiCode && newList[index].ieType) {
+        const checkIeType = newList[index].ieType || 'Primary';
+        if (checkDuplicateErcMain && newList[index].poiCode) {
             const empCode = users.find(u => String(u.userId) === String(formData.userId))?.employeeCode || '';
             if (empCode) {
                 try {
-                    const result = await checkDuplicateErcMain(empCode, newList[index].poiCode, newList[index].ieType);
+                    const result = await checkDuplicateErcMain(empCode, newList[index].poiCode, checkIeType);
                     if (result?.exists) {
-                        setMappingErrors(prev => ({ ...prev, [`erc_main_${index}`]: 'This mapping already exists.' }));
+                        setMappingErrors(prev => ({ ...prev, [`erc_main_${index}`]: result?.message || 'This POI is already mapped to an IE for RM/Final.' }));
                     } else {
                         setMappingErrors(prev => { const n = {...prev}; delete n[`erc_main_${index}`]; return n; });
                     }

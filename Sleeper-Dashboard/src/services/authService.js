@@ -154,6 +154,18 @@ export const isAuthenticated = () => {
  * Logout user - clear all auth data
  */
 export const logoutUser = () => {
+  // Mark this user's login as LOGGED_OUT (Active Login list). Fire-and-forget, before the token is cleared.
+  try {
+    const token = localStorage.getItem('authToken');
+    if (token) {
+      fetch(`${API_BASE_URL}/active-logins/logout`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+        keepalive: true,
+      }).catch(() => {});
+    }
+  } catch (e) { /* ignore */ }
+
   localStorage.removeItem('authToken');
   localStorage.removeItem('userId');
   localStorage.removeItem('userName');

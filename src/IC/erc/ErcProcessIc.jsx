@@ -37,6 +37,7 @@ const ErcProcessIC = ({ data = {}, isEditing = false, isBusy = false, onChange =
     passedInstNo = "",
     contractor = "",
     manufacturer = "",
+    placeOfInspection = "",
     contractRef = "",
     poDetails = "",
     maNumberAndDate = "",
@@ -449,7 +450,7 @@ const ErcProcessIC = ({ data = {}, isEditing = false, isBusy = false, onChange =
               <div className="mt-1.5 font-semibold text-[10px] pt-1">
                 निरीक्षण का स्थान / Place of Inspection
               </div>
-              <EditableField isEditing={false} type="textarea" value={data.placeOfInspection || ''} onChange={(val) => onChange("placeOfInspection", val)} className="break-words dynamic-text leading-tight mt-0.5" />
+              <EditableField isEditing={false} type="textarea" value={placeOfInspection || data.placeOfInspection || ''} onChange={(val) => onChange("placeOfInspection", val)} className="break-words dynamic-text leading-tight mt-0.5" />
             </div>
           </div>
 

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { getIbsCallRegistrationData, getIbsCompletedCallsData, revertIbsCallToCompleted } from '../../services/ibsService';
+import { getIbsCallRegistrationData, searchIbsCompletedCalls, revertIbsCallToCompleted, getIbsCompletedCachedAt, prefetchIbsCompletedCalls } from '../../services/ibsService';
 import './IbsInspectionDataView.css';
 
 // Master category definitions for the 6 specific call streams
@@ -196,7 +196,11 @@ export const IbsInspectionDataView = ({ onNotify }) => {
     const [activeTab, setActiveTab] = useState('PENDING');
 
     const [pendingCalls, setPendingCalls] = useState([]);
+    // Completed tab is filtered / sorted / paged on the server: completedCalls holds only the current page.
     const [completedCalls, setCompletedCalls] = useState([]);
+    const [completedTotal, setCompletedTotal] = useState(0);       // rows matching the filters
+    const [completedStats, setCompletedStats] = useState(null);    // category counts over all completed calls
+    const [completedFetchedAt, setCompletedFetchedAt] = useState(null); // when the shown page was fetched
 
     const [pendingLoading, setPendingLoading] = useState(true);
     const [completedLoading, setCompletedLoading] = useState(false);
@@ -311,12 +315,36 @@ export const IbsInspectionDataView = ({ onNotify }) => {
         }
     };
 
-    const fetchCompletedCalls = async () => {
+    const completedQuery = (extra = {}) => ({
+        page: currentPage,
+        size: pageSize,
+        category: categoryFilter,
+        product: productFilter,
+        region: regionFilter,
+        status: statusFilter,
+        search: debouncedSearch.trim(),
+        dateField,
+        from: startDate,
+        to: endDate,
+        sortKey: sortConfig.key,
+        sortDir: sortConfig.direction,
+        ...extra
+    });
+
+    const fetchCompletedCalls = async (refresh = false) => {
         setCompletedLoading(true);
         setCompletedError(null);
         try {
-            const data = await getIbsCompletedCallsData();
-            setCompletedCalls(Array.isArray(data) ? data : []);
+            const query = completedQuery();
+            const data = await searchIbsCompletedCalls(refresh ? { ...query, refresh: true } : query);
+            setCompletedCalls(Array.isArray(data.content) ? data.content : []);
+            setCompletedTotal(data.total || 0);
+            if (data.stats) setCompletedStats(data.stats);
+            setCompletedFetchedAt(getIbsCompletedCachedAt(query) || Date.now());
+            // Warm the next page so "Next" opens instantly
+            if (query.page * query.size < (data.total || 0)) {
+                prefetchIbsCompletedCalls({ ...query, page: query.page + 1 });
+            }
         } catch (err) {
             console.error('Failed to load completed IBS calls:', err);
             setCompletedError(err.message || 'Failed to fetch completed IBS calls');
@@ -330,7 +358,7 @@ export const IbsInspectionDataView = ({ onNotify }) => {
             await fetchPendingCalls();
             notify('Refreshed pending calls data', 'success');
         } else {
-            await fetchCompletedCalls();
+            await fetchCompletedCalls(true);
             notify('Refreshed completed calls data', 'success');
         }
     };
@@ -355,6 +383,21 @@ export const IbsInspectionDataView = ({ onNotify }) => {
     useEffect(() => {
         fetchPendingCalls();
     }, []);
+
+    // Search box: wait until typing pauses before asking the server
+    const [debouncedSearch, setDebouncedSearch] = useState('');
+    useEffect(() => {
+        const t = setTimeout(() => setDebouncedSearch(searchTerm), 400);
+        return () => clearTimeout(t);
+    }, [searchTerm]);
+
+    // Completed tab: reload the page whenever a filter, the sort or the page changes
+    useEffect(() => {
+        if (activeTab !== 'COMPLETED') return;
+        fetchCompletedCalls();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [activeTab, currentPage, pageSize, categoryFilter, productFilter, regionFilter, statusFilter,
+        debouncedSearch, dateField, startDate, endDate, sortConfig.key, sortConfig.direction]);
 
     const applyDatePreset = (preset) => {
         setQuickDatePreset(preset);
@@ -416,9 +459,8 @@ export const IbsInspectionDataView = ({ onNotify }) => {
         setSortConfig({ key: null, direction: 'asc' });
         setCurrentPage(1);
 
-        if (tab === 'COMPLETED' && completedCalls.length === 0 && !completedLoading) {
-            fetchCompletedCalls();
-        } else if (tab === 'PENDING' && pendingCalls.length === 0 && !pendingLoading) {
+        // Completed tab loads through the effect above
+        if (tab === 'PENDING' && pendingCalls.length === 0 && !pendingLoading) {
             fetchPendingCalls();
         }
     };
@@ -443,7 +485,13 @@ export const IbsInspectionDataView = ({ onNotify }) => {
     };
 
     // Calculate metrics across the 6 categories
+    const isServerPaged = activeTab === 'COMPLETED';
+
     const categoryStats = useMemo(() => {
+        if (isServerPaged) {
+            const s = completedStats || {};
+            return { TOTAL: s.TOTAL || 0, ER: s.ER || 0, EP: s.EP || 0, EF: s.EF || 0, SF: s.SF || 0, RPP: s.RPP || 0, RPF: s.RPF || 0, OTHER: s.OTHER || 0 };
+        }
         const stats = {
             TOTAL: calls.length,
             ER: 0,
@@ -477,10 +525,11 @@ export const IbsInspectionDataView = ({ onNotify }) => {
         });
 
         return stats;
-    }, [calls]);
+    }, [calls, isServerPaged, completedStats]);
 
     // Filtered Calls
     const filteredCalls = useMemo(() => {
+        if (isServerPaged) return calls; // already filtered by the server
         return calls.filter(call => {
             const cat = getCallCategory(call.callNumber, call.icNumber, call.typeOfCall);
 
@@ -583,11 +632,11 @@ export const IbsInspectionDataView = ({ onNotify }) => {
 
             return true;
         });
-    }, [calls, categoryFilter, productFilter, regionFilter, blockedFilter, statusFilter, startDate, endDate, dateField, searchTerm, activeTab]);
+    }, [calls, isServerPaged, categoryFilter, productFilter, regionFilter, blockedFilter, statusFilter, startDate, endDate, dateField, searchTerm, activeTab]);
 
     // Sorted Calls
     const sortedCalls = useMemo(() => {
-        if (!sortConfig.key) return filteredCalls;
+        if (!sortConfig.key || isServerPaged) return filteredCalls; // server sorts the completed tab
 
         return [...filteredCalls].sort((a, b) => {
             let valA;
@@ -675,14 +724,17 @@ export const IbsInspectionDataView = ({ onNotify }) => {
             if (valA > valB) return sortConfig.direction === 'asc' ? 1 : -1;
             return 0;
         });
-    }, [filteredCalls, sortConfig, activeTab]);
+    }, [filteredCalls, sortConfig, activeTab, isServerPaged]);
 
-    // Pagination calculations
-    const totalPages = Math.ceil(sortedCalls.length / pageSize) || 1;
+    // Pagination calculations (completed tab: the server already returned just this page)
+    const resultCount = isServerPaged ? completedTotal : sortedCalls.length;
+    const totalCount = isServerPaged ? (completedStats?.TOTAL || 0) : calls.length;
+    const totalPages = Math.ceil(resultCount / pageSize) || 1;
     const paginatedCalls = useMemo(() => {
+        if (isServerPaged) return sortedCalls;
         const start = (currentPage - 1) * pageSize;
         return sortedCalls.slice(start, start + pageSize);
-    }, [sortedCalls, currentPage, pageSize]);
+    }, [sortedCalls, currentPage, pageSize, isServerPaged]);
 
     const handleCopy = (text, fieldName) => {
         if (!text) return;
@@ -702,8 +754,18 @@ export const IbsInspectionDataView = ({ onNotify }) => {
     };
 
     // Export to CSV
-    const exportToCsv = () => {
-        if (!sortedCalls || sortedCalls.length === 0) {
+    const exportToCsv = async () => {
+        let exportRows = sortedCalls;
+        if (isServerPaged) {
+            try {
+                const all = await searchIbsCompletedCalls(completedQuery({ page: 1, size: 0 }));
+                exportRows = Array.isArray(all.content) ? all.content : [];
+            } catch (err) {
+                notify(`Export failed: ${err.message}`, 'error');
+                return;
+            }
+        }
+        if (!exportRows || exportRows.length === 0) {
             notify('No data available to export', 'warning');
             return;
         }
@@ -737,7 +799,7 @@ export const IbsInspectionDataView = ({ onNotify }) => {
             'Certificate Link'
         ];
 
-        const rows = sortedCalls.map(c => {
+        const rows = exportRows.map(c => {
             const cat = getCallCategory(c.callNumber, c.icNumber, c.typeOfCall);
             return [
                 ...(isCompleted ? [
@@ -829,14 +891,19 @@ export const IbsInspectionDataView = ({ onNotify }) => {
                         className="btn btn-secondary ibs-btn-action"
                         onClick={refreshData}
                         disabled={loading}
-                        title="Reload live data from server"
+                        title={isServerPaged ? 'Data is cached for a few minutes. Click to fetch the latest from IBS records.' : 'Reload live data from server'}
                     >
                         <span className={`ibs-reload-icon ${loading ? 'rotating' : ''}`}>🔄</span> Refresh Data
                     </button>
+                    {isServerPaged && completedFetchedAt && (
+                        <span style={{ fontSize: '0.75rem', color: '#64748b', alignSelf: 'center' }}>
+                            Updated {new Date(completedFetchedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        </span>
+                    )}
                     <button
                         className="btn btn-primary ibs-btn-action"
                         onClick={exportToCsv}
-                        disabled={loading || filteredCalls.length === 0}
+                        disabled={loading || resultCount === 0}
                     >
                         <span>📥</span> Export CSV
                     </button>
@@ -872,7 +939,7 @@ export const IbsInspectionDataView = ({ onNotify }) => {
                     <span className="ibs-tab-icon">✅</span>
                     <span className="ibs-tab-label">Completed Calls</span>
                     <span className="ibs-tab-badge completed">
-                        {completedLoading ? '...' : completedCalls.length}
+                        {completedLoading && !completedStats ? '...' : (completedStats?.TOTAL ?? 0)}
                     </span>
                 </button>
             </div>
@@ -1239,7 +1306,7 @@ export const IbsInspectionDataView = ({ onNotify }) => {
             <div className="ibs-count-bar">
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
                     <span>
-                        Showing <strong>{sortedCalls.length}</strong> of <strong>{calls.length}</strong> {activeTab === 'PENDING' ? 'pending' : 'completed'} calls
+                        Showing <strong>{resultCount}</strong> of <strong>{totalCount}</strong> {activeTab === 'PENDING' ? 'pending' : 'completed'} calls
                     </span>
                     {categoryFilter !== 'ALL' && (
                         <span className="ibs-active-filter-chip">
@@ -1775,10 +1842,10 @@ export const IbsInspectionDataView = ({ onNotify }) => {
                 )}
 
                 {/* Pagination Controls */}
-                {!loading && filteredCalls.length > 0 && (
+                {!loading && resultCount > 0 && (
                     <div className="ibs-pagination">
                         <div className="ibs-page-info">
-                            Page <strong>{currentPage}</strong> of <strong>{totalPages}</strong> ({filteredCalls.length} items)
+                            Page <strong>{currentPage}</strong> of <strong>{totalPages}</strong> ({resultCount} items)
                         </div>
                         <div className="ibs-pagination-controls">
                             <button

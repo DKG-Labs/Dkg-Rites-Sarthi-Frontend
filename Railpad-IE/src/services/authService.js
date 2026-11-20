@@ -137,6 +137,18 @@ export const isAuthenticated = () => {
 };
 
 export const logoutUser = () => {
+  // Mark this user's login as LOGGED_OUT (Active Login list). Fire-and-forget, before the token is cleared.
+  try {
+    const token = localStorage.getItem('authToken') || localStorage.getItem('token') || sessionStorage.getItem('authToken');
+    if (token) {
+      fetch(`${getBaseUrl()}/active-logins/logout`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+        keepalive: true,
+      }).catch(() => {});
+    }
+  } catch (e) { /* ignore */ }
+
   localStorage.removeItem('authToken');
   localStorage.removeItem('token');
   localStorage.removeItem('railpad_token');

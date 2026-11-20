@@ -388,7 +388,9 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
     const dwg = String(lot?.drawingNo || lot?.drgNo || callObj?.drawingNo || callObj?.drawing_no || '').toUpperCase().trim();
     const is10mmCgrsp = (type.includes('10') && type.includes('CGRSP')) || type.includes('10.00MM CGRSP') || type.includes('10MM CGRSP');
     const isTargetDrg = dwg.includes('8694') || dwg.includes('8998');
-    return is10mmCgrsp && isTargetDrg;
+    // 6.00mm GRSP on RDSO/T-4159: no weight test
+    const is6mmGrsp4159 = dwg.includes('4159') && type.includes('GRSP') && !type.includes('NCR') && !type.includes('CGRSP');
+    return (is10mmCgrsp && isTargetDrg) || is6mmGrsp4159;
   };
 
   const isWeightHidden = isNCRGRSP || isHiddenWeightTest(activeLot, call);

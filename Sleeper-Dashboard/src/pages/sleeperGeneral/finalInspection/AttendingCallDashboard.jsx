@@ -629,6 +629,7 @@ const AttendingCallDashboard = ({ mode }) => {
                         id: item.workflowTransitionId,
                         status: displayStatus,
                         jobStatus: 'COMPLETED',
+                        isWithdrawn: isWithdrawn(item),
                         checked: false
                     };
                 });
@@ -1520,7 +1521,11 @@ const AttendingCallDashboard = ({ mode }) => {
                                                 <td style={{ whiteSpace: 'nowrap', color: '#0369a1', fontWeight: '600' }}>{call.productType || call.sleeperType || 'Sleeper'}</td>
                                                 <td style={{ whiteSpace: 'nowrap', color: '#64748b' }}>{call.createdDate ? new Date(call.createdDate).toLocaleDateString('en-GB') : (call.callDate ? new Date(call.callDate).toLocaleDateString('en-GB') : 'N/A')}</td>
                                                 <td style={{ textAlign: 'center', whiteSpace: 'nowrap' }}>
-                                                    <span className="status-pill completed" style={{ padding: '4px 10px', borderRadius: '6px', fontWeight: 600 }}>Completed - E-Signed</span>
+                                                    {call.isWithdrawn ? (
+                                                        <span className="status-pill" style={{ padding: '4px 10px', borderRadius: '6px', fontWeight: 600, background: '#fef2f2', color: '#991b1b', border: '1px solid #fecaca' }}>{call.status}</span>
+                                                    ) : (
+                                                        <span className="status-pill completed" style={{ padding: '4px 10px', borderRadius: '6px', fontWeight: 600 }}>Completed - E-Signed</span>
+                                                    )}
                                                 </td>
                                                 <td style={{ textAlign: 'center', whiteSpace: 'nowrap' }}>
                                                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -1951,7 +1956,7 @@ const AttendingCallDashboard = ({ mode }) => {
                                     <div>
                                         <label style={{ fontSize: '11px', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: '700', marginBottom: '2px', display: 'block' }}>Status</label>
                                         <div style={{ display: 'inline-block', background: '#f1f5f9', color: '#475569', padding: '3px 10px', borderRadius: '20px', fontSize: '13px', fontWeight: '600' }}>
-                                            {selectedActionCall.jobStatus || selectedActionCall.status || (selectedActionCall.isClosed ? 'Closed' : (selectedActionCall.isIssuance ? 'IC Issue' : 'Completed'))}
+                                            {selectedActionCall.isWithdrawn ? selectedActionCall.status : selectedActionCall.jobStatus || selectedActionCall.status || (selectedActionCall.isClosed ? 'Closed' : (selectedActionCall.isIssuance ? 'IC Issue' : 'Completed'))}
                                         </div>
                                     </div>
                                     {(selectedActionCall.qty !== undefined || selectedActionCall.offeredQty !== undefined || selectedActionCall.totalOffered !== undefined) && (
@@ -2082,7 +2087,11 @@ const AttendingCallDashboard = ({ mode }) => {
                             })()}
                             
                             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: '14px' }}>
-                                {(selectedActionCall.isIssuance || activeTab === 'issuance') ? (
+                                {selectedActionCall.isWithdrawn ? (
+                                    <div style={{ gridColumn: '1 / -1', background: '#fef2f2', border: '1px solid #fecaca', color: '#991b1b', borderRadius: '12px', padding: '14px 16px', fontSize: '13px', fontWeight: 600 }}>
+                                        This call has been withdrawn by the vendor. IC and Annexures are not generated, and the call cannot be sent to IBS.
+                                    </div>
+                                ) : (selectedActionCall.isIssuance || activeTab === 'issuance') ? (
                                     <>
                                         {/* 1. Issue IC / View IC */}
                                         <button

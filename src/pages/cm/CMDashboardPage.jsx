@@ -13,6 +13,29 @@ import { formatDate } from '../../utils/helpers';
 const CMDiversionApprovalsTab = lazy(() => import('./tabs/CMDiversionApprovalsTab'));
 const UdmRejectionDashboard = lazy(() => import('../../components/railway-board/UdmRejectionDashboard'));
 const SBUDiversionApprovalsTab = lazy(() => import('./tabs/SBUDiversionApprovalsTab'));
+const RailpadDiversionApprovals = lazy(() => import('./tabs/RailpadDiversionApprovals'));
+
+/** ERC / Rail Pad switch above the diversion approval queues (remembered per browser). */
+const DiversionProductSwitch = ({ mode, ErcView }) => {
+  const [product, setProduct] = React.useState(() => {
+    try { return localStorage.getItem('cm_diversion_product') || 'ERC'; } catch { return 'ERC'; }
+  });
+  const pick = (p) => { setProduct(p); try { localStorage.setItem('cm_diversion_product', p); } catch { /* ignore */ } };
+  const btn = (p) => ({
+    background: 'none', border: 'none', padding: '9px 16px', cursor: 'pointer', fontSize: 14,
+    color: product === p ? '#0f172a' : '#64748b', fontWeight: product === p ? 600 : 400,
+    borderBottom: `2px solid ${product === p ? '#2563eb' : 'transparent'}`,
+  });
+  return (
+    <div style={{ display: 'grid', gap: 12 }}>
+      <div style={{ display: 'flex', gap: 4, borderBottom: '1px solid #e2e8f0' }} role="tablist" aria-label="Product">
+        <button type="button" style={btn('ERC')} onClick={() => pick('ERC')}>ERC</button>
+        <button type="button" style={btn('RAILPAD')} onClick={() => pick('RAILPAD')}>Rail Pad</button>
+      </div>
+      {product === 'ERC' ? ErcView : <RailpadDiversionApprovals mode={mode} />}
+    </div>
+  );
+};
 const CertificateStorageManager = lazy(() => import('../../components/admin-dashboard/CertificateStorageManager'));
 
 /** Employee-code part of a CM label: "11055 - T VIJAY SHANKAR" or "T Vijay Shankar - 11055" -> "11055". */
@@ -2033,6 +2056,25 @@ export const CMDashboardPage = ({ isEmbedded = false, activeTabFromProps = null,
               {!isSidebarCollapsed && <span>Diversion Queue (CM)</span>}
             </div>
           </div>
+
+          {/* Material Diversion (SBU Head Approvals) — only for SBU Head */}
+          {(localStorage.getItem('roleName') || '').includes('SBU Head') && (
+            <div className="cm-menu-group">
+              <div
+                className={`cm-menu-item ${activeTab === 'Material Diversion (SBU)' ? 'active' : ''}`}
+                onClick={() => {
+                  setActiveTab('Material Diversion (SBU)');
+                  setCallMenuOpen(false);
+                  setIeMenuOpen(false);
+                  setVendorMenuOpen(false);
+                  setReportsMenuOpen(false);
+                }}
+              >
+                <i className="cm-menu-item-icon fa-solid fa-shuffle"></i>
+                {!isSidebarCollapsed && <span>Diversion Queue (SBU)</span>}
+              </div>
+            </div>
+          )}
 
           {/* UDM / IMMS Consignee Rejections (same page as Railway Board) */}
           <div className="cm-menu-group">
@@ -4593,12 +4635,12 @@ export const CMDashboardPage = ({ isEmbedded = false, activeTabFromProps = null,
 
         {/* 11. Material Diversion (CM Approvals) view */}
         {activeTab === 'Material Diversion (CM)' && (
-          <CMDiversionApprovalsTab cmUserId={cmDbUserId} />
+          <DiversionProductSwitch mode="CM" ErcView={<CMDiversionApprovalsTab cmUserId={cmDbUserId} />} />
         )}
 
         {/* 12. Material Diversion (SBU Head Approvals) view */}
         {activeTab === 'Material Diversion (SBU)' && (
-          <SBUDiversionApprovalsTab />
+          <DiversionProductSwitch mode="SBU" ErcView={<SBUDiversionApprovalsTab />} />
         )}
 
         {/* 13. Verification / Notification & Approval view */}

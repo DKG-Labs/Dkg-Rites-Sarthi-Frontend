@@ -131,6 +131,16 @@ const RailpadProcessInspectionDashboard = ({ user, call, currentShift, onBack, o
           setAcceptedSets(draft.acceptedSets.toString());
         }
 
+        // Draft batches whose IE production record was deleted / re-entered (new id) are stale:
+        // they would show as duplicates and double count. Keep only ids still returned as available
+        // (this call's own batches are always included there).
+        const availableIds = new Set(allBatches.map(b => String(b.declarationBatchId)));
+        const liveDraftBatches = (draft.batches || []).filter(b => availableIds.has(String(b.declarationBatchId)));
+        if (liveDraftBatches.length !== (draft.batches || []).length) {
+          console.warn('Ignored stale draft batches:', (draft.batches || []).filter(b => !availableIds.has(String(b.declarationBatchId))).map(b => `${b.batchNo} (${b.declarationBatchId})`));
+          draft.batches = liveDraftBatches;
+        }
+
         if (draft.batches && draft.batches.length > 0) {
           const draftBatches = draft.batches.map(b => ({
             declarationBatchId: b.declarationBatchId,

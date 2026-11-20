@@ -195,7 +195,6 @@ const ErcFinalIc = ({ data = {}, isEditing = false, isBusy = false, onFieldChang
 
   // Qty Now Accepted = Offered - Rejected - ErcUsed (or from qtyNowPassed)
   const numQtyOnOrder = parseFloat(qtyOnOrder) || 0;
-  const numQtyPassedPreviously = parseFloat(effectiveQtyPassedPreviously) || 0;
   const numQtyNowOffered = parseFloat(qtyNowOffered) || 0;
   const numQtyNowRejected = parseFloat(qtyNowRejected) || 0;
 
@@ -217,11 +216,6 @@ const ErcFinalIc = ({ data = {}, isEditing = false, isBusy = false, onFieldChang
 
   const displayQtyNowPassed = String(qtyNowPassed || rawAccepted);
 
-  // Still Due Qty = Order Qty - Previously Passed Qty - Now Accepted Qty
-  const calculatedQtyStillDue = Math.max(0, numQtyOnOrder - numQtyPassedPreviously - rawAccepted);
-  const displayQtyStillDue = (qtyStillDue !== undefined && qtyStillDue !== null && qtyStillDue !== "")
-    ? String(qtyStillDue)
-    : String(calculatedQtyStillDue);
 
   // Sanitize certificate number for display
   const displayCertificateNo = (certificateNo || '')
@@ -291,6 +285,21 @@ const ErcFinalIc = ({ data = {}, isEditing = false, isBusy = false, onFieldChang
 
     return false;
   })();
+
+  // Qty still due = Qty on order − Qty passed previously − Qty now passed, all in the same unit.
+  // For MT orders the quantities can be stored in Nos (e.g. now passed 104986 Nos vs order 298 MT),
+  // so convert each one the same way the columns are shown before subtracting (a saved "0" is not trusted).
+  const toDisplayUnit = (v) => {
+    const n = parseFloat(String(v ?? "").replace(/[,*]/g, ""));
+    if (isNaN(n) || n <= 0) return 0;
+    if (isMtUom && n > 2000) return Math.round(((n * kFactor) / 1000) * 1000 + Number.EPSILON) / 1000;
+    return n;
+  };
+  const calculatedQtyStillDue = Math.max(0,
+    toDisplayUnit(qtyOnOrder) - toDisplayUnit(effectiveQtyPassedPreviously) - toDisplayUnit(qtyNowPassed || rawAccepted));
+  const displayQtyStillDue = (numQtyOnOrder > 0)
+    ? String(Math.round(calculatedQtyStillDue * 1000) / 1000)
+    : String(qtyStillDue ?? "");
 
   const formatNosToMtValue = (val, isRejection = false) => {
     if (val === undefined || val === null || val === "" || String(val).toUpperCase() === "NIL") return isRejection ? "NIL" : (isMtUom ? "0.000" : "0");

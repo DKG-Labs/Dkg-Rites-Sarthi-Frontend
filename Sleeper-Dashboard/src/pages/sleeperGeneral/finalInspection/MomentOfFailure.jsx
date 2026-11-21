@@ -407,7 +407,7 @@ const MomentOfFailure = () => {
 
     return (
         <div className="mof-module cement-forms-scope fade-in">
-            <header style={{ marginBottom: '24px', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
+            <header style={{ marginBottom: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
                 <div>
                     <h2 style={{ fontSize: '20px', fontWeight: '700', color: '#13343b', margin: 0 }}>Modulus of Failure (MF)</h2>
                     <p style={{ fontSize: '12px', color: '#64748b', margin: '4px 0 0 0' }}>Structural integrity monitoring and failure limits</p>
@@ -415,7 +415,7 @@ const MomentOfFailure = () => {
             </header>
 
             <div className="nav-tabs" style={{
-                marginBottom: '32px',
+                marginBottom: '16px',
                 display: 'flex',
                 gap: '8px',
                 background: '#f1f5f9',
@@ -457,11 +457,11 @@ const MomentOfFailure = () => {
             </div>
 
             <div className="tab-content" style={{ animation: 'fadeIn 0.3s ease' }}>
-                {loading && <div style={{ textAlign: 'center', padding: '20px' }}>Loading...</div>}
+                {loading && <div style={{ textAlign: 'center', padding: '14px' }}>Loading...</div>}
 
                 {viewMode === 'statistics' && !loading && (
                     <div className="fade-in">
-                        <div style={{ display: 'flex', gap: '12px', marginBottom: '24px' }}>
+                        <div style={{ display: 'flex', gap: '12px', marginBottom: '16px' }}>
                             {['RT-8746', 'RT-1234', 'RT-5678', 'RT-9012'].map(type => (
                                 <button
                                     key={type}
@@ -486,7 +486,7 @@ const MomentOfFailure = () => {
                             display: 'grid',
                             gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))',
                             gap: '12px',
-                            marginBottom: '24px'
+                            marginBottom: '16px'
                         }}>
                             <StatCard label="Total MF Sampling" value={stats.totalSampling} />
                             <StatCard label="Total MF Tests" value={stats.totalTests} />
@@ -504,7 +504,7 @@ const MomentOfFailure = () => {
 
                 {viewMode === 'declared' && !loading && (
                     <div className="section-card fade-in">
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
                             <h4 style={{ margin: 0, color: '#475569' }}>Pending Samples for MF Testing</h4>
                             <button className="btn-verify" onClick={handleAddSample}>+ Add New Sample</button>
                         </div>
@@ -514,7 +514,7 @@ const MomentOfFailure = () => {
 
                 {viewMode === 'tested' && !loading && (
                     <div className="section-card fade-in">
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
                             <h4 style={{ margin: 0, color: '#475569' }}>MF Test Record Archive</h4>
                         </div>
                         <EnhancedDataTable columns={columnsTested} data={testedSamples} />
@@ -1040,7 +1040,7 @@ const MFSampleDeclarationModal = ({ sample, isModifying, onClose, onSave, saving
                     <button className="form-modal-close" onClick={onClose}>×</button>
                 </div>
                 <div className="form-modal-body">
-                    <div className="form-grid" style={{ gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
+                    <div className="form-grid" style={{ gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
                         {/* 1. Plant (Longline/ Stress Bench) */}
                         <div className="input-group">
                             <label>1. Plant – Long Line / Stress Bench <span style={{ color: '#ef4444' }}>*</span></label>
@@ -1185,7 +1185,7 @@ const MFSampleDeclarationModal = ({ sample, isModifying, onClose, onSave, saving
                         </div>
                     </div>
 
-                    <div style={{ display: 'flex', gap: '12px', marginTop: '32px' }}>
+                    <div style={{ display: 'flex', gap: '12px', marginTop: '16px' }}>
                         <button 
                             className="btn-verify" 
                             disabled={saving} 
@@ -1234,7 +1234,7 @@ const MFTestDetailsModal = ({ sample, onClose, onSave, saving, productionDeclara
                 </div>
                 <div className="form-modal-body">
                     <h5 style={{ margin: '0 0 16px 0', color: '#42818c', fontSize: '14px' }}>Declaration Summary</h5>
-                    <div style={{ background: '#f8fafc', padding: '20px', borderRadius: '12px', border: '1px solid #e2e8f0', marginBottom: '24px' }}>
+                    <div style={{ background: '#f8fafc', padding: '14px', borderRadius: '12px', border: '1px solid #e2e8f0', marginBottom: '16px' }}>
                         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '16px' }}>
                             <div><span style={{ fontSize: '10px', color: '#64748b', textTransform: 'uppercase' }}>Plant</span><div style={{ fontWeight: '700' }}>{sample.plantType || 'Long Line'}</div></div>
                             <div><span style={{ fontSize: '10px', color: '#64748b', textTransform: 'uppercase' }}>Date of Casting</span><div style={{ fontWeight: '700' }}>{sample.castingDate || '-'}</div></div>
@@ -1247,7 +1247,7 @@ const MFTestDetailsModal = ({ sample, onClose, onSave, saving, productionDeclara
                         </div>
                     </div>
 
-                    <div className="form-grid" style={{ gridTemplateColumns: '1fr', gap: '20px' }}>
+                    <div className="form-grid" style={{ gridTemplateColumns: '1fr', gap: '14px' }}>
                         <div className="input-group">
                             <label>Date of Testing</label>
                             <input 
@@ -1330,7 +1330,7 @@ const MFTestDetailsModal = ({ sample, onClose, onSave, saving, productionDeclara
                         </div>
                     </div>
 
-                    <div style={{ display: 'flex', gap: '12px', marginTop: '32px' }}>
+                    <div style={{ display: 'flex', gap: '12px', marginTop: '16px' }}>
                         <button 
                             className="btn-verify" 
                             disabled={saving} 
@@ -1407,7 +1407,7 @@ const MFDetailsModal = ({ sample, onClose, onModify, onEnterTest, onDelete, prod
                     <button className="form-modal-close" onClick={onClose}>×</button>
                 </div>
                 <div className="form-modal-body">
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '16px', marginBottom: '24px' }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '16px', marginBottom: '16px' }}>
                         {details.map((detail, idx) => (
                             <div key={idx} style={{ padding: '12px', background: '#f8fafc', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
                                 <div style={{ fontSize: '10px', color: '#64748b', fontWeight: '800', textTransform: 'uppercase' }}>{detail.label}</div>
@@ -1416,7 +1416,7 @@ const MFDetailsModal = ({ sample, onClose, onModify, onEnterTest, onDelete, prod
                         ))}
                     </div>
 
-                    <div style={{ display: 'flex', gap: '8px', marginTop: '20px', flexWrap: 'wrap' }}>
+                    <div style={{ display: 'flex', gap: '8px', marginTop: '14px', flexWrap: 'wrap' }}>
                         {!sample.isTestRecord ? (
                             <button 
                                 className="btn-verify" 

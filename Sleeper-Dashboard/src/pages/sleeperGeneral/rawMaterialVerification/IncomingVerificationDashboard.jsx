@@ -63,13 +63,13 @@ const DetailModal = ({ record, onClose, onAction, acting }) => {
             display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000
         }} onClick={onClose}>
             <div style={{
-                background: '#fff', borderRadius: '16px', padding: '28px',
+                background: '#fff', borderRadius: '16px', padding: '18px',
                 maxWidth: '640px', width: '90%', maxHeight: '85vh', overflowY: 'auto',
                 boxShadow: '0 20px 60px rgba(0,0,0,0.2)'
             }} onClick={e => e.stopPropagation()}>
 
                 {/* Header */}
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
                     <div>
                         <h3 style={{ margin: 0, fontSize: '16px', fontWeight: '700', color: '#1e293b' }}>
                             {record.moduleLabel} — Record #{record.requestId}
@@ -86,8 +86,8 @@ const DetailModal = ({ record, onClose, onAction, acting }) => {
 
                 {/* Record Data */}
                 <div style={{
-                    background: '#f8fafc', borderRadius: '12px', padding: '20px',
-                    border: '1px solid #e2e8f0', marginBottom: '20px'
+                    background: '#f8fafc', borderRadius: '12px', padding: '14px',
+                    border: '1px solid #e2e8f0', marginBottom: '14px'
                 }}>
                     <p style={{ margin: '0 0 12px', fontSize: '12px', color: '#64748b', fontWeight: '600', textTransform: 'uppercase' }}>
                         Record Details (Vendor Submitted)
@@ -555,7 +555,7 @@ const PaginationControls = ({ page, setPage, pageSize, setPageSize, loading, tot
     const totalPages = Math.ceil((totalItems || 0) / pageSize);
     const hasNext = page < totalPages - 1;
     return (
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px 24px', borderTop: '1px solid #f1f5f9', background: '#f8fafc', borderBottomLeftRadius: '16px', borderBottomRightRadius: '16px' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 16px', borderTop: '1px solid #f1f5f9', background: '#f8fafc', borderBottomLeftRadius: '16px', borderBottomRightRadius: '16px' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                 <span style={{ fontSize: '13px', color: '#64748b', fontWeight: '600' }}>Fetch Size:</span>
                 <select 
@@ -800,7 +800,7 @@ const IncomingVerificationDashboard = ({ initialGroup = null, initialModuleId = 
 
             {/* Header */}
             {!hideHeader && (
-                <header style={{ marginBottom: '24px', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '12px' }}>
+                <header style={{ marginBottom: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '12px' }}>
                     <div>
                         <h2 style={{ fontSize: '20px', fontWeight: '700', color: '#13343b', margin: 0 }}>
                             IE {initialGroup || 'Verification'} Dashboard
@@ -835,7 +835,7 @@ const IncomingVerificationDashboard = ({ initialGroup = null, initialModuleId = 
                 background: pendingCount > 0 ? '#fff7ed' : '#f0fdf4',
                 border: `1px solid ${pendingCount > 0 ? '#fed7aa' : '#bbf7d0'}`,
                 borderRadius: '12px', padding: '14px 20px',
-                display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '24px'
+                display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px'
             }}>
                 <span style={{ fontSize: '22px' }}>{pendingCount > 0 ? '🔔' : '✅'}</span>
                 <div>
@@ -852,7 +852,7 @@ const IncomingVerificationDashboard = ({ initialGroup = null, initialModuleId = 
             {error && (
                 <div style={{
                     background: '#fef2f2', border: '1px solid #fecaca', borderRadius: '12px',
-                    padding: '16px', marginBottom: '20px', color: '#dc2626', fontSize: '13px'
+                    padding: '16px', marginBottom: '14px', color: '#dc2626', fontSize: '13px'
                 }}>
                     ⚠️ {error}
                 </div>
@@ -860,7 +860,7 @@ const IncomingVerificationDashboard = ({ initialGroup = null, initialModuleId = 
 
             {/* Loading skeleton */}
             {loading && (
-                <div style={{ textAlign: 'center', padding: '40px', color: '#64748b', fontSize: '14px' }}>
+                <div style={{ textAlign: 'center', padding: '24px', color: '#64748b', fontSize: '14px' }}>
                     <div style={{ fontSize: '24px', marginBottom: '8px' }}>⏳</div>
                     Loading pending workflow transitions…
                 </div>
@@ -871,7 +871,7 @@ const IncomingVerificationDashboard = ({ initialGroup = null, initialModuleId = 
                     {/* Module Tab Cards - hide if only one module is selected via initialModuleId */}
                     {!initialModuleId && (
                         <div style={{
-                            display: 'flex', flexWrap: 'wrap', gap: '10px', marginBottom: '24px'
+                            display: 'flex', flexWrap: 'wrap', gap: '10px', marginBottom: '16px'
                         }}>
                             {filteredModules.map(mod => {
                                 const count = (enrichedByModule[mod.moduleId]?.pending || []).length;
@@ -916,7 +916,7 @@ const IncomingVerificationDashboard = ({ initialGroup = null, initialModuleId = 
                     )}
 
                     {selectedModuleId && (
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
                             
                             {/* Toggle Tabs */}
                             <div style={{ 
@@ -994,7 +994,7 @@ const IncomingVerificationDashboard = ({ initialGroup = null, initialModuleId = 
                                     boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)', overflow: 'hidden'
                                 }}>
                                     <div style={{
-                                        padding: '16px 24px', borderBottom: '1px solid #f1f5f9',
+                                        padding: '12px 16px', borderBottom: '1px solid #f1f5f9',
                                         display: 'flex', justifyContent: 'space-between', alignItems: 'center',
                                         background: '#fff7ed', flexWrap: 'wrap', gap: '12px'
                                     }}>
@@ -1033,7 +1033,7 @@ const IncomingVerificationDashboard = ({ initialGroup = null, initialModuleId = 
                                     </div>
 
                                     {filteredPending.length === 0 ? (
-                                        <div style={{ padding: '40px', textAlign: 'center', color: '#94a3b8' }}>
+                                        <div style={{ padding: '24px', textAlign: 'center', color: '#94a3b8' }}>
                                             <div style={{ fontSize: '24px', marginBottom: '10px' }}>{searchTerm ? '🔍' : '✅'}</div>
                                             <strong>{searchTerm ? `No matching records found for "${searchTerm}"` : 'No pending records for this module on the current page.'}</strong>
                                         </div>
@@ -1056,7 +1056,7 @@ const IncomingVerificationDashboard = ({ initialGroup = null, initialModuleId = 
                                     boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)', overflow: 'hidden'
                                 }}>
                                     <div style={{
-                                        padding: '16px 24px', borderBottom: '1px solid #f1f5f9',
+                                        padding: '12px 16px', borderBottom: '1px solid #f1f5f9',
                                         display: 'flex', justifyContent: 'space-between', alignItems: 'center',
                                         background: '#f0fdf4', flexWrap: 'wrap', gap: '12px'
                                     }}>
@@ -1095,7 +1095,7 @@ const IncomingVerificationDashboard = ({ initialGroup = null, initialModuleId = 
                                     </div>
 
                                     {filteredVerified.length === 0 ? (
-                                        <div style={{ padding: '40px', textAlign: 'center', color: '#94a3b8' }}>
+                                        <div style={{ padding: '24px', textAlign: 'center', color: '#94a3b8' }}>
                                             <div style={{ fontSize: '24px', marginBottom: '10px' }}>{searchTerm ? '🔍' : '📋'}</div>
                                             <strong>{searchTerm ? `No matching records found for "${searchTerm}"` : 'No records have been verified yet on the current page.'}</strong>
                                         </div>

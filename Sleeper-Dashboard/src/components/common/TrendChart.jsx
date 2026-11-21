@@ -71,7 +71,7 @@ const TrendChart = ({
     return (
         <div style={{
             height: height,
-            padding: '20px',
+            padding: '14px',
             background: '#fff',
             borderRadius: '16px',
             border: '1px solid #e2e8f0',

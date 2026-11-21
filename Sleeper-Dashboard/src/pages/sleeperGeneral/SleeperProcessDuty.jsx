@@ -165,7 +165,7 @@ const SleeperProcessDuty = () => {
 
     return (
         <div className="app-container">
-            <div className="dashboard-container" style={{ padding: '24px' }}>
+            <div className="dashboard-container" style={{ padding: '16px' }}>
                 <DutyHeader
                     setShowContainerForm={setShowContainerForm}
                     containers={containers}

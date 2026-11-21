@@ -121,12 +121,12 @@ export default function SoundnessTestForm({ onSave, onCancel, inventoryData = []
     return (
         <form onSubmit={handleSubmit(onSubmit)} className="cement-forms-scope">
             <div className="form-card" style={{ background: '#fff', borderRadius: '12px', overflow: 'hidden' }}>
-                <div className="form-header" style={{ padding: '20px', borderBottom: '1px solid #e2e8f0', background: '#f8fafc' }}>
+                <div className="form-header" style={{ padding: '14px', borderBottom: '1px solid #e2e8f0', background: '#f8fafc' }}>
                     <h2 style={{ margin: 0, fontSize: '16px', color: '#1e293b' }}>Aggregate – Raw Material Testing: Soundness Test (IS 2386 Part 5)</h2>
                 </div>
 
-                <div className="form-body" style={{ padding: '24px' }}>
-                    <div className="form-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '20px', marginBottom: '1.5rem' }}>
+                <div className="form-body" style={{ padding: '16px' }}>
+                    <div className="form-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '14px', marginBottom: '1.5rem' }}>
                         <div className="input-group">
                             <label style={{ display: 'block', marginBottom: '8px', fontSize: '13px', fontWeight: '600', color: '#475569' }}>Date of Testing <span className="required" style={{ color: 'red' }}>*</span></label>
                             <input type="date" {...register("testDate", { required: "Required" })} style={{ width: '100%', padding: '10px', height: '42px', borderRadius: '8px', border: '1px solid #cbd5e1', boxSizing: 'border-box' }} />
@@ -163,7 +163,7 @@ export default function SoundnessTestForm({ onSave, onCancel, inventoryData = []
                             )}
                         </div>
                     </div>
-                    <div className="form-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '20px', marginBottom: '1.5rem' }}>
+                    <div className="form-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '14px', marginBottom: '1.5rem' }}>
                         <div className="input-group">
                             <label style={{ display: 'block', marginBottom: '8px', fontSize: '13px', fontWeight: '600', color: '#475569' }}>Material Type <span className="required" style={{ color: 'red' }}>*</span></label>
                             <select {...register("materialType", { required: "Required" })} style={{ width: '100%', padding: '10px', height: '42px', borderRadius: '8px', border: '1px solid #cbd5e1', boxSizing: 'border-box' }}>
@@ -177,7 +177,7 @@ export default function SoundnessTestForm({ onSave, onCancel, inventoryData = []
                         </div>
                     </div>
 
-                    <div className="form-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '20px' }}>
+                    <div className="form-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '14px' }}>
                         <div className="input-group">
                             <label style={{ display: 'block', marginBottom: '8px', fontSize: '13px', fontWeight: '600', color: '#475569' }}>Test Method <span className="required" style={{ color: 'red' }}>*</span></label>
                             <select {...register("method", { required: "Required" })} style={{ width: '100%', padding: '10px', height: '42px', borderRadius: '8px', border: '1px solid #cbd5e1', boxSizing: 'border-box' }}>
@@ -195,7 +195,7 @@ export default function SoundnessTestForm({ onSave, onCancel, inventoryData = []
 
                     <div style={{ margin: '24px 0', height: '1px', background: '#e2e8f0' }}></div>
 
-                    <div className="form-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '20px' }}>
+                    <div className="form-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '14px' }}>
                         <div className="input-group">
                             <label style={{ display: 'block', marginBottom: '8px', fontSize: '13px', fontWeight: '600', color: '#475569' }}>Initial Weight of Sample (gms) <span className="required" style={{ color: 'red' }}>*</span></label>
                             <input type="number" step="0.01" {...register("initialWt", { required: "Required" })} style={{ width: '100%', padding: '10px', height: '42px', borderRadius: '8px', border: '1px solid #cbd5e1', boxSizing: 'border-box' }} />
@@ -222,7 +222,7 @@ export default function SoundnessTestForm({ onSave, onCancel, inventoryData = []
                         </div>
                     </div>
 
-                    <div style={{ marginTop: '32px', display: 'flex', gap: '16px' }}>
+                    <div style={{ marginTop: '16px', display: 'flex', gap: '16px' }}>
                         <button type="submit" className="btn-save" style={{ flex: 1, padding: '12px', background: '#42818c', color: '#fff', border: 'none', borderRadius: '8px', fontWeight: '700', cursor: 'pointer' }} disabled={submitting}>
                             {submitting ? 'Saving...' : editIdState ? 'Update Test Report' : 'Save Test Report'}
                         </button>

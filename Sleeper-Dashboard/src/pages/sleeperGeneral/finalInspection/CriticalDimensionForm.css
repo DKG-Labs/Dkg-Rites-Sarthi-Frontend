@@ -30,10 +30,10 @@
 }
 
 .critical-section {
-    margin-bottom: 1.5rem;
+    margin-bottom: 1rem;
     background: #f1f5f9;
     border-radius: 12px;
-    padding: 1.5rem;
+    padding: 1rem;
     border: 1px solid #e2e8f0;
 }
 
@@ -42,7 +42,7 @@
     padding: 16px;
     border-radius: 12px;
     border: 1px solid #e2e8f0;
-    margin-bottom: 20px;
+    margin-bottom: 14px;
 }
 
 .section-label {
@@ -56,7 +56,7 @@
 .declaration-grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-    gap: 1.5rem;
+    gap: 1rem;
 }
 
 .declaration-item {
@@ -131,7 +131,7 @@
 .result-options-row {
     display: flex;
     gap: 12px;
-    margin-bottom: 20px;
+    margin-bottom: 14px;
     flex-wrap: wrap;
 }
 

@@ -19,7 +19,7 @@ const BWSubCard = ({ id, title, color, statusDetail, isActive, onClick }) => {
             onClick={onClick}
             style={{
                 flex: '1 1 200px',
-                padding: '16px 20px',
+                padding: '12px 16px',
                 background: isActive ? '#fff' : '#f8fafc',
                 borderWidth: '1px',
                 borderStyle: 'solid',

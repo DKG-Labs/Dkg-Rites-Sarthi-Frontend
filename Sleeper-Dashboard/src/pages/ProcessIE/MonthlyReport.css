@@ -1,10 +1,10 @@
 /* MonthlyReport.css */
 
 .report-container {
-    padding: 1.5rem;
+    padding: 1rem;
     max-width: 1400px;
     margin: 0 auto;
-    min-height: calc(100vh - 72px);
+    min-height: calc(100vh - 64px);
     background: #f8fafc;
 }
 
@@ -12,7 +12,7 @@
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 1.5rem;
+    margin-bottom: 1rem;
     border-bottom: 2px solid var(--accent-bg);
     padding-bottom: 1rem;
 }
@@ -26,7 +26,7 @@
 
 .filter-bar {
     display: flex;
-    gap: 1.5rem;
+    gap: 1rem;
     background: #fff;
     padding: 0.8rem 1.5rem;
     border-radius: 50px;
@@ -60,8 +60,8 @@
 .kpi-row {
     display: grid;
     grid-template-columns: repeat(4, 1fr);
-    gap: 1.5rem;
-    margin-bottom: 2.5rem;
+    gap: 1rem;
+    margin-bottom: 1.5rem;
 }
 
 .kpi-card {
@@ -126,7 +126,7 @@
 
 .report-section {
     background: #fff;
-    padding: 2rem;
+    padding: 1.25rem;
     border-radius: var(--border-radius-lg);
     border: 1px solid var(--border-color);
 }

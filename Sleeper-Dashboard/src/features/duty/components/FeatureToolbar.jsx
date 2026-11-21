@@ -2,7 +2,7 @@ import React from 'react';
 
 const FeatureToolbar = ({ activeTab, witnessedRecordsCount, setShowBatchEntryForm, setShowWireTensionForm, setShowMoistureForm, setShowCompactionForm, setViewMode, setDetailView }) => {
     return (
-        <div className="duty-section-toolbar" style={{ borderBottom: '1px solid #f1f5f9', paddingBottom: '16px', marginBottom: '24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
+        <div className="duty-section-toolbar" style={{ borderBottom: '1px solid #f1f5f9', paddingBottom: '16px', marginBottom: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
                 {activeTab !== 'Steam Cube Testing' && (
                     <h2 className="duty-section-title" style={{ fontSize: '0.95rem', fontWeight: '800', margin: 0 }}>{activeTab}</h2>

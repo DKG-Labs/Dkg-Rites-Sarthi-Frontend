@@ -276,7 +276,7 @@ export default function CombinedGranulometricCurve({ onSave, onCancel, inventory
                 <div className="form-body">
                     
                     {/* Basic Info & Sample Weights */}
-                    <div style={{ background: '#f8fafc', padding: '16px', borderRadius: '12px', border: '1px solid #e2e8f0', marginBottom: '24px' }}>
+                    <div style={{ background: '#f8fafc', padding: '16px', borderRadius: '12px', border: '1px solid #e2e8f0', marginBottom: '16px' }}>
                         <div className="form-grid" style={{ marginBottom: '16px' }}>
                             <div className="input-group">
                                 <label>Date of Testing <span className="required">*</span></label>
@@ -374,7 +374,7 @@ export default function CombinedGranulometricCurve({ onSave, onCancel, inventory
                         </div>
                     </div>
 
-                    <div className="table-container" style={{ marginBottom: '24px' }}>
+                    <div className="table-container" style={{ marginBottom: '16px' }}>
                         <table>
                             <thead>
                                 <tr>
@@ -419,7 +419,7 @@ export default function CombinedGranulometricCurve({ onSave, onCancel, inventory
                     </div>
 
                     {/* Chart Visualization */}
-                    <div style={{ background: 'white', padding: '16px', borderRadius: '12px', border: '1px solid #e2e8f0', marginBottom: '24px' }}>
+                    <div style={{ background: 'white', padding: '16px', borderRadius: '12px', border: '1px solid #e2e8f0', marginBottom: '16px' }}>
                         <h4 style={{ margin: '0 0 16px 0', fontSize: '14px', color: '#334155' }}>Granulometric Curve Visualization</h4>
                         <TrendChart
                             data={combinedGraphData}

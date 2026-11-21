@@ -303,7 +303,7 @@ import { saveCementFineness, getCementFinenessByReqId, getCementFinenessById } f
                     </div>
                 </div>
 
-                <div className="btn-group" style={{ display: 'flex', gap: '12px', marginTop: '24px' }}>
+                <div className="btn-group" style={{ display: 'flex', gap: '12px', marginTop: '16px' }}>
                     <button type="submit" className="btn-save" disabled={loading} style={{ flex: 1 }}>
                         {loading ? "Saving..." : editIdState ? "Update Test Report" : "Submit Test Report"}
                     </button>

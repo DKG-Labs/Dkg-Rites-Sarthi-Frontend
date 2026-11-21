@@ -3,7 +3,7 @@
 .ie-tab-row {
     display: flex;
     gap: 12px;
-    margin-bottom: 2rem;
+    margin-bottom: 1.25rem;
     overflow-x: auto;
     padding: 0.5rem 0.25rem;
     scrollbar-width: none;
@@ -81,7 +81,7 @@
 }
 
 .dashboard-header {
-    margin-bottom: 2rem;
+    margin-bottom: 1.25rem;
     padding-bottom: 1.5rem;
     border-bottom: 1px solid #f1f5f9;
 }
@@ -105,7 +105,7 @@
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 1.5rem;
+    margin-bottom: 1rem;
     flex-wrap: wrap;
     gap: 1rem;
 }
@@ -136,7 +136,7 @@
 
 /* Response Layout Fixes */
 .manual-stats-card {
-    padding: 2rem;
+    padding: 1.25rem;
     background: #fff;
     border: 1px solid #e2e8f0;
     border-radius: 16px;
@@ -146,7 +146,7 @@
     display: flex;
     justify-content: space-between;
     align-items: flex-start;
-    margin-bottom: 1.5rem;
+    margin-bottom: 1rem;
 }
 
 .manual-stats-grid {
@@ -165,7 +165,7 @@
 /* Mobile Responsiveness */
 @media (max-width: 600px) {
     .manual-stats-card {
-        padding: 1.5rem;
+        padding: 1rem;
     }
 
     .manual-stats-header {

@@ -1,18 +1,18 @@
 .attending-call-container {
-    padding: 24px;
+    padding: 16px;
     background: #f8fafc;
     min-height: calc(100vh - 100px);
 }
 
 .dashboard-header {
-    margin-bottom: 32px;
+    margin-bottom: 16px;
 }
 
 .dashboard-header h2 {
     color: #1e293b;
     font-size: 24px;
     font-weight: 700;
-    margin-bottom: 20px;
+    margin-bottom: 14px;
 }
 
 /* ── Tab Card Blinking Animation ── */
@@ -173,13 +173,13 @@
 .calls-grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
-    gap: 24px;
+    gap: 16px;
 }
 
 .call-card {
     background: white;
     border-radius: 16px;
-    padding: 20px;
+    padding: 14px;
     box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
     border: 1px solid #e2e8f0;
     transition: transform 0.2s, box-shadow 0.2s;
@@ -230,7 +230,7 @@
     display: grid;
     grid-template-columns: 1fr 1fr;
     gap: 12px;
-    margin-top: 20px;
+    margin-top: 14px;
 }
 
 .action-btn {
@@ -266,7 +266,7 @@
 }
 
 .table-search-header {
-    padding: 16px 20px;
+    padding: 12px 16px;
     background: #ffffff;
     border-bottom: 1px solid #f1f5f9;
 }
@@ -472,7 +472,7 @@
 
 /* Table Footer & Pagination */
 .table-footer-modern {
-    padding: 16px 24px;
+    padding: 12px 16px;
     background: #ffffff;
     display: flex;
     justify-content: space-between;
@@ -488,7 +488,7 @@
 .footer-pagination {
     display: flex;
     align-items: center;
-    gap: 24px;
+    gap: 16px;
 }
 
 .page-size-selector select {
@@ -565,7 +565,7 @@
 .modal-content {
     background: white;
     border-radius: 20px;
-    padding: 32px;
+    padding: 20px;
     width: 95%;
     max-width: 850px;
     box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
@@ -576,7 +576,7 @@
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 24px;
+    margin-bottom: 16px;
 }
 
 .modal-header h3 {
@@ -609,9 +609,9 @@
     display: grid;
     grid-template-columns: 1fr 1fr;
     gap: 16px 32px;
-    margin-bottom: 32px;
+    margin-bottom: 16px;
     background: #f8fafc;
-    padding: 20px;
+    padding: 14px;
     border-radius: 12px;
 }
 
@@ -691,7 +691,7 @@
     border-radius: 20px;
     width: 90%;
     max-width: 480px;
-    padding: 28px;
+    padding: 18px;
     box-shadow: 0 25px 50px -12px rgba(15, 23, 42, 0.25), 0 0 0 1px rgba(226, 232, 240, 0.8);
     position: relative;
     animation: modalSlideIn 0.25s cubic-bezier(0.16, 1, 0.3, 1);
@@ -706,7 +706,7 @@
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 24px;
+    margin-bottom: 16px;
 }
 
 .reschedule-header h3 {
@@ -748,7 +748,7 @@
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 20px;
+    margin-bottom: 14px;
 }
 
 .req-id {
@@ -790,7 +790,7 @@
     border: 1.5px solid #fef08a;
     border-radius: 12px;
     padding: 16px;
-    margin-bottom: 20px;
+    margin-bottom: 14px;
 }
 
 .previous-details-card h4 {
@@ -802,7 +802,7 @@
 
 .prev-grid {
     display: flex;
-    gap: 32px;
+    gap: 20px;
 }
 
 .prev-item label {
@@ -821,7 +821,7 @@
 }
 
 .form-group {
-    margin-bottom: 20px;
+    margin-bottom: 14px;
 }
 
 .input-label {
@@ -905,7 +905,7 @@
     display: flex;
     justify-content: flex-end;
     gap: 12px;
-    margin-top: 28px;
+    margin-top: 16px;
 }
 
 .btn-cancel-grey {

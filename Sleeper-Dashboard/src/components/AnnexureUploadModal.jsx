@@ -154,7 +154,7 @@ const AnnexureUploadModal = ({
       alignItems: 'center',
       justifyContent: 'center',
       zIndex: 99999,
-      padding: '20px'
+      padding: '14px'
     }}>
       <div style={{
         background: '#ffffff',
@@ -170,7 +170,7 @@ const AnnexureUploadModal = ({
       }}>
         {/* Header */}
         <div style={{
-          padding: '18px 24px',
+          padding: '14px 18px',
           background: 'linear-gradient(135deg, #0f3a5e 0%, #1e293b 100%)',
           color: '#ffffff',
           display: 'flex',
@@ -207,7 +207,7 @@ const AnnexureUploadModal = ({
         </div>
 
         {/* Body */}
-        <div style={{ padding: '20px 24px', overflowY: 'auto', flex: 1, position: 'relative' }}>
+        <div style={{ padding: '14px 18px', overflowY: 'auto', flex: 1, position: 'relative' }}>
           {/* Notifications */}
           {errorMessage && (
             <div style={{
@@ -248,7 +248,7 @@ const AnnexureUploadModal = ({
                 display: 'flex',
                 alignItems: 'center',
                 gap: '12px',
-                marginBottom: '20px'
+                marginBottom: '14px'
               }}>
                 <span style={{ fontSize: '24px' }}>🔒</span>
                 <div>
@@ -278,7 +278,7 @@ const AnnexureUploadModal = ({
                   background: uploading ? '#f8fafc' : (isDragOver ? '#f0f9ff' : '#fafafa'),
                   cursor: uploading ? 'not-allowed' : 'pointer',
                   transition: 'all 0.2s',
-                  marginBottom: '20px',
+                  marginBottom: '14px',
                   position: 'relative'
                 }}
               >
@@ -342,7 +342,7 @@ const AnnexureUploadModal = ({
             </div>
 
             {loading && documents.length === 0 ? (
-              <div style={{ textAlign: 'center', padding: '24px', color: '#64748b', fontSize: '13px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px' }}>
+              <div style={{ textAlign: 'center', padding: '16px', color: '#64748b', fontSize: '13px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px' }}>
                 <div style={{
                   width: '24px',
                   height: '24px',
@@ -356,7 +356,7 @@ const AnnexureUploadModal = ({
             ) : documents.length === 0 ? (
               <div style={{
                 textAlign: 'center',
-                padding: '24px',
+                padding: '16px',
                 color: '#94a3b8',
                 fontSize: '13px',
                 background: '#f8fafc',
@@ -484,12 +484,12 @@ const AnnexureUploadModal = ({
             alignItems: 'center',
             justifyContent: 'center',
             zIndex: 1000,
-            padding: '20px'
+            padding: '14px'
           }}>
             <div style={{
               background: '#ffffff',
               borderRadius: '16px',
-              padding: '24px',
+              padding: '16px',
               maxWidth: '400px',
               width: '100%',
               boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.35)',

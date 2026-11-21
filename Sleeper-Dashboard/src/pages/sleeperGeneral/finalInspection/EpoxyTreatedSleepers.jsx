@@ -152,7 +152,7 @@ const EpoxyTreatedSleepers = ({ onBack, initialShowForm = false }) => {
 
     return (
         <div className="et-module cement-forms-scope">
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
                 <div className="nav-tabs" style={{ display: 'flex', gap: '8px', background: '#f1f5f9', padding: '6px', borderRadius: '14px', width: 'fit-content' }}>
                     <button className={`nav-tab ${activeTab === 'summary' ? 'active' : ''}`} onClick={() => setActiveTab('summary')} style={{ padding: '10px 24px', borderRadius: '10px', border: 'none', cursor: 'pointer', fontWeight: activeTab === 'summary' ? '800' : '600', background: activeTab === 'summary' ? '#fff' : 'transparent' }}>
                         Batch Wise ET Status
@@ -428,7 +428,7 @@ const ETDeclarationForm = ({ initialData, allLogs, onClose, onSave }) => {
                             </label>
                         </div>
                     </div>
-                    <div style={{ display: 'flex', gap: '12px', marginTop: '24px' }}>
+                    <div style={{ display: 'flex', gap: '12px', marginTop: '16px' }}>
                         <button className="btn-verify" style={{ flex: 1, opacity: isSaving ? 0.7 : 1 }} disabled={isSaving} onClick={handleSubmit}>
                             {isSaving ? 'Saving...' : 'Save Declaration'}
                         </button>

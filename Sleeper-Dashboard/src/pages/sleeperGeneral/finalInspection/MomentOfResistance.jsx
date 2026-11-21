@@ -1086,7 +1086,7 @@ const MomentOfResistance = () => {
 
     return (
         <div className="mr-module cement-forms-scope">
-            <header style={{ marginBottom: '24px' }}>
+            <header style={{ marginBottom: '16px' }}>
                 <h2 style={{ fontSize: '20px', fontWeight: '700', color: '#13343b', margin: 0 }}>Moment of Resistance (Final Inspection)</h2>
                 <p style={{ fontSize: '12px', color: '#64748b', margin: '4px 0 0 0' }}>Structural integrity testing for concrete sleepers</p>
             </header>
@@ -1100,7 +1100,7 @@ const MomentOfResistance = () => {
             )}
 
             <div className="nav-tabs" style={{
-                marginBottom: '32px',
+                marginBottom: '16px',
                 display: 'flex',
                 gap: '8px',
                 background: '#f1f5f9',
@@ -1610,7 +1610,7 @@ const DeclareSampleModal = ({ batch, onClose, onSave, isEdit }) => {
                 <div className="form-modal-body" style={{ maxHeight: '75vh', overflowY: 'auto' }}>
                     {/* Batch Info Card */}
                     {targetBatches.length > 1 ? (
-                        <div style={{ background: '#f8fafc', padding: '16px', borderRadius: '12px', border: '1px solid #e2e8f0', marginBottom: '20px' }}>
+                        <div style={{ background: '#f8fafc', padding: '16px', borderRadius: '12px', border: '1px solid #e2e8f0', marginBottom: '14px' }}>
                             <div style={{ fontSize: '11px', fontWeight: '800', color: '#0f766e', textTransform: 'uppercase', marginBottom: '8px' }}>
                                 Selected Batches ({targetBatches.length})
                             </div>
@@ -1623,7 +1623,7 @@ const DeclareSampleModal = ({ batch, onClose, onSave, isEdit }) => {
                             </div>
                         </div>
                     ) : (
-                        <div style={{ background: '#f8fafc', padding: '16px', borderRadius: '12px', border: '1px solid #e2e8f0', marginBottom: '20px' }}>
+                        <div style={{ background: '#f8fafc', padding: '16px', borderRadius: '12px', border: '1px solid #e2e8f0', marginBottom: '14px' }}>
                             <div className="form-grid">
                                 <div className="input-group"><label>Batch</label><input readOnly value={targetBatches[0]?.batchNo || targetBatches[0]?.batchNumber} className="readOnly" /></div>
                                 <div className="input-group"><label>Dwg. no.</label><input readOnly value={targetBatches[0]?.sleeperType || extractDrawingNo(targetBatches[0]) || '-'} className="readOnly" /></div>
@@ -1636,7 +1636,7 @@ const DeclareSampleModal = ({ batch, onClose, onSave, isEdit }) => {
                     {/* Sample 2 */}
                     {renderSleeperDropdown(1, 'Select Sleeper Sample', false)}
 
-                    <div style={{ display: 'flex', gap: '12px', marginTop: '24px' }}>
+                    <div style={{ display: 'flex', gap: '12px', marginTop: '16px' }}>
                         <button
                             className="btn-verify"
                             style={{
@@ -1827,7 +1827,7 @@ const TestDetailsModal = ({ batch, onClose, onSave }) => {
                 </div>
                 <div className="form-modal-body" style={{ maxHeight: '80vh', overflowY: 'auto' }}>
                     {/* Section 1: Sample Details */}
-                    <div style={{ background: '#fff', padding: '16px', borderRadius: '12px', border: '1px solid #e2e8f0', marginBottom: '20px' }}>
+                    <div style={{ background: '#fff', padding: '16px', borderRadius: '12px', border: '1px solid #e2e8f0', marginBottom: '14px' }}>
                         <div className="form-grid" style={{ gridTemplateColumns: 'repeat(4, 1fr)', gap: '12px' }}>
                             <div className="input-group">
                                 <label style={{ fontSize: '11px', fontWeight: '700', color: '#475569' }}>Batch</label>
@@ -1855,7 +1855,7 @@ const TestDetailsModal = ({ batch, onClose, onSave }) => {
 
                     {/* Section 2 & 3: SCADA & Manual Entry (Single Test Form for all batches) */}
                     {manualResults.map((res, idx) => (
-                        <div key={idx} style={{ marginBottom: '24px', padding: '20px', background: '#fff', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
+                        <div key={idx} style={{ marginBottom: '16px', padding: '14px', background: '#fff', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
                             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '16px', alignItems: 'center' }}>
                                 <h4 style={{ margin: 0, color: '#42818c', fontSize: '14px', fontWeight: '800', display: 'flex', alignItems: 'center', gap: '8px' }}>
                                     <span style={{
@@ -1870,7 +1870,7 @@ const TestDetailsModal = ({ batch, onClose, onSave }) => {
                                 </button>
                             </div>
 
-                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1.2fr', gap: '20px' }}>
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1.2fr', gap: '14px' }}>
                                 {/* SCADA View */}
                                 <div style={{ background: '#f8fafc', padding: '12px', borderRadius: '8px', border: '1px dashed #cbd5e1' }}>
                                     <span style={{ fontSize: '10px', color: '#94a3b8', fontWeight: '700' }}>MR SCADA DATA</span>
@@ -1906,7 +1906,7 @@ const TestDetailsModal = ({ batch, onClose, onSave }) => {
                     ))}
 
                     {/* Test Result Selection Dropdown */}
-                    <div style={{ background: '#f8fafc', padding: '16px', borderRadius: '12px', border: '1px solid #e2e8f0', marginBottom: '20px' }}>
+                    <div style={{ background: '#f8fafc', padding: '16px', borderRadius: '12px', border: '1px solid #e2e8f0', marginBottom: '14px' }}>
                         <div className="input-group">
                             <label style={{ fontSize: '11px', fontWeight: '800', color: '#13343b', marginBottom: '6px', display: 'block', textTransform: 'uppercase' }}>
                                 Select MR Test Result <span className="required" style={{ color: '#ef4444' }}>*</span>
@@ -1938,7 +1938,7 @@ const TestDetailsModal = ({ batch, onClose, onSave }) => {
                         </div>
                     </div>
 
-                    <div style={{ display: 'flex', gap: '12px', marginTop: '24px' }}>
+                    <div style={{ display: 'flex', gap: '12px', marginTop: '16px' }}>
                         <button 
                             className="btn-verify" 
                             style={{ 
@@ -2013,7 +2013,7 @@ const MRDetailsModal = ({ batch, onClose, onModify, onEnterTest, onDelete }) => 
                     <button className="form-modal-close" onClick={onClose}>×</button>
                 </div>
                 <div className="form-modal-body">
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '16px', marginBottom: '24px' }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '16px', marginBottom: '16px' }}>
                         {details.map((detail, idx) => (
                             <div key={idx} style={{ padding: '12px', background: '#f8fafc', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
                                 <div style={{ fontSize: '10px', color: '#64748b', fontWeight: '800', textTransform: 'uppercase' }}>{detail.label}</div>

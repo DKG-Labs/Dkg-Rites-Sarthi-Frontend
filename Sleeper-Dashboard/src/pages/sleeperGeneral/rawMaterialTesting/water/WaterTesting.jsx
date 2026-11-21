@@ -234,7 +234,7 @@ const WaterTesting = ({ onBack }) => {
 
     return (
         <div className="water-testing-root cement-forms-scope fade-in">
-            <div className="content-title-row" style={{ marginBottom: '24px' }}>
+            <div className="content-title-row" style={{ marginBottom: '16px' }}>
                 <h2 style={{ margin: 0 }}>Water Quality Testing</h2>
                 <div style={{ display: 'flex', gap: '12px' }}>
                     <button className="toggle-btn mini" onClick={() => { setEditId(null); reset(); setShowForm(true); }}>+ Add New (Periodic)</button>
@@ -242,14 +242,14 @@ const WaterTesting = ({ onBack }) => {
                 </div>
             </div>
 
-            <div style={{ display: 'flex', gap: '16px', marginBottom: '32px', flexWrap: 'wrap' }}>
+            <div style={{ display: 'flex', gap: '16px', marginBottom: '16px', flexWrap: 'wrap' }}>
                 <SubCard id="stats" title="Analytics" color="#42818c" count="N/A" label="Statistics" isActive={viewMode === 'stats'} onClick={() => setViewMode('stats')} />
                 <SubCard id="history" title="Historical" color="#10b981" count={history.length} label="Test Logs" isActive={viewMode === 'history'} onClick={() => setViewMode('history')} />
             </div>
 
             <div className="view-layer">
                 {viewMode === 'stats' && (
-                    <div className="table-outer-wrapper fade-in" style={{ padding: '24px' }}>
+                    <div className="table-outer-wrapper fade-in" style={{ padding: '16px' }}>
                         <TrendChart
                             data={history.map(h => ({
                                 ...h,

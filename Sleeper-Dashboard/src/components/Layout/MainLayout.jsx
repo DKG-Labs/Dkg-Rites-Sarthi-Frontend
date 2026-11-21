@@ -60,12 +60,12 @@ const MainLayout = ({ children, activeItem, onItemClick }) => {
             {/* End Duty Confirmation Modal */}
             {showEndDutyModal && (
                 <div className="modal-overlay" style={{ zIndex: 9999 }}>
-                    <div className="modal-content" style={{ maxWidth: '400px', textAlign: 'center', padding: '30px' }}>
-                        <div className="modal-header" style={{ marginBottom: '20px' }}>
+                    <div className="modal-content" style={{ maxWidth: '400px', textAlign: 'center', padding: '20px' }}>
+                        <div className="modal-header" style={{ marginBottom: '14px' }}>
                             <h2 style={{ color: 'var(--color-danger)', fontSize: '20px' }}>End Duty Session?</h2>
                         </div>
                         <div className="modal-body" style={{ marginBottom: '25px' }}>
-                            <p style={{ color: '#64748b', fontSize: '14px', lineHeight: '1.6', marginBottom: '20px' }}>
+                            <p style={{ color: '#64748b', fontSize: '14px', lineHeight: '1.6', marginBottom: '14px' }}>
                                 You are about to terminate your active duty session. <br />
                                 <strong style={{ color: '#1e293b' }}>Any unsaved data in current forms will be lost.</strong>
                             </p>
@@ -124,10 +124,10 @@ const MainLayout = ({ children, activeItem, onItemClick }) => {
             {showLogoutDutyModal && (
                 <div className="modal-overlay" style={{ zIndex: 9999 }}>
                     <div className="modal-content" style={{ maxWidth: '420px', textAlign: 'center', padding: '35px' }}>
-                        <div className="modal-header" style={{ marginBottom: '20px', justifyContent: 'center' }}>
+                        <div className="modal-header" style={{ marginBottom: '14px', justifyContent: 'center' }}>
                             <h2 style={{ color: 'var(--color-danger)', fontSize: '20px' }}>Active Duty Session</h2>
                         </div>
-                        <div className="modal-body" style={{ marginBottom: '30px' }}>
+                        <div className="modal-body" style={{ marginBottom: '16px' }}>
                             <p style={{ color: '#64748b', fontSize: '15px', lineHeight: '1.6' }}>
                                 You have an active duty session. <br />
                                 Do you want to <strong>End Duty</strong> before logging out?

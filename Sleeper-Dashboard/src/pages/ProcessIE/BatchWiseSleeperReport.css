@@ -1,18 +1,18 @@
 /* BatchWiseSleeperReport.css */
 
 .report-container {
-    padding: 1.5rem;
+    padding: 1rem;
     max-width: 1200px;
     margin: 0 auto;
-    min-height: calc(100vh - 72px);
+    min-height: calc(100vh - 64px);
     background: #f8fafc;
 }
 
 .report-header {
     display: flex;
     align-items: center;
-    gap: 1.5rem;
-    margin-bottom: 1.5rem;
+    gap: 1rem;
+    margin-bottom: 1rem;
     border-bottom: 2px solid var(--accent-bg);
     padding-bottom: 0.8rem;
 }
@@ -26,11 +26,11 @@
 
 .search-section {
     background: #fff;
-    padding: 1.5rem;
+    padding: 1rem;
     border-radius: var(--border-radius-lg);
     border: 1px solid var(--border-color);
     box-shadow: var(--shadow-sm);
-    margin-bottom: 2rem;
+    margin-bottom: 1.25rem;
 }
 
 .search-box {
@@ -78,13 +78,13 @@
 .report-grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-    gap: 1.5rem;
-    margin-bottom: 2rem;
+    gap: 1rem;
+    margin-bottom: 1.25rem;
 }
 
 .report-card {
     background: #fff;
-    padding: 1.5rem;
+    padding: 1rem;
     border-radius: var(--border-radius-lg);
     border: 1px solid var(--border-color);
     box-shadow: var(--shadow-sm);
@@ -125,7 +125,7 @@
 /* Sleeper List Table */
 .sleeper-list-section {
     background: #fff;
-    padding: 1.5rem;
+    padding: 1rem;
     border-radius: var(--border-radius-lg);
     border: 1px solid var(--border-color);
     box-shadow: var(--shadow-sm);

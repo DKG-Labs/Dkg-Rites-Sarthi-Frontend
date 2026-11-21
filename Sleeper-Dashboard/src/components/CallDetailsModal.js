@@ -53,7 +53,7 @@ const CallDetailsModal = ({
         <div className="form-modal-body" style={{ background: '#f8fafc' }}>
 
           {/* Section 1: PO Details */}
-          <div className="details-section" style={{ background: 'white', padding: '20px', borderRadius: '12px', border: '1px solid #e5e7eb', marginBottom: '20px' }}>
+          <div className="details-section" style={{ background: 'white', padding: '14px', borderRadius: '12px', border: '1px solid #e5e7eb', marginBottom: '14px' }}>
             <h3 className="section-title" style={{ margin: '0 0 16px', fontSize: '16px', display: 'flex', alignItems: 'center', gap: '8px', color: '#111827' }}>
               <span className="section-icon">📄</span>
               PO Details
@@ -95,7 +95,7 @@ const CallDetailsModal = ({
           </div>
 
           {/* Section 2: Inspection Call Details */}
-          <div className="details-section" style={{ background: 'white', padding: '20px', borderRadius: '12px', border: '1px solid #e5e7eb', marginBottom: '20px' }}>
+          <div className="details-section" style={{ background: 'white', padding: '14px', borderRadius: '12px', border: '1px solid #e5e7eb', marginBottom: '14px' }}>
             <h3 className="section-title" style={{ margin: '0 0 16px', fontSize: '16px', display: 'flex', alignItems: 'center', gap: '8px', color: '#111827' }}>
               <span className="section-icon">🔍</span>
               Inspection Call Details
@@ -141,7 +141,7 @@ const CallDetailsModal = ({
           </div>
 
           {/* Section 3: Sub PO Details */}
-          <div className="details-section" style={{ background: 'white', padding: '20px', borderRadius: '12px', border: '1px solid #e5e7eb' }}>
+          <div className="details-section" style={{ background: 'white', padding: '14px', borderRadius: '12px', border: '1px solid #e5e7eb' }}>
             <h3 className="section-title" style={{ margin: '0 0 16px', fontSize: '16px', display: 'flex', alignItems: 'center', gap: '8px', color: '#111827' }}>
               <span className="section-icon">📋</span>
               Sub PO Details

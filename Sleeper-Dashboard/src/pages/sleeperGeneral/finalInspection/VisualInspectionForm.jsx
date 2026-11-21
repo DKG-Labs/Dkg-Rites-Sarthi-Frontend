@@ -706,7 +706,7 @@ const VisualInspectionForm = ({ batch, onSave, onCancel, shift }) => {
                         </div>
                     </div>
                     
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '20px' }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '14px' }}>
                         
                         {/* Column 1: Rejected Sleepers */}
                         <div style={{ background: '#fef2f2', padding: '12px', borderRadius: '8px', border: '1px solid #fee2e2', display: 'flex', flexDirection: 'column' }}>
@@ -794,7 +794,7 @@ const VisualInspectionForm = ({ batch, onSave, onCancel, shift }) => {
                                         <td style={{ color: '#64748b' }}>{s.section}</td>
                                         <td>
                                             <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                                                <div style={{ display: 'flex', alignItems: 'center', gap: '20px', flexWrap: 'wrap' }}>
+                                                <div style={{ display: 'flex', alignItems: 'center', gap: '14px', flexWrap: 'wrap' }}>
                                                     <label style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer', fontSize: '11px', whiteSpace: 'nowrap' }}>
                                                         <input
                                                             type="checkbox"
@@ -944,7 +944,7 @@ const VisualInspectionForm = ({ batch, onSave, onCancel, shift }) => {
                 </section>
             </div>
 
-            <div style={{ display: 'flex', gap: '12px', marginTop: '24px', flexWrap: 'wrap', padding: '0 32px 32px 32px' }}>
+            <div style={{ display: 'flex', gap: '12px', marginTop: '16px', flexWrap: 'wrap', padding: '0 32px 32px 32px' }}>
                 <button
                     className="btn-verify"
                     style={{ flex: '1 1 200px', height: '44px', opacity: (saving || selectedSleepers.length === 0) ? 0.7 : 1 }}

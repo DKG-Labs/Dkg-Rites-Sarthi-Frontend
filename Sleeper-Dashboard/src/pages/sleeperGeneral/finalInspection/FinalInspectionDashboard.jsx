@@ -51,7 +51,7 @@ const FinalInspectionDashboard = () => {
 
     return (
         <div className="dashboard-container">
-            <header style={{ marginBottom: '24px' }}>
+            <header style={{ marginBottom: '16px' }}>
                 <h1 style={{ fontSize: 'var(--fs-2xl)', fontWeight: '700', color: '#42818c', margin: '0 0 8px 0' }}>Final Inspection Dashboard</h1>
                 <p style={{ margin: 0, color: '#64748b', fontSize: 'var(--fs-sm)' }}>Quality assurance for finished concrete sleepers</p>
             </header>
@@ -60,7 +60,7 @@ const FinalInspectionDashboard = () => {
                 display: 'grid',
                 gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))',
                 gap: '16px',
-                marginBottom: '32px'
+                marginBottom: '16px'
             }}>
                 {cards.map(card => (
                     <div

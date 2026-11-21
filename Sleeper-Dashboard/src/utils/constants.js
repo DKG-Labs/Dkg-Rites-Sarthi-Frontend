@@ -191,3 +191,16 @@ export const STORAGE_KEYS = {
   CALL_DESK_PREFERENCES: 'call_desk_module_preferences'
 };
 
+
+// Quantity UOM rules for Final Inspection (IC Issuance).
+// A call whose UOM matches one of the aliases (case/space-insensitive) lets the IE enter the
+// Rejected qty manually; Offered is auto-fetched from the call and Accepted = Offered - Rejected.
+// `decimals` = number of fractional digits allowed. Add new UOMs / aliases here only.
+export const QTY_UOM_RULES = {
+  RMT: {
+    aliases: ['rmt', 'r.m.t', 'r.m.t.', 'mtr', 'mtr.', 'mtrs', 'mtrs.', 'mts', 'mts.', 'running metre', 'running meter', 'running metres', 'running meters'],
+    label: 'RMT',
+    wordsNoun: 'running metres',
+    decimals: 2
+  }
+};

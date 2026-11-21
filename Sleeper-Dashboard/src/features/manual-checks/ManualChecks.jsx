@@ -496,7 +496,7 @@ const ManualChecks = ({ onBack, activeContainer, initialSubModule, initialViewMo
 
         return (
             <div className="table-outer-wrapper fade-in" style={{ background: 'transparent', border: 'none', padding: 0 }}>
-                <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '20px' }}>
+                <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '14px' }}>
                     <div style={{
                         display: 'inline-flex',
                         background: '#f1f5f9',
@@ -603,7 +603,7 @@ const ManualChecks = ({ onBack, activeContainer, initialSubModule, initialViewMo
                         borderRadius: '12px',
                         boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1), 0 2px 4px -1px rgba(0,0,0,0.06)',
                         border: '1px solid #e2e8f0',
-                        marginBottom: '32px'
+                        marginBottom: '16px'
                     }}>
                         {activeModule === 'mouldPrep' && (
                             <MouldPrepForm
@@ -649,7 +649,7 @@ const ManualChecks = ({ onBack, activeContainer, initialSubModule, initialViewMo
                     {/* NEW SECTION: Logs shown below form */}
                     <div className="logs-preview-section">
                         <div style={{
-                            padding: '16px 20px',
+                            padding: '12px 16px',
                             background: '#f8fafc',
                             borderLeft: '4px solid #3b82f6',
                             marginBottom: '16px',

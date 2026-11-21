@@ -546,7 +546,7 @@ const MoistureEntryForm = ({ onCancel, onSave, initialData }) => {
 
 
                 {commonData.mixDesignId && (
-                    <div className="design-comparison-container" style={{ marginTop: '24px', animation: 'fadeIn 0.3s' }}>
+                    <div className="design-comparison-container" style={{ marginTop: '16px', animation: 'fadeIn 0.3s' }}>
 
                         <div className="comparison-table-header">
                             <div style={{ flex: 1 }}>Design Parameters & Input Verification</div>

@@ -320,13 +320,13 @@ const ModulusOfRupture = () => {
 
     return (
         <div className="mor-module cement-forms-scope">
-            <header style={{ marginBottom: '24px' }}>
+            <header style={{ marginBottom: '16px' }}>
                 <h2 style={{ fontSize: '20px', fontWeight: '700', color: '#13343b', margin: 0 }}>Modulus of Rupture (MOR)</h2>
                 <p style={{ fontSize: '12px', color: '#64748b', margin: '4px 0 0 0' }}>Quality monitoring for flexural strength</p>
             </header>
 
             <div className="nav-tabs" style={{
-                marginBottom: '32px',
+                marginBottom: '16px',
                 display: 'flex',
                 gap: '8px',
                 background: '#f1f5f9',
@@ -368,7 +368,7 @@ const ModulusOfRupture = () => {
             </div>
 
             <div className="tab-content">
-                {loading && <div style={{ textAlign: 'center', padding: '20px' }}>Loading...</div>}
+                {loading && <div style={{ textAlign: 'center', padding: '14px' }}>Loading...</div>}
                 
                 {viewMode === 'statistics' && !loading && (
                     <div className="fade-in">
@@ -376,7 +376,7 @@ const ModulusOfRupture = () => {
                             display: 'grid',
                             gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))',
                             gap: '12px',
-                            marginBottom: '32px'
+                            marginBottom: '16px'
                         }}>
                             <StatCard label="Total Samples" value={declaredSamples.length} />
                             <StatCard label="Tests Completed" value={testedSamples.length} />
@@ -399,7 +399,7 @@ const ModulusOfRupture = () => {
 
                 {viewMode === 'declared' && !loading && (
                     <div className="section-card fade-in">
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', flexWrap: 'wrap', gap: '12px' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px', flexWrap: 'wrap', gap: '12px' }}>
                             <h4 style={{ margin: 0, color: '#475569' }}>MOR Samples Pending Testing</h4>
                             <button className="btn-verify" onClick={handleAddSample}>+ Declare New Sample</button>
                         </div>
@@ -410,7 +410,7 @@ const ModulusOfRupture = () => {
 
                 {viewMode === 'tested' && !loading && (
                     <div className="section-card fade-in">
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
                             <h4 style={{ margin: 0, color: '#475569' }}>MOR Analysis Log</h4>
                         </div>
                         {dateFilterBar}
@@ -544,7 +544,7 @@ const MORSampleDeclarationModal = ({ sample, isModifying, onClose, onSave, savin
                             <input type="text" value={formData.sampleIdentificationNumber} onChange={e => setFormData({ ...formData, sampleIdentificationNumber: e.target.value })} placeholder="e.g. MOR-2026-XYZ" />
                         </div>
                     </div>
-                    <div style={{ display: 'flex', gap: '12px', marginTop: '32px', flexWrap: 'wrap' }}>
+                    <div style={{ display: 'flex', gap: '12px', marginTop: '16px', flexWrap: 'wrap' }}>
                         <button className="btn-verify" disabled={saving} style={{ flex: '1 1 200px' }} onClick={() => {
                             if (!formData.concreteGrade || !formData.location || !formData.sampleIdentificationNumber) {
                                 alert("Please fill in all mandatory fields (Grade, Location, and ID).");
@@ -603,7 +603,7 @@ const MORTestDetailsModal = ({ sample, onClose, onSave, saving }) => {
                     <button className="form-modal-close" onClick={onClose}>✕</button>
                 </div>
                 <div className="form-modal-body">
-                    <div style={{ background: '#f8fafc', padding: '16px', borderRadius: '12px', border: '1px solid #e2e8f0', marginBottom: '20px' }}>
+                    <div style={{ background: '#f8fafc', padding: '16px', borderRadius: '12px', border: '1px solid #e2e8f0', marginBottom: '14px' }}>
                         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: '12px' }}>
                             <div><span style={{ fontSize: '10px', color: '#64748b' }}>Sampling Date</span><div style={{ fontWeight: '700' }}>{sample.samplingDate}</div></div>
                             <div><span style={{ fontSize: '10px', color: '#64748b' }}>Grade</span><div style={{ fontWeight: '700' }}>{sample.concreteGrade}</div></div>
@@ -638,7 +638,7 @@ const MORTestDetailsModal = ({ sample, onClose, onSave, saving }) => {
                         </div>
                     </div>
 
-                    <div style={{ display: 'flex', gap: '12px', marginTop: '24px', flexWrap: 'wrap' }}>
+                    <div style={{ display: 'flex', gap: '12px', marginTop: '16px', flexWrap: 'wrap' }}>
                         <button className="btn-verify" disabled={saving} style={{ flex: '1 1 200px' }} onClick={() => {
                             if (!testData.loadKn || !testData.strength) {
                                 alert("Mandatory Data Missing: Please enter Load, and Strength before saving.");
@@ -701,7 +701,7 @@ const MORDetailsModal = ({ sample, onClose, onModify, onEnterTest, onDelete }) =
                     <button className="form-modal-close" onClick={onClose}>×</button>
                 </div>
                 <div className="form-modal-body">
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '16px', marginBottom: '24px' }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '16px', marginBottom: '16px' }}>
                         {details.map((detail, idx) => (
                             <div key={idx} style={{ padding: '12px', background: detail.isResult ? (isPass ? '#ecfdf5' : '#fef2f2') : '#f8fafc', borderRadius: '8px', border: `1px solid ${detail.isResult ? (isPass ? '#059669' : '#dc2626') : '#e2e8f0'}` }}>
                                 <div style={{ fontSize: '10px', color: '#64748b', fontWeight: '800', textTransform: 'uppercase' }}>{detail.label}</div>

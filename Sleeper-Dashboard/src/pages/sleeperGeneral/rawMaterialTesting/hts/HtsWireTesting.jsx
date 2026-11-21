@@ -379,14 +379,14 @@ const HtsWireTesting = ({ onBack, inventoryData = [] }) => {
 
     return (
         <div className="hts-testing-root cement-forms-scope fade-in">
-            <div className="content-title-row" style={{ marginBottom: '24px' }}>
+            <div className="content-title-row" style={{ marginBottom: '16px' }}>
                 <h2 style={{ margin: 0 }}>HTS Wire Testing (Daily)</h2>
                 <div style={{ display: 'flex', gap: '12px' }}>
                     <button className="toggle-btn secondary mini" onClick={onBack}>Back to Dashboard</button>
                 </div>
             </div>
 
-            <div style={{ display: 'flex', gap: '16px', marginBottom: '32px', flexWrap: 'wrap' }}>
+            <div style={{ display: 'flex', gap: '16px', marginBottom: '16px', flexWrap: 'wrap' }}>
                 <SubCard id="stats" title="Analytics" color="#42818c" count="N/A" label="Statistics" isActive={viewMode === 'stats'} onClick={() => setViewMode('stats')} />
                 <SubCard
                     id="new-stocks"
@@ -402,7 +402,7 @@ const HtsWireTesting = ({ onBack, inventoryData = [] }) => {
 
             <div className="view-layer">
                 {viewMode === 'stats' && (
-                    <div className="table-outer-wrapper fade-in" style={{ padding: '24px' }}>
+                    <div className="table-outer-wrapper fade-in" style={{ padding: '16px' }}>
                         <TrendChart
                             data={history}
                             xKey="testDate"
@@ -419,7 +419,7 @@ const HtsWireTesting = ({ onBack, inventoryData = [] }) => {
 
                 {viewMode === 'new-stocks' && (
                     <div className="table-outer-wrapper fade-in">
-                        <div className="content-title-row" style={{ padding: '16px 20px', borderBottom: '1px solid #e2e8f0', marginBottom: 0 }}>
+                        <div className="content-title-row" style={{ padding: '12px 16px', borderBottom: '1px solid #e2e8f0', marginBottom: 0 }}>
                             <h4 style={{ margin: 0 }}>HTS Inventory Pending Testing</h4>
                         </div>
                         <EnhancedDataTable columns={inventoryColumns.filter(c => c.key !== 'testingStatus')} data={pendingStocks.filter(s => statusMap[s.requestId] !== 'Completed')} />
@@ -428,7 +428,7 @@ const HtsWireTesting = ({ onBack, inventoryData = [] }) => {
 
                 {viewMode === 'history' && (
                     <div className="table-outer-wrapper fade-in">
-                        <div className="content-title-row" style={{ padding: '16px 20px', borderBottom: '1px solid #e2e8f0', marginBottom: 0 }}>
+                        <div className="content-title-row" style={{ padding: '12px 16px', borderBottom: '1px solid #e2e8f0', marginBottom: 0 }}>
                             <h4 style={{ margin: 0 }}>HTS Quality Logs</h4>
                         </div>
                         <EnhancedDataTable columns={historyColumns} data={history} emptyMessage="No HTS test records found." />
@@ -449,7 +449,7 @@ const HtsWireTesting = ({ onBack, inventoryData = [] }) => {
                                 <input type="hidden" {...register('lotNo')} />
 
                                 {/* Top Header Info */}
-                                <div className="form-grid" style={{ marginBottom: '20px' }}>
+                                <div className="form-grid" style={{ marginBottom: '14px' }}>
                                     <div className="input-group">
                                         <label>Date of Testing <span className="required">*</span></label>
                                         <input type="text" value={new Date().toLocaleDateString('en-GB')} readOnly style={{ background: '#f1f5f9' }} />
@@ -482,7 +482,7 @@ const HtsWireTesting = ({ onBack, inventoryData = [] }) => {
                                 </div>
 
                                 {/* Table 1: Basic Information */}
-                                <div style={{ marginBottom: '24px', background: '#fff', borderRadius: '8px', border: '1px solid #e2e8f0', padding: '16px', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
+                                <div style={{ marginBottom: '16px', background: '#fff', borderRadius: '8px', border: '1px solid #e2e8f0', padding: '16px', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
                                     <h3 style={{ fontSize: '13px', fontWeight: '700', color: '#13343b', marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '6px' }}>
                                         <span style={{ display: 'inline-block', width: '8px', height: '8px', borderRadius: '50%', background: '#42818c' }}></span>
                                         Table 1: Basic Information (Vendor End Data - Auto Fetched)
@@ -560,7 +560,7 @@ const HtsWireTesting = ({ onBack, inventoryData = [] }) => {
                                 </div>
 
                                 {/* Table 2: Test Result */}
-                                <div style={{ marginBottom: '24px', background: '#fff', borderRadius: '8px', border: '1px solid #e2e8f0', padding: '16px', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
+                                <div style={{ marginBottom: '16px', background: '#fff', borderRadius: '8px', border: '1px solid #e2e8f0', padding: '16px', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
                                     <h3 style={{ fontSize: '13px', fontWeight: '700', color: '#13343b', marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '6px' }}>
                                         <span style={{ display: 'inline-block', width: '8px', height: '8px', borderRadius: '50%', background: '#42818c' }}></span>
                                         Table 2: Test Result

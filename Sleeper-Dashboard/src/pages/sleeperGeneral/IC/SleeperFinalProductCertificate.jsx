@@ -10,6 +10,7 @@ import {
   getFinalIcSaveChanges, 
   getFinalIcEditData 
 } from "../../../services/certificateService";
+import { getQtyUomRule } from "../../../utils/uomQuantity";
 
 // Formats a quantity exactly as stored (up to 3 decimals), dropping trailing zeros: 15.00 -> "15", 14.91 -> "14.91"
 const formatQty = (num) => {
@@ -181,7 +182,10 @@ export default function SleeperFinalProductCertificate() {
                      sleeperTypeStr.includes('rt-4218') ||
                      sleeperTypeStr.includes('rt-4865');
 
-    const unitNoun = isSetUom ? "sets" : "numbers";
+    // UOMs configured in QTY_UOM_RULES (e.g. RMT) carry their own unit words / label
+    const qtyUomRule = isSetUom ? null : getQtyUomRule(ic?.unit, ic?.uom, c?.uom, c?.unit, c?.callUnit, c?.qtyUnit);
+    const unitNoun = isSetUom ? "sets" : (qtyUomRule ? qtyUomRule.wordsNoun : "numbers");
+    const showMfText = !isSetUom && !qtyUomRule;
 
     let batchStr = "";
     if (ic?.quantityNowPassedBatchNos) {
@@ -194,7 +198,7 @@ export default function SleeperFinalProductCertificate() {
 
     const passedWords = numberToWords(numPassed);
     let defaultQtyPassedText = `Quantity Now Passed- ${passedWords} ${unitNoun} only`;
-    if (mfCount > 0 && !isSetUom) {
+    if (mfCount > 0 && showMfText) {
         const mfWords = numberToWords(mfCount).toLowerCase();
         defaultQtyPassedText += ` including ${mfWords} numbers destroyed during MFT Testing. `;
     } else {
@@ -222,7 +226,7 @@ export default function SleeperFinalProductCertificate() {
     let defaultRejectionReason = "Not Applicable";
     if (numRejected > 0) {
         const rejWords = numberToWords(numRejected);
-        if (mfCount > 0 && !isSetUom) {
+        if (mfCount > 0 && showMfText) {
             const mfWords = numberToWords(mfCount).toLowerCase();
             defaultRejectionReason = `${rejWords} numbers rejected during inspection and ${mfWords} number destroyed during MFT as detailed in Annexure-I to IC attached.`;
         } else {
@@ -291,7 +295,7 @@ export default function SleeperFinalProductCertificate() {
         facsimileText: ic?.facsimileText || c?.facsimileText || "",
         reasonsForRejection: ic?.reasonsForRejection || c?.reasonsForRejection || defaultRejectionReason,
         inspectingEngineer: ic?.inspectingEngineer || c?.inspectingEngineer || "",
-        unit: isSetUom ? 'SETS.' : (ic?.unit || ic?.uom || c?.uom || c?.unit || c?.callUnit || "NOS."),
+        unit: isSetUom ? 'SETS.' : (qtyUomRule ? qtyUomRule.label : (ic?.unit || ic?.uom || c?.uom || c?.unit || c?.callUnit || "NOS.")),
         region: ic?.region || c?.region || getRegionHeader(ic?.rio || c?.rio || c?.plantRio || (typeof localStorage !== 'undefined' ? (localStorage.getItem('plantRio') || localStorage.getItem('rio')) : ''))
     };
   };

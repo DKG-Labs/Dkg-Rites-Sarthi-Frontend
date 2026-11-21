@@ -5,17 +5,18 @@ import { getStoredUser } from '../../../services/authService';
 import ModernSearchableSelect from '../../../components/common/ModernSearchableSelect';
 import CallCancellationModal from '../../../components/CallCancellationModal';
 import ImageCaptureComponent from '../../../components/ImageCaptureComponent';
+import { getQtyUomRule, roundQty, parseQty, computeAcceptedQty, sanitizeQtyInput } from '../../../utils/uomQuantity';
 
 const PoVerificationSkeleton = ({ onBack }) => (
     <div className="verification-modal-page skeleton-screen-wrapper">
         <div className="verification-card-modern skeleton-card-box" style={{ width: '92%', maxWidth: '1200px', margin: '30px auto' }}>
-            <div className="verification-header-modern" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px 24px', borderBottom: '1px solid #e2e8f0' }}>
+            <div className="verification-header-modern" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 16px', borderBottom: '1px solid #e2e8f0' }}>
                 <div className="skeleton-line" style={{ width: '320px', height: '26px', borderRadius: '6px' }} />
                 <div className="skeleton-line" style={{ width: '120px', height: '26px', borderRadius: '20px' }} />
             </div>
-            <div style={{ padding: '24px' }}>
+            <div style={{ padding: '16px' }}>
                 <div className="skeleton-line" style={{ height: '52px', borderRadius: '8px', marginBottom: '16px' }} />
-                <div className="skeleton-grid-2col" style={{ marginBottom: '20px' }}>
+                <div className="skeleton-grid-2col" style={{ marginBottom: '14px' }}>
                     <div className="skeleton-line" style={{ height: '42px', borderRadius: '6px' }} />
                     <div className="skeleton-line" style={{ height: '42px', borderRadius: '6px' }} />
                     <div className="skeleton-line" style={{ height: '42px', borderRadius: '6px' }} />
@@ -23,7 +24,7 @@ const PoVerificationSkeleton = ({ onBack }) => (
                 </div>
                 <div className="skeleton-line" style={{ height: '52px', borderRadius: '8px', marginBottom: '16px' }} />
             </div>
-            <div className="verification-footer sticky" style={{ display: 'flex', justifyContent: 'space-between', padding: '16px 24px', borderTop: '1px solid #e2e8f0' }}>
+            <div className="verification-footer sticky" style={{ display: 'flex', justifyContent: 'space-between', padding: '12px 16px', borderTop: '1px solid #e2e8f0' }}>
                 <div className="skeleton-line" style={{ width: '180px', height: '40px', borderRadius: '8px' }} />
                 <div className="skeleton-line" style={{ width: '180px', height: '40px', borderRadius: '8px' }} />
             </div>
@@ -47,7 +48,7 @@ const FinalInspectionSkeleton = ({ onBack }) => (
             </div>
         </header>
 
-        <main className="inspection-content" style={{ padding: '24px' }}>
+        <main className="inspection-content" style={{ padding: '16px' }}>
             {/* Section 1 Skeleton */}
             <section className="section skeleton-card-box">
                 <div className="skeleton-line" style={{ width: '280px', height: '24px', marginBottom: '16px', borderRadius: '6px' }} />
@@ -90,7 +91,7 @@ const FinalInspectionSkeleton = ({ onBack }) => (
                         <div key={idx} className="skeleton-line" style={{ height: '75px', borderRadius: '10px' }} />
                     ))}
                 </div>
-                <div style={{ display: 'flex', gap: '14px', marginTop: '20px' }}>
+                <div style={{ display: 'flex', gap: '14px', marginTop: '14px' }}>
                     {[1, 2, 3].map(idx => (
                         <div key={idx} className="skeleton-line" style={{ flex: 1, height: '44px', borderRadius: '10px' }} />
                     ))}
@@ -130,7 +131,13 @@ const FinalInspectionScreen = ({ call, onBack }) => {
     // Set Quantity State for Set/Turnout Sleepers
     const [offeredSetsQty, setOfferedSetsQty] = useState(0);
     const [rejectedSetsQty, setRejectedSetsQty] = useState(0);
-    const acceptedSetsQty = Math.max(0, (Number(offeredSetsQty) || 0) - (Number(rejectedSetsQty) || 0));
+    // Raw text of the Rejected input, so a partly typed decimal (e.g. "2.") is not wiped while typing.
+    const [rejectedQtyInput, setRejectedQtyInput] = useState('');
+    const restoreRejectedQty = (value) => {
+        const n = Number(value) || 0;
+        setRejectedSetsQty(n);
+        setRejectedQtyInput(n === 0 ? '' : String(n));
+    };
 
     // Verification Form State
     const [poForm, setPoForm] = useState({
@@ -305,19 +312,22 @@ const FinalInspectionScreen = ({ call, onBack }) => {
                 }
                 // For Set UoM the vendor's call total_offered is the offered SETS — it must win over
                 // header/summary values (which can hold a stale set count, e.g. 1 instead of 18).
+                // The same applies to UOMs in QTY_UOM_RULES (e.g. RMT), whose offered qty can be fractional.
+                const loadedQtyRule = isSetUom ? null : getQtyUomRule(sec1?.uom, currentUom, call?.uom, call?.unit, call?.callUnit);
+                const isManualQtyCall = isSetUom || !!loadedQtyRule;
                 const initialVendorSets = Number(
-                    (isSetUom && Number(call?.totalOffered ?? call?.offeredQty) > 0 ? Number(call?.totalOffered ?? call?.offeredQty) : null) ||
+                    (isManualQtyCall && Number(call?.totalOffered ?? call?.offeredQty) > 0 ? Number(call?.totalOffered ?? call?.offeredQty) : null) ||
                     sec2?.callQtyMt ||
-                    summary?.qtyOfferedNow || 
-                    call?.totalOffered || 
-                    (isSetUom && call?.offeredSetsQuantity ? call.offeredSetsQuantity : null) || 
-                    call?.qtyOffered || 
-                    call?.offeredQty || 
-                    call?.qty || 
+                    summary?.qtyOfferedNow ||
+                    call?.totalOffered ||
+                    (isSetUom && call?.offeredSetsQuantity ? call.offeredSetsQuantity : null) ||
+                    call?.qtyOffered ||
+                    call?.offeredQty ||
+                    call?.qty ||
                     0
                 ) || 0;
                 if (initialVendorSets > 0) {
-                    setOfferedSetsQty(initialVendorSets);
+                    setOfferedSetsQty(loadedQtyRule ? roundQty(initialVendorSets, loadedQtyRule.decimals) : initialVendorSets);
                 }
             } catch (err) {
                 console.error("Error loading verification details:", err);
@@ -338,6 +348,22 @@ const FinalInspectionScreen = ({ call, onBack }) => {
     const [isSectionBVisible, setIsSectionBVisible] = useState(false);
     const [summaryData, setSummaryData] = useState(null);
     const [batchDetails, setBatchDetails] = useState([]);
+
+    // UOMs configured in QTY_UOM_RULES (e.g. RMT): IE enters Rejected manually (fractions allowed),
+    // Offered is auto-fetched from the call and Accepted = Offered - Rejected. Set/Turnout keeps its own rule.
+    // Declared after summaryData (it reads summaryData).
+    const qtyUomRule = isSetUom ? null : getQtyUomRule(
+        icForm?.qtyUnit,
+        summaryData?.uom,
+        summaryData?.unit,
+        call?.uom,
+        call?.unit,
+        call?.callUnit
+    );
+    const isManualQtyUom = isSetUom || !!qtyUomRule;
+    const qtyDecimals = qtyUomRule?.decimals ?? 0;
+    const qtyUnitLabel = qtyUomRule?.label ?? 'Sets';
+    const acceptedSetsQty = computeAcceptedQty(offeredSetsQty, rejectedSetsQty, qtyDecimals);
 
     const [isSavingSectionA, setIsSavingSectionA] = useState(false);
     const [isSavingSectionB, setIsSavingSectionB] = useState(false);
@@ -661,7 +687,7 @@ const FinalInspectionScreen = ({ call, onBack }) => {
                     try {
                         const draft = JSON.parse(savedDraft);
                         if (draft.rejectedSetsQty !== undefined && draft.rejectedSetsQty !== null) {
-                            setRejectedSetsQty(Number(draft.rejectedSetsQty));
+                            restoreRejectedQty(draft.rejectedSetsQty);
                         }
                         if (draft && Array.isArray(draft.batches) && draft.batches.length > 0) {
                             const currentType = draft.summaryData?.sleeperType || call?.sleeperType || '';
@@ -691,12 +717,16 @@ const FinalInspectionScreen = ({ call, onBack }) => {
                     const finalResResp = await apiService.getSleeperFinalResult(callNo);
                     const finalResData = finalResResp?.responseData || finalResResp;
                     if (finalResData) {
+                        // UOMs in QTY_UOM_RULES (e.g. RMT) are saved in the total_* fields, Set in the *_sets_* fields.
+                        const savedQtyRule = isSetUom ? null : getQtyUomRule(sec1?.uom, currentUom, call?.uom, call?.unit, call?.callUnit);
+                        const savedOffered = savedQtyRule ? finalResData.totalOfferedQuantity : finalResData.offeredSetsQuantity;
+                        const savedRejected = savedQtyRule ? finalResData.totalRejected : finalResData.rejectedSetsQuantity;
                         // Offered sets come from the vendor's call; only fall back to the saved value if the call has none.
-                        if (!(Number(call?.totalOffered ?? call?.offeredQty) > 0) && finalResData.offeredSetsQuantity != null && Number(finalResData.offeredSetsQuantity) > 0) {
-                            setOfferedSetsQty(Number(finalResData.offeredSetsQuantity));
+                        if (!(Number(call?.totalOffered ?? call?.offeredQty) > 0) && savedOffered != null && Number(savedOffered) > 0) {
+                            setOfferedSetsQty(Number(savedOffered));
                         }
-                        if (finalResData.rejectedSetsQuantity != null) {
-                            setRejectedSetsQty(Number(finalResData.rejectedSetsQuantity));
+                        if (savedRejected != null) {
+                            restoreRejectedQty(savedRejected);
                         }
                     }
                 } catch (err) {
@@ -1054,10 +1084,16 @@ const FinalInspectionScreen = ({ call, onBack }) => {
             if (foundNumericPo) purePo = foundNumericPo;
         }
 
-        if (isSetUom && Number(rejectedSetsQty || 0) > Number(offeredSetsQty || 0)) {
-            alert(`❌ Rejected Set Qty (${rejectedSetsQty}) cannot be more than Offered Sets Qty (${offeredSetsQty}).`);
-            throw new Error(`Rejected Set Qty (${rejectedSetsQty}) cannot be more than Offered Sets Qty (${offeredSetsQty})`);
+        if (isManualQtyUom && Number(rejectedSetsQty || 0) > Number(offeredSetsQty || 0)) {
+            alert(`❌ Rejected Qty (${rejectedSetsQty} ${qtyUnitLabel}) cannot be more than Offered Qty (${offeredSetsQty} ${qtyUnitLabel}).`);
+            throw new Error(`Rejected Qty (${rejectedSetsQty} ${qtyUnitLabel}) cannot be more than Offered Qty (${offeredSetsQty} ${qtyUnitLabel})`);
         }
+
+        // UOMs in QTY_UOM_RULES (e.g. RMT): the call's quantities are in that UOM, so the result totals
+        // carry the IE-entered values (fractions allowed). Nos and Set keep their existing totals.
+        const ruleOffered = qtyUomRule ? roundQty(offeredSetsQty, qtyDecimals) : null;
+        const ruleRejected = qtyUomRule ? roundQty(rejectedSetsQty, qtyDecimals) : null;
+        const ruleAccepted = qtyUomRule ? computeAcceptedQty(ruleOffered, ruleRejected, qtyDecimals) : null;
 
         const finalResultPayload = {
             callNumber: callNo,
@@ -1066,9 +1102,9 @@ const FinalInspectionScreen = ({ call, onBack }) => {
             shift: chosenShift,
             dateOfInspection: inspectionDate,
             sleeperType: sleeperType,
-            totalOfferedQuantity: totalOfferedNow,
-            totalAccepted: totalAccepted,
-            totalRejected: totalRejected,
+            totalOfferedQuantity: qtyUomRule ? ruleOffered : totalOfferedNow,
+            totalAccepted: qtyUomRule ? ruleAccepted : totalAccepted,
+            totalRejected: qtyUomRule ? ruleRejected : totalRejected,
             offeredSetsQuantity: isSetUom ? Number(offeredSetsQty || 0) : null,
             acceptedSetsQuantity: isSetUom ? Number(acceptedSetsQty || 0) : null,
             rejectedSetsQuantity: isSetUom ? Number(rejectedSetsQty || 0) : null,
@@ -1107,12 +1143,14 @@ const FinalInspectionScreen = ({ call, onBack }) => {
             poDate: formatDateDMY(summaryData?.poDate || poForm.poDate),
             vendorName: summaryData?.vendorName || poForm.vendorName,
             callNo: callNo,
-            poQty: Number(String(summaryData?.quantityOnOrder || poForm.poQty).replace(/\D/g, '')),
+            poQty: qtyUomRule
+                ? parseQty(summaryData?.quantityOnOrder || poForm.poQty)
+                : Number(String(summaryData?.quantityOnOrder || poForm.poQty).replace(/\D/g, '')),
             maNo: poForm.maNo === 'N/A' ? '' : poForm.maNo,
             maDate: formatDateDMY(poForm.maDate),
-            qtyOfferedNow: isSetUom ? effectiveOfferedSets : totalOfferedNow,
-            acceptedQty: isSetUom ? effectiveAcceptedSets : totalAccepted,
-            rejectedQty: isSetUom ? Number(rejectedSetsQty || 0) : totalRejected,
+            qtyOfferedNow: qtyUomRule ? ruleOffered : (isSetUom ? effectiveOfferedSets : totalOfferedNow),
+            acceptedQty: qtyUomRule ? ruleAccepted : (isSetUom ? effectiveAcceptedSets : totalAccepted),
+            rejectedQty: qtyUomRule ? ruleRejected : (isSetUom ? Number(rejectedSetsQty || 0) : totalRejected),
             etSleepers: totalEt,
             callDate: inspectionDate,
             noOfBatches: batches.length,
@@ -2102,63 +2140,53 @@ const FinalInspectionScreen = ({ call, onBack }) => {
                     </div>
 
                     <div className="final-result-card-body">
-                        {/* If Call UOM is SET or Turnout, show Offered, Rejected & Accepted Sets Qty */}
-                        {isSetUom && (
+                        {/* If Call UOM is SET/Turnout or a UOM in QTY_UOM_RULES (e.g. RMT), show Offered (auto), Rejected (manual) & Accepted (auto) Qty */}
+                        {isManualQtyUom && (
                             <div className="set-metrics-container">
                                 <div className="set-metrics-header">
                                     <span className="set-metrics-title">
-                                        <span>📦</span> Set Inspection Quantities (Turnout Sets)
+                                        <span>📦</span> {qtyUomRule ? `${qtyUnitLabel} Inspection Quantities` : 'Set Inspection Quantities (Turnout Sets)'}
                                     </span>
                                     <span style={{ fontSize: '12px', color: '#0369a1', fontWeight: 600 }}>
-                                        Accepted Sets = Offered Sets - Rejected Sets
+                                        {qtyUomRule ? 'Accepted Qty = Offered Qty - Rejected Qty' : 'Accepted Sets = Offered Sets - Rejected Sets'}
                                     </span>
                                 </div>
                                 <div className="set-metrics-grid">
                                     <div className="set-kpi-card offered">
-                                        <span className="set-kpi-label">Offered Sets Qty</span>
+                                        <span className="set-kpi-label">{qtyUomRule ? 'Offered Qty' : 'Offered Sets Qty'}</span>
                                         <div className="set-kpi-value">
-                                            {offeredSetsQty} <span className="set-kpi-sub">Sets</span>
+                                            {offeredSetsQty} <span className="set-kpi-sub">{qtyUnitLabel}</span>
                                         </div>
                                     </div>
                                     <div className="set-kpi-card rejected">
                                         <label className="set-kpi-label" htmlFor="rejectedSetsInput">
-                                            Rejected Set Qty <span style={{ color: '#ef4444' }}>*</span>
+                                            {qtyUomRule ? 'Rejected Qty' : 'Rejected Set Qty'} <span style={{ color: '#ef4444' }}>*</span>
                                         </label>
                                         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                                             <input
                                                 id="rejectedSetsInput"
-                                                type="number"
+                                                type={qtyDecimals > 0 ? 'text' : 'number'}
+                                                inputMode={qtyDecimals > 0 ? 'decimal' : 'numeric'}
                                                 min="0"
                                                 max={offeredSetsQty || 0}
+                                                step={qtyDecimals > 0 ? 1 / (10 ** qtyDecimals) : 1}
                                                 className="set-input-control"
-                                                value={rejectedSetsQty === 0 ? '' : rejectedSetsQty}
+                                                value={rejectedQtyInput}
                                                 placeholder="0"
                                                 onChange={(e) => {
-                                                    const rawVal = e.target.value;
-                                                    if (rawVal === '') {
-                                                        setRejectedSetsQty(0);
-                                                        return;
-                                                    }
-                                                    const parsed = parseInt(rawVal, 10);
-                                                    if (isNaN(parsed) || parsed < 0) {
-                                                        setRejectedSetsQty(0);
-                                                        return;
-                                                    }
-                                                    const maxLimit = Number(offeredSetsQty) || 0;
-                                                    if (maxLimit > 0 && parsed > maxLimit) {
-                                                        setRejectedSetsQty(maxLimit);
-                                                    } else {
-                                                        setRejectedSetsQty(parsed);
-                                                    }
+                                                    const result = sanitizeQtyInput(e.target.value, qtyDecimals, offeredSetsQty);
+                                                    if (!result) return;
+                                                    setRejectedQtyInput(result.text);
+                                                    setRejectedSetsQty(result.value);
                                                 }}
                                             />
-                                            <span className="set-kpi-sub" style={{ fontWeight: 700, color: '#64748b' }}>Sets</span>
+                                            <span className="set-kpi-sub" style={{ fontWeight: 700, color: '#64748b' }}>{qtyUnitLabel}</span>
                                         </div>
                                     </div>
                                     <div className="set-kpi-card accepted">
-                                        <span className="set-kpi-label">Accepted Sets Qty</span>
+                                        <span className="set-kpi-label">{qtyUomRule ? 'Accepted Qty' : 'Accepted Sets Qty'}</span>
                                         <div className="set-kpi-value" style={{ color: '#15803d' }}>
-                                            {acceptedSetsQty} <span className="set-kpi-sub">Sets</span>
+                                            {acceptedSetsQty} <span className="set-kpi-sub">{qtyUnitLabel}</span>
                                         </div>
                                     </div>
                                 </div>

@@ -407,7 +407,7 @@ const PlantDeclarationVerification = () => {
 
         if (!records || records.length === 0) {
             return (
-                <div className="pdv-api-empty" style={{ padding: '30px', textAlign: 'center', color: '#94a3b8' }}>
+                <div className="pdv-api-empty" style={{ padding: '20px', textAlign: 'center', color: '#94a3b8' }}>
                     <div style={{ fontSize: '24px', marginBottom: '8px' }}>🌑</div>
                     <strong style={{ fontSize: '13px' }}>No records found.</strong>
                 </div>
@@ -588,7 +588,7 @@ const PlantDeclarationVerification = () => {
 
                     {/* Tables */}
                     {selectedModuleId && (
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '32px', marginTop: '10px' }}>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', marginTop: '10px' }}>
                             
                             {/* Pending Table */}
                             <div className="pdv-api-table-card" style={{ borderTop: '4px solid #f59e0b' }}>
@@ -628,7 +628,7 @@ const PlantDeclarationVerification = () => {
                                     </div>
                                 </div>
                                 {enriching ? (
-                                    <div style={{ padding: '40px', textAlign: 'center', color: '#64748b', fontSize: '13px' }}>
+                                    <div style={{ padding: '24px', textAlign: 'center', color: '#64748b', fontSize: '13px' }}>
                                         <div className="pdv-spinner-inline" style={{ marginBottom: '10px' }}></div>
                                         Fetching record details...
                                     </div>
@@ -696,7 +696,7 @@ const PlantDeclarationVerification = () => {
                                     </div>
                                 </div>
                                 {enriching ? (
-                                    <div style={{ padding: '40px', textAlign: 'center', color: '#64748b', fontSize: '13px' }}>
+                                    <div style={{ padding: '24px', textAlign: 'center', color: '#64748b', fontSize: '13px' }}>
                                         <div className="pdv-spinner-inline" style={{ marginBottom: '10px' }}></div>
                                         Fetching record details...
                                     </div>

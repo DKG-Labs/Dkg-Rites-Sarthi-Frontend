@@ -91,7 +91,7 @@ const CorrectionSlipListModal = ({
         alignItems: 'center',
         justifyContent: 'center',
         zIndex: 9999,
-        padding: '20px'
+        padding: '14px'
       }}
       onClick={onClose}
     >
@@ -112,7 +112,7 @@ const CorrectionSlipListModal = ({
         {/* Header */}
         <div
           style={{
-            padding: '20px 24px',
+            padding: '14px 18px',
             background: 'linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%)',
             borderBottom: '1px solid #e2e8f0',
             display: 'flex',
@@ -182,7 +182,7 @@ const CorrectionSlipListModal = ({
         {/* Slips List */}
         <div
           style={{
-            padding: '20px 24px',
+            padding: '14px 18px',
             overflowY: 'auto',
             display: 'flex',
             flexDirection: 'column',
@@ -216,7 +216,7 @@ const CorrectionSlipListModal = ({
                 <div
                   key={doc.id || idx}
                   style={{
-                    padding: '16px 20px',
+                    padding: '12px 16px',
                     borderRadius: '14px',
                     border: '1px solid #e2e8f0',
                     background: 'linear-gradient(135deg, #ffffff 0%, #fafafa 100%)',
@@ -361,7 +361,7 @@ const CorrectionSlipListModal = ({
         {/* Footer */}
         <div
           style={{
-            padding: '16px 24px',
+            padding: '12px 16px',
             background: '#f8fafc',
             borderTop: '1px solid #e2e8f0',
             display: 'flex',

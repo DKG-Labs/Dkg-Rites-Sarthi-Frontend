@@ -6,7 +6,7 @@ const DutyTabs = ({ tabs, activeTab, setActiveTab, witnessedRecordsCount }) => {
             display: 'grid',
             gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
             gap: '16px',
-            marginBottom: '32px'
+            marginBottom: '16px'
         }}>
             {tabs.map((tab) => (
                 <div

@@ -355,7 +355,7 @@ const CallDeskDashboard = () => {
               </button>
             </div>
             <div className="form-modal-body">
-              <p className="modal-description" style={{ marginBottom: '20px', color: '#475467' }}>
+              <p className="modal-description" style={{ marginBottom: '14px', color: '#475467' }}>
                 Are you sure you want to verify and accept this call? The call will be registered and moved to the verified queue.
               </p>
               <div className="form-group">
@@ -400,7 +400,7 @@ const CallDeskDashboard = () => {
               </button>
             </div>
             <div className="form-modal-body">
-              <div className="form-group" style={{ marginBottom: '24px' }}>
+              <div className="form-group" style={{ marginBottom: '16px' }}>
                 <label style={{ fontWeight: 600 }}>Flagged Fields for Correction: <span className="text-danger">*</span></label>
                 <p className="field-description" style={{ fontSize: '12px', color: '#64748b', marginBottom: '12px' }}>Select the specific sections that require correction by the vendor</p>
                 <div className="checkbox-group" style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '12px' }}>
@@ -478,7 +478,7 @@ const CallDeskDashboard = () => {
               </button>
             </div>
             <div className="form-modal-body">
-              <div className="form-group" style={{ marginBottom: '20px' }}>
+              <div className="form-group" style={{ marginBottom: '14px' }}>
                 <label style={{ fontWeight: 600, display: 'block', marginBottom: '8px' }}>Target RIO: <span className="text-danger">*</span></label>
                 <select
                   className="form-control"

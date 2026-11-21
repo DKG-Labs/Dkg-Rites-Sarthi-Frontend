@@ -483,13 +483,13 @@ const SteamCubeTesting = ({ onBack, testedRecords: propTestedRecords, setTestedR
 
     return (
         <div className="steam-cube-testing-module cement-forms-scope">
-            <header style={{ marginBottom: '24px' }}>
+            <header style={{ marginBottom: '16px' }}>
                 <h2 style={{ fontSize: '20px', fontWeight: '700', color: '#13343b', margin: 0 }}>Steam Cube Testing Record</h2>
                 <p style={{ fontSize: '12px', color: '#64748b', margin: '4px 0 0 0' }}>Transfer strength verification for steam cured sleepers</p>
             </header>
 
             <div className="nav-tabs" style={{
-                marginBottom: '24px',
+                marginBottom: '16px',
                 borderBottom: '1px solid #e2e8f0',
                 display: 'flex',
                 flexWrap: 'wrap',
@@ -566,7 +566,7 @@ const SteamCubeTesting = ({ onBack, testedRecords: propTestedRecords, setTestedR
                                         <span style={{ fontSize: '10px', color: '#64748b', fontWeight: '700' }}>PASS RATE</span>
                                     </div>
                                 </div>
-                                <div style={{ marginTop: '20px', display: 'flex', gap: '15px' }}>
+                                <div style={{ marginTop: '14px', display: 'flex', gap: '15px' }}>
                                     <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}><span style={{ width: '10px', height: '10px', background: '#10b981', borderRadius: '2px' }}></span><span style={{ fontSize: '12px', fontWeight: '600' }}>Pass</span></div>
                                     <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}><span style={{ width: '10px', height: '10px', background: '#e2e8f0', borderRadius: '2px' }}></span><span style={{ fontSize: '12px', fontWeight: '600' }}>Fail</span></div>
                                 </div>
@@ -578,7 +578,7 @@ const SteamCubeTesting = ({ onBack, testedRecords: propTestedRecords, setTestedR
                 {viewMode === 'declared' && (
                     <div className="fade-in">
                         <div className="section-card">
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
                                 <h4 style={{ margin: 0, color: '#10b981', fontWeight: '800' }}>DECLARED SAMPLES</h4>
                                 <button className="btn-verify" style={{ height: '32px', padding: '0 16px', fontSize: '11px', borderRadius: '16px' }} onClick={handleAddSample}>+ Add Declaration</button>
                             </div>
@@ -593,7 +593,7 @@ const SteamCubeTesting = ({ onBack, testedRecords: propTestedRecords, setTestedR
 
                 {viewMode === 'tested' && (
                     <div className="section-card fade-in">
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
                             <h4 style={{ margin: 0, color: '#475569' }}>Witnessed Log Table</h4>
                         </div>
                         <EnhancedDataTable columns={columnsTested} data={testedRecords} selectable={false} />
@@ -655,7 +655,7 @@ const SteamCubeTesting = ({ onBack, testedRecords: propTestedRecords, setTestedR
 
 const cardTabStyle = (active, color) => ({
     flex: '1 1 200px',
-    padding: '16px 20px',
+    padding: '12px 16px',
     background: active ? '#fff' : '#f8fafc',
     borderWidth: '1px',
     borderStyle: 'solid',
@@ -727,7 +727,7 @@ const SteamCubeDetailsModal = ({ sample, onClose, onModify, onEnterTest, onDelet
                     <button className="form-modal-close" onClick={onClose}>X</button>
                 </div>
                 <div className="form-modal-body">
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', marginBottom: '30px' }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px', marginBottom: '16px' }}>
                         {details.map((detail, idx) => (
                             <div key={idx}>
                                 <div style={{ fontSize: '11px', color: '#64748b', fontWeight: '700', textTransform: 'uppercase', marginBottom: '4px' }}>{detail.label}</div>
@@ -1345,7 +1345,7 @@ const SampleDeclarationModal = ({ sample, isModifying, onClose, onSave, onDelete
                     </div>
 
                     {/* Cube Addition Section */}
-                    <div style={{ marginTop: '24px', padding: '20px', background: '#f8fafc', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
+                    <div style={{ marginTop: '16px', padding: '14px', background: '#f8fafc', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
                         <h4 style={{ margin: '0 0 16px 0', fontSize: '13px', color: '#475569', fontWeight: '700' }}>Add Cubes</h4>
                         <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: '12px', alignItems: 'end' }}>
                             <div className="input-group">
@@ -1404,7 +1404,7 @@ const SampleDeclarationModal = ({ sample, isModifying, onClose, onSave, onDelete
                     </div>
 
 
-                    <div style={{ display: 'flex', gap: '12px', marginTop: '32px', justifyContent: 'flex-end' }}>
+                    <div style={{ display: 'flex', gap: '12px', marginTop: '16px', justifyContent: 'flex-end' }}>
                         <button
                             className="btn-verify"
                             style={{ padding: '8px 24px', fontSize: '12px', height: '36px', width: 'auto' }}
@@ -1548,7 +1548,7 @@ const TestDetailsModal = ({ sample, onClose, onSave, onDelete, isModifying, acti
                 </div>
                 <div className="form-modal-body">
                     {/* Pre-filled Information */}
-                    <div style={{ marginBottom: '20px' }}>
+                    <div style={{ marginBottom: '14px' }}>
                         <label className="mini-label" style={{ color: '#42818c', fontSize: '11px' }}>PRE-FILLED INFORMATION</label>
                         <div style={{ background: '#f8fafc', padding: '16px', borderRadius: '12px', border: '1px solid #e2e8f0', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '12px' }}>
                             <div><div style={{ fontSize: '10px', color: '#64748b' }}>Location</div><div style={{ fontWeight: '700', fontSize: '13px', color: '#13343b' }}>{sample.shedNo || sample.lineNo || sample.location || '-'}</div></div>
@@ -1561,7 +1561,7 @@ const TestDetailsModal = ({ sample, onClose, onSave, onDelete, isModifying, acti
                     </div>
 
                     {/* Cube Testing Table */}
-                    <div style={{ background: '#fff', padding: '20px', borderRadius: '12px', border: '1px solid #e2e8f0', marginBottom: '20px' }}>
+                    <div style={{ background: '#fff', padding: '14px', borderRadius: '12px', border: '1px solid #e2e8f0', marginBottom: '14px' }}>
                         <h4 style={{ margin: '0 0 16px 0', fontSize: '13px', color: '#475569', fontWeight: '700' }}>Individual Cube Testing</h4>
                         <div style={{ overflowX: 'auto' }}>
                             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px' }}>
@@ -1646,7 +1646,7 @@ const TestDetailsModal = ({ sample, onClose, onSave, onDelete, isModifying, acti
                     </div>
 
                     {/* Summary Section */}
-                    <div style={{ background: '#f8fafc', padding: '20px', borderRadius: '12px', border: '2px solid #42818c', marginBottom: '20px' }}>
+                    <div style={{ background: '#f8fafc', padding: '14px', borderRadius: '12px', border: '2px solid #42818c', marginBottom: '14px' }}>
                         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
                             <div>
                                 <label style={{ fontSize: '11px', color: '#64748b', fontWeight: '700', display: 'block', marginBottom: '8px' }}>Avg. Strength (N/mm²)</label>
@@ -1679,7 +1679,7 @@ const TestDetailsModal = ({ sample, onClose, onSave, onDelete, isModifying, acti
                         </p>
                     </div>
 
-                    <div style={{ display: 'flex', gap: '12px', marginTop: '24px', justifyContent: 'flex-end' }}>
+                    <div style={{ display: 'flex', gap: '12px', marginTop: '16px', justifyContent: 'flex-end' }}>
                         <button
                             className="btn-verify"
                             style={{ padding: '8px 24px', fontSize: '12px', height: '36px', width: 'auto' }}

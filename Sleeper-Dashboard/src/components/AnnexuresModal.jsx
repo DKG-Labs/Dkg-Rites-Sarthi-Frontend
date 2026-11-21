@@ -218,7 +218,7 @@ const AnnexuresModal = ({ isOpen, onClose, call, showNotification }) => {
             >
                 {/* ── Modal Header ── */}
                 <div style={{
-                    padding: '16px 24px',
+                    padding: '12px 16px',
                     background: 'linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%)',
                     borderBottom: '1px solid #e2e8f0',
                     display: 'flex',
@@ -329,7 +329,7 @@ const AnnexuresModal = ({ isOpen, onClose, call, showNotification }) => {
                 </div>
 
                 {/* ── Modal Body Content Area ── */}
-                <div style={{ flex: 1, overflowY: 'auto', padding: '20px 24px', backgroundColor: '#f1f5f9' }}>
+                <div style={{ flex: 1, overflowY: 'auto', padding: '14px 18px', backgroundColor: '#f1f5f9' }}>
                     {loading ? (
                         <div style={{ padding: '80px 20px', textAlign: 'center', color: '#64748b' }}>
                             <div style={{
@@ -424,7 +424,7 @@ const AnnexuresModal = ({ isOpen, onClose, call, showNotification }) => {
                                 <div style={{
                                     background: '#ffffff',
                                     borderRadius: '10px',
-                                    padding: '24px',
+                                    padding: '16px',
                                     border: '1.5px solid #000000',
                                     boxShadow: '0 4px 6px -1px rgba(0,0,0,0.08)',
                                     color: '#000000',

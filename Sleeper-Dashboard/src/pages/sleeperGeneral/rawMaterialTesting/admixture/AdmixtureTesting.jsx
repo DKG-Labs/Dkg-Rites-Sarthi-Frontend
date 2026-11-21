@@ -195,7 +195,7 @@ const AdmixtureTesting = ({ onBack, inventoryData = [] }) => {
 
     return (
         <div className="admixture-testing-root cement-forms-scope fade-in">
-            <div className="content-title-row" style={{ marginBottom: '24px' }}>
+            <div className="content-title-row" style={{ marginBottom: '16px' }}>
                 <h2 style={{ margin: 0 }}>Admixture Quality Control</h2>
                 <div style={{ display: 'flex', gap: '12px' }}>
                     <button className="toggle-btn mini" onClick={() => { 
@@ -213,7 +213,7 @@ const AdmixtureTesting = ({ onBack, inventoryData = [] }) => {
                 </div>
             </div>
 
-            <div style={{ display: 'flex', gap: '16px', marginBottom: '32px', flexWrap: 'wrap' }}>
+            <div style={{ display: 'flex', gap: '16px', marginBottom: '16px', flexWrap: 'wrap' }}>
                 <SubCard id="stats" title="Analytics" color="#42818c" count="N/A" label="Statistics" isActive={viewMode === 'stats'} onClick={() => setViewMode('stats')} />
                 <SubCard
                     id="new-stocks"
@@ -229,9 +229,9 @@ const AdmixtureTesting = ({ onBack, inventoryData = [] }) => {
 
             <div className="view-layer">
                 {viewMode === 'stats' && (
-                    <div className="table-outer-wrapper fade-in" style={{ padding: '40px', textAlign: 'center' }}>
+                    <div className="table-outer-wrapper fade-in" style={{ padding: '24px', textAlign: 'center' }}>
                         <h4 style={{ color: '#64748b' }}>Admixture Testing Analytics</h4>
-                        <div style={{ height: '300px', background: '#f8fafc', borderRadius: '12px', border: '2px dashed #e2e8f0', display: 'flex', alignItems: 'center', justifyContent: 'center', marginTop: '20px' }}>
+                        <div style={{ height: '300px', background: '#f8fafc', borderRadius: '12px', border: '2px dashed #e2e8f0', display: 'flex', alignItems: 'center', justifyContent: 'center', marginTop: '14px' }}>
                             <span style={{ color: '#cbd5e1', fontWeight: '600' }}>Chart Placeholder</span>
                         </div>
                     </div>
@@ -239,7 +239,7 @@ const AdmixtureTesting = ({ onBack, inventoryData = [] }) => {
 
                 {viewMode === 'new-stocks' && (
                     <div className="table-outer-wrapper fade-in">
-                        <div className="content-title-row" style={{ padding: '16px 20px', borderBottom: '1px solid #e2e8f0', marginBottom: 0 }}>
+                        <div className="content-title-row" style={{ padding: '12px 16px', borderBottom: '1px solid #e2e8f0', marginBottom: 0 }}>
                             <h4 style={{ margin: 0 }}>Inventory Pending Testing</h4>
                         </div>
                         <EnhancedDataTable columns={inventoryColumns} data={pendingStocks} />

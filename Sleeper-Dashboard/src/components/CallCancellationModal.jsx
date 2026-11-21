@@ -520,7 +520,7 @@ const CallCancellationModal = ({
       >
         {/* Header */}
         <div style={{
-          padding: '20px 24px',
+          padding: '14px 18px',
           background: 'linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%)',
           borderBottom: '1px solid #fecaca',
           display: 'flex', justifyContent: 'space-between', alignItems: 'center'
@@ -552,7 +552,7 @@ const CallCancellationModal = ({
         </div>
 
         {/* Scrollable Body */}
-        <form onSubmit={handleSubmit} style={{ padding: '24px', overflowY: 'auto', flex: 1, display: 'flex', flexDirection: 'column', gap: '20px' }}>
+        <form onSubmit={handleSubmit} style={{ padding: '16px', overflowY: 'auto', flex: 1, display: 'flex', flexDirection: 'column', gap: '14px' }}>
           
           {/* Call Summary & PO Category Banner */}
           <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '14px 18px', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '14px', fontSize: '13px' }}>
@@ -944,7 +944,7 @@ const CallCancellationModal = ({
 
           {/* Section 8: Cancellation Charges Calculation (Chargeable Only) */}
           {cancellationBasis === 'CHARGEABLE' && (
-            <div style={{ background: '#faf5ff', border: '1.5px solid #d8b4fe', borderRadius: '16px', padding: '20px' }}>
+            <div style={{ background: '#faf5ff', border: '1.5px solid #d8b4fe', borderRadius: '16px', padding: '14px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
                 <h4 style={{ margin: 0, fontSize: '14px', fontWeight: '800', color: '#6b21a8', display: 'flex', alignItems: 'center', gap: '6px' }}>
                   💳 8. Cancellation Charges Calculation (SRS Step 3)
@@ -1002,7 +1002,7 @@ const CallCancellationModal = ({
               {/* Final Cancellation Charges Summary Box */}
               <div style={{
                 background: 'linear-gradient(135deg, #6b21a8 0%, #581c87 100%)',
-                color: '#ffffff', borderRadius: '12px', padding: '16px 20px',
+                color: '#ffffff', borderRadius: '12px', padding: '12px 16px',
                 display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px'
               }}>
                 <div>

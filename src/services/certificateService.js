@@ -549,7 +549,7 @@ export const saveRmIcEditData = async (payload) => {
       headers: getAuthHeaders(),
       body: JSON.stringify(payload)
     });
-    if (!response.ok) throw new Error('Failed to save IC edit data');
+    if (!response.ok) { const errBody = await response.json().catch(() => null); throw new Error(errBody?.message || errBody?.responseStatus?.message || errBody?.error || 'Failed to save IC edit data'); }
     return await response.json();
   } catch (error) {
     console.error('Error saving IC edit data:', error);
@@ -588,7 +588,7 @@ export const saveFinalIcEditData = async (payload) => {
       headers: getAuthHeaders(),
       body: JSON.stringify(payload)
     });
-    if (!response.ok) throw new Error('Failed to save Final IC edit data');
+    if (!response.ok) { const errBody = await response.json().catch(() => null); throw new Error(errBody?.message || errBody?.responseStatus?.message || errBody?.error || 'Failed to save Final IC edit data'); }
     return await response.json();
   } catch (error) {
     console.error('Error saving Final IC edit data:', error);
@@ -647,7 +647,7 @@ export const saveProcessIcEditData = async (payload) => {
       headers: getAuthHeaders(),
       body: JSON.stringify(payload)
     });
-    if (!response.ok) throw new Error('Failed to save Process IC edit data');
+    if (!response.ok) { const errBody = await response.json().catch(() => null); throw new Error(errBody?.message || errBody?.responseStatus?.message || errBody?.error || 'Failed to save Process IC edit data'); }
     return await response.json();
   } catch (error) {
     console.error('Error saving Process IC edit data:', error);
@@ -686,7 +686,7 @@ export const saveRmIcSaveChanges = async (payload) => {
       headers: getAuthHeaders(),
       body: JSON.stringify(payload)
     });
-    if (!response.ok) throw new Error('Failed to save draft IC changes');
+    if (!response.ok) { const errBody = await response.json().catch(() => null); throw new Error(errBody?.message || errBody?.responseStatus?.message || errBody?.error || 'Failed to save draft IC changes'); }
     return await response.json();
   } catch (error) {
     console.error('Error saving draft IC changes:', error);
@@ -725,7 +725,7 @@ export const saveProcessIcSaveChanges = async (payload) => {
       headers: getAuthHeaders(),
       body: JSON.stringify(payload)
     });
-    if (!response.ok) throw new Error('Failed to save draft Process IC changes');
+    if (!response.ok) { const errBody = await response.json().catch(() => null); throw new Error(errBody?.message || errBody?.responseStatus?.message || errBody?.error || 'Failed to save draft Process IC changes'); }
     return await response.json();
   } catch (error) {
     console.error('Error saving draft Process IC changes:', error);
@@ -764,7 +764,7 @@ export const saveFinalIcSaveChanges = async (payload) => {
       headers: getAuthHeaders(),
       body: JSON.stringify(payload)
     });
-    if (!response.ok) throw new Error('Failed to save draft Final IC changes');
+    if (!response.ok) { const errBody = await response.json().catch(() => null); throw new Error(errBody?.message || errBody?.responseStatus?.message || errBody?.error || 'Failed to save draft Final IC changes'); }
     return await response.json();
   } catch (error) {
     console.error('Error saving draft Final IC changes:', error);
@@ -799,13 +799,14 @@ export const getFinalIcSaveChanges = async (icNumber) => {
  * @param {string} setNo
  * @param {string} status "F" for Final, "S" for Stage (RM/Process)
  */
-export const validateBookSetNo = async (empNo, bookNo, setNo, status = "F") => {
+export const validateBookSetNo = async (empNo, bookNo, setNo, status = "F", icNumber = null) => {
   try {
     const payload = {
       EMP_NO: empNo,
       BK_NO: bookNo,
       SET_NO: setNo,
-      STATUS: status
+      STATUS: status,
+      IC_NO: icNumber
     };
     
     // Use the backend proxy to bypass CORS

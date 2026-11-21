@@ -99,7 +99,7 @@
 .placeholder-content {
     text-align: center;
     max-width: 500px;
-    padding: 2rem;
+    padding: 1.25rem;
 }
 
 .placeholder-content h3 {
@@ -111,7 +111,7 @@
 
 .placeholder-content p {
     color: #64748b;
-    margin-bottom: 1.5rem;
+    margin-bottom: 1rem;
     line-height: 1.5;
 }
 

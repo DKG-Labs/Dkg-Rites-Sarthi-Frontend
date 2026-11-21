@@ -222,7 +222,7 @@ const DimensionalTesting = ({ type }) => {
 
     return (
         <div className="dimensional-testing-root cement-forms-scope">
-            <header style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '24px' }}>
+            <header style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
                 <div style={{ display: 'flex', flexDirection: 'column' }}>
                     <h2 style={{ fontSize: '20px', fontWeight: '700', color: '#42818c', margin: 0 }}>{currentConfig.title}</h2>
                     <span style={{ fontSize: '11px', color: '#64748b' }}>Completion Criteria: {currentConfig.criteria}</span>
@@ -253,11 +253,11 @@ const DimensionalTesting = ({ type }) => {
                 </div>
             </header>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '24px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '16px' }}>
                 {/* 1. Pending / Under Inspection Table */}
                 {activeTab === 'pending' && (
-                    <div style={{ background: '#fff', padding: '24px', borderRadius: '16px', border: '1px solid #e2e8f0', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)' }}>
-                        <div style={{ marginBottom: '20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <div style={{ background: '#fff', padding: '16px', borderRadius: '16px', border: '1px solid #e2e8f0', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)' }}>
+                        <div style={{ marginBottom: '14px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                                 <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#42818c' }}></div>
                                 <h4 style={{ margin: 0, color: '#1e293b', fontSize: '15px' }}>In-Progress / Pending Batches</h4>
@@ -267,7 +267,7 @@ const DimensionalTesting = ({ type }) => {
                             </div>
                         </div>
                         {loading ? (
-                            <div style={{ padding: '40px', textAlign: 'center', color: '#64748b' }}>Loading pending batches...</div>
+                            <div style={{ padding: '24px', textAlign: 'center', color: '#64748b' }}>Loading pending batches...</div>
                         ) : (
                             <EnhancedDataTable 
                                 columns={columns} 
@@ -280,8 +280,8 @@ const DimensionalTesting = ({ type }) => {
 
                 {/* 2. Completed Table */}
                 {activeTab === 'completed' && (
-                    <div style={{ background: '#f8fafc', padding: '24px', borderRadius: '16px', border: '1px solid #e2e8f0', opacity: 0.9 }}>
-                        <div style={{ marginBottom: '20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <div style={{ background: '#f8fafc', padding: '16px', borderRadius: '16px', border: '1px solid #e2e8f0', opacity: 0.9 }}>
+                        <div style={{ marginBottom: '14px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                                 <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#059669' }}></div>
                                 <h4 style={{ margin: 0, color: '#1e293b', fontSize: '15px' }}>Completed Inspection Logs</h4>
@@ -291,7 +291,7 @@ const DimensionalTesting = ({ type }) => {
                             </div>
                         </div>
                         {loading ? (
-                            <div style={{ padding: '40px', textAlign: 'center', color: '#64748b' }}>Loading logs...</div>
+                            <div style={{ padding: '24px', textAlign: 'center', color: '#64748b' }}>Loading logs...</div>
                         ) : (
                             <EnhancedDataTable 
                                 columns={columns} 
@@ -333,7 +333,7 @@ const DimensionalTesting = ({ type }) => {
                                     shift={selectedShift}
                                 />
                             ) : (
-                                <div style={{ padding: '20px' }}>Loading...</div>
+                                <div style={{ padding: '14px' }}>Loading...</div>
                             )}
                         </div>
                     </div>

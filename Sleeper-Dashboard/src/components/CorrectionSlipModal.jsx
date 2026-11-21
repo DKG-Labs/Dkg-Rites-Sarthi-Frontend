@@ -206,13 +206,13 @@ const S = {
   header: {
     background: '#fff',
     borderBottom: '1px solid #e5e7eb',
-    padding: '18px 24px',
+    padding: '14px 18px',
     borderRadius: '12px 12px 0 0',
     display: 'flex', justifyContent: 'space-between', alignItems: 'center',
   },
-  body: { flex: 1, overflowY: 'auto', padding: '24px', display: 'flex', flexDirection: 'column', gap: '24px' },
+  body: { flex: 1, overflowY: 'auto', padding: '16px', display: 'flex', flexDirection: 'column', gap: '16px' },
   footer: {
-    padding: '16px 24px', borderTop: '1px solid #e5e7eb',
+    padding: '12px 16px', borderTop: '1px solid #e5e7eb',
     display: 'flex', justifyContent: 'flex-end', gap: '12px', background: '#f9fafb',
     borderRadius: '0 0 12px 12px',
   },
@@ -250,7 +250,7 @@ const S = {
     padding: '6px 14px', background: '#eff6ff', color: '#1e40af', border: '1px solid #bfdbfe',
     borderRadius: '6px', fontSize: '13px', cursor: 'pointer', fontWeight: '600',
   },
-  loader: { textAlign: 'center', padding: '40px', color: '#6b7280', fontSize: '14px' },
+  loader: { textAlign: 'center', padding: '24px', color: '#6b7280', fontSize: '14px' },
   errorBox: {
     background: '#fef2f2', border: '1px solid #fca5a5', borderRadius: '8px',
     padding: '12px 16px', color: '#b91c1c', fontSize: '13px',
@@ -631,7 +631,7 @@ const CorrectionSlipModal = ({ row = {}, onClose, viewOnly = false, isViewOnly =
           <div>
             <div style={S.sectionTitle}>Section 2 – Correction Details</div>
             {isExistingOrView && corrections.length === 0 ? (
-              <div style={{ padding: '24px', background: '#f8fafc', borderRadius: '8px', border: '1px dashed #cbd5e1', textAlign: 'center', color: '#64748b' }}>
+              <div style={{ padding: '16px', background: '#f8fafc', borderRadius: '8px', border: '1px dashed #cbd5e1', textAlign: 'center', color: '#64748b' }}>
                 No correction slip details found for this call.
               </div>
             ) : (
@@ -769,7 +769,7 @@ const CorrectionSlipModal = ({ row = {}, onClose, viewOnly = false, isViewOnly =
           <div style={{
             background: '#ffffff',
             borderRadius: '12px',
-            padding: '24px',
+            padding: '16px',
             maxWidth: '440px',
             width: '90%',
             boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)'

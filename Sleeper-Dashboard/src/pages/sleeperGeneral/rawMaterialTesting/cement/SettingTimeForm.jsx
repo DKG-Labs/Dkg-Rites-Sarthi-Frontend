@@ -446,7 +446,7 @@ export default function SettingTimeForm({ onSave, onCancel, inventoryData = [], 
                     </div>
                 </div>
 
-                <div className="btn-group" style={{ display: 'flex', gap: '12px', marginTop: '24px' }}>
+                <div className="btn-group" style={{ display: 'flex', gap: '12px', marginTop: '16px' }}>
                     <button type="submit" className="btn-save" disabled={loading}>
                         {loading ? "Saving..." : editIdState ? "Update Test Report" : "Submit Test Report"}
                     </button>

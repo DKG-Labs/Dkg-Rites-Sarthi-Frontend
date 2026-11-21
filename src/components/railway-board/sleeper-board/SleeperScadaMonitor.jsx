@@ -1,11 +1,14 @@
 import React, { useState, useEffect } from 'react';
+import { API_BASE_URL, getAuthHeaders } from '../../../services/apiConfig';
+import SleeperScadaTopicSetup from './SleeperScadaTopicSetup';
 import { Select } from 'antd';
 import './SleeperSummary.css';
 import ExcelJS from 'exceljs/dist/exceljs.min.js';
 
 const SCADA_MANUFACTURERS = [
     { label: 'Patil Rail Infrastructure Pvt. Ltd.', value: 'PRIL' },
-    { label: 'Track Innovations (India) Pvt. Ltd.', value: 'TIPL' }
+    { label: 'Track Innovations (India) Pvt. Ltd.', value: 'TIPL' },
+    { label: 'MBSL', value: 'MBSL' }
 ];
 
 const SCADA_UNITS = [
@@ -20,7 +23,8 @@ const SCADA_UNITS = [
     { label: 'Kaipadar', value: 'Kaipadar', code: 'KPR', manufacturer: 'PRIL' },
     { label: 'Kargi', value: 'Kargi', code: 'KAR', manufacturer: 'PRIL' },
     { label: 'ACPL', value: 'ACPL', code: 'BUW', manufacturer: 'PRIL' },
-    { label: 'Chandigarh', value: 'Chandigarh', code: 'CDG', manufacturer: 'TIPL' }
+    { label: 'Chandigarh', value: 'Chandigarh', code: 'CDG', manufacturer: 'TIPL' },
+    { label: 'MBKRSA', value: 'MBKRSA', code: 'MBKRSA', manufacturer: 'MBSL' }
 ];
 
 const SCADA_LINES = [
@@ -155,6 +159,35 @@ const SleeperScadaMonitor = ({ selectedProduct }) => {
     const [status, setStatus] = useState('No Data');
     const [lastTimestamp, setLastTimestamp] = useState('N/A');
 
+    // Plant -> gateway codes (topics SPLR/<vendor>/<plant>/<line>/<STAGE>) from Topic Setup.
+    // Until it loads (or if it fails), the built-in lists above are used.
+    const [mappings, setMappings] = useState(null);
+    const [showTopicSetup, setShowTopicSetup] = useState(false);
+    const loadMappings = async () => {
+        try {
+            const res = await fetch(`${API_BASE_URL}/api/sleeper/scada-mapping`, { headers: getAuthHeaders() });
+            if (!res.ok) return;
+            const json = await res.json();
+            const list = json?.responseData?.mappings;
+            if (Array.isArray(list) && list.length > 0) setMappings(list);
+        } catch (e) { /* keep built-in lists */ }
+    };
+    useEffect(() => { loadMappings(); }, []);
+
+    const manufacturerOptions = mappings
+        ? Array.from(new Map(mappings.map(m => [m.vendorShortName, { label: m.vendorName || m.vendorShortName, value: m.vendorShortName }])).values())
+        : SCADA_MANUFACTURERS;
+    const unitOptions = mappings
+        ? mappings.filter(m => m.vendorShortName === manufacturer)
+            .map(m => ({ label: m.plantName || m.plantShortName, value: m.plantShortName, code: m.plantShortName, manufacturer: m.vendorShortName, lines: m.lineIds }))
+        : SCADA_UNITS.filter(u => u.manufacturer === manufacturer);
+    const selectedUnitOption = unitOptions.find(u => u.value === unit || u.label === unit || u.code === unit);
+    // plain string, so the fetch effect can depend on it without re-running every render
+    const selectedPlantCode = selectedUnitOption ? selectedUnitOption.code : '';
+    const lineOptions = selectedUnitOption && Array.isArray(selectedUnitOption.lines) && selectedUnitOption.lines.length
+        ? selectedUnitOption.lines.map(l => ({ label: `Line ${l}`, value: l }))
+        : SCADA_LINES;
+
     useEffect(() => {
         const fetchScadaData = async () => {
             if (!manufacturer || !unit || !line || !stage) {
@@ -181,8 +214,8 @@ const SleeperScadaMonitor = ({ selectedProduct }) => {
             };
             
             try {
-                const selectedUnitObj = SCADA_UNITS.find(u => u.value === unit || u.label === unit || u.code === unit);
-                const plantUnitCode = selectedUnitObj ? selectedUnitObj.code : unit;
+                const fallbackUnit = SCADA_UNITS.find(u => u.value === unit || u.label === unit || u.code === unit);
+                const plantUnitCode = selectedPlantCode || (fallbackUnit ? fallbackUnit.code : unit);
                 const params = new URLSearchParams({
                     type: apiType,
                     plant: manufacturer,
@@ -230,7 +263,7 @@ const SleeperScadaMonitor = ({ selectedProduct }) => {
         };
 
         fetchScadaData();
-    }, [manufacturer, unit, line, stage, currentPage]);
+    }, [manufacturer, unit, line, stage, currentPage, selectedPlantCode]);
 
     const STAGE_CONFIGS = {
         'VIBRATOR': {
@@ -398,7 +431,21 @@ const SleeperScadaMonitor = ({ selectedProduct }) => {
                         <i className="fa-solid fa-tower-broadcast" style={{ color: '#10b981' }}></i>
                     </div>
                     SCADA Live Monitor - Sleeper Board
+                    <button
+                        type="button"
+                        onClick={() => setShowTopicSetup(true)}
+                        title="Plant codes and the 9 SCADA topics per line (SPLR/<vendor>/<plant>/<line>/<STAGE>)"
+                        style={{ marginLeft: 'auto', background: '#ecfdf5', color: '#166534', border: '1px solid #a7f3d0', borderRadius: '8px', padding: '8px 14px', fontSize: '13px', fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px' }}
+                    >
+                        <i className="fa-solid fa-sitemap"></i> Topic Setup
+                    </button>
                 </div>
+                {showTopicSetup && (
+                    <SleeperScadaTopicSetup
+                        onClose={() => setShowTopicSetup(false)}
+                        onChanged={loadMappings}
+                    />
+                )}
                 
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '20px', marginBottom: '20px' }}>
                     <div className="filter-group">
@@ -414,7 +461,7 @@ const SleeperScadaMonitor = ({ selectedProduct }) => {
                             dropdownClassName="scada-select-dropdown"
                             style={{ width: '100%' }}
                             listHeight={260}
-                            options={SCADA_MANUFACTURERS}
+                            options={manufacturerOptions}
                             filterOption={(input, option) =>
                                 (option?.label ?? '').toLowerCase().includes(input.toLowerCase()) ||
                                 (option?.value ?? '').toLowerCase().includes(input.toLowerCase())
@@ -429,14 +476,14 @@ const SleeperScadaMonitor = ({ selectedProduct }) => {
                             allowClear
                             placeholder="Search or Select Unit"
                             value={unit || undefined} 
-                            onChange={(val) => { setUnit(val || ''); setCurrentPage(0); }}
+                            onChange={(val) => { setUnit(val || ''); setLine(''); setCurrentPage(0); }}
                             disabled={!manufacturer}
                             className="scada-select"
                             popupClassName="scada-select-dropdown"
                             dropdownClassName="scada-select-dropdown"
                             style={{ width: '100%' }}
                             listHeight={260}
-                            options={SCADA_UNITS.filter(u => u.manufacturer === manufacturer).map(u => ({
+                            options={unitOptions.map(u => ({
                                 label: u.label,
                                 value: u.value,
                                 code: u.code
@@ -462,7 +509,7 @@ const SleeperScadaMonitor = ({ selectedProduct }) => {
                             dropdownClassName="scada-select-dropdown"
                             style={{ width: '100%' }}
                             listHeight={260}
-                            options={SCADA_LINES}
+                            options={lineOptions}
                             filterOption={(input, option) =>
                                 (option?.label ?? '').toLowerCase().includes(input.toLowerCase()) ||
                                 (option?.value ?? '').toLowerCase().includes(input.toLowerCase())

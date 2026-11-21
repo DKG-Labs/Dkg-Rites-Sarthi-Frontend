@@ -17,7 +17,7 @@
 
 /* ── Wrapper ── */
 .rs-wrapper {
-  padding: 28px 32px;
+  padding: 18px 20px;
   max-width: 1400px;
   animation: rs-fade-up 0.25s ease;
 }
@@ -27,7 +27,7 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 24px;
+  margin-bottom: 16px;
   gap: 16px;
   flex-wrap: wrap;
 }
@@ -86,12 +86,12 @@
   background: #fff;
   border: 1px solid #e2e8f0;
   border-radius: 12px;
-  padding: 20px 24px;
-  margin-bottom: 20px;
+  padding: 14px 18px;
+  margin-bottom: 14px;
   box-shadow: 0 1px 4px rgba(0,0,0,0.05);
   display: flex;
   align-items: flex-end;
-  gap: 24px;
+  gap: 16px;
   flex-wrap: wrap;
 }
 
@@ -99,7 +99,7 @@
 .rs-controls {
   display: flex;
   align-items: flex-end;
-  gap: 20px;
+  gap: 14px;
   flex-wrap: wrap;
   width: 100%;
 }
@@ -314,7 +314,7 @@
 }
 
 /* Skeleton rows */
-.rs-skel-row td { padding: 14px; }
+.rs-skel-row td { padding: 10px 14px; }
 
 /* ── Toast notification ── */
 .rs-toast {
@@ -764,7 +764,7 @@ textarea.rs-input { resize: vertical; min-height: 70px; }
   justify-content: center;
   flex-wrap: wrap;
   gap: 16px;
-  padding: 24px;
+  padding: 16px;
   cursor: zoom-out;
 }
 .rs-lightbox img {

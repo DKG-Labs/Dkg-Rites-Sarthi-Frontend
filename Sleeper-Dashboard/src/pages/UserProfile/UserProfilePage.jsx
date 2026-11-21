@@ -112,7 +112,7 @@ const InfoCard = ({ title, iconSvg, children }) => (
             </span>
         </div>
         {/* Card body */}
-        <div style={{ padding: '20px 24px', flexGrow: 1 }}>
+        <div style={{ padding: '14px 18px', flexGrow: 1 }}>
             {children}
         </div>
     </div>
@@ -209,7 +209,7 @@ const UserProfilePage = ({ onBack }) => {
                 {error && (
                     <div style={{
                         background: '#fef2f2', border: '1px solid #fecaca',
-                        borderRadius: '12px', padding: '16px 20px',
+                        borderRadius: '12px', padding: '12px 16px',
                         color: '#dc2626', fontSize: '13px', marginTop: '16px',
                     }}>
                         Failed to load profile: {error}
@@ -220,13 +220,13 @@ const UserProfilePage = ({ onBack }) => {
                     <>
                         {/* Summary Card */}
                         <div style={{
-                            marginBottom: '24px',
+                            marginBottom: '16px',
                             borderRadius: '20px', border: '1px solid #e2e8f0',
                             background: '#ffffff',
                             boxShadow: '0 12px 40px rgba(15,76,129,0.06), 0 4px 12px rgba(0,0,0,0.04)',
-                            padding: '32px 40px',
+                            padding: '20px 24px',
                         }}>
-                            <div style={{ display: 'flex', alignItems: 'flex-start', gap: '28px', flexWrap: 'wrap' }}>
+                            <div style={{ display: 'flex', alignItems: 'flex-start', gap: '18px', flexWrap: 'wrap' }}>
 
                                 {/* Avatar with online dot */}
                                 <div style={{ position: 'relative', flexShrink: 0 }}>
@@ -279,7 +279,7 @@ const UserProfilePage = ({ onBack }) => {
                                     </div>
 
                                     {/* Designation */}
-                                    <div style={{ fontSize: '13px', color: '#2563eb', fontWeight: 600, marginBottom: '20px' }}>
+                                    <div style={{ fontSize: '13px', color: '#2563eb', fontWeight: 600, marginBottom: '14px' }}>
                                         {na(profileData.designation)}
                                     </div>
 
@@ -327,8 +327,8 @@ const UserProfilePage = ({ onBack }) => {
                         <div style={{
                             display: 'grid',
                             gridTemplateColumns: '1fr 1fr',
-                            gap: '24px',
-                            marginBottom: '32px',
+                            gap: '16px',
+                            marginBottom: '16px',
                         }}>
 
                             {/* Basic Information */}

@@ -165,7 +165,7 @@ const PendingCallDetailsModal = ({
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        padding: '20px'
+        padding: '14px'
       }}
     >
       <div
@@ -183,7 +183,7 @@ const PendingCallDetailsModal = ({
         }}
       >
         <div className="modal-header" style={{
-          padding: '18px 24px',
+          padding: '14px 18px',
           background: 'linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%)',
           borderBottom: '1px solid #e2e8f0',
           display: 'flex',
@@ -202,7 +202,7 @@ const PendingCallDetailsModal = ({
               cursor: 'pointer', transition: 'all 0.2s ease', color: '#64748b', fontSize: '1.2rem', boxShadow: '0 1px 2px rgba(0,0,0,0.05)'
             }}
           >×</button>
-        </div>        <div className="modal-body" style={{ maxHeight: '85vh', overflowY: 'auto', padding: '28px 32px' }}>
+        </div>        <div className="modal-body" style={{ maxHeight: '85vh', overflowY: 'auto', padding: '18px 20px' }}>
           {/* Top Summary Section */}
           <div style={{ 
             background: 'linear-gradient(to right, #ffffff, #f8fafc)', 
@@ -210,10 +210,10 @@ const PendingCallDetailsModal = ({
             borderRadius: '14px', 
             border: '1px solid #e2e8f0', 
             borderLeft: '5px solid #0ea5e9', 
-            marginBottom: '28px',
+            marginBottom: '16px',
             boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05)'
           }}>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '20px', marginBottom: '16px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '14px', marginBottom: '16px' }}>
               <div>
                 <label style={{ fontSize: '11px', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: '700', marginBottom: '4px', display: 'block' }}>Call Number</label>
                 <div style={{ fontWeight: '700', fontSize: '15px', color: '#0f172a' }}>{call.call_no || call.callNumber || call.requestId || '-'}</div>
@@ -228,7 +228,7 @@ const PendingCallDetailsModal = ({
               </div>
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '20px', marginBottom: '16px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '14px', marginBottom: '16px' }}>
               <div>
                 <label style={{ fontSize: '11px', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: '700', marginBottom: '4px', display: 'block' }}>Vendor Name</label>
                 <div style={{ fontWeight: '700', fontSize: '14px', color: '#0f172a' }}>{call.vendor_name || call.vendorName || call.vendorCode || '-'}</div>

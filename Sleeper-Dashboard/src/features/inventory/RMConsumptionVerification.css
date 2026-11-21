@@ -2,7 +2,7 @@
 .rm-consumption-verification {
     background: #ffffff;
     border-radius: 8px;
-    padding: 1.5rem;
+    padding: 1rem;
     box-shadow: 0 1px 3px rgba(0,0,0,0.05);
     position: relative;
 }
@@ -12,7 +12,7 @@
     display: flex;
     gap: 1rem;
     border-bottom: 2px solid #e2e8f0;
-    margin-bottom: 1.5rem;
+    margin-bottom: 1rem;
 }
 
 .cv-tab-btn {

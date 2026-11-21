@@ -94,3 +94,32 @@ export const getIbsCompletedCallsData = async () => {
         throw error;
     }
 };
+
+/**
+ * Completed IBS calls, filtered / sorted / paged on the server.
+ * params: { page, size, category, product, status, search, from, to } (from/to = acknowledged date, YYYY-MM-DD)
+ * size = 0 returns all matching rows (CSV export).
+ * Returns { content, total, page, size, totalPages, stats, serverMs }.
+ */
+export const searchIbsCompletedCalls = async (params = {}) => {
+    const token = getAuthToken() || '';
+    const headers = {
+        'Content-Type': 'application/json',
+        'Authorization': token.startsWith('Bearer ') ? token : `Bearer ${token}`
+    };
+    const qs = new URLSearchParams();
+    Object.entries(params).forEach(([k, v]) => {
+        if (v !== undefined && v !== null && v !== '' && v !== 'ALL') qs.append(k, v);
+    });
+    const response = await fetch(`${API_BASE_URL}/api/ibs/completed-inspection-data/search?${qs.toString()}`, {
+        method: 'GET',
+        headers
+    });
+    if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(errorText || `Failed to fetch IBS completed calls: Status ${response.status}`);
+    }
+    const data = await response.json();
+    return data?.responseData || { content: [], total: 0, stats: null };
+};
+

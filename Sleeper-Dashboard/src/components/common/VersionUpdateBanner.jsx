@@ -56,7 +56,7 @@ const VersionUpdateBanner = () => {
         alignItems: 'center',
         justifyContent: 'center',
         zIndex: 9999999,
-        padding: '20px',
+        padding: '14px',
         boxSizing: 'border-box',
         animation: 'sarthiFadeIn 0.3s ease-out forwards'
       }}

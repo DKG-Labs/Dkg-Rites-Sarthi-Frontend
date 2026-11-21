@@ -540,14 +540,14 @@ const SgciInsertTesting = ({ onBack, inventoryData = [] }) => {
 
     return (
         <div className="sgci-testing-root cement-forms-scope fade-in">
-            <div className="content-title-row" style={{ marginBottom: '24px' }}>
+            <div className="content-title-row" style={{ marginBottom: '16px' }}>
                 <h2 style={{ margin: 0 }}>SGCI Insert Audit Report</h2>
                 <div style={{ display: 'flex', gap: '12px' }}>
                     <button className="toggle-btn secondary mini" onClick={onBack}>Back to Dashboard</button>
                 </div>
             </div>
 
-            <div style={{ display: 'flex', gap: '16px', marginBottom: '32px', flexWrap: 'wrap' }}>
+            <div style={{ display: 'flex', gap: '16px', marginBottom: '16px', flexWrap: 'wrap' }}>
                 <SubCard id="stats" title="Analytics" color="#42818c" count="N/A" label="Statistics" isActive={viewMode === 'stats'} onClick={() => setViewMode('stats')} />
                 <SubCard
                     id="new-stocks"
@@ -563,7 +563,7 @@ const SgciInsertTesting = ({ onBack, inventoryData = [] }) => {
 
             <div className="view-layer">
                 {viewMode === 'stats' && (
-                    <div className="table-outer-wrapper fade-in" style={{ padding: '24px' }}>
+                    <div className="table-outer-wrapper fade-in" style={{ padding: '16px' }}>
                         <TrendChart
                             data={history}
                             xKey="testDate"
@@ -580,7 +580,7 @@ const SgciInsertTesting = ({ onBack, inventoryData = [] }) => {
 
                 {viewMode === 'new-stocks' && (
                     <div className="table-outer-wrapper fade-in">
-                        <div className="content-title-row" style={{ padding: '16px 20px', borderBottom: '1px solid #e2e8f0', marginBottom: 0 }}>
+                        <div className="content-title-row" style={{ padding: '12px 16px', borderBottom: '1px solid #e2e8f0', marginBottom: 0 }}>
                             <h4 style={{ margin: 0 }}>SGCI Inventory Pending Testing</h4>
                         </div>
                         <EnhancedDataTable columns={inventoryColumns.filter(c => c.key !== 'testingStatus')} data={pendingStocks.filter(s => statusMap[s.requestId] !== 'Completed')} />
@@ -589,7 +589,7 @@ const SgciInsertTesting = ({ onBack, inventoryData = [] }) => {
 
                 {viewMode === 'history' && (
                     <div className="table-outer-wrapper fade-in">
-                        <div className="content-title-row" style={{ padding: '16px 20px', borderBottom: '1px solid #e2e8f0', marginBottom: 0 }}>
+                        <div className="content-title-row" style={{ padding: '12px 16px', borderBottom: '1px solid #e2e8f0', marginBottom: 0 }}>
                             <h4 style={{ margin: 0 }}>Weekly Audit Logs</h4>
                         </div>
                         <EnhancedDataTable columns={historyColumns} data={history} />
@@ -675,7 +675,7 @@ const SgciInsertTesting = ({ onBack, inventoryData = [] }) => {
                                     display: 'grid', 
                                     gridTemplateColumns: 'repeat(6, 1fr)', 
                                     gap: '12px',
-                                    marginBottom: '20px'
+                                    marginBottom: '14px'
                                 }}>
                                     <div style={{ textAlign: 'center' }}>
                                         <label style={{ fontSize: '9px', color: '#64748b', fontWeight: '600', display: 'block', minHeight: '24px' }}>A = IC PASSED QTY</label>
@@ -882,7 +882,7 @@ const SgciInsertTesting = ({ onBack, inventoryData = [] }) => {
                                     </div>
                                 )}
 
-                                <div className="summary-box" style={{ background: 'white', padding: '16px', borderRadius: '12px', border: '1px solid #e5e7eb', display: 'flex', gap: '20px', marginTop: '16px' }}>
+                                <div className="summary-box" style={{ background: 'white', padding: '16px', borderRadius: '12px', border: '1px solid #e5e7eb', display: 'flex', gap: '14px', marginTop: '16px' }}>
                                     <div><label style={{ fontSize: '10px' }}>TOTAL</label><div style={{ fontSize: '18px', fontWeight: 600 }}>{summary.total}</div></div>
                                     <div><label style={{ fontSize: '10px' }}>PASS</label><div style={{ fontSize: '18px', fontWeight: 600, color: 'green' }}>{summary.passed}</div></div>
                                     <div><label style={{ fontSize: '10px' }}>FAIL</label><div style={{ fontSize: '18px', fontWeight: 600, color: 'red' }}>{summary.rejected}</div></div>

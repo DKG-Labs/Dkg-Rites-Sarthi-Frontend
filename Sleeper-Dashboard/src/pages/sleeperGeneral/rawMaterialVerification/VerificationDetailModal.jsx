@@ -284,7 +284,7 @@ const VerificationDetailModal = ({ row, moduleLabel, actionBy, onClose, onDone }
                 {/* ── Modal Header ── */}
                 <div style={{
                     display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-                    padding: '16px 20px',
+                    padding: '12px 16px',
                     borderBottom: '1px solid #f1f5f9',
                     position: 'sticky', top: 0, background: '#fff', zIndex: 1,
                     borderRadius: '16px 16px 0 0',

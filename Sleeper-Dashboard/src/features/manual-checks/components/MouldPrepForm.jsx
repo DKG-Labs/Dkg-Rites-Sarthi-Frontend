@@ -273,7 +273,7 @@ const MouldPrepForm = ({ onSave, onCancel, isLongLine, existingEntries = [], ini
     const fieldLabel = (formData.location || '').toLowerCase().includes('line') ? 'Gang' : 'Bench';
 
     return (
-        <div className="form-container" style={{ padding: '20px' }}>
+        <div className="form-container" style={{ padding: '14px' }}>
             <div className="form-grid-standard">
                 <div className="form-field">
                     <label style={{ fontSize: '11px', color: '#64748b', fontWeight: '700' }}>Location</label>
@@ -424,7 +424,7 @@ const MouldPrepForm = ({ onSave, onCancel, isLongLine, existingEntries = [], ini
                     alignItems: 'center',
                     justifyContent: 'center',
                     backdropFilter: 'blur(4px)',
-                    padding: '24px'
+                    padding: '16px'
                 }}>
                     <div className="fade-in" style={{
                         maxWidth: '400px',

@@ -1,13 +1,13 @@
 .moisture-form-container {
-    padding: 1.5rem;
+    padding: 1rem;
     width: 100%;
     margin: 0;
     box-sizing: border-box;
 }
 
 .moisture-section {
-    margin-bottom: 2rem;
-    padding: 1.5rem;
+    margin-bottom: 1.25rem;
+    padding: 1rem;
     background: #f8fafc;
     border-radius: 12px;
     border: 1px solid #e2e8f0;
@@ -85,7 +85,7 @@
 .moisture-tabs {
     display: flex;
     gap: 8px;
-    margin-bottom: 1.5rem;
+    margin-bottom: 1rem;
 }
 
 .moisture-tab-btn {
@@ -107,7 +107,7 @@
 }
 
 .moisture-details-section {
-    padding: 1.5rem;
+    padding: 1rem;
     background: #fff;
     border-radius: 12px;
     border: 1px solid #e2e8f0;
@@ -180,7 +180,7 @@
 
 .design-params-grid {
     display: flex;
-    gap: 1.5rem;
+    gap: 1rem;
     margin: 0.75rem 0;
     font-size: 0.75rem;
 }
@@ -267,13 +267,13 @@
     border-radius: 16px;
     border: 1px solid #e2e8f0;
     overflow: hidden;
-    margin-bottom: 2rem;
+    margin-bottom: 1.25rem;
     box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.05);
 }
 
 .comparison-table-header {
     background: linear-gradient(to right, #f8fafc, #fff);
-    padding: 16px 24px;
+    padding: 12px 16px;
     border-bottom: 1px solid #e2e8f0;
     display: flex;
     justify-content: space-between;

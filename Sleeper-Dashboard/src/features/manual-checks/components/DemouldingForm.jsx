@@ -654,8 +654,8 @@ const DemouldingForm = ({ onSave, onCancel, isLongLine, existingEntries = [], in
     const fieldLabel = (formData.location || '').toLowerCase().includes('line') ? 'Gang' : 'Bench';
 
     return (
-        <div className="form-container" style={{ padding: '20px' }}>
-            <div className="form-grid-standard" style={{ marginBottom: '20px' }}>
+        <div className="form-container" style={{ padding: '14px' }}>
+            <div className="form-grid-standard" style={{ marginBottom: '14px' }}>
                 <div className="form-field">
                     <label style={{ fontSize: '11px', color: '#64748b', fontWeight: '700' }}>Location</label>
                     <select
@@ -903,8 +903,8 @@ const DemouldingForm = ({ onSave, onCancel, isLongLine, existingEntries = [], in
 
             {/* Defective Section: Only shown when at least one check is non-OK */}
             {(formData.visualCheck !== 'All OK' || formData.dimCheck !== 'All OK') && (
-                <div style={{ background: '#fff', padding: '24px', borderRadius: '16px', border: '1px solid #e2e8f0', marginBottom: '24px', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)' }}>
-                    <div style={{ marginBottom: '20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div style={{ background: '#fff', padding: '16px', borderRadius: '16px', border: '1px solid #e2e8f0', marginBottom: '16px', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)' }}>
+                    <div style={{ marginBottom: '14px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                             <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#ef4444' }}></div>
                             <h4 style={{ margin: 0, color: '#1e293b', fontSize: '15px', fontWeight: '800' }}>
@@ -931,7 +931,7 @@ const DemouldingForm = ({ onSave, onCancel, isLongLine, existingEntries = [], in
                             justifyContent: 'center',
                             gap: '12px',
                             minHeight: '160px',
-                            marginBottom: '24px'
+                            marginBottom: '16px'
                         }}>
                             <div style={{
                                 width: '32px',
@@ -958,7 +958,7 @@ const DemouldingForm = ({ onSave, onCancel, isLongLine, existingEntries = [], in
                         </div>
                     ) : (
                         (formData.gangNo || []).map(bench => (
-                            <div key={bench} style={{ marginBottom: '24px' }}>
+                            <div key={bench} style={{ marginBottom: '16px' }}>
                                 <div style={{ fontSize: '13px', fontWeight: '800', marginBottom: '10px', color: '#334155', textTransform: 'uppercase' }}>
                                     {fieldLabel} {bench}
                                 </div>
@@ -1226,14 +1226,14 @@ const DemouldingForm = ({ onSave, onCancel, isLongLine, existingEntries = [], in
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    padding: '24px'
+                    padding: '16px'
                 }}>
                     <div className="fade-in" style={{
                         maxWidth: '420px',
                         width: '100%',
                         background: '#fff',
                         borderRadius: '20px',
-                        padding: '24px',
+                        padding: '16px',
                         boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
                         border: '1px solid #e2e8f0',
                         textAlign: 'center'
@@ -1328,7 +1328,7 @@ const DemouldingForm = ({ onSave, onCancel, isLongLine, existingEntries = [], in
                     alignItems: 'center',
                     justifyContent: 'center',
                     backdropFilter: 'blur(4px)',
-                    padding: '24px'
+                    padding: '16px'
                 }}>
                     <div className="fade-in" style={{
                         maxWidth: '400px',

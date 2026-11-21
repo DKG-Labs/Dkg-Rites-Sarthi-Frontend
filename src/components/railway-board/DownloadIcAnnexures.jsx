@@ -116,7 +116,7 @@ const DownloadIcAnnexures = ({ selectedProduct = 'ERC', fromDate: initialFromDat
         icNumber: '',
         moduleType: 'SLEEPER'
     });
-    const { getIcAnnexuresCachedData, updateIcAnnexuresCache, clearIcAnnexuresCache, setSelectedCall } = useInspection();
+    const { setSelectedCall } = useInspection();
     const [annexurePageModal, setAnnexurePageModal] = useState({ isOpen: false, callNo: '' });
 
     // 2. Local Filters state
@@ -174,54 +174,65 @@ const DownloadIcAnnexures = ({ selectedProduct = 'ERC', fromDate: initialFromDat
         }));
     }, [initialFromDate, initialToDate]);
 
-    // Fetch IC Annexures data with caching support
-    const fetchRecords = useCallback(async (forceRefresh = false) => {
-        // Bypass cache completely if we are fetching with specific dashboard filters (hideFilters = true)
-        if (!hideFilters) {
-            if (forceRefresh) {
-                clearIcAnnexuresCache(selectedProduct);
-            } else {
-                const cache = getIcAnnexuresCachedData(selectedProduct);
-                if (cache.isCached) {
-                    setRecords(cache.records);
-                    return;
-                }
-            }
-        }
+    // Server paging: the server filters (stage, search, IC date, PO), sorts and returns one page.
+    const [totalCount, setTotalCount] = useState(0);
+    const [stageCounts, setStageCounts] = useState({ total: 0, rawMaterial: 0, process: 0, final: 0 });
+    const [debouncedSearch, setDebouncedSearch] = useState('');
+    useEffect(() => {
+        const t = setTimeout(() => setDebouncedSearch(searchQuery), 400);
+        return () => clearTimeout(t);
+    }, [searchQuery]);
 
+    const buildPageUrl = useCallback((pg, size) => {
+        const qs = new URLSearchParams({ product: selectedProduct, page: String(pg), size: String(size) });
+        if (vendorPlantCode) qs.append('vendorPlantCode', vendorPlantCode);
+        if (zonalRailway) qs.append('zonalRailway', zonalRailway);
+        if (initialFromDate) qs.append('startDate', initialFromDate);
+        if (initialToDate) qs.append('endDate', initialToDate);
+        if (poNumber) qs.append('poNumber', poNumber);
+        const st = activeFilters.stage || stageFilter;
+        if (st && st !== 'all') qs.append('stage', st);
+        const q = (debouncedSearch || activeFilters.search || '').trim();
+        if (q) { qs.append('search', q); qs.append('searchType', searchType); }
+        // the dashboard range is already applied on the server; the in-screen range filters the IC date
+        if (!hideFilters && activeFilters.fromDate) qs.append('icFrom', activeFilters.fromDate);
+        if (!hideFilters && activeFilters.toDate) qs.append('icTo', activeFilters.toDate);
+        const serverSort = ['callQtySet', 'callQtyNos'].includes(sortConfig.key) ? 'poWise' : (sortConfig.key || 'poWise');
+        qs.append('sortKey', serverSort);
+        qs.append('sortDir', sortConfig.direction || 'asc');
+        return `${API_ENDPOINTS.REPORTS}/downloadIcAnnexures/page?${qs.toString()}`;
+    }, [selectedProduct, vendorPlantCode, zonalRailway, initialFromDate, initialToDate, poNumber, activeFilters,
+        stageFilter, debouncedSearch, searchType, hideFilters, sortConfig]);
+
+    const fetchRecords = useCallback(async () => {
         setLoading(true);
         try {
-            let url = `${API_ENDPOINTS.REPORTS}/downloadIcAnnexures?product=${encodeURIComponent(selectedProduct)}`;
-            if (vendorPlantCode) url += `&vendorPlantCode=${encodeURIComponent(vendorPlantCode)}`;
-            if (zonalRailway) url += `&zonalRailway=${encodeURIComponent(zonalRailway)}`;
-            if (initialFromDate) url += `&startDate=${encodeURIComponent(initialFromDate)}`;
-            if (initialToDate) url += `&endDate=${encodeURIComponent(initialToDate)}`;
-            const response = await fetch(url, {
-                method: 'GET',
-                headers: getAuthHeaders()
-            });
+            const response = await fetch(buildPageUrl(page, rowsPerPage), { method: 'GET', headers: getAuthHeaders() });
             const data = await handleResponse(response);
-            if (data && data.responseData) {
-                setRecords(data.responseData);
-                // Only update cache if it's the general generic fetch
-                if (!hideFilters) {
-                    updateIcAnnexuresCache(selectedProduct, data.responseData);
-                }
-            } else {
-                setRecords([]);
-            }
+            const res = data && data.responseData ? data.responseData : null;
+            setRecords(res && Array.isArray(res.content) ? res.content : []);
+            setTotalCount(res ? (res.total || 0) : 0);
+            if (res && res.counts) setStageCounts(res.counts);
         } catch (err) {
             console.error("Error fetching IC Annexures report:", err);
             setRecords([]);
+            setTotalCount(0);
         } finally {
             setLoading(false);
         }
-    }, [selectedProduct, getIcAnnexuresCachedData, updateIcAnnexuresCache, clearIcAnnexuresCache, hideFilters, vendorPlantCode, zonalRailway, initialFromDate, initialToDate]);
+    }, [buildPageUrl, page, rowsPerPage]);
 
-    // Initial load and selectedProduct changes
+    // Load the page whenever the page, page size, filters, search or sort change
     useEffect(() => {
-        fetchRecords(false);
+        fetchRecords();
     }, [fetchRecords]);
+
+    /** Every row matching the current filters (for Excel / PDF export). */
+    const fetchAllForExport = async () => {
+        const response = await fetch(buildPageUrl(0, 0), { method: 'GET', headers: getAuthHeaders() });
+        const data = await handleResponse(response);
+        return data && data.responseData && Array.isArray(data.responseData.content) ? data.responseData.content : [];
+    };
 
     // Reset pagination when filter triggers or tab changes
     useEffect(() => {
@@ -274,79 +285,12 @@ const DownloadIcAnnexures = ({ selectedProduct = 'ERC', fromDate: initialFromDat
     const filteredRecords = useMemo(() => {
         const recordsSource = records || [];
         
-        let result = recordsSource.filter(record => {
-            // Restrict to one PO when opened from the PO Issued list
-            if (poNumber && String(record.poNumberOnly || '').trim() !== String(poNumber).trim()) {
-                return false;
-            }
-
-            // Stage match based on Call Number Prefix
-            let matchStage = true;
-            const currentStage = activeFilters.stage || stageFilter;
-            if (currentStage && currentStage !== 'all') {
-                const callNum = (record.callNumber || '').toUpperCase().trim();
-                const stageStr = (record.stage || '').toUpperCase().trim();
-                if (currentStage === 'RAW MATERIAL') {
-                    matchStage = callNum.startsWith('ER') || callNum.startsWith('RPRM') || stageStr.includes('RAW') || stageStr === 'RM';
-                } else if (currentStage === 'PROCESS') {
-                    matchStage = callNum.startsWith('EP') || callNum.startsWith('RPP') || stageStr.includes('PROCESS');
-                } else if (currentStage === 'FINAL') {
-                    matchStage = callNum.startsWith('EF') || callNum.startsWith('RPF') || callNum.startsWith('SF') || stageStr.includes('FINAL');
-                } else {
-                    matchStage = (record.stage && record.stage.trim().toLowerCase() === currentStage.trim().toLowerCase());
-                }
-            }
-            
-            // Date range match on the IC date. When the range comes from the dashboard (hideFilters), the
-            // server has already filtered on the same IC date, so it is not applied again here.
-            let matchDate = true;
-            if (!hideFilters && activeFilters.fromDate && activeFilters.toDate) {
-                const recordDate = new Date(record.icIssuedDate);
-                const start = new Date(activeFilters.fromDate);
-                const end = new Date(activeFilters.toDate);
-                
-                // Normalize times for date comparison
-                recordDate.setHours(0, 0, 0, 0);
-                start.setHours(0, 0, 0, 0);
-                end.setHours(23, 59, 59, 999);
-                
-                matchDate = !isNaN(recordDate.getTime()) ? (recordDate >= start && recordDate <= end) : true;
-            }
-
-            // Search filtering (supports Call No specifically, PO, Vendor, or Global)
-            const query = (searchQuery || activeFilters.search || '').toLowerCase().trim();
-            const combinedPo = formatPoNumber(record).toLowerCase();
-
-            let matchSearch = true;
-            if (query) {
-                if (searchType === 'callNo') {
-                    matchSearch = (record.callNumber || '').toLowerCase().includes(query);
-                } else if (searchType === 'po') {
-                    matchSearch = combinedPo.includes(query) || (record.poNumberOnly || '').toLowerCase().includes(query);
-                } else if (searchType === 'vendor') {
-                    matchSearch = (record.vendorName || '').toLowerCase().includes(query);
-                } else {
-                    // Global search (searchable across Call No, Vendor, PO, IC Number, Stage, Date, Qty)
-                    const { qtySet, qtyNos } = getQuantityColumns(record);
-                    matchSearch = 
-                        (record.callNumber || '').toLowerCase().includes(query) ||
-                        (record.vendorName || '').toLowerCase().includes(query) ||
-                        (record.icNumber || '').toLowerCase().includes(query) ||
-                        combinedPo.includes(query) ||
-                        (record.poNumberOnly || '').toLowerCase().includes(query) ||
-                        (record.stage || '').toLowerCase().includes(query) ||
-                        (record.callSubmissionDateTime || '').toLowerCase().includes(query) ||
-                        (qtySet || '').toLowerCase().includes(query) ||
-                        (qtyNos || '').toLowerCase().includes(query) ||
-                        (record.callQty || '').toString().toLowerCase().includes(query);
-                }
-            }
-
-            return matchStage && matchDate && matchSearch;
-        });
+        // The server already applied stage, search, IC date and PO filters and sorted the page.
+        let result = [...recordsSource];
 
         // Sorting
-        if (sortConfig.key) {
+        // Only the quantity columns are sorted here (within the page); all other sorting is done on the server
+        if (sortConfig.key === 'callQtySet' || sortConfig.key === 'callQtyNos') {
             result.sort((a, b) => {
                 if (sortConfig.key === 'poWise') {
                     const poA = formatPoNumber(a).toLowerCase();
@@ -405,7 +349,7 @@ const DownloadIcAnnexures = ({ selectedProduct = 'ERC', fromDate: initialFromDat
         }
 
         return result;
-    }, [activeFilters, stageFilter, sortConfig, records, searchQuery, searchType, hideFilters, poNumber]);
+    }, [sortConfig, records]);
 
 
 
@@ -446,8 +390,8 @@ const DownloadIcAnnexures = ({ selectedProduct = 'ERC', fromDate: initialFromDat
     }, [filteredRecords]);
 
     const paginatedRecords = useMemo(() => {
-        return filteredRecords.slice(page * rowsPerPage, (page + 1) * rowsPerPage);
-    }, [filteredRecords, page, rowsPerPage]);
+        return filteredRecords; // already one page from the server
+    }, [filteredRecords]);
 
     // View IC directly from Certificate Storage (Azure Blob)
     const handleViewIc = async (record) => {
@@ -639,7 +583,10 @@ const DownloadIcAnnexures = ({ selectedProduct = 'ERC', fromDate: initialFromDat
 
     // Export entire filtered Inspection Certificates list to Excel (.xlsx)
     const handleExportExcel = async () => {
-        if (!filteredRecords || filteredRecords.length === 0) {
+        // export every row matching the filters, not just the page on screen
+        let exportRows = [];
+        try { exportRows = await fetchAllForExport(); } catch (e) { notify("Export failed: " + e.message, 'error'); return; }
+        if (!exportRows || exportRows.length === 0) {
             notify("No Inspection Certificate records available to export.", 'warning');
             return;
         }
@@ -658,7 +605,7 @@ const DownloadIcAnnexures = ({ selectedProduct = 'ERC', fromDate: initialFromDat
             { label: 'Consignee / Railway', key: 'consignee' },
         ];
 
-        const exportData = filteredRecords.map((record, index) => {
+        const exportData = exportRows.map((record, index) => {
             const { qtySet, qtyNos } = getQuantityColumns(record);
             return {
                 sNo: index + 1,
@@ -684,8 +631,11 @@ const DownloadIcAnnexures = ({ selectedProduct = 'ERC', fromDate: initialFromDat
     };
 
     // Export entire filtered Inspection Certificates list to PDF
-    const handleExportPdf = () => {
-        if (!filteredRecords || filteredRecords.length === 0) {
+    const handleExportPdf = async () => {
+        // export every row matching the filters, not just the page on screen
+        let exportRows = [];
+        try { exportRows = await fetchAllForExport(); } catch (e) { notify("Export failed: " + e.message, 'error'); return; }
+        if (!exportRows || exportRows.length === 0) {
             notify("No Inspection Certificate records available to export.", 'warning');
             return;
         }
@@ -708,7 +658,7 @@ const DownloadIcAnnexures = ({ selectedProduct = 'ERC', fromDate: initialFromDat
         const formattedNow = new Date().toLocaleDateString('en-GB', {
             day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit'
         });
-        doc.text(`Generated on: ${formattedNow} | Total Records: ${filteredRecords.length} | Product: ${selectedProduct}`, 15, 19);
+        doc.text(`Generated on: ${formattedNow} | Total Records: ${exportRows.length} | Product: ${selectedProduct}`, 15, 19);
 
         const headers = [
             'S.No.',
@@ -723,7 +673,7 @@ const DownloadIcAnnexures = ({ selectedProduct = 'ERC', fromDate: initialFromDat
             'IC Issued Date'
         ];
 
-        const tableRows = filteredRecords.map((record, index) => {
+        const tableRows = exportRows.map((record, index) => {
             const { qtySet, qtyNos } = getQuantityColumns(record);
             return [
                 index + 1,
@@ -863,10 +813,10 @@ const DownloadIcAnnexures = ({ selectedProduct = 'ERC', fromDate: initialFromDat
             {!isSleeperProduct && (
             <div className="ica-kpis">
                 {[
-                    { key: 'all', label: 'Total ICs', icon: 'fa-file-circle-check', tone: '#0d9488', count: records.length },
-                    ...((selectedProduct !== 'Sleeper' && selectedProduct !== 'Rail Pad') ? [{ key: 'RAW MATERIAL', label: 'Raw Material', icon: 'fa-cubes', tone: '#7c3aed', count: records.filter(r => String(r.stage || '').toUpperCase().includes('RAW')).length }] : []),
-                    { key: 'PROCESS', label: 'Process', icon: 'fa-gears', tone: '#c2410c', count: records.filter(r => String(r.stage || '').toUpperCase() === 'PROCESS').length },
-                    { key: 'FINAL', label: 'Final', icon: 'fa-clipboard-check', tone: '#15803d', count: records.filter(r => String(r.stage || '').toUpperCase() === 'FINAL').length },
+                    { key: 'all', label: 'Total ICs', icon: 'fa-file-circle-check', tone: '#0d9488', count: stageCounts.total || 0 },
+                    ...((selectedProduct !== 'Sleeper' && selectedProduct !== 'Rail Pad') ? [{ key: 'RAW MATERIAL', label: 'Raw Material', icon: 'fa-cubes', tone: '#7c3aed', count: stageCounts.rawMaterial || 0 }] : []),
+                    { key: 'PROCESS', label: 'Process', icon: 'fa-gears', tone: '#c2410c', count: stageCounts.process || 0 },
+                    { key: 'FINAL', label: 'Final', icon: 'fa-clipboard-check', tone: '#15803d', count: stageCounts.final || 0 },
                 ].map(k => (
                     <button
                         type="button"
@@ -961,7 +911,7 @@ const DownloadIcAnnexures = ({ selectedProduct = 'ERC', fromDate: initialFromDat
                     )}
 
                     <span className="ic-toolbar-count-badge">
-                        Showing <strong>{filteredRecords.length}</strong> of <strong>{records.length}</strong>
+                        Showing <strong>{totalCount}</strong> of <strong>{stageCounts.total || 0}</strong>
                     </span>
 
                     {/* Download IC in Excel and PDF Buttons */}
@@ -970,7 +920,7 @@ const DownloadIcAnnexures = ({ selectedProduct = 'ERC', fromDate: initialFromDat
                         className="ica-export-btn ica-export-excel"
                         onClick={handleExportExcel}
                         title="Download IC List in Excel (.xlsx)"
-                        disabled={loading || filteredRecords.length === 0}
+                        disabled={loading || totalCount === 0}
                     >
                         <i className="fa-solid fa-file-excel"></i> Excel
                     </button>
@@ -980,7 +930,7 @@ const DownloadIcAnnexures = ({ selectedProduct = 'ERC', fromDate: initialFromDat
                         className="ica-export-btn ica-export-pdf"
                         onClick={handleExportPdf}
                         title="Download IC List in PDF"
-                        disabled={loading || filteredRecords.length === 0}
+                        disabled={loading || totalCount === 0}
                     >
                         <i className="fa-solid fa-file-pdf"></i> PDF
                     </button>
@@ -988,7 +938,7 @@ const DownloadIcAnnexures = ({ selectedProduct = 'ERC', fromDate: initialFromDat
                     <button
                         type="button"
                         className="ic-toolbar-refresh-btn"
-                        onClick={() => fetchRecords(true)}
+                        onClick={() => fetchRecords()}
                         title="Refresh records"
                         disabled={loading}
                     >
@@ -1126,7 +1076,7 @@ const DownloadIcAnnexures = ({ selectedProduct = 'ERC', fromDate: initialFromDat
                             </tr>
                         )}
                     </tbody>
-                    {filteredRecords.length > 0 && (
+                    {totalCount > 0 && (
                         <tfoot>
                             <tr style={{ background: '#f1f5f9', fontWeight: 'bold', borderTop: '2px solid #cbd5e1' }}>
                                 <td colSpan="7" style={{ textAlign: 'right', padding: '10px 14px', color: '#1e293b', fontSize: '12px' }}>
@@ -1146,14 +1096,14 @@ const DownloadIcAnnexures = ({ selectedProduct = 'ERC', fromDate: initialFromDat
             </div>
 
             {/* Pagination */}
-            {filteredRecords.length > 0 && (
+            {totalCount > 0 && (
                 <div style={{ marginTop: '15px' }}>
                     <Pagination
                         currentPage={page}
-                        totalPages={Math.ceil(filteredRecords.length / rowsPerPage)}
+                        totalPages={Math.ceil(totalCount / rowsPerPage)}
                         start={page * rowsPerPage}
-                        end={Math.min((page + 1) * rowsPerPage, filteredRecords.length)}
-                        totalCount={filteredRecords.length}
+                        end={Math.min((page + 1) * rowsPerPage, totalCount)}
+                        totalCount={totalCount}
                         onPageChange={setPage}
                         rows={rowsPerPage}
                         onRowsChange={setRowsPerPage}

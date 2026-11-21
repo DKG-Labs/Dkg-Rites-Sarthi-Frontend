@@ -152,7 +152,7 @@ export const saveFinalIcEditData = async (payload) => {
       headers: getAuthHeaders(),
       body: JSON.stringify(payload)
     });
-    if (!response.ok) throw new Error('Failed to save Sleeper Final IC edit data');
+    if (!response.ok) { const errBody = await response.json().catch(() => null); throw new Error(errBody?.message || errBody?.responseStatus?.message || errBody?.error || 'Failed to save Sleeper Final IC edit data'); }
     return await response.json();
   } catch (error) {
     console.error('Error saving Sleeper Final IC edit data:', error);
@@ -193,7 +193,7 @@ export const saveFinalIcSaveChanges = async (payload) => {
       headers: getAuthHeaders(),
       body: JSON.stringify(payload)
     });
-    if (!response.ok) throw new Error('Failed to save draft Sleeper Final IC changes');
+    if (!response.ok) { const errBody = await response.json().catch(() => null); throw new Error(errBody?.message || errBody?.responseStatus?.message || errBody?.error || 'Failed to save draft Sleeper Final IC changes'); }
     return await response.json();
   } catch (error) {
     console.error('Error saving draft Sleeper Final IC changes:', error);

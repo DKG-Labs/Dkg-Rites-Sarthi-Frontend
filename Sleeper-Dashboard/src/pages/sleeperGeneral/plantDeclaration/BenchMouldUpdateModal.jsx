@@ -57,7 +57,7 @@ const BenchMouldUpdateModal = ({ row, onClose, onDone }) => {
     };
 
     if (loading || !data) return (
-        <div style={{ padding: '40px', textAlign: 'center', color: '#64748b' }}>
+        <div style={{ padding: '24px', textAlign: 'center', color: '#64748b' }}>
             <div className="pdv-spinner-inline" style={{ marginBottom: '10px' }}></div>
             Fetching record details...
         </div>
@@ -93,7 +93,7 @@ const BenchMouldUpdateModal = ({ row, onClose, onDone }) => {
             >
                 <div style={{
                     display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-                    padding: '16px 20px',
+                    padding: '12px 16px',
                     borderBottom: '1px solid #f1f5f9',
                     position: 'sticky', top: 0, background: '#fff', zIndex: 1,
                     borderRadius: '16px 16px 0 0',
@@ -107,8 +107,8 @@ const BenchMouldUpdateModal = ({ row, onClose, onDone }) => {
                     <button onClick={onClose} className="pdv-view-mini" style={{ padding: '6px 12px' }}>✕</button>
                 </div>
 
-                <div style={{ padding: '24px' }}>
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '20px', marginBottom: '32px' }}>
+                <div style={{ padding: '16px' }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '14px', marginBottom: '16px' }}>
                         <div className="input-field">
                             <label style={{ fontSize: '11px', color: '#64748b', fontWeight: '700', marginBottom: '4px', display: 'block' }}>Category</label>
                             <input value={data.category || ''} readOnly style={{ width: '100%', padding: '10px', border: '1px solid #e2e8f0', borderRadius: '8px', background: '#f8fafc' }} />
@@ -164,7 +164,7 @@ const BenchMouldUpdateModal = ({ row, onClose, onDone }) => {
                         </tbody>
                     </table>
 
-                    <div style={{ display: 'flex', gap: '12px', marginTop: '32px' }}>
+                    <div style={{ display: 'flex', gap: '12px', marginTop: '16px' }}>
                         <button 
                             disabled={saving}
                             onClick={handleSave}

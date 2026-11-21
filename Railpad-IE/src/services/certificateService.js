@@ -167,7 +167,7 @@ export const saveFinalIcEditData = async (payload) => {
       },
       body: JSON.stringify(payload)
     });
-    if (!response.ok) throw new Error('Failed to save IC edit data');
+    if (!response.ok) { const errBody = await response.json().catch(() => null); throw new Error(errBody?.message || errBody?.responseStatus?.message || errBody?.error || 'Failed to save IC edit data'); }
     const result = await response.json();
     return result.responseData || result;
   } catch (error) {
@@ -213,7 +213,7 @@ export const saveFinalIcSaveChanges = async (payload) => {
       },
       body: JSON.stringify(payload)
     });
-    if (!response.ok) throw new Error('Failed to save draft IC changes');
+    if (!response.ok) { const errBody = await response.json().catch(() => null); throw new Error(errBody?.message || errBody?.responseStatus?.message || errBody?.error || 'Failed to save draft IC changes'); }
     const result = await response.json();
     return result.responseData || result;
   } catch (error) {
@@ -252,13 +252,14 @@ export const getFinalIcSaveChanges = async (icNumber) => {
  * @param {string} setNo
  * @param {string} status "F" for Final, "S" for Stage (RM/Process)
  */
-export const validateBookSetNo = async (empNo, bookNo, setNo, status = "F") => {
+export const validateBookSetNo = async (empNo, bookNo, setNo, status = "F", icNumber = null) => {
   try {
     const payload = {
       EMP_NO: empNo,
       BK_NO: bookNo,
       SET_NO: setNo,
-      STATUS: status
+      STATUS: status,
+      IC_NO: icNumber
     };
     
     const url = `${getBaseUrl()}/ibs-validation/validate-book-set`;
@@ -509,7 +510,7 @@ export const saveProcessIcSaveChanges = async (payload) => {
       },
       body: JSON.stringify(payload)
     });
-    if (!response.ok) throw new Error('Failed to save Process IC changes');
+    if (!response.ok) { const errBody = await response.json().catch(() => null); throw new Error(errBody?.message || errBody?.responseStatus?.message || errBody?.error || 'Failed to save Process IC changes'); }
     const result = await response.json();
     return result.responseData || result;
   } catch (err) {
@@ -556,7 +557,7 @@ export const saveProcessIcEditData = async (payload) => {
       },
       body: JSON.stringify(payload)
     });
-    if (!response.ok) throw new Error('Failed to save Process IC e-sign data');
+    if (!response.ok) { const errBody = await response.json().catch(() => null); throw new Error(errBody?.message || errBody?.responseStatus?.message || errBody?.error || 'Failed to save Process IC e-sign data'); }
     const result = await response.json();
     return result;
   } catch (err) {

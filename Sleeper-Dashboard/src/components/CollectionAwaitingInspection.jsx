@@ -56,7 +56,7 @@ const styles = {
     container: {
         width: "100%",
         fontFamily: "var(--font-primary)",
-        marginBottom: '32px'
+        marginBottom: '16px'
     },
     header: {
         display: "flex",

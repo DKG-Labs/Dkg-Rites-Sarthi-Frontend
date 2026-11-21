@@ -2,7 +2,7 @@ import React from 'react';
 
 const DataTable = ({ columns, data, emptyMessage }) => {
     if (!data || data.length === 0) {
-        return <div className="empty-state" style={{ padding: '40px', textAlign: 'center', color: '#667085' }}>{emptyMessage}</div>;
+        return <div className="empty-state" style={{ padding: '24px', textAlign: 'center', color: '#667085' }}>{emptyMessage}</div>;
     }
 
     return (

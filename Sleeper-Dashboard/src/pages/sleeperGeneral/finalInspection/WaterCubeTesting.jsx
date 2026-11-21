@@ -84,8 +84,8 @@ export const WaterCubeStats = () => {
     };
 
     return (
-        <div style={{ background: 'white', padding: '24px', borderRadius: '16px', border: '1px solid #e2e8f0', marginBottom: '24px', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '20px', flexWrap: 'wrap', gap: '16px' }}>
+        <div style={{ background: 'white', padding: '16px', borderRadius: '16px', border: '1px solid #e2e8f0', marginBottom: '16px', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '14px', flexWrap: 'wrap', gap: '16px' }}>
                 <div>
                     <h3 style={{ fontSize: '16px', fontWeight: '800', color: '#1e293b', margin: 0 }}>Cube Integrity Analytics</h3>
                     <p style={{ fontSize: '11px', color: '#64748b', margin: '4px 0 0 0' }}>Real-time strength metrics and testing readiness tracking</p>
@@ -539,7 +539,7 @@ const WaterCubeTesting = () => {
 
     return (
         <div className="water-cube-module cement-forms-scope">
-            <header style={{ marginBottom: '24px' }}>
+            <header style={{ marginBottom: '16px' }}>
                 <h2 style={{ fontSize: '24px', fontWeight: '700', color: '#13343b', margin: 0, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Water Cured Cube Strength</h2>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginTop: '4px' }}>
                     <span style={{ fontSize: '12px', color: '#64748b', fontWeight: '500' }}>SUB CARD- 4</span>
@@ -557,7 +557,7 @@ const WaterCubeTesting = () => {
             />
 
             <div className="nav-tabs" style={{
-                marginBottom: '32px',
+                marginBottom: '16px',
                 display: 'flex',
                 gap: '8px',
                 background: '#f1f5f9',
@@ -600,8 +600,8 @@ const WaterCubeTesting = () => {
 
             <div className="tab-content">
                 {activeTab === 'declaration' && (
-                    <div className="fade-in" style={{ background: 'white', borderRadius: '16px', border: '1px solid #e2e8f0', padding: '24px', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)' }}>
-                        <div style={{ marginBottom: '20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
+                    <div className="fade-in" style={{ background: 'white', borderRadius: '16px', border: '1px solid #e2e8f0', padding: '16px', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)' }}>
+                        <div style={{ marginBottom: '14px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
                             <h4 style={{ margin: 0, color: '#1e293b', fontWeight: '800' }}>Batches Pending Declaration</h4>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
                                 <span style={{ fontSize: '11px', color: '#94a3b8', fontStyle: 'italic' }}>Source: SCADA / Vendor Inventory</span>
@@ -626,8 +626,8 @@ const WaterCubeTesting = () => {
                 )}
 
                 {activeTab === 'pending' && (
-                    <div className="fade-in" style={{ background: 'white', borderRadius: '16px', border: '1px solid #e2e8f0', padding: '24px', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)' }}>
-                        <div style={{ marginBottom: '20px' }}>
+                    <div className="fade-in" style={{ background: 'white', borderRadius: '16px', border: '1px solid #e2e8f0', padding: '16px', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)' }}>
+                        <div style={{ marginBottom: '14px' }}>
                             <h4 style={{ margin: 0, color: '#1e293b', fontWeight: '800' }}>Batches with Active Declarations</h4>
                         </div>
                         <EnhancedDataTable columns={pendingColumns} data={activeDeclarations} selectable={false} loading={loadingActive} />
@@ -635,8 +635,8 @@ const WaterCubeTesting = () => {
                 )}
 
                 {activeTab === 'done' && (
-                    <div className="fade-in" style={{ background: 'white', borderRadius: '16px', border: '1px solid #e2e8f0', padding: '24px', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)' }}>
-                        <div style={{ marginBottom: '20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <div className="fade-in" style={{ background: 'white', borderRadius: '16px', border: '1px solid #e2e8f0', padding: '16px', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)' }}>
+                        <div style={{ marginBottom: '14px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                             <h4 style={{ margin: 0, color: '#1e293b', fontWeight: '800' }}>Historical Strength Logs</h4>
                             <div style={{ fontSize: '12px', color: '#64748b' }}>Individual cube strengths shown in detail</div>
                         </div>
@@ -1119,10 +1119,10 @@ const SampleDeclarationModal = ({ batches, isModifying, onClose, onSave }) => {
                 </div>
                 <div className="form-modal-body" style={{ background: '#f8fafc' }}>
                     {loading ? (
-                        <div style={{ textAlign: 'center', padding: '40px', color: '#64748b' }}>Fetching batch details...</div>
+                        <div style={{ textAlign: 'center', padding: '24px', color: '#64748b' }}>Fetching batch details...</div>
                     ) : (
                         <>
-                            <div style={{ background: '#fff', padding: '20px', borderRadius: '12px', border: '1px solid #e2e8f0', marginBottom: '24px' }}>
+                            <div style={{ background: '#fff', padding: '14px', borderRadius: '12px', border: '1px solid #e2e8f0', marginBottom: '16px' }}>
                                 <div className="form-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '16px' }}>
                                     <div className="input-group"><label>Selected Batches</label><input readOnly value={batches.map(b => b.batchNo).join(', ')} className="readOnly" /></div>
                                     <div className="input-group"><label>Date of Casting</label><input readOnly value={referenceBatch?.date || referenceBatch?.castingDate} className="readOnly" /></div>
@@ -1130,9 +1130,9 @@ const SampleDeclarationModal = ({ batches, isModifying, onClose, onSave }) => {
                                 </div>
                             </div>
 
-                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '20px' }}>
+                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '14px' }}>
                                 {[0, 1].map(sIdx => (
-                                    <div key={sIdx} style={{ background: '#fff', padding: '20px', borderRadius: '12px', border: '1px solid #e2e8f0', boxShadow: '0 2px 4px rgba(0,0,0,0.02)' }}>
+                                    <div key={sIdx} style={{ background: '#fff', padding: '14px', borderRadius: '12px', border: '1px solid #e2e8f0', boxShadow: '0 2px 4px rgba(0,0,0,0.02)' }}>
                                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
                                             <h4 style={{ fontSize: '13px', color: '#42818c', margin: 0, fontWeight: '800', textTransform: 'uppercase' }}>
                                                 Sample {sIdx + 1}
@@ -1154,7 +1154,7 @@ const SampleDeclarationModal = ({ batches, isModifying, onClose, onSave }) => {
                                 ))}
                             </div>
 
-                            <div style={{ display: 'flex', gap: '16px', marginTop: '32px' }}>
+                            <div style={{ display: 'flex', gap: '16px', marginTop: '16px' }}>
                                 <button className="btn-verify" style={{ flex: 1, padding: '14px' }} onClick={async () => {
                                     if (saving) return;
                                     const allCubes = [...form.sample1, ...form.sample2];
@@ -1217,8 +1217,8 @@ const TestDetailPopup = ({ batch, onClose, onModify, onSaveTest, onDelete, onDel
                     <button className="form-modal-close" onClick={onClose}>✕</button>
                 </div>
                 <div className="form-modal-body">
-                    <div style={{ background: '#f8fafc', padding: '24px', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
-                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '24px' }}>
+                    <div style={{ background: '#f8fafc', padding: '16px', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '16px' }}>
                             <div><label style={{ fontSize: '10px', color: '#64748b', fontWeight: '800' }}>BATCH NO</label><div style={{ fontWeight: '800' }}>{batch.batchNo}</div></div>
                             <div><label style={{ fontSize: '10px', color: '#64748b', fontWeight: '800' }}>GRADE</label><div style={{ fontWeight: '800' }}>{batch.grade}</div></div>
                             <div><label style={{ fontSize: '10px', color: '#64748b', fontWeight: '800' }}>CASTING DATE</label><div style={{ fontWeight: '800' }}>{batch.castingDate}</div></div>
@@ -1232,7 +1232,7 @@ const TestDetailPopup = ({ batch, onClose, onModify, onSaveTest, onDelete, onDel
                             </div>
                         </div>
 
-                        <div style={{ marginBottom: '24px' }}>
+                        <div style={{ marginBottom: '16px' }}>
                             <label style={{ fontSize: '10px', color: '#64748b', fontWeight: '800', display: 'block', marginBottom: '8px' }}>DECLARED SAMPLES</label>
                             <div style={{ display: 'flex', gap: '10px' }}>
                                 <div style={{ flex: 1, background: '#fff', padding: '12px', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
@@ -1247,7 +1247,7 @@ const TestDetailPopup = ({ batch, onClose, onModify, onSaveTest, onDelete, onDel
                         </div>
 
                         {batch.isTested && batch.raw && (
-                            <div style={{ marginBottom: '24px', background: '#eef2ff', padding: '16px', borderRadius: '8px', border: '1px solid #c7d2fe' }}>
+                            <div style={{ marginBottom: '16px', background: '#eef2ff', padding: '16px', borderRadius: '8px', border: '1px solid #c7d2fe' }}>
                                 <label style={{ fontSize: '10px', color: '#4338ca', fontWeight: '800', display: 'block', marginBottom: '12px' }}>TESTING DONE DETAILS</label>
                                 
                                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '16px' }}>
@@ -1289,7 +1289,7 @@ const TestDetailPopup = ({ batch, onClose, onModify, onSaveTest, onDelete, onDel
                         )}
 
                         {!isEligible && !batch.isTested && (
-                            <div style={{ background: '#fff7ed', padding: '12px', borderRadius: '8px', border: '1px solid #ffedd5', color: '#c2410c', fontSize: '11px', fontWeight: '700', marginBottom: '20px' }}>
+                            <div style={{ background: '#fff7ed', padding: '12px', borderRadius: '8px', border: '1px solid #ffedd5', color: '#c2410c', fontSize: '11px', fontWeight: '700', marginBottom: '14px' }}>
                                 {(() => {
                                     const castDate = parseDate(batch.castingDate);
                                     if (!castDate || isNaN(castDate.getTime())) return "Check casting date format";
@@ -1299,7 +1299,7 @@ const TestDetailPopup = ({ batch, onClose, onModify, onSaveTest, onDelete, onDel
                             </div>
                         )}
 
-                        <div style={{ display: 'flex', gap: '8px', marginTop: '20px', flexWrap: 'wrap' }}>
+                        <div style={{ display: 'flex', gap: '8px', marginTop: '14px', flexWrap: 'wrap' }}>
                             {!batch.isTested && (
                                 <button
                                     className="btn-verify"

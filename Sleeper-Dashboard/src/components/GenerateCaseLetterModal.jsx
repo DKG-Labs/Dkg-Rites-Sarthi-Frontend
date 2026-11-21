@@ -80,7 +80,7 @@ const MergeProgressOverlay = ({ mode, progress }) => {
       <style>{`@keyframes clm-spin { to { transform: rotate(360deg); } }`}</style>
       <div style={{
         width: '100%', maxWidth: '420px', background: '#ffffff', border: '1px solid #e2e8f0',
-        borderRadius: '16px', boxShadow: '0 12px 32px rgba(15, 23, 42, 0.12)', padding: '24px', textAlign: 'center'
+        borderRadius: '16px', boxShadow: '0 12px 32px rgba(15, 23, 42, 0.12)', padding: '16px', textAlign: 'center'
       }}>
         <div style={{
           width: '52px', height: '52px', margin: '0 auto 14px', borderRadius: '50%',
@@ -787,7 +787,7 @@ const GenerateCaseLetterModal = ({
         backgroundColor: 'rgba(15, 23, 42, 0.75)',
         backdropFilter: 'blur(6px)',
         display: 'flex', alignItems: 'center', justifyContent: 'center',
-        zIndex: 99999, padding: '20px'
+        zIndex: 99999, padding: '14px'
       }}
       onClick={e => {
         if (e.target === e.currentTarget && !merging && !saving) {
@@ -812,7 +812,7 @@ const GenerateCaseLetterModal = ({
         
         {/* MODAL HEADER */}
         <div style={{
-          padding: '18px 24px',
+          padding: '14px 18px',
           background: 'linear-gradient(135deg, #0f172a 0%, #1e293b 100%)',
           color: '#ffffff',
           display: 'flex',
@@ -906,8 +906,8 @@ const GenerateCaseLetterModal = ({
         <div style={{
           display: 'grid',
           gridTemplateColumns: previewBlobUrl ? '1.15fr 1fr' : '1fr',
-          gap: '20px',
-          padding: '20px 24px',
+          gap: '14px',
+          padding: '14px 18px',
           overflowY: 'auto',
           flex: 1
         }}>
@@ -1531,7 +1531,7 @@ const GenerateCaseLetterModal = ({
           position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
           backgroundColor: 'rgba(0, 0, 0, 0.85)',
           display: 'flex', alignItems: 'center', justifyContent: 'center',
-          zIndex: 100000, padding: '24px'
+          zIndex: 100000, padding: '16px'
         }}>
           <div style={{
             background: '#ffffff',
@@ -1601,14 +1601,14 @@ const GenerateCaseLetterModal = ({
           position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
           backgroundColor: 'rgba(15, 23, 42, 0.7)',
           display: 'flex', alignItems: 'center', justifyContent: 'center',
-          zIndex: 100001, padding: '20px'
+          zIndex: 100001, padding: '14px'
         }}>
           <div style={{
             background: '#ffffff',
             borderRadius: '16px',
             width: '100%',
             maxWidth: '480px',
-            padding: '24px',
+            padding: '16px',
             boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)'
           }}>
             <h3 style={{ margin: '0 0 12px', fontSize: '18px', fontWeight: '700', color: '#0f172a' }}>
@@ -1669,14 +1669,14 @@ const GenerateCaseLetterModal = ({
           position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
           backgroundColor: 'rgba(15, 23, 42, 0.7)',
           display: 'flex', alignItems: 'center', justifyContent: 'center',
-          zIndex: 100002, padding: '20px'
+          zIndex: 100002, padding: '14px'
         }}>
           <div style={{
             background: '#ffffff',
             borderRadius: '16px',
             width: '100%',
             maxWidth: '460px',
-            padding: '24px',
+            padding: '16px',
             boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)'
           }}>
             <div style={{

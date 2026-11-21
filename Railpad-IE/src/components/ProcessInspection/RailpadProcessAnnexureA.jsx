@@ -10,6 +10,7 @@ import { mouldVerificationService } from '../../services/mouldVerificationServic
 import { visualInspectionService } from '../../services/visualInspectionService';
 import { getStoredUser } from '../../services/authService';
 import { fetchMappedPlantIds } from '../../services/workflowService';
+import { getProcessInspectionResult } from '../../services/certificateService';
 
 /**
  * RailpadProcessAnnexureA Component
@@ -98,14 +99,66 @@ export const RailpadProcessAnnexureA = ({
   const unitAddress = selectedPlant || currentShift?.unit || call?.placeOfInspection || call?.plantId || 'Works / Plant';
   const placeOfInspection = `${vendorName} - ${unitAddress}`;
 
-  // Date range & shift filters (empty initially, filled by IE)
-  const [fromDate, setFromDate] = useState(call?.fromDate || '');
-  const [toDate, setToDate] = useState(call?.toDate || '');
+  // Date range: the call's own range when it has one, otherwise the last 7 days (today − 7 → today)
+  const toIsoLocal = (d) => {
+    const z = new Date(d.getTime() - d.getTimezoneOffset() * 60000);
+    return z.toISOString().slice(0, 10);
+  };
+  const defaultToDate = toIsoLocal(new Date());
+  const defaultFromDate = (() => { const d = new Date(); d.setDate(d.getDate() - 7); return toIsoLocal(d); })();
+  // Date boxes only show yyyy-mm-dd. Calls can carry dd/mm/yyyy, dd-mm-yyyy or ISO with time, so convert;
+  // an unreadable value gives null (caller falls back to the 7-day default).
+  const toIsoDate = (v) => {
+    if (!v) return null;
+    const s = String(v).trim();
+    let m = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
+    if (m) return `${m[1]}-${m[2]}-${m[3]}`;
+    m = s.match(/^(\d{1,2})[/.-](\d{1,2})[/.-](\d{4})/);
+    if (m) return `${m[3]}-${m[2].padStart(2, '0')}-${m[1].padStart(2, '0')}`;
+    return null;
+  };
+  // The call's own dates are used only for a real call (with a call number). Otherwise: last 7 days.
+  const hasCallNo = Boolean(call?.requestId || call?.callNo || call?.call_no);
+  const [fromDate, setFromDate] = useState((hasCallNo && toIsoDate(call?.fromDate)) || defaultFromDate);
+  const [toDate, setToDate] = useState((hasCallNo && toIsoDate(call?.toDate)) || defaultToDate);
+  // Keep the range in order: a reversed range (From after To) is swapped, so it never fetches nothing
+  useEffect(() => {
+    if (fromDate && toDate && fromDate > toDate) {
+      setFromDate(toDate);
+      setToDate(fromDate);
+    }
+  }, [fromDate, toDate]);
+
+  // A call opened without dates (e.g. from the IC / e-sign screen): use its batch casting dates, the same
+  // rule as Attending Calls. No batches → inspection date. Not found → stay on the 7-day default.
+  useEffect(() => {
+    const callNo = call?.requestId || call?.callNo || call?.call_no;
+    if (!callNo || (toIsoDate(call?.fromDate) && toIsoDate(call?.toDate))) return;
+    let alive = true;
+    (async () => {
+      try {
+        const res = await getProcessInspectionResult(callNo);
+        // batch casting / production dates of this call, in any of the formats the API returns
+        const dates = (res?.batches || [])
+          .map((b) => toIsoDate(b.productionDate || b.dateOfManufacturing || b.castingDate))
+          .filter(Boolean)
+          .sort();
+        const fallback = toIsoDate(call?.dateOfInspection || call?.inspectionDate || call?.dateOfShift);
+        const from = dates[0] || fallback;
+        const to = dates[dates.length - 1] || from;
+        if (alive && from && to) { setFromDate(from); setToDate(to); }
+      } catch (e) {
+        // keep the 7-day default
+      }
+    })();
+    return () => { alive = false; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [call?.requestId, call?.callNo, call?.call_no, call?.fromDate, call?.toDate]);
 
   // Synchronize when call prop updates (e.g. when opening from Issuance of IC modal)
   useEffect(() => {
-    if (call?.fromDate) setFromDate(call.fromDate);
-    if (call?.toDate) setToDate(call.toDate);
+    if (hasCallNo && toIsoDate(call?.fromDate)) setFromDate(toIsoDate(call.fromDate));
+    if (hasCallNo && toIsoDate(call?.toDate)) setToDate(toIsoDate(call.toDate));
     if (call?.plantId || call?.unit) {
       setSelectedPlant(call.plantId || call.unit);
     }
@@ -786,20 +839,19 @@ export const RailpadProcessAnnexureA = ({
             <input
               type="date"
               value={fromDate}
-              disabled={isCallBound}
-              readOnly={isCallBound}
-              onChange={(e) => !isCallBound && setFromDate(e.target.value)}
+              max={toDate || undefined}
+              onChange={(e) => { const v = e.target.value; setFromDate(v); if (v && toDate && v > toDate) setToDate(v); }}
               style={{
                 padding: '5px 8px',
                 borderRadius: '6px',
                 border: '1px solid #cbd5e1',
                 fontSize: '12px',
-                background: isCallBound ? '#f1f5f9' : '#ffffff',
-                color: isCallBound ? '#334155' : '#0f172a',
-                cursor: isCallBound ? 'not-allowed' : 'pointer',
-                fontWeight: isCallBound ? '700' : 'normal'
+                background: '#ffffff',
+                color: '#0f172a',
+                cursor: 'pointer',
+                fontWeight: 'normal'
               }}
-              title={isCallBound ? "Date is locked to this call's batch casting date" : "Select from date"}
+              title="Select from date (pre-filled from the call when available)"
             />
           </div>
 
@@ -808,20 +860,19 @@ export const RailpadProcessAnnexureA = ({
             <input
               type="date"
               value={toDate}
-              disabled={isCallBound}
-              readOnly={isCallBound}
-              onChange={(e) => !isCallBound && setToDate(e.target.value)}
+              min={fromDate || undefined}
+              onChange={(e) => { const v = e.target.value; setToDate(v); if (v && fromDate && v < fromDate) setFromDate(v); }}
               style={{
                 padding: '5px 8px',
                 borderRadius: '6px',
                 border: '1px solid #cbd5e1',
                 fontSize: '12px',
-                background: isCallBound ? '#f1f5f9' : '#ffffff',
-                color: isCallBound ? '#334155' : '#0f172a',
-                cursor: isCallBound ? 'not-allowed' : 'pointer',
-                fontWeight: isCallBound ? '700' : 'normal'
+                background: '#ffffff',
+                color: '#0f172a',
+                cursor: 'pointer',
+                fontWeight: 'normal'
               }}
-              title={isCallBound ? "Date is locked to this call's batch casting date" : "Select to date"}
+              title="Select to date (pre-filled from the call when available)"
             />
           </div>
 

@@ -679,7 +679,7 @@ export default function RailpadFinalProductCertificate({ call = {}, onBack, isVi
     try {
       const empNo = user?.employeeCode || getStoredUser()?.employeeCode || "UNKNOWN";
       const statusParam = isProcessCall ? "S" : "F";
-      const result = await validateBookSetNo(empNo, bookNo, setNo, statusParam);
+      const result = await validateBookSetNo(empNo, bookNo, setNo, statusParam, data.certificateNo || call.callNo || call.call_no || call.requestId);
       
       if (result.resultFlag === 1) {
         setBookSetValidation({ isValid: true, message: null, isValidating: false });

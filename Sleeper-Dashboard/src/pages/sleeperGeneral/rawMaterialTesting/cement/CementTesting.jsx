@@ -576,7 +576,7 @@ const CementTesting = ({ onBack, inventoryData = [] }) => {
 
     return (
         <div className="cement-testing-root cement-forms-scope fade-in">
-            <div className="content-title-row" style={{ marginBottom: '24px' }}>
+            <div className="content-title-row" style={{ marginBottom: '16px' }}>
                 <h2 style={{ margin: 0 }}>Cement Quality Control</h2>
                 <div style={{ display: 'flex', gap: '12px' }}>
                     <button className="toggle-btn mini" onClick={() => { 
@@ -591,7 +591,7 @@ const CementTesting = ({ onBack, inventoryData = [] }) => {
             </div>
 
             {/* Sub-Card Navigation */}
-            <div style={{ display: 'flex', gap: '16px', marginBottom: '32px', flexWrap: 'wrap' }}>
+            <div style={{ display: 'flex', gap: '16px', marginBottom: '16px', flexWrap: 'wrap' }}>
                 <SubCard
                     id="stats"
                     title="Analytics"
@@ -633,7 +633,7 @@ const CementTesting = ({ onBack, inventoryData = [] }) => {
             {/* Dynamic Content */}
             <div className="view-layer">
                 {viewMode === 'stats' && (
-                    <div className="table-outer-wrapper fade-in" style={{ padding: '24px' }}>
+                    <div className="table-outer-wrapper fade-in" style={{ padding: '16px' }}>
                         <TrendChart
                             data={cementHistory}
                             xKey="testDate"
@@ -650,7 +650,7 @@ const CementTesting = ({ onBack, inventoryData = [] }) => {
 
                 {viewMode === 'new-stocks' && (
                     <div className="table-outer-wrapper fade-in">
-                        <div className="content-title-row" style={{ padding: '16px 20px', borderBottom: '1px solid #e2e8f0', marginBottom: 0 }}>
+                        <div className="content-title-row" style={{ padding: '12px 16px', borderBottom: '1px solid #e2e8f0', marginBottom: 0 }}>
                             <h4 style={{ margin: 0 }}>Verified Inventory Pending Testing</h4>
                         </div>
                         <EnhancedDataTable columns={inventoryColumns.filter(c => c.key !== 'testingStatus')} data={pendingStocks.filter(s => statusMap[s.requestId] !== 'Completed')} />
@@ -659,7 +659,7 @@ const CementTesting = ({ onBack, inventoryData = [] }) => {
 
                 {viewMode === 'history' && (
                     <div className="table-outer-wrapper fade-in">
-                        <div className="content-title-row" style={{ padding: '16px 20px', borderBottom: '1px solid #e2e8f0', marginBottom: 0 }}>
+                        <div className="content-title-row" style={{ padding: '12px 16px', borderBottom: '1px solid #e2e8f0', marginBottom: 0 }}>
                             <h4 style={{ margin: 0 }}>Historical Cement Quality Logs</h4>
                         </div>
                         <EnhancedDataTable columns={historyColumns} data={cementHistory} />
@@ -668,7 +668,7 @@ const CementTesting = ({ onBack, inventoryData = [] }) => {
 
                 {viewMode === 'periodic' && (
                     <div className="table-outer-wrapper fade-in">
-                        <div className="content-title-row" style={{ padding: '16px 20px', borderBottom: '1px solid #e2e8f0', marginBottom: 0 }}>
+                        <div className="content-title-row" style={{ padding: '12px 16px', borderBottom: '1px solid #e2e8f0', marginBottom: 0 }}>
                             <h4 style={{ margin: 0 }}>Periodic Testing Logs</h4>
                         </div>
                         <EnhancedDataTable columns={periodicColumns} data={periodicHistory} />

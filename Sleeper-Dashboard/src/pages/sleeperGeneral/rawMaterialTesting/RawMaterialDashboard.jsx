@@ -113,7 +113,7 @@ const RawMaterialDashboard = () => {
 
     return (
         <div className="dashboard-container">
-            <header style={{ marginBottom: '24px' }}>
+            <header style={{ marginBottom: '16px' }}>
                 <h1 style={{ fontSize: 'var(--fs-2xl)', fontWeight: '700', color: '#0d3b3f', margin: '0 0 8px 0' }}>Raw Material Testing</h1>
                 <p style={{ margin: 0, color: '#64748b', fontSize: 'var(--fs-sm)' }}>Manage and monitor material quality tests</p>
             </header>
@@ -122,7 +122,7 @@ const RawMaterialDashboard = () => {
                 display: 'grid',
                 gridTemplateColumns: `repeat(${materials.length}, 1fr)`,
                 gap: '12px',
-                marginBottom: '32px'
+                marginBottom: '16px'
             }}>
                 {materials.map(mat => (
                     <div

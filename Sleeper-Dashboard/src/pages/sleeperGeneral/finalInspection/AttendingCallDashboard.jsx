@@ -23,6 +23,7 @@ import {
     downloadMergedIcAndCorrectionSlip
 } from '../../../services/correctionSlipService';
 import { downloadOrNotifyCaseLetter, fetchSavedCaseLetterInfo, viewSavedCaseLetterPdf } from '../../../services/caseLetterService';
+import { getQtyUomRule, roundQty } from '../../../utils/uomQuantity';
 
 const resolveSleeperCaseNo = (rawCaseNo, rio) => {
     if (!rawCaseNo || !String(rawCaseNo).trim()) return '-';
@@ -1208,7 +1209,7 @@ const AttendingCallDashboard = ({ mode }) => {
                 autoCloseDelay={4500}
                 onClose={() => setNotification({ message: '', type: 'info' })}
             />
-            <header className="ie-modern-header" style={{ marginBottom: '24px' }}>
+            <header className="ie-modern-header" style={{ marginBottom: '16px' }}>
                 <div className="header-top-line" style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
                     <button
                         className="home-btn-glass"
@@ -1263,7 +1264,7 @@ const AttendingCallDashboard = ({ mode }) => {
                                 <tbody>
                                     {isLoading ? (
                                         <tr>
-                                            <td colSpan="12" style={{ textAlign: 'center', padding: '20px' }}>Loading pending calls...</td>
+                                            <td colSpan="12" style={{ textAlign: 'center', padding: '14px' }}>Loading pending calls...</td>
                                         </tr>
                                     ) : pendingCalls.filter(c => {
                                         const q = (searchTerm || '').toLowerCase();
@@ -1277,7 +1278,7 @@ const AttendingCallDashboard = ({ mode }) => {
                                                (c.rlyPoSrNo?.toLowerCase() || '').includes(q);
                                     }).length === 0 ? (
                                         <tr>
-                                            <td colSpan="12" style={{ textAlign: 'center', padding: '20px' }}>No pending calls found.</td>
+                                            <td colSpan="12" style={{ textAlign: 'center', padding: '14px' }}>No pending calls found.</td>
                                         </tr>
                                     ) : (
                                         pendingCalls.filter(c => {
@@ -1383,7 +1384,7 @@ const AttendingCallDashboard = ({ mode }) => {
                                 <tbody>
                                     {isLoading ? (
                                         <tr>
-                                            <td colSpan="6" style={{ textAlign: 'center', padding: '20px' }}>Loading issuance calls...</td>
+                                            <td colSpan="6" style={{ textAlign: 'center', padding: '14px' }}>Loading issuance calls...</td>
                                         </tr>
                                     ) : issuanceCalls.filter(c => {
                                         const q = (searchTerm || '').toLowerCase();
@@ -1393,7 +1394,7 @@ const AttendingCallDashboard = ({ mode }) => {
                                                (c.plantId?.toLowerCase() || '').includes(q);
                                     }).length === 0 ? (
                                         <tr>
-                                            <td colSpan="6" style={{ textAlign: 'center', padding: '20px' }}>No calls for IC issuance found</td>
+                                            <td colSpan="6" style={{ textAlign: 'center', padding: '14px' }}>No calls for IC issuance found</td>
                                         </tr>
                                     ) : (
                                         issuanceCalls.filter(c => {
@@ -1482,7 +1483,7 @@ const AttendingCallDashboard = ({ mode }) => {
                                 <tbody>
                                     {isLoading ? (
                                         <tr>
-                                            <td colSpan="8" style={{ textAlign: 'center', padding: '24px', color: '#64748b' }}>Loading completed calls...</td>
+                                            <td colSpan="8" style={{ textAlign: 'center', padding: '16px', color: '#64748b' }}>Loading completed calls...</td>
                                         </tr>
                                     ) : completedCalls.filter(c => {
                                         const q = (searchTerm || '').toLowerCase();
@@ -1493,7 +1494,7 @@ const AttendingCallDashboard = ({ mode }) => {
                                                (c.poNo?.toLowerCase() || '').includes(q);
                                     }).length === 0 ? (
                                         <tr>
-                                            <td colSpan="8" style={{ textAlign: 'center', padding: '24px', color: '#64748b' }}>No completed calls found</td>
+                                            <td colSpan="8" style={{ textAlign: 'center', padding: '16px', color: '#64748b' }}>No completed calls found</td>
                                         </tr>
                                     ) : (
                                         completedCalls.filter(c => {
@@ -1595,7 +1596,7 @@ const AttendingCallDashboard = ({ mode }) => {
                                 <tbody>
                                     {isLoading ? (
                                         <tr>
-                                            <td colSpan="9" style={{ textAlign: 'center', padding: '24px', color: '#64748b' }}>Loading closed calls...</td>
+                                            <td colSpan="9" style={{ textAlign: 'center', padding: '16px', color: '#64748b' }}>Loading closed calls...</td>
                                         </tr>
                                     ) : closedCalls.filter(c => {
                                         const q = (searchTerm || '').toLowerCase();
@@ -1606,7 +1607,7 @@ const AttendingCallDashboard = ({ mode }) => {
                                                (c.poNo?.toLowerCase() || '').includes(q);
                                     }).length === 0 ? (
                                         <tr>
-                                            <td colSpan="9" style={{ textAlign: 'center', padding: '24px', color: '#64748b' }}>No closed calls found</td>
+                                            <td colSpan="9" style={{ textAlign: 'center', padding: '16px', color: '#64748b' }}>No closed calls found</td>
                                         </tr>
                                     ) : (
                                         closedCalls.filter(c => {
@@ -1969,6 +1970,11 @@ const AttendingCallDashboard = ({ mode }) => {
                                                     const acceptedNos = Number(selectedActionCall.accepted);
                                                     const rejectedNos = Number(selectedActionCall.rejected);
                                                     if (selectedActionCall.isIssuance && Number.isFinite(acceptedNos) && Number.isFinite(rejectedNos) && (acceptedNos + rejectedNos) > 0) {
+                                                        // UOMs in QTY_UOM_RULES (e.g. RMT) hold fractional quantities in that UOM.
+                                                        const qtyRule = getQtyUomRule(selectedActionCall.uom, selectedActionCall.unit, selectedActionCall.callUnit);
+                                                        if (qtyRule) {
+                                                            return `${roundQty(acceptedNos + rejectedNos, qtyRule.decimals)} ${getEffectiveUom(selectedActionCall)}`;
+                                                        }
                                                         return `${acceptedNos + rejectedNos} ${getEffectiveUom(null)}`;
                                                     }
                                                     return `${selectedActionCall.qty ?? selectedActionCall.offeredQty ?? selectedActionCall.totalOffered ?? '-'} ${getEffectiveUom(selectedActionCall)}`;
@@ -2816,14 +2822,14 @@ const AttendingCallDashboard = ({ mode }) => {
                             width: '92%',
                             borderRadius: '20px',
                             background: '#ffffff',
-                            padding: '28px',
+                            padding: '18px',
                             boxShadow: '0 25px 50px -12px rgba(15, 23, 42, 0.25), 0 0 0 1px rgba(226, 232, 240, 0.9)',
                             border: 'none',
                             position: 'relative'
                         }}
                     >
                         {/* Header */}
-                        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: '20px' }}>
+                        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: '14px' }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
                                 <div style={{
                                     width: '44px',
@@ -2898,7 +2904,7 @@ const AttendingCallDashboard = ({ mode }) => {
                             border: '1px solid #e2e8f0',
                             borderRadius: '14px',
                             padding: '16px',
-                            marginBottom: '24px'
+                            marginBottom: '16px'
                         }}>
                             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px', marginBottom: '14px' }}>
                                 <div style={{ background: '#ffffff', padding: '10px 12px', borderRadius: '10px', border: '1px solid #edf2f7' }}>
@@ -3068,7 +3074,7 @@ const AttendingCallDashboard = ({ mode }) => {
                             width: '92%',
                             borderRadius: '20px',
                             background: '#ffffff',
-                            padding: '28px',
+                            padding: '18px',
                             boxShadow: '0 25px 50px -12px rgba(15, 23, 42, 0.25), 0 0 0 1px rgba(226, 232, 240, 0.9)',
                             border: 'none'
                         }}
@@ -3114,7 +3120,7 @@ const AttendingCallDashboard = ({ mode }) => {
                             </button>
                         </div>
 
-                        <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '16px', marginBottom: '20px' }}>
+                        <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '16px', marginBottom: '14px' }}>
                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px', paddingBottom: '12px', borderBottom: '1px solid #e2e8f0' }}>
                                 <span style={{ fontSize: '13px', color: '#64748b', fontWeight: '600' }}>IBS Status:</span>
                                 <span style={{ 
@@ -3308,7 +3314,7 @@ const AttendingCallDashboard = ({ mode }) => {
                             </div>
                         </div>
                         <div style={{
-                            padding: '16px 24px',
+                            padding: '12px 16px',
                             background: '#f8fafc',
                             borderTop: '1px solid #f1f5f9',
                             display: 'flex',
@@ -3509,7 +3515,7 @@ const RescheduleModal = ({ call, onClose, onConfirm }) => {
                 </div>
                 
                 {loadingDetails ? (
-                    <div style={{ padding: '30px', textAlign: 'center', color: '#64748b' }}>
+                    <div style={{ padding: '20px', textAlign: 'center', color: '#64748b' }}>
                         Loading call details...
                     </div>
                 ) : (

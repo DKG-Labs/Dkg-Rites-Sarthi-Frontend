@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { getIbsCallRegistrationData, searchIbsCompletedCalls, revertIbsCallToCompleted, getIbsCompletedCachedAt, prefetchIbsCompletedCalls } from '../../services/ibsService';
+import { getIbsCallRegistrationData, searchIbsCompletedCalls, revertIbsCallToCompleted } from '../../services/ibsService';
 import './IbsInspectionDataView.css';
 
 // Master category definitions for the 6 specific call streams
@@ -200,7 +200,6 @@ export const IbsInspectionDataView = ({ onNotify }) => {
     const [completedCalls, setCompletedCalls] = useState([]);
     const [completedTotal, setCompletedTotal] = useState(0);       // rows matching the filters
     const [completedStats, setCompletedStats] = useState(null);    // category counts over all completed calls
-    const [completedFetchedAt, setCompletedFetchedAt] = useState(null); // when the shown page was fetched
 
     const [pendingLoading, setPendingLoading] = useState(true);
     const [completedLoading, setCompletedLoading] = useState(false);
@@ -315,36 +314,27 @@ export const IbsInspectionDataView = ({ onNotify }) => {
         }
     };
 
+    // Completed tab: the server filters and returns one page. Date filter = IBS acknowledged date.
     const completedQuery = (extra = {}) => ({
         page: currentPage,
         size: pageSize,
         category: categoryFilter,
         product: productFilter,
-        region: regionFilter,
         status: statusFilter,
         search: debouncedSearch.trim(),
-        dateField,
         from: startDate,
         to: endDate,
-        sortKey: sortConfig.key,
-        sortDir: sortConfig.direction,
         ...extra
     });
 
-    const fetchCompletedCalls = async (refresh = false) => {
+    const fetchCompletedCalls = async () => {
         setCompletedLoading(true);
         setCompletedError(null);
         try {
-            const query = completedQuery();
-            const data = await searchIbsCompletedCalls(refresh ? { ...query, refresh: true } : query);
+            const data = await searchIbsCompletedCalls(completedQuery());
             setCompletedCalls(Array.isArray(data.content) ? data.content : []);
             setCompletedTotal(data.total || 0);
             if (data.stats) setCompletedStats(data.stats);
-            setCompletedFetchedAt(getIbsCompletedCachedAt(query) || Date.now());
-            // Warm the next page so "Next" opens instantly
-            if (query.page * query.size < (data.total || 0)) {
-                prefetchIbsCompletedCalls({ ...query, page: query.page + 1 });
-            }
         } catch (err) {
             console.error('Failed to load completed IBS calls:', err);
             setCompletedError(err.message || 'Failed to fetch completed IBS calls');
@@ -358,7 +348,7 @@ export const IbsInspectionDataView = ({ onNotify }) => {
             await fetchPendingCalls();
             notify('Refreshed pending calls data', 'success');
         } else {
-            await fetchCompletedCalls(true);
+            await fetchCompletedCalls();
             notify('Refreshed completed calls data', 'success');
         }
     };
@@ -391,13 +381,13 @@ export const IbsInspectionDataView = ({ onNotify }) => {
         return () => clearTimeout(t);
     }, [searchTerm]);
 
-    // Completed tab: reload the page whenever a filter, the sort or the page changes
+    // Completed tab: load the page whenever a filter or the page changes
     useEffect(() => {
         if (activeTab !== 'COMPLETED') return;
         fetchCompletedCalls();
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [activeTab, currentPage, pageSize, categoryFilter, productFilter, regionFilter, statusFilter,
-        debouncedSearch, dateField, startDate, endDate, sortConfig.key, sortConfig.direction]);
+    }, [activeTab, currentPage, pageSize, categoryFilter, productFilter, statusFilter,
+        debouncedSearch, startDate, endDate]);
 
     const applyDatePreset = (preset) => {
         setQuickDatePreset(preset);
@@ -636,7 +626,7 @@ export const IbsInspectionDataView = ({ onNotify }) => {
 
     // Sorted Calls
     const sortedCalls = useMemo(() => {
-        if (!sortConfig.key || isServerPaged) return filteredCalls; // server sorts the completed tab
+        if (!sortConfig.key) return filteredCalls; // completed tab: sorts the rows on the current page
 
         return [...filteredCalls].sort((a, b) => {
             let valA;
@@ -724,7 +714,7 @@ export const IbsInspectionDataView = ({ onNotify }) => {
             if (valA > valB) return sortConfig.direction === 'asc' ? 1 : -1;
             return 0;
         });
-    }, [filteredCalls, sortConfig, activeTab, isServerPaged]);
+    }, [filteredCalls, sortConfig, activeTab]);
 
     // Pagination calculations (completed tab: the server already returned just this page)
     const resultCount = isServerPaged ? completedTotal : sortedCalls.length;
@@ -891,15 +881,10 @@ export const IbsInspectionDataView = ({ onNotify }) => {
                         className="btn btn-secondary ibs-btn-action"
                         onClick={refreshData}
                         disabled={loading}
-                        title={isServerPaged ? 'Data is cached for a few minutes. Click to fetch the latest from IBS records.' : 'Reload live data from server'}
+                        title="Reload live data from server"
                     >
                         <span className={`ibs-reload-icon ${loading ? 'rotating' : ''}`}>🔄</span> Refresh Data
                     </button>
-                    {isServerPaged && completedFetchedAt && (
-                        <span style={{ fontSize: '0.75rem', color: '#64748b', alignSelf: 'center' }}>
-                            Updated {new Date(completedFetchedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                        </span>
-                    )}
                     <button
                         className="btn btn-primary ibs-btn-action"
                         onClick={exportToCsv}
@@ -1118,8 +1103,8 @@ export const IbsInspectionDataView = ({ onNotify }) => {
                     </select>
                 </div>
 
-                {/* Region Dropdown */}
-                <div className="ibs-filter-group">
+                {/* Region Dropdown (pending tab only: completed calls are paged on the server, which has no region filter) */}
+                {activeTab === 'PENDING' && <div className="ibs-filter-group">
                     <label>Region / RIO:</label>
                     <select
                         value={regionFilter}
@@ -1133,7 +1118,7 @@ export const IbsInspectionDataView = ({ onNotify }) => {
                         <option value="E">Eastern (E)</option>
                         <option value="S">Southern (S)</option>
                     </select>
-                </div>
+                </div>}
 
                 {/* Status Dropdowns (Dynamic per tab) */}
                 {activeTab === 'PENDING' ? (
@@ -1181,12 +1166,8 @@ export const IbsInspectionDataView = ({ onNotify }) => {
                                 className="ibs-select ibs-select-sm"
                             >
                                 {activeTab === 'COMPLETED' ? (
-                                    <>
-                                        <option value="ACK">Ack / Sync Date</option>
-                                        <option value="IC">IC Date</option>
-                                        <option value="CALL">Call Date</option>
-                                        <option value="ANY">Any Date</option>
-                                    </>
+                                    // Completed tab is filtered on the server by the IBS acknowledged date
+                                    <option value="ACK">Ack / Sync Date</option>
                                 ) : (
                                     <>
                                         <option value="CALL">Call Date</option>

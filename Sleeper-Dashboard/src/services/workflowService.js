@@ -893,15 +893,20 @@ export const deleteSgciInsertAudit = async (id) => {
 };
 
 /**
- * Save Water Cube Test Result
+ * Save Water Cube Test Result (creates a new record, or updates record `id` when given)
  * @param {Object} data - Test data record
- * @returns {Promise<Object>} Saved record
+ * @param {number} [id] - Existing test id to update (modify flow); omit to create
+ * @returns {Promise<Object>} Saved record: { id, finalTestResult, lotRejected, openCallNos, ... }
  */
-export const saveWaterCubeTestResult = async (data) => {
+export const saveWaterCubeTestResult = async (data, id) => {
   try {
     const token = getWorkflowToken();
-    const response = await fetch(`${API_BASE_URL}/water-cube-sample/save-test-result`, {
-      method: 'POST',
+    const isUpdate = id !== undefined && id !== null;
+    const url = isUpdate
+      ? `${API_BASE_URL}/water-cube-sample/updateTest/${id}`
+      : `${API_BASE_URL}/water-cube-sample/save-test-result`;
+    const response = await fetch(url, {
+      method: isUpdate ? 'PUT' : 'POST',
       headers: {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${token}`
@@ -1034,7 +1039,8 @@ export const deleteWaterCubeTest = async (id) => {
     });
 
     if (!response.ok) {
-      throw new Error('Failed to delete Water Cube Test');
+      // surfaces the server's reason (e.g. a test that rejected its lot cannot be deleted)
+      await handleRawResponse(response, 'Failed to delete Water Cube Test');
     }
   } catch (error) {
     console.error('Error deleting Water Cube Test:', error);

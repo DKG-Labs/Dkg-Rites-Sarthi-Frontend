@@ -1089,7 +1089,7 @@ const LoginPage = () => {
                           🔄 Refresh QR
                         </button>
                       )}
-                      {isLocalhost && (
+                      {skipAuthenticator && (
                         <button
                           type="button"
                           onClick={() => {

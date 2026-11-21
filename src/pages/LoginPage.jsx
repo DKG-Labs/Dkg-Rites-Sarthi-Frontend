@@ -204,13 +204,15 @@ const LoginPage = () => {
   const isProcessRole = (roleToStore) =>
     String(roleToStore || '').split(',').some(r => PROCESS_ROLES.has(r.trim()));
 
-  const isLocalhost = ['localhost', '127.0.0.1'].includes(window.location.hostname);
+  // Authenticator QR step is skipped on localhost and on Vercel UAT (*.vercel.app); it runs on the live site.
+  const skipAuthenticator = ['localhost', '127.0.0.1'].includes(window.location.hostname)
+    || window.location.hostname.endsWith('.vercel.app');
 
   const handleSelectRole = (selectedOption, alreadyAuthenticated = false) => {
     if (!pendingUserData) return;
     const finalUserData = { ...pendingUserData, roleName: selectedOption.roleToStore };
     setShowRoleSelection(false);
-    if (!isLocalhost && !alreadyAuthenticated && isProcessRole(selectedOption.roleToStore)) {
+    if (!skipAuthenticator && !alreadyAuthenticated && isProcessRole(selectedOption.roleToStore)) {
       setPendingUserData(finalUserData);
       startQrOrSkip(finalUserData);
     } else {
@@ -439,7 +441,7 @@ const LoginPage = () => {
     } else if (options.length === 1) {
       // Single option - check if process role needs authenticator (skip on localhost or post-QR)
       userData.roleName = options[0].roleToStore;
-      if (!isLocalhost && !alreadyAuthenticated && isProcessRole(options[0].roleToStore)) {
+      if (!skipAuthenticator && !alreadyAuthenticated && isProcessRole(options[0].roleToStore)) {
         setPendingUserData(userData);
         startQrOrSkip(userData);
       } else {
@@ -776,7 +778,7 @@ const LoginPage = () => {
                       ← Back to Login
                     </button>
                   </div>
-                ) : (showQrScreen && !isLocalhost) ? (
+                ) : (showQrScreen && !skipAuthenticator) ? (
                   <div className="dashboard-form authenticator-qr-container" style={{ marginTop: '0.2rem', textAlign: 'center', width: '100%' }}>
                     <div className="form-header" style={{ marginBottom: '0.75rem' }}>
                       <div style={{

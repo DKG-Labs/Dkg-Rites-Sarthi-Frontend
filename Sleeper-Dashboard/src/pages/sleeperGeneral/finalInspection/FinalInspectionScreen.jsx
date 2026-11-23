@@ -175,6 +175,18 @@ const FinalInspectionScreen = ({ call, onBack }) => {
     const verificationLoadedRef = React.useRef(null);
 
     const isSetUom = (() => {
+        // A UOM configured in QTY_UOM_RULES (e.g. RMT / Mtr) is a measured quantity, never a Set call,
+        // even when the sleeper type or description contains a Set/Turnout keyword.
+        // summaryData is declared further down (useState below), so it must not be read here.
+        if (getQtyUomRule(
+            icForm?.qtyUnit,
+            call?.uom,
+            call?.unit,
+            call?.callUnit
+        )) {
+            return false;
+        }
+
         const uomStr = String(
             icForm?.qtyUnit ||
             poForm?.poQty ||
@@ -412,7 +424,7 @@ const FinalInspectionScreen = ({ call, onBack }) => {
                 callNo: call.requestId || icForm.callNo,
                 rlyPoNo: poForm.poNo,
                 poDate: toDateTimeISO(poForm.poDate),
-                poQty: parseInt(poForm.poQty) || 0,
+                poQty: parseQty(poForm.poQty),
                 vendorName: poForm.vendorName,
                 maNo: (!poForm.maNo || poForm.maNo === 'N/A') ? '' : poForm.maNo,
                 maDate: formatDateISO(poForm.maDate),
@@ -456,7 +468,7 @@ const FinalInspectionScreen = ({ call, onBack }) => {
                 extDp: toDateTimeISO(icForm.extDp),
                 origDpStart: formatDateISO(icForm.origDpStart),
                 stageOfInspection: icForm.stage,
-                callQtyMt: parseInt(icForm.callQty) || 0,
+                callQtyMt: parseQty(icForm.callQty),
                 placeOfInspection: icForm.place,
                 processIcNumbers: icForm.processIc,
                 remarks: icForm.remarks,
@@ -508,6 +520,9 @@ const FinalInspectionScreen = ({ call, onBack }) => {
     const [activeActionLoading, setActiveActionLoading] = useState(null); // 'draft' | 'pause' | 'cancel' | 'finish' | null
     const isProcessing = Boolean(activeActionLoading);
     const hasLoadedRef = React.useRef(false);
+    // True once fetchInspectionData has restored the local draft. Until then the auto-save must not run,
+    // otherwise it overwrites the saved draft (e.g. the entered Rejected Qty) with the initial empty values.
+    const draftRestoredRef = React.useRef(false);
 
     useEffect(() => {
         const fetchInspectionData = async () => {
@@ -682,12 +697,15 @@ const FinalInspectionScreen = ({ call, onBack }) => {
 
                 // 3. Check Local Draft
                 let draftBatches = [];
+                // The draft is cleared on submit, so a draft Rejected Qty is the IE's latest unsaved entry
+                let draftHasRejectedQty = false;
                 const savedDraft = localStorage.getItem(`inspection_draft_${callNo}`);
                 if (savedDraft) {
                     try {
                         const draft = JSON.parse(savedDraft);
                         if (draft.rejectedSetsQty !== undefined && draft.rejectedSetsQty !== null) {
                             restoreRejectedQty(draft.rejectedSetsQty);
+                            draftHasRejectedQty = true;
                         }
                         if (draft && Array.isArray(draft.batches) && draft.batches.length > 0) {
                             const currentType = draft.summaryData?.sleeperType || call?.sleeperType || '';
@@ -725,7 +743,7 @@ const FinalInspectionScreen = ({ call, onBack }) => {
                         if (!(Number(call?.totalOffered ?? call?.offeredQty) > 0) && savedOffered != null && Number(savedOffered) > 0) {
                             setOfferedSetsQty(Number(savedOffered));
                         }
-                        if (savedRejected != null) {
+                        if (savedRejected != null && !draftHasRejectedQty) {
                             restoreRejectedQty(savedRejected);
                         }
                     }
@@ -874,6 +892,7 @@ const FinalInspectionScreen = ({ call, onBack }) => {
             } catch (err) {
                 console.error("Error initializing inspection data:", err);
             } finally {
+                draftRestoredRef.current = true;
                 setIsLoadingData(false);
             }
         };
@@ -883,6 +902,8 @@ const FinalInspectionScreen = ({ call, onBack }) => {
 
     // Auto-save local draft whenever batches or images are updated in memory
     useEffect(() => {
+        // Wait until the saved draft has been restored, so it is not overwritten with the initial values
+        if (!draftRestoredRef.current) return;
         const callNo = call?.requestId || call?.callNo || call?.call_no || call?.id;
         if (callNo && (Array.isArray(batches) && batches.length > 0 || (capturedImages && capturedImages.length > 0) || offeredSetsQty > 0 || rejectedSetsQty > 0)) {
             const draft = {

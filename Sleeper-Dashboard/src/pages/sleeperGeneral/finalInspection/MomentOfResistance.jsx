@@ -789,6 +789,8 @@ const MomentOfResistance = () => {
                         sleeperNo: sleeperNos,
                         testResult: 'Pending',
                         mrTestType: batch.mrTestType || 'Fresh',
+                        // The lot the samples are taken from: a Fail in double testing rejects this lot on the server
+                        productionDeclarationId: batch.productionDeclarationId || null,
                         remarks: `${groupTag}${declTag}${castTag}Declared for MR ${batch.mrTestType || 'Fresh'} Testing (${samples.length} Sleeper${samples.length > 1 ? 's' : ''})`,
                         vendorCode: params.vendorCode,
                         plantId: params.plantId,
@@ -822,6 +824,8 @@ const MomentOfResistance = () => {
             const testResultStatus = results.result; // 'Pass', 'Retest', 'Fail'
 
             const groupItems = record.groupRecords || (Array.isArray(record) ? record : [record]);
+            // Lots rejected by the server because MR failed in double testing (02 samples)
+            const rejectedLots = [];
 
             for (const item of groupItems) {
                 const declId = item.productionDeclarationId || extractDeclId(item);
@@ -856,10 +860,12 @@ const MomentOfResistance = () => {
                     }))
                 };
 
-                if (item.isTestRecord) {
-                    await apiService.updateMRTest(item.id, payload);
-                } else {
-                    await apiService.createMRTest(payload);
+                const savedRes = item.isTestRecord
+                    ? await apiService.updateMRTest(item.id, payload)
+                    : await apiService.createMRTest(payload);
+                const saved = savedRes?.responseData || {};
+                if (saved.lotRejected) {
+                    rejectedLots.push(saved.rejectedBatchNumber || payload.batchNumber);
                 }
 
                 if (testResultStatus === 'Retest' && item.id) {
@@ -881,6 +887,9 @@ const MomentOfResistance = () => {
             if (testResultStatus === 'Pass') {
                 toast.success(`MR Test Passed for batch(es): ${batchNames}! Entry shifted to completed testing.`);
                 setActiveTab('historical');
+            } else if (testResultStatus === 'Fail' && rejectedLots.length > 0) {
+                toast.error(`Lot ${rejectedLots.join(', ')} REJECTED: MR test failed in double testing (02 samples). Returned to vendor, all sleepers rejected.`);
+                setActiveTab('historical');
             } else if (testResultStatus === 'Fail') {
                 toast.error(`MR Test Failed for batch(es): ${batchNames}! Sleepers rejected.`);
                 setActiveTab('historical');
@@ -894,7 +903,7 @@ const MomentOfResistance = () => {
             setShowTestModal(false);
         } catch (error) {
             console.error("Failed to save MR test results:", error);
-            toast.error("Failed to save test results.");
+            toast.error(error?.message ? `Failed to save test results: ${error.message}` : "Failed to save test results.");
         } finally {
             setLoading(false);
         }

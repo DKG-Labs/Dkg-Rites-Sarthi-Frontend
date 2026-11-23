@@ -435,7 +435,7 @@ const CorrectionSlipModal = ({ row, onClose, viewOnly = false, isViewOnly = fals
           sealingPattern: editData?.sealingPattern || certData?.sealingPattern || merged.sealingPattern || (isProcess ? 'NA' : 'RITES HOLOGRAM SEAL'),
           facsimileText: editData?.facsimileText || certData?.facsimileText || merged.facsimileText || (isProcess ? 'NA' : 'RITES HOLOGRAM SEAL'),
           reasonsForRejection: (editData?.reasonsForRejection && editData.reasonsForRejection !== 'Not Applicable') ? editData.reasonsForRejection : (certData?.reasonsForRejection || certData?.reasonOfRejection || merged.reasonsForRejection || 'N/A'),
-          inspectingEngineer: editData?.inspectingEngineer || certData?.inspectingEngineer || currentUser?.userName || merged.inspectingEngineer || 'Inspecting Engineer',
+          inspectingEngineer: String(editData?.inspectingEngineer || certData?.inspectingEngineer || merged.inspectingEngineer || '').trim(),
           bookNo: editData?.bookNo || certData?.bookNo || merged.bookNo || '001',
           setNo: editData?.setNo || certData?.setNo || merged.setNo || '001',
           offeredInstNo: editData?.offeredInstNo || editData?.installmentNo || certData?.offeredInstNo || certData?.offeredInsttNo || merged.offeredInstNo || (isProcess ? '' : '1'),

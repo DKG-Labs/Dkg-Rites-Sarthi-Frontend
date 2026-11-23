@@ -318,3 +318,110 @@
     border: 1px solid #fde68a;
     box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
 }
+/* ── Compact layout (IE General page only — scoped so shared class names on other pages are untouched) ── */
+.ie-general-compact.ie-general-container {
+    padding: 8px 16px 16px;
+    min-height: auto;
+}
+
+.ie-general-compact .ie-modern-header {
+    position: static;
+    padding: 0;
+    margin-bottom: 10px;
+}
+
+.ie-general-compact .header-top-line {
+    gap: 10px;
+}
+
+.ie-general-compact .home-btn-glass {
+    width: 36px;
+    height: 36px;
+    min-width: 36px;
+    border-radius: 10px;
+}
+
+.ie-general-compact .home-btn-glass svg {
+    width: 18px;
+    height: 18px;
+}
+
+.ie-general-compact .meta-pill {
+    padding: 4px 10px;
+}
+
+.ie-general-compact .ie-sub-nav-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 8px;
+    margin-bottom: 10px;
+    padding-bottom: 10px;
+}
+
+.ie-general-compact .ie-sub-nav-card {
+    padding: 8px 12px;
+    gap: 10px;
+    border-radius: 12px;
+    min-height: 54px;
+}
+
+.ie-general-compact .ie-sub-nav-card:hover {
+    transform: translateY(-2px);
+}
+
+.ie-general-compact .card-icon-wrapper {
+    width: 32px;
+    height: 32px;
+    min-width: 32px;
+    border-radius: 9px;
+}
+
+.ie-general-compact .card-icon-wrapper svg {
+    width: 18px;
+    height: 18px;
+}
+
+.ie-general-compact .ie-sub-nav-card-title {
+    margin-bottom: 1px;
+    padding-right: 4px;
+}
+
+.ie-general-compact .under-development .ie-sub-nav-card-title {
+    padding-right: 96px;
+}
+
+.ie-general-compact .dev-badge {
+    top: 6px;
+    right: 6px;
+    font-size: 7px;
+    padding: 1px 5px;
+}
+
+/* Plant Verification stats on a single line instead of stacked */
+.ie-general-compact .pv-card-stats {
+    flex-direction: row;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 2px;
+}
+
+.ie-general-compact .active-indicator {
+    height: 24px;
+}
+
+.ie-general-compact .ie-sub-view-content {
+    padding: 12px;
+    border-radius: 16px;
+}
+
+@media (max-width: 1024px) {
+    .ie-general-compact .ie-sub-nav-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+
+@media (max-width: 640px) {
+    .ie-general-compact .ie-sub-nav-grid {
+        grid-template-columns: 1fr;
+    }
+}

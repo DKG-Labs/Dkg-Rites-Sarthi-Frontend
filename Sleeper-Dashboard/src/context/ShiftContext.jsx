@@ -97,7 +97,8 @@ export const ShiftProvider = ({ children }) => {
         setVendorCode('');
         setCompanyName('');
         setVendorId('');
-        setUserId('');
+        // userId is the logged-in user (set at login, cleared at logout), not duty state: ending a duty keeps it,
+        // otherwise every later workflow action is sent with actionBy 0 and rejected by the backend.
         setActiveContainerId(1);
         setContainers([{ id: 1, type: 'Line', name: 'Line I' }]);
 
@@ -123,7 +124,6 @@ export const ShiftProvider = ({ children }) => {
         localStorage.removeItem('vendorCode');
         localStorage.removeItem('companyName');
         localStorage.removeItem('vendorId');
-        localStorage.removeItem('userId');
 
         // A new duty must start from fresh server data
         loadedAtRef.current = {};
@@ -141,7 +141,8 @@ export const ShiftProvider = ({ children }) => {
         localStorage.setItem('vendorCode', vendorCode);
         localStorage.setItem('companyName', companyName);
         localStorage.setItem('vendorId', vendorId);
-        localStorage.setItem('userId', userId);
+        // Never overwrite the logged-in user's id with an empty value
+        if (userId) localStorage.setItem('userId', userId);
         localStorage.setItem('activeContainerId', activeContainerId);
     }, [dutyStarted, selectedShift, dutyDate, dutyUnit, dutyLocation, activeContainerId, vendorCode, companyName, vendorId, userId]);
 

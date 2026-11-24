@@ -101,12 +101,12 @@ const NewTestSampleDeclaration = () => {
 
   const handleFormSubmit = () => {
     // Navigate back to Test Sample List after form submission
-    navigate("/stage/testSampleMarkingList", {
+    navigate("/sms/stage/testSampleMarkingList", {
       state: {
         module: module,
         dutyId: dutyId,
         generalInfo: generalInfo,
-        redirectTo: "/stage/home"
+        redirectTo: "/sms/stage/home"
       }
     });
   };
@@ -123,7 +123,7 @@ const NewTestSampleDeclaration = () => {
     <FormContainer>
       <SubHeader
         title={editMode ? "Edit Test Sample - Declaration" : "New Test Sample - Declaration"}
-        link="/stage/home"
+        link="/sms/stage/home"
       />
       <GeneralInfo data={getCurrentDutyInfo()} />
 

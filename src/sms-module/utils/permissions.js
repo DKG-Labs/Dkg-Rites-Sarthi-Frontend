@@ -1,4 +1,8 @@
 /* eslint-disable */
+import { isPermissionModuleEnabled } from './enabledModules';
+
+/** true when the permission belongs to a rail-mill stage that is still "under development" (utils/enabledModules.js) */
+export const isUnderDevelopment = (permission) => !isPermissionModuleEnabled(permission);
 // Centralized Role-Based Access Control Configuration
 // This file defines all permissions and role mappings for the RITES QA System
 

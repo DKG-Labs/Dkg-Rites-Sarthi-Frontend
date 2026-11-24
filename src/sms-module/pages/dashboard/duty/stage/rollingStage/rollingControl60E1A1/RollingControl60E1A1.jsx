@@ -35,7 +35,7 @@ const RollingControl60E1A1 = () => {
 
   return (
     <FormContainer>
-      <SubHeader title="Rolling Control Sample Dimensions - 60E1A1" link="/stage/rollingControl" />
+      <SubHeader title="Rolling Control Sample Dimensions - 60E1A1" link="/sms/stage/rollingControl" />
       <GeneralInfo data={rollingControl60E1A1GeneralInfo} />
 
       <FormBody initialValues={formData} onFinish={handleFormSubmit}>

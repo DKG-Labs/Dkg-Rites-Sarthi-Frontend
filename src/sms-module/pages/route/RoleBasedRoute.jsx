@@ -2,7 +2,7 @@
 import { useSelector } from 'react-redux';
 import { Navigate, Outlet } from 'react-router-dom';
 import { message } from 'antd';
-import { hasPermission } from '../../utils/permissions';
+import { hasPermission, isUnderDevelopment } from '../../utils/permissions';
 
 // Note: Role permissions are now centralized in utils/permissions.js
 
@@ -63,6 +63,11 @@ const RoleBasedRoute = ({ requiredPermission, children }) => {
     return <Navigate to="/login" replace />;
   }
   
+  // Stage shown as "Under Development" (utils/enabledModules.js): no access by URL either, for any role
+  if (requiredPermission && isUnderDevelopment(requiredPermission)) {
+    return <Navigate to="/sms/underConstruction" replace />;
+  }
+
   // Main Admin has full access
   if (userType === 'MAIN_ADMIN') {
     return children ? children : <Outlet />;

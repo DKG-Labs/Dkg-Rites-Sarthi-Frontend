@@ -1,6 +1,6 @@
 /* eslint-disable */
 import React, { useContext, useState, useRef } from 'react';
-import { useSelector } from 'react-redux';
+import { useSelector, shallowEqual } from 'react-redux';
 import { useNavigate, useLocation } from 'react-router-dom';
 import {
   UserOutlined, CalendarOutlined, HomeOutlined, IdcardOutlined,
@@ -12,18 +12,18 @@ import {
 import { message, Tooltip, Modal, Button } from 'antd';
 import Tab from '../../../components/DKG_Tab';
 import { ActiveTabContext } from '../../../context/dashboardActiveTabContext';
-import { filterByPermissions } from '../../../utils/permissions';
+import { filterByPermissions, isUnderDevelopment } from '../../../utils/permissions';
 
 const dutyItemTabs = [
-  { id: 1, title: 'SMS', icon: <MessageOutlined />, link: '/sms', permission: 'duty-sms', dutyKey: 'smsDuty', blockable: true },
-  { id: 2, title: 'Rolling Stage', icon: <AuditOutlined />, link: '/stage', permission: 'duty-rolling', dutyKey: 'rollingDuty', blockable: true },
-  { id: 3, title: 'NDT', icon: <RadarChartOutlined />, link: '/ndt', permission: 'duty-ndt', dutyKey: 'ndtDuty', blockable: true },
-  { id: 4, title: 'Testing', icon: <ExperimentOutlined />, link: '/testing', permission: 'duty-testing', dutyKey: 'testingDuty', blockable: true },
-  { id: 5, title: 'Visual Inspection', icon: <EyeOutlined />, link: '/visual', permission: 'duty-vi', dutyKey: 'viDuty', blockable: true },
-  { id: 6, title: 'Welding Inspection', icon: <DeploymentUnitOutlined />, link: '/welding', permission: 'duty-welding', dutyKey: 'weldingDuty', blockable: true },
-  { id: 7, title: 'Short Rail Inspection', icon: <CompassOutlined />, link: '/srInspection', permission: 'duty-sr-inspection', dutyKey: 'sriDuty', blockable: true },
-  { id: 8, title: 'QCT', icon: <DatabaseOutlined />, link: '/qct', permission: 'duty-qct', dutyKey: 'qctDuty', blockable: false },
-  { id: 9, title: 'Calibration', icon: <ToolOutlined />, link: '/calibration', permission: 'duty-calibration', dutyKey: 'calibrationDuty', blockable: false },
+  { id: 1, title: 'SMS', icon: <MessageOutlined />, link: '/sms/sms', permission: 'duty-sms', dutyKey: 'smsDuty', blockable: true },
+  { id: 2, title: 'Rolling Stage', icon: <AuditOutlined />, link: '/sms/stage', permission: 'duty-rolling', dutyKey: 'rollingDuty', blockable: true },
+  { id: 3, title: 'NDT', icon: <RadarChartOutlined />, link: '/sms/ndt', permission: 'duty-ndt', dutyKey: 'ndtDuty', blockable: true },
+  { id: 4, title: 'Testing', icon: <ExperimentOutlined />, link: '/sms/testing', permission: 'duty-testing', dutyKey: 'testingDuty', blockable: true },
+  { id: 5, title: 'Visual Inspection', icon: <EyeOutlined />, link: '/sms/visual', permission: 'duty-vi', dutyKey: 'viDuty', blockable: true },
+  { id: 6, title: 'Welding Inspection', icon: <DeploymentUnitOutlined />, link: '/sms/welding', permission: 'duty-welding', dutyKey: 'weldingDuty', blockable: true },
+  { id: 7, title: 'Short Rail Inspection', icon: <CompassOutlined />, link: '/sms/srInspection', permission: 'duty-sr-inspection', dutyKey: 'sriDuty', blockable: true },
+  { id: 8, title: 'QCT', icon: <DatabaseOutlined />, link: '/sms/qct', permission: 'duty-qct', dutyKey: 'qctDuty', blockable: false },
+  { id: 9, title: 'Calibration', icon: <ToolOutlined />, link: '/sms/calibration', permission: 'duty-calibration', dutyKey: 'calibrationDuty', blockable: false },
   { id: 10, title: 'Info', icon: <LineChartOutlined />, permission: 'admin' },
 ];
 
@@ -55,12 +55,14 @@ const Home = () => {
     sriDuty: state.sriDuty,
     qctDuty: state.qctDuty,
     calibrationDuty: state.calibrationDuty
-  }));
+  }), shallowEqual);
 
   const smsDuty = dutyStates.smsDuty;
 
   // Filter duty tabs based on user permissions
-  const filteredTabs = filterByPermissions(dutyItemTabs, userType);
+  // role-allowed modules + every module still "Under Development" (shown dimmed, not openable)
+  const allowedIds = new Set(filterByPermissions(dutyItemTabs, userType).map(t => t.id));
+  const filteredTabs = dutyItemTabs.filter(t => allowedIds.has(t.id) || (t.permission && isUnderDevelopment(t.permission)));
 
   // Check if any blockable duty is currently active (excludes QCT and Calibration)
   const getActiveDuty = () => {
@@ -82,6 +84,11 @@ const Home = () => {
   const activeDuty = getActiveDuty();
 
   const handleTabClick = (item) => {
+    if (isUnderDevelopment(item.permission)) {
+      message.info(`🚧 "${item.title}" is under development and will be available in a future release.`);
+      navigate('/sms/underConstruction');
+      return;
+    }
     // SMS card click handler -> opens Start/Resume modal
     if (item.dutyKey === 'smsDuty') {
       if (activeDuty && activeDuty.dutyKey !== 'smsDuty') {
@@ -152,15 +159,15 @@ const Home = () => {
 
       return (
         <div key={item.id}>
-          {isBlocked ? (
-            <Tooltip title={`Cannot start ${item.title} duty. End current ${activeDuty.dutyTitle} duty first.`}>
+          {isUnderDevelopment(item.permission) ? (<Tooltip title="🚧 Under development — will be available in a future release"><span style={{ display: "block" }}><Tab title={item.title} icon={item.icon} onClick={() => handleTabClick(item)} className="opacity-60 bg-gray-50" /></span></Tooltip>) : isBlocked ? (
+            <Tooltip title={`Cannot start ${item.title} duty. End current ${activeDuty.dutyTitle} duty first.`}><span style={{ display: "block" }}>
               <Tab
                 title={item.title}
                 icon={item.icon}
                 onClick={() => handleTabClick(item)}
                 className="opacity-60 cursor-not-allowed bg-gray-100"
               />
-            </Tooltip>
+            </span></Tooltip>
           ) : (
             <Tab
               title={item.title}

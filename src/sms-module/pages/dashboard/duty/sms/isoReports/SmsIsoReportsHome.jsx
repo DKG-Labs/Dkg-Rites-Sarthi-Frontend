@@ -1,7 +1,7 @@
 /* eslint-disable */
 import React from 'react'
 import { LineChartOutlined, ExperimentOutlined, ToolOutlined } from '@ant-design/icons';
-import { useSelector } from 'react-redux';
+import { useSelector, shallowEqual } from 'react-redux';
 import FormContainer from '../../../../../components/DKG_FormContainer';
 import SubHeader from '../../../../../components/DKG_SubHeader';
 import GeneralInfo from '../../../../../components/DKG_GeneralInfo';
@@ -34,7 +34,7 @@ const SmsIsoReportsHome = () => {
     Shift: state?.smsDuty?.shift,
     Sms: state?.smsDuty?.sms,
     RailGrade: state?.smsDuty?.railGrade
-  }));
+  }), shallowEqual);
 
   return (
     <FormContainer className='flex flex-col gap-4 md:gap-8'>

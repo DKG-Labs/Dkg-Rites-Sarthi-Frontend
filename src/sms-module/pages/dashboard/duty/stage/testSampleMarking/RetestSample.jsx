@@ -135,12 +135,12 @@ const testTypeDropdown = [
             }
 
             // Navigate to Test Sample - Declaration page after successful save
-            navigate("/stage/testSampleMarkingList", {
+            navigate("/sms/stage/testSampleMarkingList", {
                 state: {
                     module: "stage",
                     dutyId: dutyId,
                     generalInfo: generalInfo, // Preserve the original general info
-                    redirectTo: "/stage/home"
+                    redirectTo: "/sms/stage/home"
                 }
             });
         } catch (error) {

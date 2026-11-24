@@ -44,9 +44,10 @@ import {
   WarningOutlined
 } from "@ant-design/icons";
 import IconBtn from "./DKG_IconBtn";
-import { useDispatch, useSelector } from "react-redux";
+import { useDispatch, useSelector, shallowEqual } from "react-redux";
 import { logout } from "../store/slice/authSlice";
 import { ActiveTabContext } from "../context/dashboardActiveTabContext";
+import { isModuleEnabled, isPermissionModuleEnabled } from "../utils/enabledModules";
 
 // Define role-based access permissions for menu items
 const ROLE_PERMISSIONS = {
@@ -161,7 +162,6 @@ const items = [
         icon: <AuditOutlined />,
         label: "Rolling Stage",
         permission: "duty-rolling",
-        underConstruction: true,
         items: [
           {
             key: "2.3.1",
@@ -594,48 +594,56 @@ const items = [
         key: "6.2",
         icon: <AuditOutlined />,
         label: "Rolling Stage",
-        underConstruction: true,
+        module: "rolling",
+        path: "/sms/iso/rolling",
       },
       {
         key: "6.3",
         icon: <EyeOutlined />,
         label: "Visual Inspection",
+        module: "vi",
         underConstruction: true,
       },
       {
         key: "6.4",
         icon: <DeploymentUnitOutlined />,
         label: "Welding Inspection",
+        module: "welding",
         underConstruction: true,
       },
       {
         key: "6.5",
         icon: <CompassOutlined />,
         label: "Short Rail Inspection",
+        module: "sri",
         underConstruction: true,
       },
       {
         key: "6.6",
         icon: <RadarChartOutlined />,
         label: "NDT",
+        module: "ndt",
         underConstruction: true,
       },
       {
         key: "6.7",
         icon: <ExperimentOutlined />,
         label: "Testing",
+        module: "testing",
         underConstruction: true,
       },
       {
         key: "6.8",
         icon: <DatabaseOutlined />,
         label: "QCT",
+        module: "qct",
         underConstruction: true,
       },
       {
         key: "6.9",
         icon: <ToolOutlined />,
         label: "Calibration",
+        module: "calibration",
         underConstruction: true,
       },
     ],
@@ -671,7 +679,7 @@ const SideNav = ({ collapsed, toggleCollapse, isMobile }) => {
     sriDuty: state.sriDuty,
     qctDuty: state.qctDuty,
     calibrationDuty: state.calibrationDuty
-  }));
+  }), shallowEqual);
 
   // Define blockable duty types and their corresponding duty keys
   const blockableDuties = {
@@ -792,6 +800,13 @@ const SideNav = ({ collapsed, toggleCollapse, isMobile }) => {
   const filterMenuItems = (menuItems) => {
     const result = [];
     for (const item of menuItems) {
+      // Rail-mill stage not yet enabled: keep it in the menu as "Under Development" (no sub-menu, no navigation)
+      if ((item.permission && !isPermissionModuleEnabled(item.permission)) || (item.module && !isModuleEnabled(item.module))) {
+        // shown for every role (display only — it cannot be opened)
+        const { items: _children, path: _path, ...rest } = item;
+        result.push({ ...rest, underConstruction: true });
+        continue;
+      }
       let subItems = [];
       if (item.items) {
         subItems = filterMenuItems(item.items);
@@ -855,39 +870,31 @@ const SideNav = ({ collapsed, toggleCollapse, isMobile }) => {
 
       // If it has sub-items, render as a clickable SubMenu that intercepts expand
       if (item.items) {
-        return (
-          <Menu.SubMenu
-            key={item.key}
-            icon={item.icon}
-            title={
-              <span
-                onClick={(e) => { e.stopPropagation(); handleUnderConstructionClick(); }}
-                className="opacity-60"
-              >
-                {item.label} <span style={{ fontSize: 10, marginLeft: 4 }}>🚧</span>
-              </span>
-            }
-            className="opacity-60"
-            onTitleClick={handleUnderConstructionClick}
-          >
-            <Menu.Item key={`${item.key}-uc`} disabled>
-              🚧 Under Construction
-            </Menu.Item>
-          </Menu.SubMenu>
-        );
+        return {
+          key: item.key,
+          icon: item.icon,
+          label: (
+            <span
+              onClick={(e) => { e.stopPropagation(); handleUnderConstructionClick(); }}
+              className="opacity-60"
+            >
+              {item.label} <span style={{ fontSize: 10, marginLeft: 4 }}>🚧</span>
+            </span>
+          ),
+          className: "opacity-60",
+          onTitleClick: handleUnderConstructionClick,
+          children: [{ key: `${item.key}-uc`, label: "🚧 Under Construction", disabled: true }],
+        };
       }
 
       // Leaf item under construction
-      return (
-        <Menu.Item
-          key={item.key}
-          icon={item.icon}
-          onClick={handleUnderConstructionClick}
-          className="opacity-60"
-        >
-          <span>{item.label} <span style={{ fontSize: 10 }}>🚧</span></span>
-        </Menu.Item>
-      );
+      return {
+        key: item.key,
+        icon: item.icon,
+        onClick: handleUnderConstructionClick,
+        className: "opacity-60",
+        label: <span>{item.label} <span style={{ fontSize: 10 }}>🚧</span></span>,
+      };
     }
 
     if (!item.items) {
@@ -900,11 +907,10 @@ const SideNav = ({ collapsed, toggleCollapse, isMobile }) => {
       // Check if this duty start path should be blocked
       const isBlocked = isDutyStartPath && activeDuty && isDutyStartPath.dutyKey !== activeDuty.dutyKey;
 
-      return (
-        <Menu.Item
-          key={item.key}
-          icon={item.icon}
-          onClick={() => {
+      return {
+        key: item.key,
+        icon: item.icon,
+        onClick: () => {
             handleMenuItemClick(item.activeTab);
             // Use duty navigation handler for duty start paths, otherwise use normal navigation
             if (isDutyStartPath) {
@@ -913,44 +919,33 @@ const SideNav = ({ collapsed, toggleCollapse, isMobile }) => {
             if (isMobile) {
               toggleCollapse();
             }
-          }}
-          className={`${
+        },
+        className: `${
             activeTab === item.activeTab ? "ant-menu-item-selected" : ""
           } ${isActiveDuty ? "!bg-green-500 !text-white" : ""} ${
             isBlocked ? "opacity-60 cursor-not-allowed" : ""
-          }`}
-          style={isActiveDuty ? { backgroundColor: '#10b981', color: 'white' } : {}}
-          title={isBlocked ? `Cannot start ${isDutyStartPath.title} duty. End current ${activeDuty.dutyTitle} duty first.` : undefined}
-        >
-          {isDutyStartPath ? (
-            // For duty start paths, use span instead of Link to prevent default navigation
-            <span style={isActiveDuty ? { color: 'white' } : {}}>{item.label}</span>
-          ) : (
-            // For normal paths, use Link as before
-            <Link to={item.path} style={isActiveDuty ? { color: 'white' } : {}}>{item.label}</Link>
-          )}
-        </Menu.Item>
-      );
+          }`,
+        style: isActiveDuty ? { backgroundColor: '#10b981', color: 'white' } : {},
+        title: isBlocked ? `Cannot start ${isDutyStartPath.title} duty. End current ${activeDuty.dutyTitle} duty first.` : undefined,
+        // duty start paths use a span (navigation handled in onClick); others use Link
+        label: isDutyStartPath
+          ? <span style={isActiveDuty ? { color: 'white' } : {}}>{item.label}</span>
+          : <Link to={item.path} style={isActiveDuty ? { color: 'white' } : {}}>{item.label}</Link>,
+      };
     }
 
     // For submenus, show green for any active duty module
     const isThisSubmenuActiveDuty = isDutyModuleActive(item.permission);
     const isActiveDutySubmenu = isThisSubmenuActiveDuty;
 
-    return (
-      <Menu.SubMenu
-        key={item.key}
-        icon={item.icon}
-        title={item.label}
-        className={isActiveDutySubmenu ? "active-duty-submenu" : ""}
-        style={isActiveDutySubmenu ? {
-          backgroundColor: '#10b981',
-          color: 'white',
-        } : {}}
-      >
-        {item.items.map((child) => displaySideNavItems(child))}
-      </Menu.SubMenu>
-    );
+    return {
+      key: item.key,
+      icon: item.icon,
+      label: item.label,
+      className: isActiveDutySubmenu ? "active-duty-submenu" : "",
+      style: isActiveDutySubmenu ? { backgroundColor: '#10b981', color: 'white' } : {},
+      children: item.items.map((child) => displaySideNavItems(child)),
+    };
   };
   const menuItems = filteredItems.map(displaySideNavItems);
 
@@ -1025,9 +1020,8 @@ const SideNav = ({ collapsed, toggleCollapse, isMobile }) => {
           selectedKeys={selectedKey ? [selectedKey] : []}
           className="!bg-[#fcfdfd] border-r-0 !py-2"
           inlineCollapsed={!isMobile && collapsed}
-        >
-          {menuItems}
-        </Menu>
+          items={menuItems}
+        />
       </Sider>
     </Layout>
   );

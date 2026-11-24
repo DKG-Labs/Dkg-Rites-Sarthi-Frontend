@@ -6,22 +6,22 @@ const getStageHomeTabs = (railGrade) => {
         {
             title: 'Rail Rolling Control',
             icon: <ControlOutlined />,
-            link: "/stage/rollingControl"
+            link: "/sms/stage/rollingControl"
         },
         {
             title: 'Rolling Verification',
             icon: <DashboardOutlined />,
-            link: "/stage/rollingVerification"
+            link: "/sms/stage/rollingVerification"
         },
         {
             title: 'Rail Finishing Verification',
             icon: <HistoryOutlined />,
-            link: "/stage/finishingVerification"
+            link: "/sms/stage/finishingVerification"
         },
         {
             title: 'HT Sequence',
             icon: <ForkOutlined />,
-            link: "/stage/htSequence"
+            link: "/sms/stage/htSequence"
         }
     ];
 

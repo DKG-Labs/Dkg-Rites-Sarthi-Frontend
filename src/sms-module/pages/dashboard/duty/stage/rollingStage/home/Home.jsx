@@ -21,7 +21,7 @@ const Home = () => {
 
     const handleFormSubmit = async () => {
         await dispatch(endRollingDuty(formData)).unwrap();
-        navigate('/')
+        navigate('/sms/')
     }
 
 
@@ -31,20 +31,20 @@ const Home = () => {
     const testSampleMarkingTab = {
         title: 'Testing Sample Marking',
         icon: <ExperimentOutlined />,
-        link: "/stage/testSampleMarkingList",
+        link: "/sms/stage/testSampleMarkingList",
         state: {
             state: {
                 module: 'rolling',
                 dutyId: rollingGeneralInfo.dutyId,
                 generalInfo: rollingGeneralInfo,
-                redirectTo: "/stage/home"
+                redirectTo: "/sms/stage/home"
             }
         }
     }
 
   return (
     <FormContainer>
-        <SubHeader title="Stage - Home" link="/" />
+        <SubHeader title="Stage - Home" link="/sms/" />
         <GeneralInfo data={rollingGeneralInfo} />
 
         <section className="mt-6">

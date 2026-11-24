@@ -12,7 +12,7 @@ import FormInputItem from '../../../../../components/DKG_FormInputItem';
 import Btn from '../../../../../components/DKG_Btn';
 import { useNavigate } from 'react-router-dom';
 import { handleChange } from '../../../../../utils/CommonFunctions';
-import { useDispatch, useSelector } from 'react-redux';
+import { useDispatch, useSelector, shallowEqual } from 'react-redux';
 import { endSmsDuty } from '../../../../../store/slice/smsDutySlice';
 
 const smsDutyEndTabs = [
@@ -66,7 +66,7 @@ const SmsDutyEnd = () => {
     Shift: state?.smsDuty?.shift,
     Sms: state?.smsDuty?.sms,
     RailGrade: state?.smsDuty?.railGrade
-  }));
+  }), shallowEqual);
 
   return (
     <FormContainer className='flex flex-col gap-4 md:gap-8'>

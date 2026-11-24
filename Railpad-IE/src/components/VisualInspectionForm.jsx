@@ -7,6 +7,7 @@ const VisualInspectionForm = ({ onSubmit, onCancel, editData, currentShift, isVi
     timeOfCheck: '',
     clearCutSides: 'Yes',
     smoothSurface: 'Yes',
+    freedomFromDefects: 'Satisfactory',
     defectRemarks: '',
     status: 'OK'
   });
@@ -22,7 +23,10 @@ const VisualInspectionForm = ({ onSubmit, onCancel, editData, currentShift, isVi
 
   useEffect(() => {
     if (editData) {
-      setFormData(editData);
+      setFormData({
+        ...editData,
+        freedomFromDefects: editData.freedomFromDefects || 'Satisfactory'
+      });
     } else {
       const now = new Date();
       const timeString = now.toTimeString().slice(0, 5);
@@ -32,9 +36,11 @@ const VisualInspectionForm = ({ onSubmit, onCancel, editData, currentShift, isVi
 
   // Update status automatically based on visual checks
   useEffect(() => {
-    const isOk = formData.clearCutSides === 'Yes' && formData.smoothSurface === 'Yes';
+    const isOk = formData.clearCutSides === 'Yes' &&
+                 formData.smoothSurface === 'Yes' &&
+                 formData.freedomFromDefects === 'Satisfactory';
     setFormData(prev => ({ ...prev, status: isOk ? 'OK' : 'Not OK' }));
-  }, [formData.clearCutSides, formData.smoothSurface]);
+  }, [formData.clearCutSides, formData.smoothSurface, formData.freedomFromDefects]);
 
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -97,6 +103,12 @@ const VisualInspectionForm = ({ onSubmit, onCancel, editData, currentShift, isVi
             </div>
             <div className="form-group">
               <div className="skeleton-bar" style={{ width: '110px', height: '14px', marginBottom: '8px' }} />
+              <div className="skeleton-bar" style={{ width: '100%', height: '40px', borderRadius: '6px' }} />
+            </div>
+          </div>
+          <div className="form-grid" style={{ marginTop: '12px' }}>
+            <div className="form-group">
+              <div className="skeleton-bar" style={{ width: '140px', height: '14px', marginBottom: '8px' }} />
               <div className="skeleton-bar" style={{ width: '100%', height: '40px', borderRadius: '6px' }} />
             </div>
           </div>
@@ -199,12 +211,28 @@ const VisualInspectionForm = ({ onSubmit, onCancel, editData, currentShift, isVi
                 <option value="No">No</option>
               </select>
               <span style={{ fontSize: '10px', color: '#64748b', marginTop: '4px', display: 'block' }}>
-                Ensure that the Rail pads have smooth surface free from defects.
+                Ensure that the Rail pads have smooth surface.
               </span>
             </div>
           </div>
 
-          {(formData.clearCutSides === 'No' || formData.smoothSurface === 'No') && (
+          <div className="form-grid" style={{ marginTop: '12px' }}>
+            <div className="form-group">
+              <label>Freedom from Defects</label>
+              <select
+                value={formData.freedomFromDefects || 'Satisfactory'}
+                onChange={e => setFormData({ ...formData, freedomFromDefects: e.target.value })}
+              >
+                <option value="Satisfactory">Satisfactory</option>
+                <option value="Not Satisfactory">Not Satisfactory</option>
+              </select>
+              <span style={{ fontSize: '10px', color: '#64748b', marginTop: '4px', display: 'block' }}>
+                Ensure that the Rail pads are free from defects.
+              </span>
+            </div>
+          </div>
+
+          {(formData.clearCutSides === 'No' || formData.smoothSurface === 'No' || formData.freedomFromDefects === 'Not Satisfactory') && (
             <div className="form-group" style={{ marginTop: '1rem' }}>
               <label>Defect Remarks <span style={{ color: '#ef4444' }}>*</span></label>
               <textarea

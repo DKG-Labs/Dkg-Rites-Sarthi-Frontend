@@ -640,6 +640,7 @@ const App = () => {
             timeOfCheck: item.timeOfCheck,
             clearCutSides: item.clearCutSides,
             smoothSurface: item.smoothSurface,
+            freedomFromDefects: item.freedomFromDefects || 'Satisfactory',
             defectRemarks: item.defectRemarks,
             status: item.status,
             timestamp: item.timestamp || new Date().toISOString()
@@ -960,6 +961,7 @@ const App = () => {
           timeOfCheck: newData.timeOfCheck,
           clearCutSides: newData.clearCutSides,
           smoothSurface: newData.smoothSurface,
+          freedomFromDefects: newData.freedomFromDefects || 'Satisfactory',
           defectRemarks: newData.defectRemarks,
           status: newData.status,
           timestamp: newData.timestamp

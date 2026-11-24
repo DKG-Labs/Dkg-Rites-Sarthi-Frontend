@@ -24,6 +24,7 @@ import {
 } from '../../../services/correctionSlipService';
 import { downloadOrNotifyCaseLetter, fetchSavedCaseLetterInfo, viewSavedCaseLetterPdf } from '../../../services/caseLetterService';
 import { getQtyUomRule, roundQty } from '../../../utils/uomQuantity';
+import { getCaseRioMismatch, CaseRioLockedAction } from '../../../utils/caseRioCheck';
 
 const resolveSleeperCaseNo = (rawCaseNo, rio) => {
     if (!rawCaseNo || !String(rawCaseNo).trim()) return '-';
@@ -812,6 +813,8 @@ const AttendingCallDashboard = ({ mode }) => {
     };
 
     const handleOpenViewActions = (call) => {
+        // Case number of another RIO: no actions for this IE (button and status badge both land here)
+        if (getCaseRioMismatch(call)) return;
         const availableActions = [];
         const jst = (call.jobStatus || call.status || '').toUpperCase();
         if (jst === 'RIO_VERIFIED') {
@@ -1329,7 +1332,10 @@ const AttendingCallDashboard = ({ mode }) => {
                                                 </td>
                                                 <td>
                                                     <div className="table-actions-modern">
-                                                        <button 
+                                                        {getCaseRioMismatch(call) ? (
+                                                            <CaseRioLockedAction mismatch={getCaseRioMismatch(call)} />
+                                                        ) : (
+                                                        <button
                                                             onClick={(e) => {
                                                                 e.stopPropagation();
                                                                 handleOpenViewActions(call);
@@ -1349,6 +1355,7 @@ const AttendingCallDashboard = ({ mode }) => {
                                                         >
                                                             VIEW ACTIONS
                                                         </button>
+                                                        )}
                                                     </div>
                                                 </td>
                                             </tr>
@@ -1420,6 +1427,9 @@ const AttendingCallDashboard = ({ mode }) => {
                                                 </td>
                                                 <td style={{ textAlign: 'center', whiteSpace: 'nowrap' }}>
                                                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                                        {getCaseRioMismatch(call) ? (
+                                                            <CaseRioLockedAction mismatch={getCaseRioMismatch(call)} label="View Actions" />
+                                                        ) : (
                                                         <button 
                                                             style={{ 
                                                                 display: 'inline-flex',
@@ -1446,6 +1456,7 @@ const AttendingCallDashboard = ({ mode }) => {
                                                             </svg>
                                                             View Actions
                                                         </button>
+                                                        )}
                                                     </div>
                                                 </td>
                                             </tr>
@@ -1532,6 +1543,9 @@ const AttendingCallDashboard = ({ mode }) => {
                                                 </td>
                                                 <td style={{ textAlign: 'center', whiteSpace: 'nowrap' }}>
                                                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                                        {getCaseRioMismatch(call) ? (
+                                                            <CaseRioLockedAction mismatch={getCaseRioMismatch(call)} label="View Actions" />
+                                                        ) : (
                                                         <button 
                                                             style={{ 
                                                                 display: 'inline-flex',
@@ -1558,6 +1572,7 @@ const AttendingCallDashboard = ({ mode }) => {
                                                             </svg>
                                                             View Actions
                                                         </button>
+                                                        )}
                                                     </div>
                                                 </td>
                                             </tr>
@@ -1646,6 +1661,9 @@ const AttendingCallDashboard = ({ mode }) => {
                                                 </td>
                                                 <td style={{ textAlign: 'center', whiteSpace: 'nowrap' }}>
                                                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                                        {getCaseRioMismatch(call) ? (
+                                                            <CaseRioLockedAction mismatch={getCaseRioMismatch(call)} label="View Actions" />
+                                                        ) : (
                                                         <button 
                                                             style={{
                                                                 display: 'inline-flex',
@@ -1672,6 +1690,7 @@ const AttendingCallDashboard = ({ mode }) => {
                                                             </svg>
                                                             View Actions
                                                         </button>
+                                                        )}
                                                     </div>
                                                 </td>
                                             </tr>

@@ -52,6 +52,8 @@ const ErcProcessIC = ({ data = {}, isEditing = false, isBusy = false, onChange =
     qapNo = "",
     inspectionType = "",
     lots = [],
+    lotPage = null,   // { from, to, index, count } when the IC is split into pages (more than 5 lots)
+    pageLabel = "",   // "Page X of N" on a split IC
     reference = "",
     callDate = "",
     inspectionDate = "",
@@ -251,6 +253,9 @@ const ErcProcessIC = ({ data = {}, isEditing = false, isBusy = false, onChange =
     return `${cleanNos} Nos. ~ (${mt} MT)`;
   };
 
+  // Lots shown on this page (all of them on a one-page IC), keeping each lot's index for edits
+  const visibleLots = (lotPage ? lots.slice(lotPage.from, lotPage.to) : lots).map((lot, i) => ({ lot, idx: (lotPage ? lotPage.from : 0) + i }));
+
   const numTotalProcessed = lots.reduce((s, l) => s + Number(l.totalProcessed || 0), 0);
   const numTotalRejected = lots.reduce((s, l) => s + Number(l.rejectedQty || 0), 0);
   const numTotalAccepted = Math.max(0, numTotalProcessed - numTotalRejected);
@@ -298,6 +303,9 @@ const ErcProcessIC = ({ data = {}, isEditing = false, isBusy = false, onChange =
       <div className="certificate-container flex flex-col flex-grow">
         {/* Row 1 & 2: RE-CENTERED HEADER UNIT (Red-Marked Design) */}
         <div className="flex flex-col items-center pt-2 w-full">
+          {pageLabel && (
+            <div className="w-full text-right pr-2 text-[11px] font-semibold">{pageLabel}</div>
+          )}
           {/* Centered Box */}
           <div className="flex flex-col items-center pt-7">
 
@@ -553,7 +561,7 @@ const ErcProcessIC = ({ data = {}, isEditing = false, isBusy = false, onChange =
           </div>
 
           {/* Body rows */}
-          {lots.map((lot, idx) => {
+          {visibleLots.map(({ lot, idx }, rowIdx) => {
             const proc = Number(lot.totalProcessed || 0);
             const rej = Number(lot.rejectedQty || 0);
             const acc = Math.max(0, proc - rej);
@@ -568,7 +576,7 @@ const ErcProcessIC = ({ data = {}, isEditing = false, isBusy = false, onChange =
                 className="grid grid-cols-[2fr_1fr_1fr_1fr_1fr] text-center border-x border-b border-black items-stretch text-[10px]"
               >
                 <div className="border-r border-black py-2.5 px-2 pb-3.5 flex items-center justify-center">
-                  {idx === 0 ? (
+                  {rowIdx === 0 ? (
                     <EditableField
                       isEditing={isEditing}
                       type="textarea"
@@ -622,7 +630,8 @@ const ErcProcessIC = ({ data = {}, isEditing = false, isBusy = false, onChange =
             );
           })}
 
-          {/* TOTAL row */}
+          {/* TOTAL row: overall total, shown on every page of a split IC */}
+          {(
           <div className="grid grid-cols-[2fr_1fr_1fr_1fr_1fr] font-semibold border-x border-b border-black text-[9.5px] min-h-[38px] items-stretch">
             <div className="border-r border-black py-2.5 px-2 pb-3 text-center flex items-center justify-center">TOTAL</div>
             <div className="border-r border-black py-2.5 px-2 pb-3 text-center flex items-center justify-center"></div>
@@ -636,6 +645,7 @@ const ErcProcessIC = ({ data = {}, isEditing = false, isBusy = false, onChange =
               <EditableField isEditing={false} value={totalRejected} onChange={(val) => onChange("totalRejected", val)} className="text-center" />
             </div>
           </div>
+          )}
 
           {/* Reference row */}
           <div className="border-x border-b border-black p-2.5 pb-4 leading-normal text-[10px]">

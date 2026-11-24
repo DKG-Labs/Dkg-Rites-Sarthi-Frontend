@@ -168,11 +168,20 @@ function ReviewModal({ cfg, r, ctx, onCancel, onDone }) {
                         ) : (
                             <dl className="usb-sum">
                                 <SumRow label="Path" value={decisionStage ? (decisionStage.path === 'JI' ? 'Joint Inspection' : 'Audit of Record / Firm') : '—'} />
-                                {decisionStage?.path === 'JI' && <SumRow label="JI team" value={decisionStage.jiTeam} />}
-                                {jiStage && <SumRow label="JI" value={`${fmtDate(jiStage.stageDate)} · ${jiStage.jiOutcome || '—'}`} />}
+                                {decisionStage?.path === 'JI' && (
+                                    <>
+                                        <SumRow label="IBS Case No." value={decisionStage.ibsCaseNo} />
+                                        <SumRow label="1st Reference" value={decisionStage.firstReferenceDate ? fmtDate(decisionStage.firstReferenceDate) : null} />
+                                        <SumRow label="Scheduled JI" value={decisionStage.stageDate ? fmtDate(decisionStage.stageDate) : null} />
+                                        <SumRow label="JI team" value={decisionStage.jiTeam} />
+                                    </>
+                                )}
+                                {jiStage && <SumRow label="JI held" value={`${fmtDate(jiStage.stageDate)} · ${jiStage.jiOutcome || '—'}`} />}
                                 {auditStage && <SumRow label="Audit" value={`${auditStage.auditType || '—'} · ${fmtDate(auditStage.stageDate)}`} />}
                                 {auditStage?.findings && <SumRow label="Findings" value={auditStage.findings} />}
-                                <SumRow label="Attributable to" value={(jiStage || auditStage)?.attributableTo} />
+                                {(jiStage || auditStage)?.attributableTo && (
+                                    <SumRow label="Attributable to" value={(jiStage || auditStage).attributableTo} />
+                                )}
                                 <SumRow label="Root cause" value={rca?.rootCause} />
                                 <SumRow label="Corrective" value={capa?.correctiveActions} chips />
                                 <SumRow label="Preventive" value={capa?.preventiveActions} chips />

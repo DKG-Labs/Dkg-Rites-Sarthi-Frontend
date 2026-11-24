@@ -27,6 +27,7 @@ import SleeperPerformance from './sleeper-board/SleeperPerformance';
 import SleeperQualityReport from './sleeper-board/SleeperQualityReport';
 import RailPadSummary from './railpad-board/RailPadSummary';
 import CountUp from '../common/CountUp';
+import LakhsValue from '../common/LakhsValue';
 import RailPadQuality from './railpad-board/RailPadQuality';
 import RailPadLifecycle from './railpad-board/RailPadLifecycle';
 import RailPadPerformance from './railpad-board/RailPadPerformance';
@@ -1248,7 +1249,7 @@ const ProfessionalCardSection = ({
                                                     <div className="kpi-lbl">PO Quantity</div>
                                                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginTop: '4px' }}>
                                                         <div style={{ borderRight: '1px solid rgba(255,255,255,0.2)', paddingRight: '4px' }}>
-                                                            <div className="kpi-val" style={{ fontSize: '26px' }}><CountUp value={s.poQuantityNos || 0} /></div>
+                                                            <div className="kpi-val" style={{ fontSize: '26px' }}><LakhsValue value={s.poQuantityNos || 0} /></div>
                                                             <div className="kpi-sub" style={{ fontSize: '11px', opacity: 0.9 }}>Nos.</div>
                                                         </div>
                                                         <div style={{ paddingLeft: '4px' }}>
@@ -1262,7 +1263,7 @@ const ProfessionalCardSection = ({
                                                     <div className="kpi-lbl">Final Inspection Qty</div>
                                                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginTop: '4px' }}>
                                                         <div style={{ borderRight: '1px solid rgba(255,255,255,0.2)', paddingRight: '4px' }}>
-                                                            <div className="kpi-val" style={{ fontSize: '26px' }}><CountUp value={s.finalInspectionQuantity || 0} /></div>
+                                                            <div className="kpi-val" style={{ fontSize: '26px' }}><LakhsValue value={s.finalInspectionQuantity || 0} /></div>
                                                             <div className="kpi-sub" style={{ fontSize: '11px', opacity: 0.9 }}>Nos.</div>
                                                         </div>
                                                         <div style={{ paddingLeft: '4px' }}>
@@ -1373,7 +1374,7 @@ const ProfessionalCardSection = ({
                                                             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
                                                                 <div>
                                                                     <div style={{ fontSize: '11px', color: '#64748b', fontWeight: '600' }}>ACCEPTED (Nos.)</div>
-                                                                    <div style={{ fontSize: '26px', fontWeight: '800', color: '#22c55e' }}><CountUp value={d?.accepted || 0} /></div>
+                                                                    <div style={{ fontSize: '26px', fontWeight: '800', color: '#22c55e' }}><LakhsValue value={d?.accepted || 0} /></div>
                                                                 </div>
                                                                 <div style={{ textAlign: 'right' }}>
                                                                     <div style={{ fontSize: '11px', color: '#64748b', fontWeight: '600' }}>REJECTED (Nos.)</div>
@@ -2002,7 +2003,7 @@ const ProfessionalCardSection = ({
                                                     case 'lwcl': return <RailPadLwcpReport refreshTick={refreshTick} />;
                                                     case 'swp': return <RailPadSwpReport refreshTick={refreshTick} />;
                                                     case 'vwpqr': return <RailPadVwpqrReport refreshTick={refreshTick} />;
-                                                    case 'qrp': return <RailPadQualityReport refreshTick={refreshTick} />;
+                                                    case 'qrp': return <RailPadQualityReport refreshTick={refreshTick} fromDate={fromDate} toDate={toDate} />;
                                                     case 'ic_annexures': return <DownloadIcAnnexures selectedProduct="Rail Pad" fromDate={fromDate} toDate={toDate} />;
                                                     default: return <RailPadMprReport mprData={mprData} loading={mprLoading} />;
                                                 }

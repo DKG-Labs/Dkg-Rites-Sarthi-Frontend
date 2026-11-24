@@ -328,84 +328,19 @@ export const CertificateStorageManager = ({ onNotify, currentUser: propUser, isS
         }
       `}</style>
 
-      {/* Modern Header Card */}
-      <div style={{
-        background: 'linear-gradient(135deg, #f8fafc 0%, #f0fdf4 50%, #eff6ff 100%)',
-        border: '1px solid #cbd5e1',
-        borderRadius: '20px',
-        padding: '22px 28px',
-        marginBottom: '24px',
-        boxShadow: '0 4px 24px -2px rgba(15, 23, 42, 0.06)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        flexWrap: 'wrap',
-        gap: '16px'
-      }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-          <div style={{
-            width: '52px',
-            height: '52px',
-            borderRadius: '14px',
-            background: 'linear-gradient(135deg, #0284c7 0%, #0369a1 100%)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            fontSize: '26px',
-            boxShadow: '0 8px 16px -2px rgba(2, 132, 199, 0.35)',
-            color: '#ffffff',
-            flexShrink: 0
-          }}>
-            🛡️
-          </div>
-          <div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-              <h2 style={{ margin: 0, fontSize: '21px', fontWeight: 800, color: '#0f172a', letterSpacing: '-0.4px' }}>
-                Inspection Certificate (IC) Management
-              </h2>
-              <span style={{
-                background: '#dcfce7',
-                color: '#15803d',
-                fontSize: '11px',
-                fontWeight: 700,
-                padding: '3px 10px',
-                borderRadius: '12px',
-                border: '1px solid #bbf7d0',
-                letterSpacing: '0.3px',
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '5px'
-              }}>
-                <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#16a34a' }}></span>
-                Official Records
-              </span>
-            </div>
-            <p style={{ margin: '4px 0 0', fontSize: '13.5px', color: '#64748b', lineHeight: 1.4 }}>
-              {isSuperAdmin
-                ? 'Easily upload, search, view, and manage digital Inspection Certificates for all calls.'
-                : 'Search, preview, and download digital Inspection Certificates with authorized audit access.'}
-            </p>
-          </div>
+      {/* Page header */}
+      <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: '12px', flexWrap: 'wrap', marginBottom: '16px' }}>
+        <div>
+          <h2 style={{ margin: 0, fontSize: '20px', fontWeight: 700, color: '#0f172a' }}>Inspection Certificates</h2>
+          <p style={{ margin: '2px 0 0', fontSize: '13px', color: '#64748b' }}>
+            {isSuperAdmin
+              ? 'Upload, replace, search and download the signed IC PDF of any call.'
+              : 'Search, preview and download the signed IC PDF of any call.'}
+          </p>
         </div>
-
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-          <div style={{
-            background: '#ffffff',
-            color: '#0369a1',
-            padding: '6px 14px',
-            borderRadius: '20px',
-            fontSize: '12px',
-            fontWeight: 700,
-            border: '1px solid #bae6fd',
-            boxShadow: '0 1px 4px rgba(0, 0, 0, 0.04)',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '6px'
-          }}>
-            <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#0284c7' }}></span>
-            {isSuperAdmin ? (currentUser?.roleName || 'Super Admin') : 'Admin (View Only)'}
-          </div>
-        </div>
+        {!isSuperAdmin && (
+          <span style={{ fontSize: '12px', fontWeight: 600, color: '#475569', background: '#f1f5f9', padding: '4px 10px', borderRadius: '999px' }}>View only</span>
+        )}
       </div>
 
       {/* Main Grid Layout */}
@@ -440,33 +375,17 @@ export const CertificateStorageManager = ({ onNotify, currentUser: propUser, isS
               justifyContent: 'space-between'
             }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                <div style={{
-                  width: '32px',
-                  height: '32px',
-                  borderRadius: '8px',
-                  background: '#eff6ff',
-                  color: '#0284c7',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  fontSize: '16px'
-                }}>
-                  📤
-                </div>
                 <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 700, color: '#0f172a' }}>
                   Upload or Replace Certificate
                 </h3>
               </div>
-              <span style={{ fontSize: '11px', fontWeight: 600, color: '#64748b', background: '#f1f5f9', padding: '3px 8px', borderRadius: '6px' }}>
-                Upload &amp; Overwrite
-              </span>
             </div>
 
             <form onSubmit={handleUpload} style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '18px', flex: 1 }}>
               {/* IC Number Input */}
               <div>
                 <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontWeight: 600, fontSize: '13.5px', color: '#334155', marginBottom: '6px' }}>
-                  <span>📄</span> Inspection Certificate (IC) or Call Number <span style={{ color: '#ef4444' }}>*</span>
+                  IC or Call Number <span style={{ color: '#ef4444' }}>*</span>
                 </label>
                 <input
                   type="text"
@@ -502,7 +421,7 @@ export const CertificateStorageManager = ({ onNotify, currentUser: propUser, isS
               {/* Uploader Name */}
               <div>
                 <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontWeight: 600, fontSize: '13.5px', color: '#334155', marginBottom: '6px' }}>
-                  <span>👤</span> Uploaded By / Designation <span style={{ color: '#ef4444' }}>*</span>
+                  Uploaded By / Designation <span style={{ color: '#ef4444' }}>*</span>
                 </label>
                 <input
                   type="text"
@@ -538,7 +457,7 @@ export const CertificateStorageManager = ({ onNotify, currentUser: propUser, isS
               {/* IC Date Input */}
               <div>
                 <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontWeight: 600, fontSize: '13.5px', color: '#334155', marginBottom: '6px' }}>
-                  <span>📅</span> IC Date <span style={{ color: '#64748b', fontSize: '12px', fontWeight: 400 }}>(Sets date across inspection &amp; IBS records)</span>
+                  IC Date <span style={{ color: '#64748b', fontSize: '12px', fontWeight: 400 }}>(Sets date across inspection &amp; IBS records)</span>
                 </label>
                 <input
                   type="date"
@@ -572,7 +491,7 @@ export const CertificateStorageManager = ({ onNotify, currentUser: propUser, isS
               {/* File Dropzone */}
               <div>
                 <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontWeight: 600, fontSize: '13.5px', color: '#334155', marginBottom: '6px' }}>
-                  <span>📑</span> Certificate PDF File <span style={{ color: '#ef4444' }}>*</span>
+                  Certificate PDF <span style={{ color: '#ef4444' }}>*</span>
                 </label>
                 <div
                   onDragOver={handleDragOver}
@@ -749,32 +668,15 @@ export const CertificateStorageManager = ({ onNotify, currentUser: propUser, isS
             justifyContent: 'space-between'
           }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-              <div style={{
-                width: '32px',
-                height: '32px',
-                borderRadius: '8px',
-                background: '#eff6ff',
-                color: '#0284c7',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                fontSize: '16px'
-              }}>
-                🔍
-              </div>
               <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 700, color: '#0f172a' }}>
                 Search &amp; View Certificate
               </h3>
             </div>
             {certificateData ? (
               <span style={{ fontSize: '11px', fontWeight: 700, color: '#15803d', background: '#dcfce7', padding: '3px 10px', borderRadius: '12px', border: '1px solid #bbf7d0' }}>
-                🟢 Record Loaded
+                Record loaded
               </span>
-            ) : (
-              <span style={{ fontSize: '11px', fontWeight: 600, color: '#64748b', background: '#f1f5f9', padding: '3px 8px', borderRadius: '6px' }}>
-                Quick Search
-              </span>
-            )}
+            ) : null}
           </div>
 
           <div style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '18px', flex: 1 }}>
@@ -782,9 +684,7 @@ export const CertificateStorageManager = ({ onNotify, currentUser: propUser, isS
             <form onSubmit={handleSearch} style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
               <div style={{ display: 'flex', gap: '10px', position: 'relative' }}>
                 <div style={{ position: 'relative', flex: 1, display: 'flex', alignItems: 'center' }}>
-                  <span style={{ position: 'absolute', left: '14px', color: '#94a3b8', fontSize: '15px', pointerEvents: 'none' }}>
-                    🔍
-                  </span>
+                  <span style={{ position: 'absolute', left: '14px', color: '#94a3b8', fontSize: '15px', pointerEvents: 'none' }}><i className="fa-solid fa-magnifying-glass" aria-hidden="true"></i></span>
                   <input
                     type="text"
                     placeholder="Enter IC Number or Call Number (e.g. EP-1028260006)..."
@@ -866,7 +766,6 @@ export const CertificateStorageManager = ({ onNotify, currentUser: propUser, isS
                     </>
                   ) : (
                     <>
-                      <span>🔍</span>
                       <span>Search</span>
                     </>
                   )}
@@ -874,8 +773,7 @@ export const CertificateStorageManager = ({ onNotify, currentUser: propUser, isS
               </div>
 
               <div style={{ fontSize: '11.5px', color: '#64748b', display: 'flex', alignItems: 'center', gap: '6px', paddingLeft: '4px' }}>
-                <span>💡</span>
-                <span>Press <strong>Enter ↵</strong> to search • Case-insensitive lookup across all official IC and Call records</span>
+                <span>Press <strong>Enter</strong> to search. Matching ignores upper/lower case.</span>
               </div>
 
               {/* Quick Search Examples & Recents */}
@@ -1247,32 +1145,27 @@ export const CertificateStorageManager = ({ onNotify, currentUser: propUser, isS
               /* Enhanced Empty State */
               <div style={{
                 textAlign: 'center',
-                padding: '52px 24px',
-                background: 'linear-gradient(180deg, #f8fafc 0%, #ffffff 100%)',
-                border: '1.5px dashed #cbd5e1',
-                borderRadius: '16px',
+                padding: '32px 24px',
+                background: '#ffffff',
+                border: '1px dashed #cbd5e1',
+                borderRadius: '12px',
                 margin: 'auto 0',
                 display: 'flex',
                 flexDirection: 'column',
                 alignItems: 'center',
-                gap: '16px'
+                gap: '10px'
               }}>
                 <div style={{
-                  width: '68px',
-                  height: '68px',
-                  borderRadius: '20px',
-                  background: 'linear-gradient(135deg, #e0f2fe 0%, #eff6ff 100%)',
+                  width: '44px', height: '44px', borderRadius: '12px', background: '#f1f5f9',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  fontSize: '32px',
-                  boxShadow: '0 8px 16px -4px rgba(2, 132, 199, 0.15)'
-                }}>
-                  📄
+                  fontSize: '18px', color: '#64748b' }}>
+                  <i className="fa-solid fa-file-pdf" aria-hidden="true"></i>
                 </div>
                 <div style={{ maxWidth: '460px' }}>
                   <h4 style={{ margin: '0 0 6px', fontSize: '16.5px', fontWeight: 700, color: '#0f172a' }}>
-                    Search Digital Inspection Certificates
+                    No certificate selected
                   </h4>
                   <p style={{ margin: 0, fontSize: '13px', color: '#64748b', lineHeight: 1.5 }}>
                     {isSuperAdmin
@@ -1281,31 +1174,6 @@ export const CertificateStorageManager = ({ onNotify, currentUser: propUser, isS
                   </p>
                 </div>
 
-                {/* 3 Step Cards */}
-                <div style={{
-                  display: 'grid',
-                  gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))',
-                  gap: '12px',
-                  width: '100%',
-                  maxWidth: '480px',
-                  marginTop: '8px'
-                }}>
-                  <div style={{ background: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '10px', padding: '12px 10px', textAlign: 'center' }}>
-                    <div style={{ fontSize: '18px', marginBottom: '4px' }}>🏷️</div>
-                    <div style={{ fontSize: '12px', fontWeight: 700, color: '#1e293b' }}>1. Reference</div>
-                    <div style={{ fontSize: '11px', color: '#64748b' }}>Enter IC or Call No</div>
-                  </div>
-                  <div style={{ background: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '10px', padding: '12px 10px', textAlign: 'center' }}>
-                    <div style={{ fontSize: '18px', marginBottom: '4px' }}>⚡</div>
-                    <div style={{ fontSize: '12px', fontWeight: 700, color: '#1e293b' }}>2. Verification</div>
-                    <div style={{ fontSize: '11px', color: '#64748b' }}>Instant DB lookup</div>
-                  </div>
-                  <div style={{ background: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '10px', padding: '12px 10px', textAlign: 'center' }}>
-                    <div style={{ fontSize: '18px', marginBottom: '4px' }}>📑</div>
-                    <div style={{ fontSize: '12px', fontWeight: 700, color: '#1e293b' }}>3. Preview</div>
-                    <div style={{ fontSize: '11px', color: '#64748b' }}>Read &amp; download PDF</div>
-                  </div>
-                </div>
               </div>
             )}
           </div>

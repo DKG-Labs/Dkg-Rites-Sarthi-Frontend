@@ -104,7 +104,7 @@ export const IEMapping = ({ onEdit, onDelete, onCreateNew, refreshTrigger }) => 
   if (error) return <div style={{ padding: '20px', textAlign: 'center', color: 'red' }}>Error: {error}</div>;
 
   return (
-    <div>
+    <div className="um">
       {/* Metric Cards */}
       <div style={{
         display: 'grid',

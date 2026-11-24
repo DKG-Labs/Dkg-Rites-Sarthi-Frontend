@@ -77,7 +77,7 @@ function CmStageModal({ r, ctx, onCancel, onDone }) {
     const meta = STAGE_META[stage];
     const dd = ctx.dropdowns || {};
     const [f, setF] = useState({
-        path: '', jiDate: '', jiTeamUserIds: [], jiTeamOthers: '',
+        path: '', jiDate: '', jiTeamUserIds: [], jiTeamOthers: '', ibsCaseNo: '', firstReferenceDate: '',
         flagFailed90: ctx.failedWithin90Days === true, flagQtyOver5: false, flagCritical: false,
         actualJiDate: '', jiOutcome: '', attributableTo: '',
         auditType: '', auditDate: '', findings: '',
@@ -92,8 +92,8 @@ function CmStageModal({ r, ctx, onCancel, onDone }) {
     const fileRequired = stage === 'JI_COMPLETE' || stage === 'AUDIT_COMPLETE';
     const missing = (() => {
         switch (stage) {
-            case 'DECISION': return !f.path || (f.path === 'JI' && (!f.jiDate || !f.jiTeamUserIds.length));
-            case 'JI_COMPLETE': return !f.actualJiDate || !f.jiOutcome || !f.attributableTo || !file;
+            case 'DECISION': return !f.path || (f.path === 'JI' && (!f.ibsCaseNo.trim() || !f.firstReferenceDate || !f.jiDate || !f.jiTeamUserIds.length));
+            case 'JI_COMPLETE': return !f.actualJiDate || !f.jiOutcome || !file;
             case 'AUDIT_COMPLETE': return !f.auditType || !f.auditDate || !f.findings.trim() || !f.attributableTo || !file;
             case 'RCA': return !f.rootCause;
             case 'CAPA': return !f.correctiveActions.length || !f.preventiveActions.length || !f.vendorCompliance || !f.capaImplemented;
@@ -110,12 +110,14 @@ function CmStageModal({ r, ctx, onCancel, onDone }) {
             if (stage === 'DECISION') {
                 res = await submitCmDecision(r.id, {
                     path: f.path, jiDate: f.path === 'JI' ? f.jiDate : null,
+                    ibsCaseNo: f.path === 'JI' ? f.ibsCaseNo.trim() : null,
+                    firstReferenceDate: f.path === 'JI' ? f.firstReferenceDate : null,
                     jiTeamUserIds: f.path === 'JI' ? f.jiTeamUserIds : [],
                     jiTeamOthers: f.path === 'JI' ? f.jiTeamOthers.trim() : null,
                     flagFailed90: f.flagFailed90, flagQtyOver5: f.flagQtyOver5, flagCritical: f.flagCritical, remarks,
                 });
             } else if (stage === 'JI_COMPLETE') {
-                res = await submitCmCompleteJi(r.id, { actualJiDate: f.actualJiDate, jiOutcome: f.jiOutcome, attributableTo: f.attributableTo, remarks }, file);
+                res = await submitCmCompleteJi(r.id, { actualJiDate: f.actualJiDate, jiOutcome: f.jiOutcome, remarks }, file);
             } else if (stage === 'AUDIT_COMPLETE') {
                 res = await submitCmCompleteAudit(r.id, { auditType: f.auditType, auditDate: f.auditDate, findings: f.findings.trim(), attributableTo: f.attributableTo, remarks }, file);
             } else if (stage === 'RCA') {
@@ -189,7 +191,17 @@ function CmStageModal({ r, ctx, onCancel, onDone }) {
                             </Field>
                             {f.path === 'JI' && (
                                 <>
-                                    <Field label="JI date" req><input type="date" className="ucm-input ucm-input-date" value={f.jiDate} onChange={set('jiDate')} /></Field>
+                                    <div className="ucm-grid">
+                                        <Field label="IBS Case Number" req>
+                                            <input type="text" className="ucm-input" maxLength={50} placeholder="e.g. IBS case no."
+                                                value={f.ibsCaseNo} onChange={set('ibsCaseNo')} />
+                                        </Field>
+                                        <Field label="Date of 1st Reference" req>
+                                            <input type="date" className="ucm-input ucm-input-date" max={todayIst()}
+                                                value={f.firstReferenceDate} onChange={set('firstReferenceDate')} />
+                                        </Field>
+                                    </div>
+                                    <Field label="Scheduled JI Date" req><input type="date" className="ucm-input ucm-input-date" value={f.jiDate} onChange={set('jiDate')} /></Field>
                                     <Field label="JI team" req>
                                         <JiTeamPicker rejectionId={r.id} value={f.jiTeamUserIds} onChange={set('jiTeamUserIds')} />
                                     </Field>
@@ -208,7 +220,6 @@ function CmStageModal({ r, ctx, onCancel, onDone }) {
                                 <Field label="Actual JI date" req><input type="date" className="ucm-input" max={todayIst()} value={f.actualJiDate} onChange={set('actualJiDate')} /></Field>
                                 <Field label="JI outcome" req><SearchableDropdown value={f.jiOutcome} onChange={set('jiOutcome')} options={toOptions(dd.JI_OUTCOME)} placeholder="Select outcome" /></Field>
                             </div>
-                            <Field label="Attributable to" req><SearchableDropdown value={f.attributableTo} onChange={set('attributableTo')} options={toOptions(dd.ATTRIBUTABLE_TO)} placeholder="Select" /></Field>
                             <PdfPicker label="JI Report" required file={file} onChange={setFile} />
                         </>
                     )}

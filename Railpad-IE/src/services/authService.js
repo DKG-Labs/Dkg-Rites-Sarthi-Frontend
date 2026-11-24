@@ -97,6 +97,8 @@ export const storeAuthData = (authData) => {
     sessionStorage.setItem('railpad_token', token);
   }
   localStorage.setItem('userId', authData.userId);
+  // RIO of the user (e.g. ERIO): actions are allowed only on calls whose case number starts with its letter
+  localStorage.setItem('rio', authData.rio || '');
   localStorage.setItem('userName', authData.userName);
   const roles = Array.isArray(authData.roleName)
     ? authData.roleName.join(',')

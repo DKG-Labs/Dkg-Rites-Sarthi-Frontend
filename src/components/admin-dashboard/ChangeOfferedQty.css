@@ -1,0 +1,108 @@
+.coq { --b:#e2e8f0; --m:#64748b; --ink:#0f172a; --brand:#0e7490; --brand-bg:#ecfeff; --red:#b91c1c; --green:#15803d;
+  color: var(--ink); display: flex; flex-direction: column; gap: 14px; }
+.coq-head { display: flex; justify-content: space-between; align-items: flex-end; gap: 12px; flex-wrap: wrap; }
+.coq-head h2 { margin: 0; font-size: 20px; font-weight: 700; line-height: 1.2; }
+.coq-head p { margin: 2px 0 0; color: var(--m); font-size: 13px; }
+.coq-tabs { display: inline-flex; background: #f1f5f9; border-radius: 8px; padding: 3px; }
+.coq-tabs button { border: 0; background: transparent; padding: 7px 16px; border-radius: 6px; font-weight: 600; color: var(--m); cursor: pointer; }
+.coq-tabs button.on { background: #fff; color: var(--ink); box-shadow: 0 1px 2px rgba(15,23,42,.08); }
+
+.coq-card { background: #fff; border: 1px solid var(--b); border-radius: 12px; padding: 16px; display: flex; flex-direction: column; gap: 14px; }
+.coq-picker { flex-direction: row; flex-wrap: wrap; align-items: flex-end; }
+.coq-field { display: flex; flex-direction: column; gap: 6px; }
+.coq-field > label { font-size: 12px; font-weight: 600; color: var(--m); }
+.coq-grow { flex: 1 1 320px; min-width: 0; }
+
+.coq-seg { display: inline-flex; border: 1px solid var(--b); border-radius: 8px; overflow: hidden; }
+.coq-seg button { border: 0; background: #fff; padding: 9px 14px; font-weight: 600; color: #334155; cursor: pointer; display: inline-flex; gap: 6px; align-items: center; }
+.coq-seg button + button { border-left: 1px solid var(--b); }
+.coq-seg button span { font-size: 11px; color: var(--m); background: #f1f5f9; padding: 1px 6px; border-radius: 4px; }
+.coq-seg button.on { background: var(--brand); color: #fff; }
+.coq-seg button.on span { background: rgba(255,255,255,.2); color: #fff; }
+
+.coq-opt { display: flex; flex-direction: column; gap: 2px; padding: 2px 0; }
+.coq-opt-top { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.coq-opt-sub { font-size: 12px; color: var(--m); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.coq-opt.locked strong { color: #94a3b8; }
+.coq-more { padding: 8px 12px; font-size: 12px; color: var(--m); display: flex; gap: 8px; align-items: center; border-top: 1px solid #f1f5f9; }
+.coq-chip { font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 999px; white-space: nowrap; }
+.coq-chip.ok { background: #dcfce7; color: var(--green); }
+.coq-chip.lock { background: #f1f5f9; color: #475569; }
+
+.coq-summary { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px 16px; }
+.coq-summary div { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.coq-summary span { font-size: 12px; color: var(--m); }
+.coq-summary strong { font-size: 14px; overflow: hidden; text-overflow: ellipsis; }
+.coq-blocked { background: #fff7ed; color: #9a3412; border: 1px solid #fed7aa; border-radius: 10px; padding: 10px 12px; font-size: 13px; display: flex; gap: 8px; align-items: center; }
+
+.coq-table-wrap { overflow-x: auto; }
+.coq-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.coq-table th { text-align: left; font-size: 11px; letter-spacing: .04em; text-transform: uppercase; color: var(--m); padding: 8px 10px; border-bottom: 1px solid var(--b); white-space: nowrap; font-weight: 600; }
+.coq-table td { padding: 8px 10px; border-bottom: 1px solid #f1f5f9; vertical-align: middle; }
+.coq-table .r { text-align: right; }
+.coq-table tr.chg td { background: var(--brand-bg); }
+.coq-table input { width: 130px; height: 34px; box-sizing: border-box; padding: 0 10px; border: 1px solid var(--b); border-radius: 8px; text-align: right; font: inherit; }
+.coq-table input:focus { outline: 2px solid #a5f3fc; border-color: var(--brand); }
+.coq-table input[aria-invalid="true"] { border-color: #fca5a5; background: #fef2f2; }
+.coq-table input:disabled { background: #f8fafc; color: #94a3b8; }
+.coq-err { font-size: 11px; color: var(--red); margin-top: 3px; }
+.coq-hint { font-size: 12px; color: var(--m); }
+.coq-diff { font-weight: 700; font-size: 12px; padding: 2px 8px; border-radius: 999px; }
+.coq-diff.up { background: #dcfce7; color: var(--green); }
+.coq-diff.down { background: #fee2e2; color: var(--red); }
+.coq-remarks { max-width: 320px; white-space: pre-wrap; }
+
+.coq-foot { display: flex; flex-direction: column; gap: 10px; border-top: 1px solid #f1f5f9; padding-top: 12px; }
+.coq-foot textarea { width: 100%; box-sizing: border-box; border: 1px solid var(--b); border-radius: 8px; padding: 8px 10px; font: inherit; resize: vertical; }
+.coq-foot textarea:focus { outline: 2px solid #a5f3fc; border-color: var(--brand); }
+.coq-req { color: var(--red); }
+.coq-actions { display: flex; justify-content: flex-end; align-items: center; gap: 8px; flex-wrap: wrap; }
+.coq-actions .coq-muted { margin-right: auto; }
+.coq-muted { color: var(--m); font-size: 13px; }
+
+.coq-primary { border: 0; border-radius: 8px; background: var(--brand); color: #fff; font-weight: 600; padding: 9px 16px; cursor: pointer; }
+.coq-primary:disabled { opacity: .5; cursor: default; }
+.coq-ghost { border: 1px solid var(--b); border-radius: 8px; background: #fff; color: var(--ink); font-weight: 600; padding: 8px 14px; cursor: pointer; }
+.coq-ghost:disabled { opacity: .5; cursor: default; }
+
+.coq-empty { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 36px 16px; text-align: center; color: var(--m); background: #fff; border: 1px dashed var(--b); border-radius: 12px; }
+.coq-empty i { font-size: 22px; color: #94a3b8; }
+.coq-empty strong { color: var(--ink); font-size: 15px; }
+.coq-empty span { max-width: 480px; font-size: 13px; line-height: 1.5; }
+.coq-skel { display: flex; flex-direction: column; gap: 8px; }
+.coq-skel div { height: 38px; border-radius: 8px; background: linear-gradient(90deg,#f1f5f9 25%,#e2e8f0 50%,#f1f5f9 75%); background-size: 200% 100%; animation: coq-sh 1.2s infinite; }
+@keyframes coq-sh { to { background-position: -200% 0; } }
+
+.coq-hsearch { display: flex; gap: 8px; flex-wrap: wrap; }
+.coq-hsearch input { flex: 1 1 240px; height: 38px; box-sizing: border-box; padding: 0 12px; border: 1px solid var(--b); border-radius: 8px; font: inherit; }
+.coq-pager { display: flex; justify-content: space-between; align-items: center; gap: 8px; font-size: 13px; color: var(--m); }
+.coq-pager button { border: 1px solid var(--b); background: #fff; border-radius: 8px; padding: 6px 12px; cursor: pointer; }
+.coq-pager button:disabled { opacity: .5; cursor: default; }
+
+.coq-overlay { position: fixed; inset: 0; background: rgba(15,23,42,.55); display: flex; align-items: center; justify-content: center; z-index: 1100; padding: 16px; }
+.coq-dialog { background: #fff; border-radius: 14px; width: 100%; max-width: 520px; max-height: 90vh; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; gap: 12px; }
+.coq-dialog h3 { margin: 0; font-size: 17px; }
+.coq-dialog p { margin: 0; }
+.coq-review { list-style: none; margin: 0; padding: 0; border: 1px solid var(--b); border-radius: 10px; }
+.coq-review li { display: flex; justify-content: space-between; gap: 12px; padding: 8px 12px; font-size: 13px; }
+.coq-review li + li { border-top: 1px solid #f1f5f9; }
+.coq-note { background: var(--brand-bg); color: #155e75; border-radius: 10px; padding: 10px 12px; font-size: 13px; }
+.coq-dialog-actions { display: flex; justify-content: flex-end; gap: 8px; }
+
+@media (max-width: 640px) {
+  .coq-picker { flex-direction: column; align-items: stretch; }
+  .coq-seg { display: flex; }
+  .coq-seg button { flex: 1; justify-content: center; }
+  .coq-table thead { display: none; }
+  .coq-table, .coq-table tbody, .coq-table tr, .coq-table td { display: block; width: 100%; box-sizing: border-box; }
+  .coq-table tr { border: 1px solid var(--b); border-radius: 10px; margin-bottom: 8px; padding: 6px 0; }
+  .coq-table td { border: 0; padding: 4px 12px; display: flex; justify-content: space-between; align-items: center; gap: 12px; text-align: right; }
+  .coq-table td[data-l]::before { content: attr(data-l); color: var(--m); font-weight: 600; text-align: left; }
+  .coq-table input { width: 140px; }
+  .coq-pager { flex-wrap: wrap; justify-content: center; }
+}
+
+/* main status chip + sub status (same labels as the vendor dashboard) */
+.coq-status { display: inline-flex; flex-direction: column; align-items: flex-start; gap: 3px; }
+.coq-status.compact { flex-direction: row; align-items: center; gap: 6px; }
+.coq-sub { font-size: 12px; font-weight: 500; color: var(--m); }

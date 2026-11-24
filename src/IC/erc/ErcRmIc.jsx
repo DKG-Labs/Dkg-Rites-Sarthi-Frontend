@@ -32,6 +32,8 @@ const EditableField = ({ isEditing, value, onChange, className = "", type = "tex
 
 const ErcRmIC = ({ data = {}, isEditing = false, isBusy = false, onChange = () => { }, onArrayChange = () => { }, onVerifyBookSet, bookSetValidation }) => {
   const {
+    clearedQtyDisplay = null,   // this page's heats when the IC is split into pages
+    pageLabel = "",             // "Page X of N" on a split IC
     certificateNo = "",
     certificateDate = "",
     offeredInstNo = "",
@@ -135,6 +137,9 @@ const ErcRmIC = ({ data = {}, isEditing = false, isBusy = false, onChange = () =
       <div className="certificate-container flex flex-col flex-grow">
         {/* Row 1 & 2: RE-CENTERED HEADER UNIT (Red-Marked Design) */}
         <div className="flex flex-col items-center pt-2 w-full">
+          {pageLabel && (
+            <div className="w-full text-right pr-2 text-[11px] font-semibold">{pageLabel}</div>
+          )}
           {/* Centered Box */}
           <div className="flex flex-col items-center pt-7">
 
@@ -393,7 +398,7 @@ const ErcRmIC = ({ data = {}, isEditing = false, isBusy = false, onChange = () =
               <EditableField isEditing={false} type="textarea" value={contractChpReq} onChange={(val) => onChange("contractChpReq", val)} className="border-r border-black py-1 px-2 break-words dynamic-text" />
               <EditableField isEditing={false} type="textarea" value={inspectionDetails} onChange={(val) => onChange("inspectionDetails", val)} className="border-r border-black py-1 px-2 break-words dynamic-text" />
               <EditableField isEditing={isEditing} type="textarea" value={computedResult} onChange={(val) => { onChange("result", val); onChange("resultEdited", true); }} className="border-r border-black py-1 px-2 break-words whitespace-pre-wrap" />
-              <EditableField isEditing={false} type="textarea" value={clearedQty} onChange={(val) => onChange("clearedQty", val)} className="border-r border-black py-1 px-2 break-words whitespace-pre-wrap text-[10px] leading-tight" />
+              <EditableField isEditing={false} type="textarea" value={clearedQtyDisplay != null ? clearedQtyDisplay : clearedQty} onChange={(val) => onChange("clearedQty", val)} className="border-r border-black py-1 px-2 break-words whitespace-pre-wrap text-[10px] leading-tight" />
               <EditableField isEditing={false} type="textarea" value={qtyRejected} onChange={(val) => onChange("qtyRejected", val)} className="py-1 px-2 break-words whitespace-pre-wrap" />
             </div>
           </div>

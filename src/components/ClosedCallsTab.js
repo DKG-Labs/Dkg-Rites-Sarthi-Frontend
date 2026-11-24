@@ -30,6 +30,7 @@ import AttachmentRoundedIcon from '@mui/icons-material/AttachmentRounded';
 import EditNoteRoundedIcon from '@mui/icons-material/EditNoteRounded';
 import PictureAsPdfRoundedIcon from '@mui/icons-material/PictureAsPdfRounded';
 import VisibilityRoundedIcon from '@mui/icons-material/VisibilityRounded';
+import { getCaseRioMismatch, CaseRioLockedAction } from '../utils/caseRioCheck';
 
 const ClosedCallsTab = ({ setSelectedCall, setCurrentPage }) => {
   const [showFilters, setShowFilters] = useState(false);
@@ -484,7 +485,12 @@ const ClosedCallsTab = ({ setSelectedCall, setCurrentPage }) => {
     }
   };
 
+  // Case number of another RIO: actions locked for this IE (same rule on every tab)
   const actions = (row) => {
+    const mismatch = getCaseRioMismatch(row);
+    return mismatch ? <CaseRioLockedAction mismatch={mismatch} /> : actionsUnlocked(row);
+  };
+  const actionsUnlocked = (row) => {
     return (
       <button
         className="btn btn-sm btn-primary"

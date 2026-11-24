@@ -1,3 +1,4 @@
+@import url('https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css');
 /* SARTHI Admin Module - Professional Dashboard Styles */
 
 :root {
@@ -1580,3 +1581,80 @@
         grid-template-columns: 1fr;
     }
 }
+/* ── Admin sidebar: compact, consistent menu (scoped so global .nav-item / li rules can't stretch it) ── */
+.admin-sidebar .nav-menu { display: flex; flex-direction: column; gap: 2px; margin: 0; padding: 0 8px; height: auto; justify-content: flex-start; }
+.admin-sidebar .nav-item { display: block; padding: 0; margin: 0; height: auto; min-height: 0; flex: none; border: 0; background: none; font-size: inherit; }
+.admin-sidebar .nav-link { padding: 9px 12px; min-height: 0; height: auto; border-radius: 6px; font-size: 13.5px; gap: 10px; }
+.admin-sidebar .nav-link .nav-ico { width: 18px; text-align: center; font-size: 14px; color: #64748b; flex: none; }
+.admin-sidebar .nav-link.active .nav-ico,
+.admin-sidebar .nav-link:hover .nav-ico { color: var(--secondary-color); }
+.admin-sidebar .nav-group-label { list-style: none; margin: 14px 12px 4px; padding-top: 12px; border-top: 1px solid var(--border-color);
+  font-size: 10.5px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: #94a3b8; }
+.admin-sidebar .nav-link.danger.active { background-color: #fef2f2; color: #b91c1c; border-left-color: #dc2626; }
+.admin-sidebar .nav-link.danger.active .nav-ico { color: #dc2626; }
+
+/* ── User Management (scoped: .um) — calmer, denser layout ── */
+.um .metric-card { padding: 14px 16px; text-align: left; border: 1px solid var(--border-color); border-left: 3px solid transparent; box-shadow: none; border-radius: 10px; }
+.um .metric-card.highlight { border-color: var(--border-color); border-left-color: var(--secondary-color); background: #f0f9fb; box-shadow: none; }
+.um .metric-label { font-size: 12px; font-weight: 600; color: #64748b; margin: 0; }
+.um .metric-value { font-size: 26px; line-height: 1.2; margin: 4px 0 2px; color: #0f172a; }
+.um .metric-status { font-size: 12px; color: #94a3b8; }
+.um-users .metric-card:nth-child(2) .metric-value { color: #15803d; }
+.um-users .metric-card:nth-child(3) .metric-value { color: #b45309; }
+
+/* filters: one row, no box-in-box, same 38px height everywhere */
+.um .search-filter-bar { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; padding: 0; margin: 0 0 14px; border: 0; background: none; box-shadow: none; }
+.um .search-input { flex: 1 1 260px; padding: 0; margin: 0; border: 0; background: none; box-shadow: none; }
+.um .search-input input { width: 100%; height: 38px; box-sizing: border-box; padding: 0 12px; border: 1px solid var(--border-color); border-radius: 8px; font-size: 14px; }
+.um .filter-select { padding: 0; margin: 0; border: 0; background: none; box-shadow: none; }
+.um .filter-select select { height: 38px; min-width: 160px; padding: 0 10px; border: 1px solid var(--border-color); border-radius: 8px; background: #fff; font-size: 14px; color: #0f172a; }
+.um .search-input input:focus, .um .filter-select select:focus { outline: 2px solid #a5f3fc; border-color: var(--secondary-color); }
+
+/* header: one primary action, exports secondary */
+.um .btn-pdf-export, .um .btn-excel-export { background: #fff; color: #334155; border: 1px solid var(--border-color); box-shadow: none; }
+.um .btn-pdf-export:hover, .um .btn-excel-export:hover { background: #f8fafc; color: #0f172a; }
+.um .btn-pdf-export svg { color: #dc2626; }
+.um .btn-excel-export svg { color: #15803d; }
+
+/* table */
+.um .table th { font-size: 11px; letter-spacing: .04em; color: #64748b; }
+.um .view-actions-btn { padding: 5px 10px; font-size: 12.5px; }
+
+@media (max-width: 640px) {
+  .um .filter-select, .um .filter-select select { width: 100%; }
+}
+
+/* row actions (IE Mapping etc.): quiet outline buttons so the table stays readable */
+.um .table .btn-sm.btn-primary,
+.um .table .btn-sm.btn-danger { background: #fff; box-shadow: none; padding: 4px 10px; font-size: 12.5px; }
+.um .table .btn-sm.btn-primary { color: var(--secondary-color); border: 1px solid #a5d8e3; }
+.um .table .btn-sm.btn-primary:hover { background: #f0f9fb; }
+.um .table .btn-sm.btn-danger { color: #b91c1c; border: 1px solid #fecaca; }
+.um .table .btn-sm.btn-danger:hover { background: #fef2f2; }
+
+/* sidebar: no outline box after a mouse click, keep it for keyboard users */
+.admin-sidebar .nav-link:focus:not(:focus-visible) { outline: none; box-shadow: none; }
+
+/* ── Table refinements for .um screens (more specific than the .admin-container defaults) ── */
+.admin-container .um .table th { padding: 10px 12px; font-size: 11px; letter-spacing: .05em; color: #64748b; font-weight: 600; white-space: nowrap; }
+.admin-container .um .table td { padding: 8px 12px; font-size: 13px; color: #1e293b; vertical-align: middle; }
+.admin-container .um .table thead { background: #f8fafc; border-bottom: 1px solid var(--border-color); }
+.admin-container .um .table tbody tr:nth-child(even) { background: #fcfdfe; }
+.admin-container .um .table tbody tr:hover { background: #f1f7f9; }
+
+/* status: small soft pill */
+.admin-container .um .table .badge { padding: 2px 8px; border-radius: 999px; font-size: 11px; font-weight: 600; letter-spacing: .03em; }
+
+/* row actions: quiet outline buttons */
+.admin-container .um .table td .btn { margin: 0 6px 0 0; padding: 3px 10px; font-size: 12px; line-height: 1.5; border-radius: 6px; box-shadow: none; }
+.admin-container .um .table td .btn:last-child { margin-right: 0; }
+.admin-container .um .table td .btn-primary { background: #fff; color: var(--secondary-color); border: 1px solid #a5d8e3; }
+.admin-container .um .table td .btn-primary:hover { background: #f0f9fb; }
+.admin-container .um .table td .btn-danger { background: #fff; color: #b91c1c; border: 1px solid #fecaca; }
+.admin-container .um .table td .btn-danger:hover { background: #fef2f2; }
+
+/* sidebar active item: accent bar only, no box */
+.admin-container .admin-sidebar .nav-link.active { outline: none; box-shadow: none; border: 0; border-left: 3px solid var(--secondary-color); }
+
+/* Never let a module widen the whole page sideways (IBS view etc.) */
+.admin-container, .admin-main { overflow-x: clip; }

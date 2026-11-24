@@ -2494,3 +2494,13 @@
         height: 34px !important;
     }
 }
+
+/* ── Calmer layout (admin redesign) ── */
+.ibs-tab-icon { display: none; }
+.ibs-cat-icon { display: none !important; }
+.ibs-cat-card-top { justify-content: flex-start; margin-bottom: 6px; }
+.ibs-cat-card { border-width: 1px; box-shadow: none; padding: 12px 14px; }
+.ibs-cat-card:hover { transform: none; box-shadow: none; border-color: #94a3b8; }
+.ibs-cat-val { color: #0f172a !important; font-size: 22px; font-weight: 700; }
+.ibs-cat-label { font-weight: 600; }
+.ibs-cat-sub { color: #94a3b8; }

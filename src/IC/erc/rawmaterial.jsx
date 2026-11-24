@@ -17,6 +17,7 @@ import ErcRmIC from "./ErcRmIc";
 import reportService from "../../services/reportService";
 import { fetchPoDataForSections } from "../../services/poDataService";
 import { normalizeErcType } from "../../utils/ercUtils";
+import { buildRmClearedQtyPages, signPagesValue } from "./icPagination";
 
 // IC number in "RIO/call/IE" form: the backend certificate no. when it has that form, else the one the
 // Issuance list builds (RIO letter / call no / IE short name) — same as the Process IC. Diversion ICs
@@ -178,6 +179,14 @@ export default function RawMaterialCertificate({ call = {}, onBack }) {
           }
         }
         return c.clearedQty || "";
+      })(),
+      // More than 5 heats → one IC page per group of heats (page total on each, overall total on the last)
+      clearedQtyPages: (() => {
+        if (!(c.heatDetails && Array.isArray(c.heatDetails) && c.heatDetails.length > 0)) return null;
+        const searchString = c.ercType || `${c.description || ''} ${c.productDescription || ''} ${c.remarks || ''}`;
+        const ercType = normalizeErcType(searchString);
+        const perErc = ercType === "MK-III" ? 0.91 : (ercType === "ERC-J" || ercType === "J-Type" || ercType === "J") ? 0.915 : 1.14;
+        return buildRmClearedQtyPages(c.heatDetails, (mt) => Math.floor((mt * 1000) / perErc));
       })(),
       qtyRejected: (() => {
         if (c.heatDetails && Array.isArray(c.heatDetails) && c.heatDetails.length > 0) {
@@ -415,6 +424,11 @@ export default function RawMaterialCertificate({ call = {}, onBack }) {
   };
 
   const dataToPass = editableData || transformCallToIC(call, poDetails);
+  // Pages of the IC: one per group of up to 5 heats (a saved draft may not carry them, so rebuild from the call)
+  const rmIcPages = (() => {
+    const pages = dataToPass.clearedQtyPages || transformCallToIC(call, poDetails).clearedQtyPages;
+    return Array.isArray(pages) && pages.length > 1 ? pages : [null];
+  })();
 
   const executeVerifyBookSet = async () => {
     if (!/^\d{3}$/.test(dataToPass.setNo)) {
@@ -568,7 +582,7 @@ export default function RawMaterialCertificate({ call = {}, onBack }) {
             <attribute name='type'>pdf</attribute>
           </file>
           <pdf>
-            <page>1</page>
+            <page>${signPagesValue(printAreaRef.current ? printAreaRef.current.querySelectorAll(".certificate-page").length : 1)}</page>
             <cood>${sigCoords.cood}</cood>
             <size>${sigCoords.size}</size>
           </pdf>
@@ -745,17 +759,22 @@ export default function RawMaterialCertificate({ call = {}, onBack }) {
       </div>
 
       <div className="certificate-print-wrapper" ref={printAreaRef}>
-        <div className="certificate-page">
-          <ErcRmIC 
-            data={dataToPass} 
-            isEditing={isEditing} 
-            isBusy={isESigning} 
-            onChange={handleDataChange} 
-            onArrayChange={handleArrayDataChange} 
-            onVerifyBookSet={handleVerifyBookSet}
-            bookSetValidation={bookSetValidation}
-          />
-        </div>
+        {rmIcPages.map((pageQty, idx) => (
+          <div className="certificate-page" key={idx} style={idx > 0 ? { marginTop: '24px' } : undefined}>
+            <ErcRmIC
+              data={rmIcPages.length > 1
+                ? { ...dataToPass, clearedQtyDisplay: pageQty, pageLabel: `Page ${idx + 1} of ${rmIcPages.length}` }
+                : dataToPass}
+              // fields are edited once on page 1; other pages show the same values read-only
+              isEditing={idx === 0 ? isEditing : false}
+              isBusy={isESigning}
+              onChange={handleDataChange}
+              onArrayChange={handleArrayDataChange}
+              onVerifyBookSet={handleVerifyBookSet}
+              bookSetValidation={bookSetValidation}
+            />
+          </div>
+        ))}
       </div>
 
       <Snackbar

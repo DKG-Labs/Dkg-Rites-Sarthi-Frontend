@@ -9,67 +9,8 @@ import jsPDF from "jspdf";
  */
 export async function exportToPdf(element, filename = "certificate.pdf") {
   if (!element) return;
-
-  // Wait for all fonts to be ready
-  if (document.fonts && document.fonts.ready) {
-    try {
-      await document.fonts.ready;
-    } catch (e) {
-      console.warn("Font readiness check failed:", e);
-    }
-  }
-  await new Promise((resolve) => setTimeout(resolve, 300));
-
-  // Find the actual certificate page inside the wrapper
-  const certificatePage = element.querySelector('.certificate-page') || element;
-
-  // Capture with optimized settings for A4 (Scale 2 for crisp print quality)
-  const canvas = await html2canvas(certificatePage, {
-    scale: 2,
-    useCORS: true,
-    allowTaint: true,
-    backgroundColor: '#ffffff',
-    logging: false,
-    scrollY: 0,
-    scrollX: 0,
-    onclone: (clonedDoc) => {
-      // Explicitly copy all style and link tags from host document into the cloned document
-      const hostStyles = document.querySelectorAll('style, link[rel="stylesheet"]');
-      hostStyles.forEach((styleTag) => {
-        try {
-          clonedDoc.head.appendChild(styleTag.cloneNode(true));
-        } catch (e) {
-          // Ignore if already present
-        }
-      });
-
-      const clonedElement = clonedDoc.querySelector('.certificate-page') || clonedDoc.body;
-      clonedElement.style.width = '210mm';
-      clonedElement.style.maxWidth = '210mm';
-      clonedElement.style.margin = '0 auto';
-      clonedElement.style.padding = '45mm 7mm 15mm 7mm';
-      clonedElement.style.boxSizing = 'border-box';
-      clonedElement.style.backgroundColor = '#ffffff';
-    },
-    removeContainer: true,
-  });
-
-  const imgData = canvas.toDataURL("image/jpeg", 0.80);
-  const pdf = new jsPDF({
-    orientation: "p",
-    unit: "mm",
-    format: "a4",
-    compress: true
-  });
-
-  // A4 dimensions: 210mm x 297mm
-  const pdfWidth = pdf.internal.pageSize.getWidth();
-  const pdfHeight = pdf.internal.pageSize.getHeight();
-
-  // Render full A4 page (210mm x 297mm) with 45mm top space, 15mm bottom space, 7mm side margins
-  pdf.addImage(imgData, "JPEG", 0, 0, pdfWidth, pdfHeight, undefined, "SLOW");
-
-  pdf.save(filename);
+  // Same rendering as the e-sign PDF: one A4 page per .certificate-page (split ERC RM / Process ICs have several)
+  await generatePdfBase64(element, filename);
 }
 
 /**
@@ -90,50 +31,55 @@ export async function generatePdfBase64(element, filename = null) {
   }
   await new Promise((resolve) => setTimeout(resolve, 300));
 
-  const certificatePage = element.querySelector('.certificate-page') || element;
+  // Every .certificate-page becomes one A4 page (a split ERC RM / Process IC has several; most ICs have one)
+  const foundPages = Array.from(element.querySelectorAll('.certificate-page'));
+  const certificatePages = foundPages.length > 0 ? foundPages : [element];
 
-  const canvas = await html2canvas(certificatePage, {
-    scale: 2,
-    useCORS: true,
-    allowTaint: true,
-    backgroundColor: '#ffffff',
-    logging: false,
-    scrollY: 0,
-    scrollX: 0,
-    onclone: (clonedDoc) => {
-      // Explicitly copy all style and link tags from host document into the cloned document
-      const hostStyles = document.querySelectorAll('style, link[rel="stylesheet"]');
-      hostStyles.forEach((styleTag) => {
-        try {
-          clonedDoc.head.appendChild(styleTag.cloneNode(true));
-        } catch (e) {
-          // Ignore if already present
-        }
-      });
-
-      const clonedElement = clonedDoc.querySelector('.certificate-page') || clonedDoc.body;
-      clonedElement.style.width = '210mm';
-      clonedElement.style.maxWidth = '210mm';
-      clonedElement.style.margin = '0 auto';
-      clonedElement.style.padding = '45mm 7mm 15mm 7mm';
-      clonedElement.style.boxSizing = 'border-box';
-      clonedElement.style.backgroundColor = '#ffffff';
-    },
-    removeContainer: true,
-  });
-
-  const imgData = canvas.toDataURL("image/jpeg", 0.80);
   const pdf = new jsPDF({
     orientation: "p",
     unit: "mm",
     format: "a4",
     compress: true
   });
-
   const pdfWidth = pdf.internal.pageSize.getWidth();
   const pdfHeight = pdf.internal.pageSize.getHeight();
 
-  pdf.addImage(imgData, "JPEG", 0, 0, pdfWidth, pdfHeight, undefined, "SLOW");
+  for (let pageIndex = 0; pageIndex < certificatePages.length; pageIndex++) {
+    const canvas = await html2canvas(certificatePages[pageIndex], {
+      scale: 2,
+      useCORS: true,
+      allowTaint: true,
+      backgroundColor: '#ffffff',
+      logging: false,
+      scrollY: 0,
+      scrollX: 0,
+      onclone: (clonedDoc) => {
+        // Explicitly copy all style and link tags from host document into the cloned document
+        const hostStyles = document.querySelectorAll('style, link[rel="stylesheet"]');
+        hostStyles.forEach((styleTag) => {
+          try {
+            clonedDoc.head.appendChild(styleTag.cloneNode(true));
+          } catch (e) {
+            // Ignore if already present
+          }
+        });
+
+        const clonedPages = clonedDoc.querySelectorAll('.certificate-page');
+        const clonedElement = clonedPages[pageIndex] || clonedPages[0] || clonedDoc.body;
+        clonedElement.style.width = '210mm';
+        clonedElement.style.maxWidth = '210mm';
+        clonedElement.style.margin = '0 auto';
+        clonedElement.style.padding = '45mm 7mm 15mm 7mm';
+        clonedElement.style.boxSizing = 'border-box';
+        clonedElement.style.backgroundColor = '#ffffff';
+      },
+      removeContainer: true,
+    });
+
+    const imgData = canvas.toDataURL("image/jpeg", 0.80);
+    if (pageIndex > 0) pdf.addPage("a4", "p");
+    pdf.addImage(imgData, "JPEG", 0, 0, pdfWidth, pdfHeight, undefined, "SLOW");
+  }
 
   // If filename is provided, download the PDF
   if (filename) {

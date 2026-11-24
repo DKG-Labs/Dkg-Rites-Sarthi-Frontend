@@ -114,14 +114,6 @@ const DataTable = ({ columns, data, onRowClick, actions, selectable, selectedRow
     setCurrentPage(1);
   }, [data, searchTerm]);
 
-  // Clamp current page if total pages decreases
-  React.useEffect(() => {
-    const total = Math.ceil(filteredData.length / pageSize);
-    if (currentPage > total && total > 0) {
-      setCurrentPage(1);
-    }
-  }, [filteredData.length, pageSize, currentPage]);
-
   // Helper function to get rendered text from a column
   const getRenderedText = (row, column) => {
     if (!column.render) {
@@ -201,6 +193,13 @@ const DataTable = ({ columns, data, onRowClick, actions, selectable, selectedRow
   }, [filteredData, currentPage, pageSize]);
 
   const totalPages = Math.ceil(filteredData.length / pageSize);
+
+  // Clamp current page if total pages decreases
+  React.useEffect(() => {
+    if (currentPage > totalPages && totalPages > 0) {
+      setCurrentPage(1);
+    }
+  }, [totalPages, currentPage]);
 
   const handleSort = (column) => {
     if (sortColumn === column) {

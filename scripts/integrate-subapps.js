@@ -34,6 +34,7 @@ try {
     execSync('npm run build:main', {
         env: {
             ...process.env,
+            CI: 'false',
             REACT_APP_VERSION: versionData.version,
             REACT_APP_BUILD_TIME: versionData.buildTime,
             REACT_APP_GIT_COMMIT: versionData.gitCommit

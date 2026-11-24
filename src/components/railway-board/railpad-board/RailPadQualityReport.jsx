@@ -37,16 +37,21 @@ const FINAL_TEST_COLS = [
 // 7 base + 4 process insp + 3 final insp + process (TOTAL + reasons) + acceptance + remarks + %
 const TOTAL_COLS = 7 + 4 + 3 + (1 + PROCESS_REASON_COLS.length) + FINAL_TEST_COLS.length + 2;
 
-const RailPadQualityReport = ({ refreshTick = 0 }) => {
+const RailPadQualityReport = ({ refreshTick = 0, fromDate, toDate }) => {
     const [loading, setLoading] = useState(false);
     const [reportData, setReportData] = useState([]);
     const [selectedVendor, setSelectedVendor] = useState('All Manufacturers');
     const [startDate, setStartDate] = useState(() => {
+        if (fromDate) return fromDate;
         const d = new Date();
         d.setDate(d.getDate() - 365);
         return d.toISOString().split('T')[0];
     });
-    const [endDate, setEndDate] = useState(new Date().toISOString().split('T')[0]);
+    const [endDate, setEndDate] = useState(() => toDate || new Date().toISOString().split('T')[0]);
+
+    // follow the dashboard's top date filter (From / To) whenever it changes
+    useEffect(() => { if (fromDate) setStartDate(fromDate); }, [fromDate]);
+    useEffect(() => { if (toDate) setEndDate(toDate); }, [toDate]);
     const [searchQuery, setSearchQuery] = useState('');
     const [page, setPage] = useState(0);
     const [rowsPerPage, setRowsPerPage] = useState(10);
@@ -69,7 +74,12 @@ const RailPadQualityReport = ({ refreshTick = 0 }) => {
                 setLoading(false);
             }
         };
-        fetchReportData();
+        // wait until both dates are fully entered (4-digit year ≥ 2000, From ≤ To)
+        // and the user has stopped typing, so a half-typed date doesn't trigger a fetch
+        const isComplete = (d) => /^\d{4}-\d{2}-\d{2}$/.test(d || '') && Number(d.slice(0, 4)) >= 2000;
+        if (!isComplete(startDate) || !isComplete(endDate) || startDate > endDate) return undefined;
+        const timer = setTimeout(fetchReportData, 700);
+        return () => clearTimeout(timer);
     }, [startDate, endDate, refreshTick]);
 
     const handleExport = () => {

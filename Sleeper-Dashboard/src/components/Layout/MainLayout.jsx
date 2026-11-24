@@ -226,6 +226,21 @@ const MainLayout = ({ children, activeItem, onItemClick }) => {
                                 <line x1="3" y1="18" x2="21" y2="18" />
                             </svg>
                         </button>
+
+                        {/* SARTHI brand block – matches main app header */}
+                        <div className="sleeper-brand">
+                            <img
+                                src={`${import.meta.env.BASE_URL}sarthi-logo1.png`}
+                                alt="SARTHI Logo"
+                                className="sleeper-brand-logo"
+                            />
+                            <div className="sleeper-brand-text">
+                                <div className="sleeper-brand-title">SARTHI</div>
+                                <div className="sleeper-brand-subtitle">
+                                    System for Automated Review, Tracking &amp; Holistic Inspection
+                                </div>
+                            </div>
+                        </div>
                     </div>
 
                     {/* Right: End Duty + profile dropdown */}

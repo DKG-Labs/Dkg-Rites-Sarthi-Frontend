@@ -109,10 +109,10 @@ const DataTable = ({ columns, data, onRowClick, actions, selectable, selectedRow
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(initialPageSize);
 
-  // Reset page to 1 when search term changes
+  // Reset page to 1 when search term or external data changes
   React.useEffect(() => {
     setCurrentPage(1);
-  }, [searchTerm]);
+  }, [data, searchTerm]);
 
   // Helper function to get rendered text from a column
   const getRenderedText = (row, column) => {
@@ -193,6 +193,13 @@ const DataTable = ({ columns, data, onRowClick, actions, selectable, selectedRow
   }, [filteredData, currentPage, pageSize]);
 
   const totalPages = Math.ceil(filteredData.length / pageSize);
+
+  // Clamp current page if total pages decreases
+  React.useEffect(() => {
+    if (currentPage > totalPages && totalPages > 0) {
+      setCurrentPage(1);
+    }
+  }, [totalPages, currentPage]);
 
   const handleSort = (column) => {
     if (sortColumn === column) {

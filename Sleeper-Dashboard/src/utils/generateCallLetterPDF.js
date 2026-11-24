@@ -5,6 +5,7 @@
  */
 
 import jsPDF from 'jspdf';
+import { getQtyUomRule, parseQty, roundQty } from './uomQuantity.js';
 
 /**
  * Helper: safely get a value or fallback string
@@ -343,7 +344,9 @@ export const generateCallLetterPDF = (call, shouldDownload = true) => {
         return s.includes('SET') || s.includes('PNC') || s.includes('TURNOUT') || s.includes('4865') || s.includes('9790') || s.includes('4218') || s.includes('4732') || s.includes('DERAIL');
     };
     const rawUom = call.uom || call.unit || call.callUnit;
-    const isSetUom = Boolean(
+    // A UOM configured in QTY_UOM_RULES (e.g. RMT / Mtr) is a measured quantity: never a Set call, shown in the PO's own UOM
+    const qtyRule = getQtyUomRule(call.uom, call.callUnit, call.unit);
+    const isSetUom = !qtyRule && Boolean(
         (rawUom && String(rawUom).toUpperCase().includes('SET')) ||
         isSetType(call.sleeperType) ||
         isSetType(call.itemDesc) ||
@@ -369,7 +372,15 @@ export const generateCallLetterPDF = (call, shouldDownload = true) => {
 
     // Call Qty
     let callQtyDisplay;
-    if (isSetUom) {
+    if (qtyRule) {
+        // Measured UOM: Call Qty is the declared offered qty (decimals kept), not a sleeper count
+        const measuredSource = (call.callQty !== undefined && call.callQty !== null && String(call.callQty).trim() !== '')
+            ? call.callQty
+            : call.totalOffered;
+        callQtyDisplay = (measuredSource !== undefined && measuredSource !== null && String(measuredSource).trim() !== '')
+            ? `${roundQty(parseQty(measuredSource), qtyRule.decimals).toFixed(qtyRule.decimals)} ${effectiveUom}`
+            : '-';
+    } else if (isSetUom) {
         // If UOM = Set: show total offered quantity (in sets)
         let setQty = 1;
         if (call.offeredSetsQuantity != null && Number(call.offeredSetsQuantity) > 0) {

@@ -862,11 +862,8 @@ export const IbsInspectionDataView = ({ onNotify }) => {
                 <div className="ibs-header-left">
                     <div className="ibs-title-row">
                         <h2 className="ibs-title">
-                            <span className="ibs-icon-header">📋</span> IBS Inspection Data
+                            IBS Inspection Data
                         </h2>
-                        <span className="ibs-live-tag">
-                            <span className="ibs-live-pulse"></span> Live System Sync
-                        </span>
                     </div>
                     <p className="ibs-subtitle">
                         {activeTab === 'PENDING' ? (

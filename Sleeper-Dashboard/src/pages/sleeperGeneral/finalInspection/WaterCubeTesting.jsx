@@ -396,6 +396,7 @@ const WaterCubeTesting = () => {
                     castingDate: formatDateToIso(batch.castingDate || batch.date),
                     testDate: formatDateToIso(data.testDate),
                     ageDays: data.ageDays,
+                    fckTarget: data.fck,
                     shift: batch.shift,
                     lineNo: batch.lineNo,
                     concreteGrade: batch.grade || batch.concreteGrade,
@@ -446,14 +447,31 @@ const WaterCubeTesting = () => {
                 }
             });
 
-            await Promise.all(promises);
-            
-            alert(`Test record${promises.length > 1 ? 's' : ''} saved successfully!`);
+            const responses = await Promise.all(promises);
+
+            // Update responses come wrapped ({ body: {...} }); create responses are the result itself
+            const saved = responses.map(res => (res && res.body) ? res.body : (res || {}));
+            const rejected = saved.filter(r => r.lotRejected);
+
+            let message = `Test record${promises.length > 1 ? 's' : ''} saved successfully!`;
+            if (rejected.length > 0) {
+                const batchNos = rejected.map(r => r.batchNumber).filter(Boolean).join(', ');
+                message += `\n\nLOT REJECTED: batch ${batchNos} failed the water cube test. ` +
+                    'All its sleepers are marked Rejected and the batch is returned to the vendor.';
+                const callNos = [...new Set(rejected.flatMap(r => r.openCallNos || []))];
+                if (callNos.length > 0) {
+                    message += `\n\nThe batch is still part of inspection call(s): ${callNos.join(', ')}. ` +
+                        'Please withdraw or modify these calls.';
+                }
+            }
+            alert(message);
             setShowTestForm(false);
             fetchAllData(); // Refresh all sections
         } catch (error) {
             console.error("Error saving test result:", error);
-            alert("Failed to save test result.");
+            alert(error?.message ? `Failed to save test result: ${error.message}` : "Failed to save test result.");
+            fetchAllData(); // grouped lots: some batches may have been saved before the error
+            throw error; // lets the form re-enable its Save button
         }
     };
 
@@ -763,7 +781,8 @@ const WaterCubeTesting = () => {
                             fetchAllData();
                             setShowTestModal(false);
                         } catch (err) {
-                            alert("Failed to delete test record.");
+                            // e.g. a test that rejected its lot is locked and cannot be deleted
+                            alert(err?.message ? `Failed to delete test record: ${err.message}` : "Failed to delete test record.");
                         }
                     }}
                 />

@@ -398,7 +398,8 @@ const VerificationDetailModal = ({ row, moduleLabel, actionBy, onClose, onDone }
                                     const auditKeys = [
                                         'updatedBy', 'modifiedBy', 'lastModifiedBy', 'createdBy',
                                         'updatedDate', 'updatedAt', 'modifiedDate', 'modifiedAt', 'lastModifiedDate',
-                                        'status', 'recordStatus', 'id', 'requestId', 'workflowTransitionId'
+                                        'status', 'recordStatus', 'id', 'requestId', 'workflowTransitionId',
+                                        'lockedByIc', 'lockedByIcCallNo'
                                     ];
                                     if (auditKeys.includes(key)) return null;
 
@@ -619,6 +620,20 @@ const VerificationDetailModal = ({ row, moduleLabel, actionBy, onClose, onDone }
                                     </svg>
                                     This record has already been verified and locked.
                                 </div>
+                                {detail?.lockedByIc ? (
+                                <div style={{
+                                    background: '#fef2f2', border: '1px solid #fecaca',
+                                    borderRadius: '12px', padding: '14px 16px',
+                                    display: 'flex', alignItems: 'center', gap: '10px',
+                                    color: '#b91c1c', fontWeight: '700', fontSize: '13px',
+                                }}>
+                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                        <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+                                        <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+                                    </svg>
+                                    Final IC issued for call {detail.lockedByIcCallNo} — this batch is permanently locked and cannot be unlocked.
+                                </div>
+                                ) : (
                                 <button
                                     onClick={() => setPendingAction('UNLOCK')}
                                     style={{
@@ -636,6 +651,7 @@ const VerificationDetailModal = ({ row, moduleLabel, actionBy, onClose, onDone }
                                     </svg>
                                     Unlock for modification
                                 </button>
+                                )}
                             </div>
                         ) : (
                             <div style={{

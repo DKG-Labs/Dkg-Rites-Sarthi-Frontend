@@ -1,6 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import './WaterCuredCubeForm.css';
 
+// Result values of a water cube test (stored as final_test_result; the server re-evaluates them)
+const TEST_RESULT = { PASS: 'PASS', FAIL: 'FAIL', PENDING: 'Pending' };
+
 const WaterCuredCubeForm = ({ batch, preFillData, onSave, onCancel }) => {
     // Area for 150mm cube is 22500 mm2
     const AREA = 22500;
@@ -106,21 +109,21 @@ const WaterCuredCubeForm = ({ batch, preFillData, onSave, onCancel }) => {
         );
 
         let mrSamples = 0;
-        let testResult = 'Pending';
+        let testResult = TEST_RESULT.PENDING;
 
         if (allStrengths.length === 6) {
             if (hasExcessiveVariation) {
                 mrSamples = 0;
-                testResult = 'FAIL';
+                testResult = TEST_RESULT.FAIL;
             } else if (condition1) {
                 mrSamples = 1;
-                testResult = 'PASS';
+                testResult = TEST_RESULT.PASS;
             } else if (condition2) {
                 mrSamples = 2;
-                testResult = 'PASS';
+                testResult = TEST_RESULT.PASS;
             } else if (condition3) {
                 mrSamples = 0;
-                testResult = 'FAIL';
+                testResult = TEST_RESULT.FAIL;
             }
         }
 
@@ -148,6 +151,15 @@ const WaterCuredCubeForm = ({ batch, preFillData, onSave, onCancel }) => {
 
     const handleSave = async () => {
         if (saving) return;
+        // A failed lot is rejected as a whole: make the IE confirm before it is recorded
+        if (results.testResult === TEST_RESULT.FAIL) {
+            const confirmed = window.confirm(
+                `Water cube test FAILED for batch ${batch.batchNo}.\n\n` +
+                'Saving will reject the entire batch, mark all its sleepers Rejected and return it to the vendor. ' +
+                'This cannot be undone.\n\nContinue?'
+            );
+            if (!confirmed) return;
+        }
         setSaving(true);
         try {
             const sample1Results = cubes.filter(c => c.sample === 1).map(c => ({
@@ -163,6 +175,7 @@ const WaterCuredCubeForm = ({ batch, preFillData, onSave, onCancel }) => {
             await onSave({
                 testDate: testDate || new Date().toISOString().split('T')[0],
                 ageDays: age,
+                fck: FCK,
                 avgStrength: results.x,
                 s1Avg: results.s1Avg,
                 s2Avg: results.s2Avg,
@@ -423,7 +436,7 @@ const WaterCuredCubeForm = ({ batch, preFillData, onSave, onCancel }) => {
             </div>
 
             <div className="form-actions">
-                <button className="btn-save" onClick={handleSave} disabled={results.testResult === 'Pending' || saving}>
+                <button className="btn-save" onClick={handleSave} disabled={results.testResult === TEST_RESULT.PENDING || saving}>
                     {saving ? 'Saving...' : 'Save Test Details'}
                 </button>
                 <button className="btn-cancel" onClick={onCancel} disabled={saving}>Cancel</button>

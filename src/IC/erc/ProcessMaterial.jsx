@@ -12,6 +12,7 @@ import {
 import { formatDate } from "../../utils/helpers";
 import ErcProcessIc from "./ErcProcessIc";
 import { exportToPdf } from "../../utils/exportUtils";
+import { splitBalanced } from "./icPagination";
 import { uploadSignedCertificate, saveProcessIcEditData, getProcessIcEditData, saveProcessIcSaveChanges, getProcessIcSaveChanges, validateBookSetNo } from "../../services/certificateService";
 import { fetchPoDataForSections } from "../../services/poDataService";
 import { performTransitionAction } from "../../services/workflowService";
@@ -227,6 +228,13 @@ export default function ProcessMaterialCertificate({ call = {}, onBack }) {
     });
   };
   const dataToPass = editableData || transformCallToIC(call);
+  // Pages of the IC: more than 5 lots → one page per balanced group of lots (6 → 3+3, 11 → 4+4+3)
+  const processIcPages = (() => {
+    const lots = Array.isArray(dataToPass.lots) ? dataToPass.lots : [];
+    const groups = splitBalanced(lots.map((_, i) => i));
+    if (groups.length <= 1) return [null];
+    return groups.map((g, index) => ({ from: g[0], to: g[g.length - 1] + 1, index, count: groups.length }));
+  })();
   const hasBookAndSetNo = Boolean(
     dataToPass?.bookNo && 
     String(dataToPass.bookNo).trim() !== "" && 
@@ -690,17 +698,20 @@ export default function ProcessMaterialCertificate({ call = {}, onBack }) {
       </Snackbar>
 
       <div className="certificate-print-wrapper" ref={printAreaRef}>
-        <div className="certificate-page">
-          <ErcProcessIc 
-            data={dataToPass} 
-            isEditing={isEditing} 
-            isBusy={isUploadingSigned} 
-            onChange={handleDataChange} 
-            onArrayChange={handleArrayDataChange}
-            onVerifyBookSet={handleVerifyBookSet}
-            bookSetValidation={bookSetValidation}
-          />
-        </div>
+        {processIcPages.map((page, idx) => (
+          <div className="certificate-page" key={idx} style={idx > 0 ? { marginTop: '24px' } : undefined}>
+            <ErcProcessIc
+              data={page ? { ...dataToPass, lotPage: page, pageLabel: `Page ${idx + 1} of ${processIcPages.length}` } : dataToPass}
+              // fields are edited once on page 1; other pages show the same values read-only
+              isEditing={idx === 0 ? isEditing : false}
+              isBusy={isUploadingSigned}
+              onChange={handleDataChange}
+              onArrayChange={handleArrayDataChange}
+              onVerifyBookSet={handleVerifyBookSet}
+              bookSetValidation={bookSetValidation}
+            />
+          </div>
+        ))}
       </div>
 
       {/* Book Number Warning & Acknowledgment Modal */}

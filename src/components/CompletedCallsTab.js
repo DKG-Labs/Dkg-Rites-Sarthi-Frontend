@@ -28,6 +28,7 @@ import AssignmentReturnRoundedIcon from '@mui/icons-material/AssignmentReturnRou
 import { fetchSavedCaseLetterInfo } from '../services/caseLetterService';
 import { RailpadProcessAnnexureAModal } from './annexures/RailpadProcessAnnexureA';
 import { downloadMergedIcAndCorrectionSlip } from '../services/correctionSlipService';
+import { getCaseRioMismatch, CaseRioLockedAction } from '../utils/caseRioCheck';
 
 
 const CompletedCallsTab = ({ setSelectedCall, setCurrentPage, onCallSentToIbs }) => {
@@ -464,7 +465,12 @@ const CompletedCallsTab = ({ setSelectedCall, setCurrentPage, onCallSentToIbs })
     }
   };
 
+  // Case number of another RIO: actions locked for this IE (same rule on every tab)
   const actions = (row) => {
+    const mismatch = getCaseRioMismatch(row);
+    return mismatch ? <CaseRioLockedAction mismatch={mismatch} /> : actionsUnlocked(row);
+  };
+  const actionsUnlocked = (row) => {
     const isCancelled = (row.status || '').toUpperCase().includes('CANCEL') || (row.originalStatus || '').toUpperCase().includes('CANCEL');
 
     if (isCancelled) {

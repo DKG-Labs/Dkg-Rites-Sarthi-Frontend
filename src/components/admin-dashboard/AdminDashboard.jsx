@@ -15,6 +15,9 @@ import { getStoredUser } from '../../services/authService';
 import { Snackbar, Alert } from '@mui/material';
 import './admin.css';
 import ProcessDefectSummaryCard from '../ProcessDefectSummaryCard';
+import ManageIcDatesForm from './ManageIcDatesForm';
+import CancelTransaction from './CancelTransaction';
+import ChangeOfferedQty from './ChangeOfferedQty';
 
 export const parseUserFriendlyErrorMessage = (rawErrorMsg) => {
     if (!rawErrorMsg) return 'Failed to save user. Please try again.';
@@ -518,7 +521,7 @@ export const AdminDashboard = () => {
                             className={`nav-link ${activeModule === 'users' ? 'active' : ''}`}
                             onClick={() => handleModuleSelect('users')}
                         >
-                            <span>👥</span>
+                            <i className="fa-solid fa-users nav-ico" aria-hidden="true"></i>
                             <span>User Management</span>
                         </button>
                     </li>
@@ -547,7 +550,7 @@ export const AdminDashboard = () => {
                             className={`nav-link ${activeModule === 'mapping' ? 'active' : ''}`}
                             onClick={() => handleModuleSelect('mapping')}
                         >
-                            <span>🗺️</span>
+                            <i className="fa-solid fa-diagram-project nav-ico" aria-hidden="true"></i>
                             <span>IE Mapping</span>
                         </button>
                     </li>
@@ -556,7 +559,7 @@ export const AdminDashboard = () => {
                             className={`nav-link ${activeModule === 'certificates' ? 'active' : ''}`}
                             onClick={() => handleModuleSelect('certificates')}
                         >
-                            <span>🛡️</span>
+                            <i className="fa-solid fa-file-shield nav-ico" aria-hidden="true"></i>
                             <span>Inspection Certificates</span>
                         </button>
                     </li>
@@ -565,7 +568,7 @@ export const AdminDashboard = () => {
                             className={`nav-link ${activeModule === 'ibs-data' ? 'active' : ''}`}
                             onClick={() => handleModuleSelect('ibs-data')}
                         >
-                            <span>📋</span>
+                            <i className="fa-solid fa-building-columns nav-ico" aria-hidden="true"></i>
                             <span>IBS Call Inspection Data</span>
                         </button>
                     </li>
@@ -574,10 +577,42 @@ export const AdminDashboard = () => {
                             className={`nav-link ${activeModule === 'process-defect-summary' ? 'active' : ''}`}
                             onClick={() => handleModuleSelect('process-defect-summary')}
                         >
-                            <span>🧾</span>
+                            <i className="fa-solid fa-list-check nav-ico" aria-hidden="true"></i>
                             <span>Process Defect Summary</span>
                         </button>
                     </li>
+                    {isSuperAdmin && (
+                        <>
+                            <li className="nav-group-label" aria-hidden="true">Super Admin</li>
+                            <li className="nav-item">
+                                <button
+                                    className={`nav-link ${activeModule === 'ic-dates' ? 'active' : ''}`}
+                                    onClick={() => handleModuleSelect('ic-dates')}
+                                >
+                                    <i className="fa-solid fa-calendar-days nav-ico" aria-hidden="true"></i>
+                                    <span>IC Date Change</span>
+                                </button>
+                            </li>
+                            <li className="nav-item">
+                                <button
+                                    className={`nav-link danger ${activeModule === 'cancel-transaction' ? 'active' : ''}`}
+                                    onClick={() => handleModuleSelect('cancel-transaction')}
+                                >
+                                    <i className="fa-solid fa-rotate-left nav-ico" aria-hidden="true"></i>
+                                    <span>Cancel Last Transaction</span>
+                                </button>
+                            </li>
+                            <li className="nav-item">
+                                <button
+                                    className={`nav-link ${activeModule === 'offered-qty' ? 'active' : ''}`}
+                                    onClick={() => handleModuleSelect('offered-qty')}
+                                >
+                                    <i className="fa-solid fa-scale-balanced nav-ico" aria-hidden="true"></i>
+                                    <span>Change Offered Qty</span>
+                                </button>
+                            </li>
+                        </>
+                    )}
 
                 </ul>
             </aside>
@@ -596,11 +631,14 @@ export const AdminDashboard = () => {
                         <span>Menu</span>
                     </button>
                     <div className="admin-mobile-active-title">
-                        {activeModule === 'users' && '👥 User Management'}
-                        {activeModule === 'mapping' && '🗺️ IE Mapping'}
-                        {activeModule === 'certificates' && '🛡️ Inspection Certificates'}
-                        {activeModule === 'ibs-data' && '📋 IBS Inspection Data'}
-                        {activeModule === 'process-defect-summary' && '🧾 Process Defect Summary'}
+                        {activeModule === 'users' && 'User Management'}
+                        {activeModule === 'mapping' && 'IE Mapping'}
+                        {activeModule === 'certificates' && 'Inspection Certificates'}
+                        {activeModule === 'ibs-data' && 'IBS Inspection Data'}
+                        {activeModule === 'process-defect-summary' && 'Process Defect Summary'}
+                        {activeModule === 'ic-dates' && 'IC Date Change'}
+                        {activeModule === 'cancel-transaction' && 'Cancel Last Transaction'}
+                        {activeModule === 'offered-qty' && 'Change Offered Qty'}
                     </div>
                 </div>
 
@@ -661,6 +699,19 @@ export const AdminDashboard = () => {
                     )}
                     {/* Process Defect Summary: all EP calls, edit/delete without the Process IE limits */}
                     {activeModule === 'process-defect-summary' && <ProcessDefectSummaryCard adminMode />}
+
+                    {/* Super Admin only */}
+                    {isSuperAdmin && activeModule === 'ic-dates' && <ManageIcDatesForm />}
+                    {isSuperAdmin && activeModule === 'cancel-transaction' && (
+                        <CancelTransaction
+                            onNotify={(msg, severity) => setSnackbar({ open: true, message: msg, severity: severity || 'info' })}
+                        />
+                    )}
+                    {isSuperAdmin && activeModule === 'offered-qty' && (
+                        <ChangeOfferedQty
+                            onNotify={(msg, severity) => setSnackbar({ open: true, message: msg, severity: severity || 'info' })}
+                        />
+                    )}
 
                 </div>
             </div>

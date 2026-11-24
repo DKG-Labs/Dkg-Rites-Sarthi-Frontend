@@ -58,6 +58,8 @@ export const storeAuthData = (authData) => {
     sessionStorage.setItem('sleeper_token', token);
   }
   localStorage.setItem('userId', authData.userId);
+  // RIO of the user (e.g. ERIO): actions are allowed only on calls whose case number starts with its letter
+  localStorage.setItem('rio', authData.rio || '');
   localStorage.setItem('userName', authData.userName);
   localStorage.setItem('roleName', authData.roleName);
   // Reset navigation to landing page upon login

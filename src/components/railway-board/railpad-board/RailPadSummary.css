@@ -474,6 +474,7 @@
 }
 
 /* Keep the gradient number visible through the animated CountUp spans */
+.rps-glass .kpi-val .lakhs-value,
 .rps-glass .kpi-val .countup,
 .rps-glass .kpi-val .countup__rise {
   background-image: inherit;

@@ -3,6 +3,7 @@ import CallCancellationModal from './CallCancellationModal';
 import AnnexuresModal from './AnnexuresModal';
 import { generateCallLetterPDF } from '../utils/generateCallLetterPDF';
 import { API_BASE_URL, apiService } from '../services/api';
+import { getQtyUomRule } from '../utils/uomQuantity';
 
 const isSetOrTurnout = (sleeperType, uom) => {
   const u = String(uom || '').toUpperCase();
@@ -14,6 +15,8 @@ const isSetOrTurnout = (sleeperType, uom) => {
 const getEffectiveUom = (call) => {
   if (!call) return 'Nos.';
   const rawUom = call.uom || call.unit || call.callUnit;
+  // Measured UOMs configured in QTY_UOM_RULES (e.g. RMT / Mtr) keep the PO's own UOM, never Set
+  if (rawUom && getQtyUomRule(rawUom)) return rawUom;
   if (rawUom && rawUom.toUpperCase().includes('SET')) return 'Set';
   const type = call.sleeperType || call.productType || call.product_type;
   if (isSetOrTurnout(type, rawUom)) return 'Set';

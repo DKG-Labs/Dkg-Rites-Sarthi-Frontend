@@ -60,6 +60,7 @@ const COLUMNS = {
     { label: 'Sample Qty', render: e => e.sampleQuantity },
     { label: 'Clear Cut Sides', render: e => e.clearCutSides },
     { label: 'Smooth Surface', render: e => e.smoothSurface },
+    { label: 'Freedom from Defects', render: e => e.freedomFromDefects || 'Satisfactory' },
   ],
 };
 

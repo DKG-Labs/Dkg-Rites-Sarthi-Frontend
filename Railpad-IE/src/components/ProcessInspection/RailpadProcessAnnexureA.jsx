@@ -580,6 +580,8 @@ export const RailpadProcessAnnexureA = ({
     }
     // User note: "Freedom from Defects (new field to be added in form)"
     if (field === 'defects') {
+      if (item.freedomFromDefects === 'Satisfactory') return 'OK';
+      if (item.freedomFromDefects === 'Not Satisfactory') return 'Not OK';
       return item.freedomFromDefects || (item.defectRemarks ? item.defectRemarks : 'Free from Defects');
     }
     return '-';

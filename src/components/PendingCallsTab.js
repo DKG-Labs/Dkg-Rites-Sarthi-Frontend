@@ -10,6 +10,23 @@ import { getAvailableActions, shouldShowScheduleDate, API_STATUS, getDetailedSta
 import AnnexureLoader from './annexures/AnnexureLoader';
 import PendingCallDetailsModal from './PendingCallDetailsModal';
 
+/**
+ * The IBS case number starts with the RIO letter (E25100017 → ERIO). An IE may act only on calls of
+ * their own RIO: ERIO → case must start with E. Returns null when allowed (or when there is nothing
+ * to compare: no case number yet / no RIO stored for the user), otherwise the details for the message.
+ */
+const RIO_NAMES = { N: 'NRIO', E: 'ERIO', W: 'WRIO', S: 'SRIO', C: 'CRIO' };
+const getCaseRioMismatch = (row) => {
+  let ieRio = '';
+  try { ieRio = (localStorage.getItem('rio') || '').trim().toUpperCase(); } catch (e) { ieRio = ''; }
+  const caseNo = String(row?.ibsCaseNo || row?.ibs_case_no || row?.caseNo || row?.case_no || '').trim().toUpperCase();
+  if (!ieRio || !caseNo || caseNo === '-') return null;
+  const ieLetter = ieRio.charAt(0);
+  const caseLetter = caseNo.charAt(0);
+  if (!/[A-Z]/.test(caseLetter) || caseLetter === ieLetter) return null;
+  return { ieRio, caseNo, caseRio: RIO_NAMES[caseLetter] || `${caseLetter} region` };
+};
+
 // Responsive styles for mobile
 const responsiveStyles = `
   @media (max-width: 768px) {
@@ -489,6 +506,33 @@ const PendingCallsTab = ({ calls, onSchedule, onReschedule, onStart, onBulkSched
       availableActions = ['view'];
     } else if (!availableActions.includes('view')) {
       availableActions.push('view');
+    }
+
+    // Case number of another RIO: actions are blocked for this IE
+    const mismatch = getCaseRioMismatch(row);
+    if (mismatch) {
+      const why = `Case No. ${mismatch.caseNo} belongs to ${mismatch.caseRio}, but you are mapped to ${mismatch.ieRio}. Ask the Call Desk / CM to correct the case number or reassign this call.`;
+      return (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', maxWidth: '190px' }}>
+          <button
+            type="button"
+            className="btn btn-sm"
+            disabled
+            aria-disabled="true"
+            title={why}
+            onClick={(e) => { if (e && e.stopPropagation) e.stopPropagation(); }}
+            style={{ whiteSpace: 'nowrap', background: '#e2e8f0', color: '#94a3b8', border: '1px solid #cbd5e1', cursor: 'not-allowed' }}
+          >
+            🔒 VIEW ACTIONS
+          </button>
+          <span
+            title={why}
+            style={{ fontSize: '11px', lineHeight: 1.3, color: '#b45309', background: '#fffbeb', border: '1px solid #fde68a', borderRadius: '6px', padding: '3px 6px', whiteSpace: 'normal' }}
+          >
+            Case No. is of {mismatch.caseRio}; you are {mismatch.ieRio}. Actions disabled.
+          </span>
+        </div>
+      );
     }
 
     return (

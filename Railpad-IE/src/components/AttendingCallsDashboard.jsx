@@ -40,6 +40,7 @@ import {
   downloadMergedIcAndCorrectionSlip
 } from '../services/correctionSlipService';
 import { downloadOrNotifyCaseLetter, fetchSavedCaseLetterInfo, viewSavedCaseLetterPdf } from '../services/caseLetterService';
+import { getCaseRioMismatch, CaseRioLockedAction } from '../utils/caseRioCheck';
 
 const isProcessCall = (call) => {
   if (!call) return false;
@@ -1456,6 +1457,9 @@ const AttendingCallsDashboard = ({
                       </td>
                       <td style={{ padding: '14px 18px', textAlign: 'right' }}>
                         <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end', flexWrap: 'nowrap' }}>
+                          {getCaseRioMismatch(call) ? (
+                              <CaseRioLockedAction mismatch={getCaseRioMismatch(call)} label="View Actions" />
+                          ) : (
                           <button
                             onClick={() => setSelectedActionCall({ ...call, isClosed: true })}
                             title="View Call Actions"
@@ -1482,6 +1486,7 @@ const AttendingCallsDashboard = ({
                             </svg>
                             View Actions
                           </button>
+                          )}
                         </div>
                       </td>
                     </>
@@ -1573,6 +1578,9 @@ const AttendingCallsDashboard = ({
                               );
                             }
                             return (
+                              getCaseRioMismatch(call) ? (
+                                  <CaseRioLockedAction mismatch={getCaseRioMismatch(call)} label="View Actions" />
+                              ) : (
                               <button
                                 onClick={() => setSelectedActionCall(call)}
                                 title="View Call Actions"
@@ -1599,6 +1607,7 @@ const AttendingCallsDashboard = ({
                                 </svg>
                                 View Actions
                               </button>
+                          )
                             );
                           })()}
                         </div>
@@ -1650,7 +1659,9 @@ const AttendingCallsDashboard = ({
                       </td>
                       <td style={{ padding: '14px 18px', textAlign: 'right' }}>
                         <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end', flexWrap: 'nowrap' }}>
-                          {activeTab === 'certificates' ? (
+                          {getCaseRioMismatch(call) ? (
+                            <CaseRioLockedAction mismatch={getCaseRioMismatch(call)} />
+                          ) : activeTab === 'certificates' ? (
                             <button
                               onClick={(e) => {
                                 e.stopPropagation();

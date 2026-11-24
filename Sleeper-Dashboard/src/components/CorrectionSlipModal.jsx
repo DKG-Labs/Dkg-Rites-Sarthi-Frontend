@@ -362,7 +362,7 @@ const CorrectionSlipModal = ({ row = {}, onClose, viewOnly = false, isViewOnly =
           datesOfInspection: editData?.datesOfInspection || icBackend?.datesOfInspection || '—',
           trRecDate: formatDateVal(editData?.trRecDate || icBackend?.trRecDate),
           reasonsForRejection: (editData?.reasonsForRejection && editData.reasonsForRejection !== 'Not Applicable') ? editData.reasonsForRejection : (icBackend?.reasonsForRejection || 'Not Applicable'),
-          inspectingEngineer: editData?.inspectingEngineer || icBackend?.inspectingEngineer || currentUser?.userName || 'Inspecting Engineer',
+          inspectingEngineer: String(editData?.inspectingEngineer || icBackend?.inspectingEngineer || '').trim(),
         };
 
         setIcData(normalizedData);

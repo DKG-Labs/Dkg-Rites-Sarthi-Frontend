@@ -11,6 +11,7 @@ import CallsFilterSection from './common/CallsFilterSection';
 import { generateRawMaterialCertificate, generateProcessMaterialCertificate, generateFinalProductCertificate, generateFinalCertificate } from '../services/certificateService';
 import { fetchCompletedCallsForIC, getCurrentUserId, deleteInspectionCompleteRequest } from '../services/workflowApiService';
 import { performTransitionAction } from '../services/workflowService';
+import { getCaseRioMismatch, CaseRioLockedAction } from '../utils/caseRioCheck';
 
 
 
@@ -377,7 +378,12 @@ const IssuanceOfICTab = ({ calls, setSelectedCall, setCurrentPage, isLoaded }) =
     }
   };
 
-  const actions = (row) => (
+  // Case number of another RIO: actions locked for this IE (same rule on every tab)
+  const actions = (row) => {
+    const mismatch = getCaseRioMismatch(row);
+    return mismatch ? <CaseRioLockedAction mismatch={mismatch} /> : actionsUnlocked(row);
+  };
+  const actionsUnlocked = (row) => (
     <div style={{ display: 'flex', gap: 'var(--space-8)' }}>
       <button
         className="btn btn-sm btn-primary"

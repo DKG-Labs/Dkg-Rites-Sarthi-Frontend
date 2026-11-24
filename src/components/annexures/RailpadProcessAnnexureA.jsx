@@ -411,7 +411,11 @@ export const RailpadProcessAnnexureA = ({
     if (!item) return '-';
     if (field === 'sides') return item.clearCutSides === 'Yes' ? 'OK' : (item.clearCutSides || 'OK');
     if (field === 'surface') return item.smoothSurface === 'Yes' ? 'OK' : (item.smoothSurface || 'OK');
-    if (field === 'defects') return item.freedomFromDefects || (item.defectRemarks ? item.defectRemarks : 'Free from Defects');
+    if (field === 'defects') {
+      if (item.freedomFromDefects === 'Satisfactory') return 'OK';
+      if (item.freedomFromDefects === 'Not Satisfactory') return 'Not OK';
+      return item.freedomFromDefects || (item.defectRemarks ? item.defectRemarks : 'Free from Defects');
+    }
     return '-';
   };
 

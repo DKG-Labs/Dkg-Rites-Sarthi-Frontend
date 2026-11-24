@@ -11,7 +11,7 @@ import { getDetailedStatus } from '../../../utils/statusMapper';
 import { formatDateTime } from '../utils/helpers';
 
 const DisposedCallsTab = ({ calls = [], onViewHistory }) => {
-  const [searchTerm] = useState('');
+  const [searchTerm, setSearchTerm] = useState('');
   const [showFilters, setShowFilters] = useState(false);
   const [filterSearch, setFilterSearch] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('Product Type');
@@ -233,6 +233,48 @@ const DisposedCallsTab = ({ calls = [], onViewHistory }) => {
 
   return (
     <div className="calldesk-tab-content">
+      {/* Global Search */}
+      <div style={{
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        gap: '16px',
+        marginBottom: '16px',
+        flexWrap: 'wrap'
+      }}>
+        <div style={{ position: 'relative', flex: '1', maxWidth: '400px' }}>
+          <span style={{
+            position: 'absolute',
+            left: '12px',
+            top: '50%',
+            transform: 'translateY(-50%)',
+            color: '#64748b',
+            fontSize: '14px',
+            pointerEvents: 'none'
+          }}>🔍</span>
+          <input
+            type="text"
+            className="form-control"
+            placeholder="Search by call no, PO, vendor, status, date..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            style={{
+              width: '100%',
+              padding: '8px 12px 8px 36px',
+              border: '1px solid #cbd5e1',
+              borderRadius: '6px',
+              fontSize: '14px',
+              outline: 'none',
+              backgroundColor: 'white',
+              transition: 'all 0.2s',
+              minHeight: '38px'
+            }}
+            onFocus={(e) => e.target.style.borderColor = '#16a34a'}
+            onBlur={(e) => e.target.style.borderColor = '#cbd5e1'}
+          />
+        </div>
+      </div>
+
       {/* Filter Section */}
       <CallsFilterSection
         allCalls={callsForFilter}
@@ -264,6 +306,7 @@ const DisposedCallsTab = ({ calls = [], onViewHistory }) => {
         emptyMessage="No disposed calls found"
         initialSortColumn="submissionDateTime"
         initialSortDirection="desc"
+        hideSearch={true}
       />
     </div>
   );

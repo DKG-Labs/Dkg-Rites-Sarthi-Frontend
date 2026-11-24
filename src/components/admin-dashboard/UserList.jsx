@@ -401,7 +401,7 @@ export const UserList = ({ users = [], roles = [], loading, onEdit, onDelete, on
     const displayRoles = roles && roles.length > 0 ? roles : USER_ROLES;
 
     return (
-        <div>
+        <div className="um um-users">
             {/* Metric Cards */}
             <div style={{
                 display: 'grid',
@@ -657,7 +657,7 @@ export const UserList = ({ users = [], roles = [], loading, onEdit, onDelete, on
                                                 <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
                                                 <circle cx="12" cy="12" r="3" />
                                             </svg>
-                                            <span>View Actions</span>
+                                            <span>Manage</span>
                                         </button>
                                     </td>
                                 </tr>

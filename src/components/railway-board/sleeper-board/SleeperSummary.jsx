@@ -3,6 +3,7 @@ import './SleeperSummary.css';
 import reportService from '../../../services/reportService';
 import ProductionRejectionTrendModal from '../ProductionRejectionTrendModal';
 import CountUp from '../../common/CountUp';
+import LakhsValue from '../../common/LakhsValue';
 import '../railpad-board/RailPadSummary.css';
 
 let cachedSleeperSummary = null;
@@ -234,7 +235,7 @@ const SleeperSummary = ({
                     <div className="kpi-lbl">Total PO Qty on Order</div>
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginTop: '4px' }}>
                         <div style={{ borderRight: '1px solid rgba(255,255,255,0.2)', paddingRight: '8px' }}>
-                            <div className="kpi-val" style={{ fontSize: '20px' }}><CountUp value={totalPoQtyNos} /></div>
+                            <div className="kpi-val" style={{ fontSize: '20px' }}><LakhsValue value={totalPoQtyNos} /></div>
                             <div className="kpi-sub" style={{ fontSize: '11px', opacity: 0.9 }}>Nos.</div>
                         </div>
                         <div style={{ paddingLeft: '8px' }}>
@@ -248,7 +249,7 @@ const SleeperSummary = ({
                     <div className="kpi-lbl">Final Accepted Quantity</div>
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginTop: '4px' }}>
                         <div style={{ borderRight: '1px solid rgba(255,255,255,0.2)', paddingRight: '8px' }}>
-                            <div className="kpi-val" style={{ fontSize: '20px' }}><CountUp value={finalAcceptedNos} /></div>
+                            <div className="kpi-val" style={{ fontSize: '20px' }}><LakhsValue value={finalAcceptedNos} /></div>
                             <div className="kpi-sub" style={{ fontSize: '11px', opacity: 0.9 }}>Nos.</div>
                         </div>
                         <div style={{ paddingLeft: '8px' }}>
@@ -345,7 +346,7 @@ const SleeperSummary = ({
                         {/* Accepted column */}
                         <div style={{ background: 'rgba(34, 197, 94, 0.08)', padding: '10px', borderRadius: '8px', border: '1px solid rgba(34, 197, 94, 0.2)', textAlign: 'center' }}>
                             <div style={{ fontSize: '11px', color: '#15803d', fontWeight: '700', marginBottom: '4px' }}>ACCEPTED (Nos.)</div>
-                            <div style={{ fontSize: '24px', fontWeight: '800', color: '#22c55e' }}><CountUp value={processAcceptedNos} /></div>
+                            <div style={{ fontSize: '24px', fontWeight: '800', color: '#22c55e' }}><LakhsValue value={processAcceptedNos} /></div>
                         </div>
                         {/* Rejected column */}
                         <div style={{ background: 'rgba(239, 68, 68, 0.08)', padding: '10px', borderRadius: '8px', border: '1px solid rgba(239, 68, 68, 0.2)', textAlign: 'center' }}>
@@ -366,7 +367,7 @@ const SleeperSummary = ({
                             <div style={{ fontSize: '11px', color: '#15803d', fontWeight: '700', marginBottom: '6px', textAlign: 'center' }}>ACCEPTED</div>
                             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', textAlign: 'center' }}>
                                 <div>
-                                    <div style={{ fontSize: '20px', fontWeight: '800', color: '#22c55e' }}><CountUp value={finalAcceptedNos} /></div>
+                                    <div style={{ fontSize: '20px', fontWeight: '800', color: '#22c55e' }}><LakhsValue value={finalAcceptedNos} /></div>
                                     <div style={{ fontSize: '10px', color: '#64748b', fontWeight: '600' }}>Nos.</div>
                                 </div>
                                 <div>

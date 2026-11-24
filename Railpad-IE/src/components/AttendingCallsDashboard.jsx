@@ -221,14 +221,14 @@ const AttendingCallsDashboard = ({
         }
       });
       if (res) {
-        setNotification({ message: 'Merged IC & Correction Slips downloaded successfully!', type: 'success' });
+        setNotification({ message: 'Merged IC & Correction Slip downloaded successfully!', type: 'success' });
       }
     } catch (err) {
       const msg = err.message || '';
       if (msg.toLowerCase().includes('no correction slip')) {
         setNotification({ message: 'No correction slip has been found this call', type: 'info' });
       } else {
-        setNotification({ message: 'Failed to download merged IC & Correction Slips: ' + msg, type: 'error' });
+        setNotification({ message: 'Failed to download merged IC & Correction Slip: ' + msg, type: 'error' });
       }
     } finally {
       setMergedDownloadState(prev => ({ ...prev, [callNo]: false }));
@@ -2748,7 +2748,7 @@ const AttendingCallsDashboard = ({
                                 e.currentTarget.style.boxShadow = '0 4px 6px -1px rgba(22, 101, 52, 0.1), 0 2px 4px -1px rgba(22, 101, 52, 0.06)';
                               }
                             }}
-                            title={isDownloading ? "Downloading correction slips..." : (docs.length > 1 ? `View Correction Slips (${docs.length})` : "View Correction Slip")}
+                            title={isDownloading ? "Downloading correction slip..." : "View Correction Slip"}
                           >
                             <div style={{
                               width: '42px', height: '42px',
@@ -2773,10 +2773,10 @@ const AttendingCallsDashboard = ({
                             </div>
                             <span style={{ fontWeight: '700', fontSize: isDownloading ? '12.5px' : '14px', textAlign: 'center', lineHeight: '1.2' }}>
                               {isDownloading 
-                                ? (callDownload?.total > 1 ? `Downloading (${callDownload.current}/${callDownload.total})...` : "Downloading...") 
+                                ? "Downloading..." 
                                 : isCompleted 
-                                  ? `✓ Downloaded (${callDownload?.total})!` 
-                                  : (docs.length > 1 ? `View Correction Slips (${docs.length})` : "View Correction Slip")}
+                                  ? "✓ Downloaded!" 
+                                  : "View Correction Slip"}
                             </span>
                           </button>
                         );
@@ -2830,7 +2830,7 @@ const AttendingCallsDashboard = ({
                           e.currentTarget.style.boxShadow = '0 4px 6px -1px rgba(29, 78, 216, 0.1), 0 2px 4px -1px rgba(29, 78, 216, 0.06)'; 
                         }
                       }}
-                      title="Download Merged IC & Correction Slips"
+                      title="Download Merged IC & Correction Slip"
                     >
                       <div style={{
                         width: '42px', height: '42px',
@@ -2853,7 +2853,7 @@ const AttendingCallsDashboard = ({
                         )}
                       </div>
                       <span style={{ fontWeight: '700', fontSize: isDownloading ? '12px' : '14px', textAlign: 'center', lineHeight: '1.2' }}>
-                        {isDownloading ? 'Merging...' : 'IC & Correction Slips'}
+                        {isDownloading ? 'Merging...' : 'IC & Correction Slip'}
                       </span>
                     </button>
                   );

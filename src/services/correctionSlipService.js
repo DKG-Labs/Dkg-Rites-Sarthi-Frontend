@@ -281,19 +281,14 @@ export const downloadAllCorrectionSlips = async (callNo, initialDocs = [], onPro
     }
   }
 
-  if (Array.isArray(docs) && docs.length > 0) {
-    const total = docs.length;
-    for (let i = 0; i < total; i++) {
-      const doc = docs[i];
-      if (typeof onProgress === 'function') {
-        onProgress({ current: i + 1, total, doc });
-      }
-      const filename = doc.originalFileName || `Correction_Slip_${callNo}_${doc.id || (i + 1)}.pdf`;
-      await downloadCorrectionSlipPdf(callNo, doc.id, filename);
-      if (i < total - 1) {
-        await new Promise((resolve) => setTimeout(resolve, 500));
-      }
+  // A call has only one active correction slip; ensure only the latest document is downloaded
+  const docToDownload = Array.isArray(docs) && docs.length > 0 ? docs[docs.length - 1] : null;
+  if (docToDownload) {
+    if (typeof onProgress === 'function') {
+      onProgress({ current: 1, total: 1, doc: docToDownload });
     }
+    const filename = docToDownload.fileName || docToDownload.originalFileName || `Correction_Slip_${callNo}.pdf`;
+    await downloadCorrectionSlipPdf(callNo, docToDownload.id, filename);
   } else {
     if (typeof onProgress === 'function') {
       onProgress({ current: 1, total: 1, doc: null });

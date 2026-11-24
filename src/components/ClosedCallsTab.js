@@ -209,7 +209,7 @@ const ClosedCallsTab = ({ setSelectedCall, setCurrentPage }) => {
         }
       });
       if (res) {
-        setNotificationMessage('Merged IC & Correction Slips downloaded successfully!');
+        setNotificationMessage('Merged IC & Correction Slip downloaded successfully!');
         setNotificationType('success');
       }
     } catch (err) {
@@ -218,7 +218,7 @@ const ClosedCallsTab = ({ setSelectedCall, setCurrentPage }) => {
         setNotificationMessage('No correction slip has been found this call');
         setNotificationType('info');
       } else {
-        setNotificationMessage('Failed to download merged IC & Correction Slips: ' + msg);
+        setNotificationMessage('Failed to download merged IC & Correction Slip: ' + msg);
         setNotificationType('error');
       }
     } finally {
@@ -917,7 +917,7 @@ const ClosedCallsTab = ({ setSelectedCall, setCurrentPage }) => {
                                 e.currentTarget.style.boxShadow = '0 4px 6px -1px rgba(22, 101, 52, 0.1), 0 2px 4px -1px rgba(22, 101, 52, 0.06)';
                               }
                             }}
-                            title={isDownloading ? "Downloading correction slips..." : (docs.length > 1 ? `View Correction Slips (${docs.length})` : "View Correction Slip")}
+                            title={isDownloading ? "Downloading correction slip..." : "View Correction Slip"}
                           >
                             <div style={{
                               width: '48px', height: '48px',
@@ -939,10 +939,10 @@ const ClosedCallsTab = ({ setSelectedCall, setCurrentPage }) => {
                             </div>
                             <span style={{ fontWeight: '700', fontSize: isDownloading ? '13px' : '15px', textAlign: 'center', lineHeight: '1.2' }}>
                               {isDownloading
-                                ? (callDownload?.total > 1 ? `Downloading (${callDownload.current}/${callDownload.total})...` : "Downloading...")
+                                ? "Downloading..."
                                 : isCompleted
-                                  ? `✓ Downloaded (${callDownload?.total})!`
-                                  : (docs.length > 1 ? `View Correction Slips (${docs.length})` : 'View Correction Slip')}
+                                  ? "✓ Downloaded!"
+                                  : "View Correction Slip"}
                             </span>
                           </button>
                         );
@@ -986,7 +986,7 @@ const ClosedCallsTab = ({ setSelectedCall, setCurrentPage }) => {
                           e.currentTarget.style.boxShadow = '0 4px 6px -1px rgba(29, 78, 216, 0.1), 0 2px 4px -1px rgba(29, 78, 216, 0.06)';
                         }
                       }}
-                      title="Download Merged IC & Correction Slips"
+                      title="Download Merged IC & Correction Slip"
                     >
                       <div style={{
                         width: '48px', height: '48px',
@@ -1003,7 +1003,7 @@ const ClosedCallsTab = ({ setSelectedCall, setCurrentPage }) => {
                         )}
                       </div>
                       <span style={{ fontWeight: '700', fontSize: isDownloading ? '13px' : '15px', textAlign: 'center', lineHeight: '1.2' }}>
-                        {isDownloading ? 'Merging & Downloading...' : 'IC & Correction Slips'}
+                        {isDownloading ? 'Merging & Downloading...' : 'IC & Correction Slip'}
                       </span>
                     </button>
                   );

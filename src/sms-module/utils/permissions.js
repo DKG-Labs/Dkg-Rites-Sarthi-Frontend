@@ -1,5 +1,8 @@
 /* eslint-disable */
 import { isPermissionModuleEnabled } from './enabledModules';
+
+/** true when the permission belongs to a rail-mill stage that is still "under development" (utils/enabledModules.js) */
+export const isUnderDevelopment = (permission) => !isPermissionModuleEnabled(permission);
 // Centralized Role-Based Access Control Configuration
 // This file defines all permissions and role mappings for the RITES QA System
 
@@ -125,9 +128,6 @@ export const ROUTE_PERMISSIONS = {
  */
 export const hasPermission = (userType, permission) => {
   if (!userType || !permission) return false;
-
-  // Rail-mill stages not yet opened in SARTHI are hidden for every role (see utils/enabledModules.js)
-  if (!isPermissionModuleEnabled(permission)) return false;
 
   // Main Admin has access to everything
   if (userType === 'MAIN_ADMIN') return true;

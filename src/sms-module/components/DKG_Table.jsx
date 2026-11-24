@@ -1,6 +1,6 @@
 /* eslint-disable */
 import React, { useEffect, useState } from "react";
-import { Table, Input, Button, Dropdown, Menu, Checkbox } from "antd";
+import { Table, Input, Button, Dropdown, Checkbox } from "antd";
 import { DownOutlined, ExportOutlined } from "@ant-design/icons";
 import * as XLSX from "xlsx";
 
@@ -103,30 +103,30 @@ const TableComponent = ({
     .filter((col) => !hiddenColumns.includes(col.key));
 
   // Dropdown to manage column visibility
-  const columnOptions = (
-    <Menu>
-      {columns.map((col) => (
-        <Menu.Item key={col.key}>
+  const columnOptions = {
+    items: [
+      ...columns.map((col) => ({
+        key: col.key,
+        label: (
           <Checkbox
             checked={!hiddenColumns.includes(col.key)}
             onChange={() => handleHideColumnChange(col.key)}
           >
             {col.title}
           </Checkbox>
-        </Menu.Item>
-      ))}
-      <Menu.Divider />
-      <Menu.Item>
-        <Button
-          type="primary"
-          onClick={() => setColumnDropdownVisible(false)}
-          block
-        >
-          OK
-        </Button>
-      </Menu.Item>
-    </Menu>
-  );
+        ),
+      })),
+      { type: "divider" },
+      {
+        key: "__ok",
+        label: (
+          <Button type="primary" onClick={() => setColumnDropdownVisible(false)} block>
+            OK
+          </Button>
+        ),
+      },
+    ],
+  };
 
   useEffect(() => {
     setFilteredData(dataSource);
@@ -140,10 +140,10 @@ const TableComponent = ({
           <div className="flex justify-end gap-4 my-4">
             {!hideManageColumns && (
               <Dropdown
-                overlay={columnOptions}
+                menu={columnOptions}
                 trigger={["click"]}
-                visible={columnDropdownVisible}
-                onVisibleChange={(visible) => setColumnDropdownVisible(visible)}
+                open={columnDropdownVisible}
+                onOpenChange={(open) => setColumnDropdownVisible(open)}
               >
                 <Button>
                   Manage Columns <DownOutlined />

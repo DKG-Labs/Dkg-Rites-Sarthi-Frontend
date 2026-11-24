@@ -94,7 +94,7 @@ const RollingControlForm = () => {
         <div className="flex gap-x-2">
           <IconBtn
           icon={EditOutlined}
-          onClick={() => navigate("/stage/rollingControl/rollingControlSample", {state: {heatNo: record.heatNo, sampleNo: record.sampleNo}})}
+          onClick={() => navigate("/sms/stage/rollingControl/rollingControlSample", {state: {heatNo: record.heatNo, sampleNo: record.sampleNo}})}
           />
           <IconBtn
           icon={DeleteOutlined}
@@ -236,7 +236,7 @@ const RollingControlForm = () => {
 
   return (
     <FormContainer>
-      <SubHeader title="Rail Rolling Control" link="/stage/home" />
+      <SubHeader title="Rail Rolling Control" link="/sms/stage/home" />
       <GeneralInfo data={rollingGeneralInfo} />
 
       <Btn onClick={handleToggleFields}>

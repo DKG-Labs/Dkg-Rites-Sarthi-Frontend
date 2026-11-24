@@ -252,7 +252,7 @@ const FinishingVerification = () => {
     <FormContainer>
       <SubHeader
         title={`Rail Finishing Verification - ${mill}`}
-        link="/stage/home"
+        link="/sms/stage/home"
       />
 
       <GeneralInfo data={rollingGeneralInfo} />

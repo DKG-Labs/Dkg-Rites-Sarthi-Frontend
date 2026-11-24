@@ -35,7 +35,7 @@ const RollingControlIRS52 = () => {
 
   return (
     <FormContainer>
-      <SubHeader title="Rolling Control Sample Dimensions - IRS52" link="/stage/rollingControl" />
+      <SubHeader title="Rolling Control Sample Dimensions - IRS52" link="/sms/stage/rollingControl" />
       <GeneralInfo data={rollingControlIRS52GeneralInfo} />
 
       <FormBody initialValues={formData} onFinish={handleFormSubmit}>

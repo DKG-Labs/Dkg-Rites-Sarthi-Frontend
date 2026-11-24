@@ -2,6 +2,7 @@
 import { message } from "antd";
 import axios from "axios";
 import dayjs from "dayjs"
+import { isModuleEnabled } from "./enabledModules";
 
 const RAILMILL_API_PREFIXES = [
   'rolling', 'ndt', 'testing', 'vi', 'welding', 'shortrailinspection', 'qct',
@@ -15,6 +16,19 @@ export const toRailMillUrl = (url) => {
   if (path.startsWith('sms/')) return '/' + path;
   const hit = RAILMILL_API_PREFIXES.some(p => path === p || path.startsWith(p + '/') || path.startsWith(p + '?'));
   return hit ? '/sms/' + path : url;
+};
+
+// API path segment -> rail-mill module key (utils/enabledModules.js)
+const API_MODULE = {
+  rolling: 'rolling', ndt: 'ndt', testing: 'testing', vi: 'vi', welding: 'welding',
+  shortrailinspection: 'sri', qct: 'qct', calibration: 'calibration',
+};
+
+/** Module key when url is a duty-status poll (getOngoingDutyDtls / checkDutyStatus) of a hidden module, else null. */
+const disabledModuleOfDutyStatusUrl = (url) => {
+  const m = typeof url === 'string' && url.match(/^\/sms\/([a-z]+)\/(getOngoingDutyDtls|checkDutyStatus)\b/);
+  if (!m || !API_MODULE[m[1]]) return null;
+  return isModuleEnabled(API_MODULE[m[1]]) ? null : API_MODULE[m[1]];
 };
 
 export const apiCall = async (method, url, token, payload = null, signal = null) => {
@@ -34,6 +48,13 @@ export const apiCall = async (method, url, token, payload = null, signal = null)
   // Rail-mill (Rites) APIs live in SARTHI under /sms/... (com.sarthi.Sms) so they never collide with SARTHI's own
   // routes (e.g. /calibration/{callNo}, /dashboard). Prefix them here once, so the pages keep their original paths.
   url = toRailMillUrl(url);
+
+  // Hidden rail-mill stages (utils/enabledModules.js): don't poll their duty status — answer "no active duty".
+  // Other calls (e.g. calibration instrument lists used by Rolling) still go to the server.
+  const disabledDuty = disabledModuleOfDutyStatusUrl(url);
+  if (disabledDuty) {
+    return { data: { responseStatus: { statusCode: 0, message: `${disabledDuty} not enabled` }, responseData: { dutyId: null } } };
+  }
 
   try {
     let response;

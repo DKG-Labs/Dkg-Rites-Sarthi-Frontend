@@ -37,7 +37,7 @@ const TestSampleList = () => {
       };
 
       // Navigate to edit form with the fetched data
-      navigate('/stage/newTestSampleDeclaration', {
+      navigate('/sms/stage/newTestSampleDeclaration', {
         state: {
           module: state?.module,
           dutyId: state?.dutyId || generalInfo?.dutyId,
@@ -118,7 +118,7 @@ const TestSampleList = () => {
   }, [generalInfo?.dutyId]);
 
   const handleClick = () => {
-    navigate('/stage/newTestSampleDeclaration', {state: {module: state?.module, dutyId: state?.dutyId || generalInfo?.dutyId, generalInfo: generalInfo}});
+    navigate('/sms/stage/newTestSampleDeclaration', {state: {module: state?.module, dutyId: state?.dutyId || generalInfo?.dutyId, generalInfo: generalInfo}});
   }
 
   const handlePageSizeChange = (value) => {
@@ -245,7 +245,7 @@ const TestSampleList = () => {
 
   if(!state || !state.dutyId){
     message.error("Reach the page from an ongoing duty in a module.")
-    return <Navigate to="/" />
+    return <Navigate to="/sms/" />
   }
 
   return (

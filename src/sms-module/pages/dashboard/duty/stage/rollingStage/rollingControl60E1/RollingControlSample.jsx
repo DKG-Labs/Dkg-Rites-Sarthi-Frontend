@@ -610,7 +610,7 @@ const RollingControlSample = () => {
       </style>
       <SubHeader
         title={`Rolling Control Sample Dimensions - ${railSection}`}
-        link="/stage/rollingControl"
+        link="/sms/stage/rollingControl"
       />
       <GeneralInfo data={rollingGeneralInfo} />
 

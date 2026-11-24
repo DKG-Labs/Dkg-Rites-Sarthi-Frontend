@@ -77,7 +77,7 @@ const ShiftDetailsForm = () => {
 
   return (
     <FormContainer>
-      <SubHeader title="Stage - Shift Details" link="/" />
+      <SubHeader title="Stage - Shift Details" link="/sms/" />
 
       <FormBody initialValues={formData} onFinish={handleFormSubmit}>
         <div className="grid grid-cols-2 gap-x-2">

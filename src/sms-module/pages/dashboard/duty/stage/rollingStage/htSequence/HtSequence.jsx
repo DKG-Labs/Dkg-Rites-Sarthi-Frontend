@@ -349,7 +349,7 @@ const HtSequence = () => {
 
   return (
     <FormContainer>
-      <SubHeader title="HT Sequence" link="/stage/home" />
+      <SubHeader title="HT Sequence" link="/sms/stage/home" />
       <GeneralInfo data={rollingGeneralInfo} />
 
       <Divider className="my-0" />

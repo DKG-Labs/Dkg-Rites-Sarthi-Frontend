@@ -208,12 +208,12 @@ const R260And880 = ({ railGrade, dutyId, editMode, editData }) => {
             }
 
             // Navigate to Test Sample - Declaration page after successful save
-            navigate("/stage/testSampleMarkingList", {
+            navigate("/sms/stage/testSampleMarkingList", {
                 state: {
                     module: "stage",
                     dutyId: dutyId,
                     generalInfo: null, // You may need to pass actual general info if available
-                    redirectTo: "/stage/home"
+                    redirectTo: "/sms/stage/home"
                 }
             });
         } catch (error) {

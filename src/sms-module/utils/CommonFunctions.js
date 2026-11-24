@@ -3,6 +3,20 @@ import { message } from "antd";
 import axios from "axios";
 import dayjs from "dayjs"
 
+const RAILMILL_API_PREFIXES = [
+  'rolling', 'ndt', 'testing', 'vi', 'welding', 'shortrailinspection', 'qct',
+  'calibration', 'bsp', 'dashboard', 'public', 'iso', 'api/fwt',
+];
+
+/** "/rolling/startDuty" -> "/sms/rolling/startDuty"; "/sms/..." and other paths are left unchanged. */
+export const toRailMillUrl = (url) => {
+  if (typeof url !== 'string' || /^https?:\/\//i.test(url)) return url;
+  const path = url.startsWith('/') ? url.slice(1) : url;
+  if (path.startsWith('sms/')) return '/' + path;
+  const hit = RAILMILL_API_PREFIXES.some(p => path === p || path.startsWith(p + '/') || path.startsWith(p + '?'));
+  return hit ? '/sms/' + path : url;
+};
+
 export const apiCall = async (method, url, token, payload = null, signal = null) => {
 
   const config = {
@@ -17,28 +31,9 @@ export const apiCall = async (method, url, token, payload = null, signal = null)
     config.signal = signal;
   }
 
-  const unbuiltDuties = [
-    '/rolling/', '/ndt/', '/testing/', '/vi/',
-    '/welding/', '/shortrailinspection/', '/qct/', '/calibration/'
-  ];
-
-  // MOCK missing backend APIs to prevent 404 spam on load
-  if (unbuiltDuties.some(duty => url.includes(duty))) {
-    console.log("Mocking missing API:", method, url, payload);
-    return {
-      data: {
-        responseStatus: { statusCode: 0, message: "Mock Success" },
-        responseData: {
-            heatDtlList: [],
-            lecoClbList: [],
-            records: [],
-            isDiverted: false,
-            dutyId: null, // Null indicates duty is not active
-            ...(payload || {})
-        }
-      }
-    };
-  }
+  // Rail-mill (Rites) APIs live in SARTHI under /sms/... (com.sarthi.Sms) so they never collide with SARTHI's own
+  // routes (e.g. /calibration/{callNo}, /dashboard). Prefix them here once, so the pages keep their original paths.
+  url = toRailMillUrl(url);
 
   try {
     let response;

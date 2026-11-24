@@ -47,6 +47,7 @@ import IconBtn from "./DKG_IconBtn";
 import { useDispatch, useSelector } from "react-redux";
 import { logout } from "../store/slice/authSlice";
 import { ActiveTabContext } from "../context/dashboardActiveTabContext";
+import { isModuleEnabled, isPermissionModuleEnabled } from "../utils/enabledModules";
 
 // Define role-based access permissions for menu items
 const ROLE_PERMISSIONS = {
@@ -594,48 +595,56 @@ const items = [
         key: "6.2",
         icon: <AuditOutlined />,
         label: "Rolling Stage",
-        underConstruction: true,
+        module: "rolling",
+        path: "/sms/iso/rolling",
       },
       {
         key: "6.3",
         icon: <EyeOutlined />,
         label: "Visual Inspection",
+        module: "vi",
         underConstruction: true,
       },
       {
         key: "6.4",
         icon: <DeploymentUnitOutlined />,
         label: "Welding Inspection",
+        module: "welding",
         underConstruction: true,
       },
       {
         key: "6.5",
         icon: <CompassOutlined />,
         label: "Short Rail Inspection",
+        module: "sri",
         underConstruction: true,
       },
       {
         key: "6.6",
         icon: <RadarChartOutlined />,
         label: "NDT",
+        module: "ndt",
         underConstruction: true,
       },
       {
         key: "6.7",
         icon: <ExperimentOutlined />,
         label: "Testing",
+        module: "testing",
         underConstruction: true,
       },
       {
         key: "6.8",
         icon: <DatabaseOutlined />,
         label: "QCT",
+        module: "qct",
         underConstruction: true,
       },
       {
         key: "6.9",
         icon: <ToolOutlined />,
         label: "Calibration",
+        module: "calibration",
         underConstruction: true,
       },
     ],
@@ -747,6 +756,9 @@ const SideNav = ({ collapsed, toggleCollapse, isMobile }) => {
   const hasPermission = (permission) => {
     if (!userType || !permission) return false;
 
+    // Rail-mill stages not yet opened in SARTHI are hidden for every role (utils/enabledModules.js)
+    if (!isPermissionModuleEnabled(permission)) return false;
+
     // Main Admin has access to everything
     if (userType === 'MAIN_ADMIN') return true;
 
@@ -792,6 +804,10 @@ const SideNav = ({ collapsed, toggleCollapse, isMobile }) => {
   const filterMenuItems = (menuItems) => {
     const result = [];
     for (const item of menuItems) {
+      // Disabled rail-mill stage: drop the whole branch (its children carry no permission of their own)
+      if ((item.permission && !isPermissionModuleEnabled(item.permission)) || (item.module && !isModuleEnabled(item.module))) {
+        continue;
+      }
       let subItems = [];
       if (item.items) {
         subItems = filterMenuItems(item.items);

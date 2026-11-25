@@ -25,8 +25,12 @@ export const RailpadProcessAnnexureA = ({
   call = {},
   currentShift = null,
   entries: propEntries = null,
-  onClose = null
+  onClose = null,
+  // Export mode (Case Letter): render off-screen, build the PDF of all sheets for the call and hand it back
+  // as onPdfReady(blob) — or onPdfReady(null, reason) when there is nothing to export. No download, no UI use.
+  onPdfReady = null
 }) => {
+  const exportMode = typeof onPdfReady === 'function';
   const printRef = useRef(null);
   const [loading, setLoading] = useState(false);
 
@@ -121,6 +125,10 @@ export const RailpadProcessAnnexureA = ({
   const hasCallNo = Boolean(call?.requestId || call?.callNo || call?.call_no);
   const [fromDate, setFromDate] = useState((hasCallNo && toIsoDate(call?.fromDate)) || defaultFromDate);
   const [toDate, setToDate] = useState((hasCallNo && toIsoDate(call?.toDate)) || defaultToDate);
+  // false while the call's own date range is still being looked up (export waits for it)
+  const [rangeReady, setRangeReady] = useState(!hasCallNo || Boolean(toIsoDate(call?.fromDate) && toIsoDate(call?.toDate)));
+  // "from|to|plant" of the last completed fetch (export waits until the data for the final range is in)
+  const [fetchedKey, setFetchedKey] = useState('');
   // Keep the range in order: a reversed range (From after To) is swapped, so it never fetches nothing
   useEffect(() => {
     if (fromDate && toDate && fromDate > toDate) {
@@ -149,6 +157,8 @@ export const RailpadProcessAnnexureA = ({
         if (alive && from && to) { setFromDate(from); setToDate(to); }
       } catch (e) {
         // keep the 7-day default
+      } finally {
+        if (alive) setRangeReady(true);
       }
     })();
     return () => { alive = false; };
@@ -179,7 +189,7 @@ export const RailpadProcessAnnexureA = ({
   // Active selected sheet key (e.g. "2026-10-27_B")
   const [activeSheetKey, setActiveSheetKey] = useState('');
   // View mode: 'SINGLE' (focus on selected sheet) or 'ALL' (preview all sheets stacked)
-  const [viewMode, setViewMode] = useState('SINGLE');
+  const [viewMode, setViewMode] = useState(exportMode ? 'ALL' : 'SINGLE');
 
   // Single-query batch fetch for all 7 sections (Zero N+1 queries)
   const fetchAllPlantData = async () => {
@@ -266,6 +276,7 @@ export const RailpadProcessAnnexureA = ({
     } catch (err) {
       console.warn('Error fetching plant annexure data:', err);
     } finally {
+      setFetchedKey(`${fromDate}|${toDate}|${selectedPlant}`);
       setLoading(false);
     }
   };
@@ -373,11 +384,10 @@ export const RailpadProcessAnnexureA = ({
 
   const [isExporting, setIsExporting] = useState(false);
 
-  // Export current sheet or all stacked sheets to A4 PDF
-  const handleExportPdf = async () => {
-    if (!printRef.current) return;
-    setIsExporting(true);
-    try {
+  // Builds the A4 PDF of the rendered sheet(s); null when there is no sheet on screen.
+  const buildPdf = async () => {
+    if (!printRef.current) return null;
+    {
       if (document.fonts && document.fonts.ready) {
         try {
           await document.fonts.ready;
@@ -388,11 +398,7 @@ export const RailpadProcessAnnexureA = ({
       await new Promise(resolve => setTimeout(resolve, 300));
 
       const sheetElements = printRef.current.querySelectorAll('.annexure-sheet-page');
-      if (!sheetElements || sheetElements.length === 0) {
-        alert('No sheet data available to export.');
-        setIsExporting(false);
-        return;
-      }
+      if (!sheetElements || sheetElements.length === 0) return null;
 
       const pdf = new jsPDF({
         orientation: 'portrait',
@@ -461,6 +467,20 @@ export const RailpadProcessAnnexureA = ({
           }
         }
       }
+      return pdf;
+    }
+  };
+
+  // Export current sheet or all stacked sheets to A4 PDF (download)
+  const handleExportPdf = async () => {
+    if (!printRef.current) return;
+    setIsExporting(true);
+    try {
+      const pdf = await buildPdf();
+      if (!pdf) {
+        alert('No sheet data available to export.');
+        return;
+      }
 
       let filename = 'Railpad_Process_Annexure_A';
       if (viewMode === 'SINGLE') {
@@ -481,6 +501,33 @@ export const RailpadProcessAnnexureA = ({
       setIsExporting(false);
     }
   };
+
+  // Export mode: once the call's date range is final and its data is loaded and rendered, build the PDF once.
+  const exportDoneRef = useRef(false);
+  useEffect(() => {
+    if (!exportMode || exportDoneRef.current || !rangeReady || loading) return;
+    if (!selectedPlant) {
+      exportDoneRef.current = true;
+      onPdfReady(null, 'Plant of this call not found.');
+      return;
+    }
+    if (fetchedKey !== `${fromDate}|${toDate}|${selectedPlant}`) return;   // final range not fetched yet
+    exportDoneRef.current = true;
+    (async () => {
+      try {
+        if (sheets.length === 0) {
+          onPdfReady(null, 'No process records (hourly shift checks) for this call.');
+          return;
+        }
+        await new Promise(r => setTimeout(r, 400));   // let the sheets paint before capturing
+        const pdf = await buildPdf();
+        onPdfReady(pdf ? pdf.output('blob') : null, pdf ? '' : 'No sheet to export.');
+      } catch (e) {
+        onPdfReady(null, e?.message || 'Could not build the annexure.');
+      }
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [exportMode, rangeReady, loading, fetchedKey, fromDate, toDate, selectedPlant, sheets]);
 
   // ─────────────────────────────────────────────────────────────────────────────
   // SAMPLE CELL VALUE EXTRACTORS (Exact Field Mappings from User's Screenshots)

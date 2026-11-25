@@ -343,6 +343,46 @@ export const viewSignedCertificate = async (icNumber) => {
 };
 
 /**
+ * View or download Signed IC PDF from Azure Blob Storage / certificate_storage
+ * @param {string} icNumber
+ * @param {{ openInTab?: boolean }} options
+ */
+export const downloadSignedCertificateFile = async (icNumber, { openInTab = false } = {}) => {
+  const cert = await viewSignedCertificate(icNumber);
+  if (cert?.signedData) {
+    const cleanBase64 = cert.signedData.startsWith('data:')
+      ? cert.signedData.split(',')[1]
+      : cert.signedData;
+    const byteCharacters = atob(cleanBase64);
+    const byteArray = new Uint8Array(byteCharacters.length);
+    for (let i = 0; i < byteCharacters.length; i++) {
+      byteArray[i] = byteCharacters.charCodeAt(i);
+    }
+    const blob = new Blob([byteArray], { type: 'application/pdf' });
+    const objectUrl = window.URL.createObjectURL(blob);
+    if (openInTab) {
+      window.open(objectUrl, '_blank', 'noopener,noreferrer');
+      setTimeout(() => window.URL.revokeObjectURL(objectUrl), 60000);
+      return cert;
+    }
+    const link = document.createElement('a');
+    link.href = objectUrl;
+    link.download = cert.fileName || `${String(icNumber || 'IC').replace(/[\\/]/g, '_')}.pdf`;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    setTimeout(() => window.URL.revokeObjectURL(objectUrl), 15000);
+    return cert;
+  }
+  const fallbackUrl = cert?.url || cert?.blobUrl;
+  if (fallbackUrl) {
+    window.open(fallbackUrl, '_blank', 'noopener,noreferrer');
+    return cert;
+  }
+  throw new Error('Signed IC document data is unavailable.');
+};
+
+/**
  * Check if Signed IC exists in Azure Blob Storage
  * @param {string} icNumber 
  * @returns {Promise<boolean>} exists
@@ -917,7 +957,7 @@ export const deleteAnnexureDocument = async (id, requestedBy) => {
 /**
  * View / Download decompressed Annexure document
  */
-export const viewAnnexureDocument = async (id, fileName) => {
+export const downloadAnnexureDocument = async (id, fileName, { openInTab = false } = {}) => {
   const token = localStorage.getItem('authToken') || localStorage.getItem('token');
   const backendOrigin = API_BASE_URL.replace(/\/api\/.*$/, '').replace(/\/api$/, '');
   const url = `${backendOrigin}/api/ic-annexures/download/${id}`;
@@ -929,7 +969,20 @@ export const viewAnnexureDocument = async (id, fileName) => {
   });
   if (!response.ok) throw new Error('Failed to download decompressed document');
   const blob = await response.blob();
-  const pdfBlob = new Blob([blob], { type: 'application/pdf' });
-  const objectUrl = window.URL.createObjectURL(pdfBlob);
-  window.open(objectUrl, '_blank');
-};
+  const objectUrl = window.URL.createObjectURL(blob);
+  if (openInTab) {
+    window.open(objectUrl, '_blank', 'noopener,noreferrer');
+    setTimeout(() => window.URL.revokeObjectURL(objectUrl), 60000);
+    return;
+  }
+  const link = document.createElement('a');
+  link.href = objectUrl;
+  link.download = fileName || `annexure-${id}.pdf`;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  setTimeout(() => window.URL.revokeObjectURL(objectUrl), 15000);
+};
+
+export const viewAnnexureDocument = async (id, fileName) =>
+  downloadAnnexureDocument(id, fileName, { openInTab: true });

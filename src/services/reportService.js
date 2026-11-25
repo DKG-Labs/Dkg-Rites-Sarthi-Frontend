@@ -513,7 +513,15 @@ const reportService = {
         return handleResponse(response);
     },
 
-    // Rail Pad calls for the CM dashboard (same row shape as the ERC / Sleeper cm-* reports)
+    getCmCallDocuments: async (callNo, poNo) => {
+        const url = new URL(`${API_ENDPOINTS.REPORTS}/call-documents`);
+        if (callNo) url.searchParams.append('callNo', callNo);
+        if (poNo) url.searchParams.append('poNo', poNo);
+        const response = await fetch(url.toString(), {
+            headers: getAuthHeaders(),
+        });
+        return handleResponse(response);
+    },
     getCmRailInspectionCalls: async (params) => fetchRailCmCalls('cm-inspection-calls', params),
     getCmRailOverdueCalls: async (params) => fetchRailCmCalls('cm-overdue-calls', params),
 

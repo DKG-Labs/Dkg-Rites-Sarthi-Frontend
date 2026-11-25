@@ -19,6 +19,9 @@ import { finishInspection } from '../services/finalInspectionSubmoduleService';
 import { performTransitionAction } from '../services/workflowService';
 import { getStoredUser } from '../services/authService';
 import ImageCaptureComponent from '../components/ImageCaptureComponent';
+import CallResultDispatchModal from '../components/CallResultDispatchModal';
+import PauseInspectionModal from '../components/PauseInspectionModal';
+import { getCaseRioMismatch, formatCaseRioError, CaseRioBanner } from '../utils/caseRioCheck';
 import "./FinalProductDashboard.css";
 
 // Reason options for withheld inspection
@@ -1557,10 +1560,26 @@ export default function FinalProductDashboard({ onBack, onNavigateToSubModule })
   }, [selectedCall?.call_no]);
 
   /* -------------------- FINISH INSPECTION HANDLER -------------------- */
+  const getCalculatedSystemStatus = () => {
+    if (!lotsWithSampling || lotsWithSampling.length === 0) return 'ACCEPTED';
+    const acceptedLots = lotsWithSampling.filter(lot => !isLotRejected(lot.lotNo)).length;
+    const rejectedLots = lotsWithSampling.filter(lot => isLotRejected(lot.lotNo)).length;
+    if (acceptedLots === lotsWithSampling.length) return 'ACCEPTED';
+    if (rejectedLots === lotsWithSampling.length) return 'REJECTED';
+    if (acceptedLots > 0 && rejectedLots > 0) return 'PARTIALLY_ACCEPTED';
+    return 'ACCEPTED';
+  };
+
   const handleFinishInspection = () => {
     const callNo = selectedCall?.call_no;
     if (!callNo) {
       alert('❌ Call number not found. Cannot finish inspection.');
+      return;
+    }
+
+    const rioMismatch = getCaseRioMismatch(selectedCall, callNo);
+    if (rioMismatch) {
+      alert(formatCaseRioError(rioMismatch));
       return;
     }
 
@@ -1577,10 +1596,16 @@ export default function FinalProductDashboard({ onBack, onNavigateToSubModule })
     setShowFinishConfirm(true);
   };
 
-  const confirmFinishInspection = async () => {
+  const confirmFinishInspection = async (dispatchData = {}) => {
     setShowFinishConfirm(false);
     const callNo = selectedCall?.call_no;
     if (!callNo) return;
+
+    const rioMismatch = getCaseRioMismatch(selectedCall, callNo);
+    if (rioMismatch) {
+      alert(formatCaseRioError(rioMismatch));
+      return;
+    }
 
     if (isProcessingFinishRef.current) return;
     
@@ -1714,12 +1739,19 @@ export default function FinalProductDashboard({ onBack, onNavigateToSubModule })
       console.log('🔄 Triggering workflow API for Finish Inspection...');
       const currentUserObj = getStoredUser();
       const userId = currentUserObj?.userId || 0;
+      const finalCallResult = dispatchData?.callResult || overallInspectionStatus;
+      const customRemarks = dispatchData?.remarks;
 
       const workflowActionData = {
         workflowTransitionId: selectedCall?.workflowTransitionId || selectedCall?.id,
         requestId: callNo,
         action: 'INSPECTION_COMPLETE_CONFIRM',
-        remarks: `Final Product Inspection completed with status: ${overallInspectionStatus}`,
+        callResult: finalCallResult,
+        resultStatus: finalCallResult,
+        systemStatus: overallInspectionStatus,
+        remarks: customRemarks 
+          ? `[Result: ${finalCallResult}] ${customRemarks}` 
+          : `Final Product Inspection completed with status: ${finalCallResult}`,
         actionBy: userId,
         pincode: selectedCall?.pincode || '560001',
         dateOfInspection: sessionStorage.getItem('inspectionDate') || new Date().toISOString().split('T')[0]
@@ -1770,12 +1802,22 @@ export default function FinalProductDashboard({ onBack, onNavigateToSubModule })
       setPauseErrorData({ message: 'Call number not found. Cannot pause inspection.' });
       return;
     }
+    const rioMismatch = getCaseRioMismatch(selectedCall, callNo);
+    if (rioMismatch) {
+      setPauseErrorData({ message: formatCaseRioError(rioMismatch) });
+      return;
+    }
     setShowPauseConfirm(true);
   };
 
-  const confirmPauseInspection = async () => {
+  const confirmPauseInspection = async (pauseData = {}) => {
     setShowPauseConfirm(false);
     const callNo = selectedCall?.call_no;
+    const rioMismatch = getCaseRioMismatch(selectedCall, callNo);
+    if (rioMismatch) {
+      setPauseErrorData({ message: formatCaseRioError(rioMismatch) });
+      return;
+    }
     setIsPausingInspection(true);
 
     try {
@@ -1892,7 +1934,10 @@ export default function FinalProductDashboard({ onBack, onNavigateToSubModule })
         workflowTransitionId: selectedCall?.workflowTransitionId || selectedCall?.id,
         requestId: callNo,
         action: 'PAUSE_INSPECTION_RESUME_NEXT_DAY',
-        remarks: 'Final Product Inspection paused - will resume next day',
+        pauseReason: pauseData?.pauseReason || 'Pause for next schedule',
+        remarks: pauseData?.remarks 
+          ? `[Pause: ${pauseData.pauseReason || 'Next Schedule'}] ${pauseData.remarks}`
+          : 'Final Product Inspection paused - will resume next day',
         actionBy: userId,
         pincode: selectedCall?.pincode || '560001',
         dateOfInspection: sessionStorage.getItem('inspectionDate') || new Date().toISOString().split('T')[0]
@@ -1938,6 +1983,8 @@ export default function FinalProductDashboard({ onBack, onNavigateToSubModule })
       </div>
 
       <h1 className="fp-title">ERC Final Product Inspection - {selectedCall?.call_no}</h1>
+
+      <CaseRioBanner mismatch={getCaseRioMismatch(selectedCall)} />
 
       {/* LOADING STATE */}
       {isLoading && (
@@ -2906,108 +2953,25 @@ export default function FinalProductDashboard({ onBack, onNavigateToSubModule })
       )}
 
       {/* PAUSE CONFIRMATION MODAL */}
-      {showPauseConfirm && (
-        <div style={{
-          position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.55)',
-          display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999
-        }}>
-          <div style={{
-            background: '#fff', borderRadius: '12px', padding: '32px 36px',
-            maxWidth: '420px', width: '90%', boxShadow: '0 8px 40px rgba(0,0,0,0.22)',
-            textAlign: 'center'
-          }}>
-            <div style={{
-              width: '60px', height: '60px', borderRadius: '50%',
-              background: '#fff7ed', display: 'flex', alignItems: 'center',
-              justifyContent: 'center', margin: '0 auto 16px'
-            }}>
-              <span style={{ fontSize: '28px', color: '#ea580c' }}>⚠️</span>
-            </div>
+      <PauseInspectionModal
+        isOpen={showPauseConfirm}
+        onClose={() => setShowPauseConfirm(false)}
+        onConfirm={confirmPauseInspection}
+        callNo={selectedCall?.call_no}
+        productType="ERC Final Product Inspection"
+        isSubmitting={isPausingInspection}
+      />
 
-            <h2 style={{ margin: '0 0 12px', fontSize: '20px', fontWeight: '700', color: '#9a3412' }}>
-              Pause and Resume Later?
-            </h2>
-            <p style={{ margin: '0 0 24px', fontSize: '14px', color: '#475569', lineHeight: '1.5' }}>
-              Would you like to save your current progress and pause this inspection? You can safely resume this call from where you left off at any time.
-            </p>
-
-            <div style={{ display: 'flex', gap: '12px' }}>
-              <button
-                onClick={() => setShowPauseConfirm(false)}
-                style={{
-                  background: '#f1f5f9', color: '#475569', border: 'none',
-                  borderRadius: '8px', padding: '10px 20px', fontSize: '15px',
-                  fontWeight: '600', cursor: 'pointer', flex: 1
-                }}
-              >
-                Cancel
-              </button>
-              <button
-                onClick={confirmPauseInspection}
-                style={{
-                  background: '#ea580c', color: '#fff', border: 'none',
-                  borderRadius: '8px', padding: '10px 20px', fontSize: '15px',
-                  fontWeight: '600', cursor: 'pointer', flex: 1
-                }}
-              >
-                Yes, Pause
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* FINISH CONFIRMATION MODAL */}
-      {showFinishConfirm && (
-        <div style={{
-          position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.55)',
-          display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999
-        }}>
-          <div style={{
-            background: '#fff', borderRadius: '12px', padding: '32px 36px',
-            maxWidth: '420px', width: '90%', boxShadow: '0 8px 40px rgba(0,0,0,0.22)',
-            textAlign: 'center'
-          }}>
-            <div style={{
-              width: '60px', height: '60px', borderRadius: '50%',
-              background: '#eff6ff', display: 'flex', alignItems: 'center',
-              justifyContent: 'center', margin: '0 auto 16px'
-            }}>
-              <span style={{ fontSize: '28px', color: '#2563eb' }}>⚠️</span>
-            </div>
-
-            <h2 style={{ margin: '0 0 12px', fontSize: '20px', fontWeight: '700', color: '#1e3a8a' }}>
-              Finish & Submit Inspection?
-            </h2>
-            <p style={{ margin: '0 0 24px', fontSize: '14px', color: '#475569', lineHeight: '1.5' }}>
-              Are you sure you want to complete this final inspection? All test results and packing details will be finalized and submitted.
-            </p>
-
-            <div style={{ display: 'flex', gap: '12px' }}>
-              <button
-                onClick={() => setShowFinishConfirm(false)}
-                style={{
-                  background: '#f1f5f9', color: '#475569', border: 'none',
-                  borderRadius: '8px', padding: '10px 20px', fontSize: '15px',
-                  fontWeight: '600', cursor: 'pointer', flex: 1
-                }}
-              >
-                Cancel
-              </button>
-              <button
-                onClick={confirmFinishInspection}
-                style={{
-                  background: '#2563eb', color: '#fff', border: 'none',
-                  borderRadius: '8px', padding: '10px 20px', fontSize: '15px',
-                  fontWeight: '600', cursor: 'pointer', flex: 1
-                }}
-              >
-                Yes, Finish
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* FINISH CONFIRMATION / CALL RESULT DISPATCH MODAL */}
+      <CallResultDispatchModal
+        isOpen={showFinishConfirm}
+        onClose={() => setShowFinishConfirm(false)}
+        onConfirm={confirmFinishInspection}
+        systemStatus={getCalculatedSystemStatus()}
+        callNo={selectedCall?.call_no}
+        productType="ERC Final Product Inspection"
+        isSubmitting={isFinishingInspection}
+      />
 
       {/* FINISHING / SAVING LOADING MODAL OVERLAY */}
       {(isFinishingInspection || isPausingInspection) && (

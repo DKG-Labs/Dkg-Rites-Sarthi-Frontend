@@ -616,6 +616,7 @@ const CMDiversionApprovalsTab = ({ cmUserId }) => {
                 <InfoRow label="Source IC No." value={selectedRequest.sourceIcNo} />
                 <InfoRow label="Source PO" value={selectedRequest.sourcePoSrNo} />
                 <InfoRow label="Target PO" value={selectedRequest.targetPoSrNo} />
+                <InfoRow label="Call Date" value={selectedRequest.callDate ? formatDate(selectedRequest.callDate) : '—'} />
                 <InfoRow label="Railway Permission No." value={selectedRequest.railwayPermissionNo} />
                 <InfoRow label="Total Diversion Qty" value={selectedRequest.totalDiversionQty} />
               </div>

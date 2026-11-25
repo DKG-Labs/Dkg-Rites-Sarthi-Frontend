@@ -12,6 +12,9 @@ import { performTransitionAction } from '../services/workflowService';
 import { getStoredUser } from '../services/authService';
 import { normalizeErcType } from '../utils/ercUtils';
 import ImageCaptureComponent from '../components/ImageCaptureComponent';
+import CallResultDispatchModal from '../components/CallResultDispatchModal';
+import PauseInspectionModal from '../components/PauseInspectionModal';
+import { getCaseRioMismatch, formatCaseRioError, CaseRioBanner } from '../utils/caseRioCheck';
 import './RawMaterialDashboard.css';
 
 // Helper to get divisor for ERC type weight calculation
@@ -326,6 +329,8 @@ const RawMaterialDashboard = ({ call, onBack, onNavigateToSubModule, onHeatsChan
   // Finish Inspection state
   const [isSaving, setIsSaving] = useState(false);
   const isProcessingFinishRef = useRef(false);
+  const [showCallResultModal, setShowCallResultModal] = useState(false);
+  const [showPauseModal, setShowPauseModal] = useState(false);
 
   // Save Draft state
   const [isSavingDraft, setIsSavingDraft] = useState(false);
@@ -347,7 +352,7 @@ const RawMaterialDashboard = ({ call, onBack, onNavigateToSubModule, onHeatsChan
 
   // Confirmation Modal state (for pause/finish confirmation)
   const [showConfirmModal, setShowConfirmModal] = useState(false);
-  const [confirmModalConfig, setConfirmModalConfig] = useState({
+  const [confirmModalConfig] = useState({
     title: 'Confirm Action',
     message: 'Are you sure?',
     confirmText: 'OK',
@@ -1647,8 +1652,19 @@ const RawMaterialDashboard = ({ call, onBack, onNavigateToSubModule, onHeatsChan
   /**
    * Handle Finish Inspection - collect all submodule data from localStorage and save to backend
    */
-  const handleFinishInspection = useCallback(async () => {
+  const handleFinishInspection = useCallback(async (dispatchData = {}) => {
     const inspectionCallNo = call?.call_no;
+    const rioMismatch = getCaseRioMismatch(call, inspectionCallNo);
+    if (rioMismatch) {
+      setResultModalConfig({
+        actionType: 'error',
+        callNumber: inspectionCallNo || '',
+        message: 'RIO Authorization Blocked',
+        additionalInfo: formatCaseRioError(rioMismatch)
+      });
+      setShowResultModal(true);
+      return;
+    }
     if (!inspectionCallNo) {
       setResultModalConfig({
         actionType: 'error',
@@ -2078,12 +2094,18 @@ const RawMaterialDashboard = ({ call, onBack, onNavigateToSubModule, onHeatsChan
 
       // Step 3: Trigger workflow API for Finish Inspection
       console.log('🔄 Triggering workflow API for Finish Inspection...');
+      const finalCallResult = dispatchData?.callResult || overallInspectionStatus;
 
       const workflowActionData = {
         workflowTransitionId: call.workflowTransitionId || call.id,
         requestId: inspectionCallNo,
         action: 'INSPECTION_COMPLETE_CONFIRM',
-        remarks: `Inspection completed with status: ${overallInspectionStatus}`,
+        callResult: finalCallResult,
+        resultStatus: finalCallResult,
+        systemStatus: overallInspectionStatus,
+        remarks: dispatchData?.remarks 
+          ? `[Result: ${finalCallResult}] ${dispatchData.remarks}`
+          : `Inspection completed with status: ${finalCallResult}`,
         actionBy: userId,
         pincode: call.pincode || '560001'
       };
@@ -2149,7 +2171,7 @@ const RawMaterialDashboard = ({ call, onBack, onNavigateToSubModule, onHeatsChan
       setIsSaving(false);
       isProcessingFinishRef.current = false;
     }
-  }, [call?.call_no, call?.id, call?.pincode, call?.workflowTransitionId, activeHeats, onBack, numberOfBundles, numberOfERC, sourceOfRawMaterial, poData, productModel, divisor, heatSubmoduleStatuses, heatRemarks, commonSealingType, commonSteelStampNumber, commonHolograms, calculateVisualRejectedWeight, consolidatedHeats, canFinishInspection, updateRmCallDataCache, updateRmHeatDataCache, updateRmPoDataCache, capturedImages, setCapturedImages]);
+  }, [call, activeHeats, onBack, numberOfBundles, numberOfERC, sourceOfRawMaterial, poData, productModel, divisor, heatSubmoduleStatuses, heatRemarks, commonSealingType, commonSteelStampNumber, commonHolograms, calculateVisualRejectedWeight, consolidatedHeats, canFinishInspection, updateRmCallDataCache, updateRmHeatDataCache, updateRmPoDataCache, capturedImages, setCapturedImages]);
 
   // Withheld modal handlers
   const handleOpenWithheldModal = () => {
@@ -2232,45 +2254,77 @@ const RawMaterialDashboard = ({ call, onBack, onNavigateToSubModule, onHeatsChan
     }
   };
 
+  const getCalculatedRmSystemStatus = () => {
+    try {
+      const heats = consolidatedHeats || [];
+      if (heats.length === 0) return 'ACCEPTED';
+      let hasRejected = false;
+      let hasAccepted = false;
+      heats.forEach(heat => {
+        const heatNo = heat.heatNo || heat.heat_no || 'Unknown';
+        const st = heatSubmoduleStatuses[heatNo];
+        if (st) {
+          const isRej = Object.values(st).some(val => val === 'NOT OK' || val === 'REJECTED');
+          if (isRej) hasRejected = true;
+          else hasAccepted = true;
+        } else {
+          hasAccepted = true;
+        }
+      });
+      if (hasRejected && !hasAccepted) return 'REJECTED';
+      if (hasRejected && hasAccepted) return 'PARTIALLY_ACCEPTED';
+      return 'ACCEPTED';
+    } catch (e) {
+      return 'ACCEPTED';
+    }
+  };
+
   // Show confirmation modal for pause inspection
   const handlePauseClick = () => {
-    setConfirmModalConfig({
-      title: 'Pause Inspection',
-      message: 'Are you sure you want to pause this inspection? You can resume it later.',
-      confirmText: 'Pause',
-      cancelText: 'Cancel',
-      isDangerous: false,
-      actionType: 'pause',
-      callNumber: call?.call_no || '',
-      onConfirm: () => {
-        setShowConfirmModal(false);
-        handlePauseInspectionConfirmed();
-      }
-    });
-    setShowConfirmModal(true);
+    const rioMismatch = getCaseRioMismatch(call);
+    if (rioMismatch) {
+      setResultModalConfig({
+        actionType: 'error',
+        callNumber: call?.call_no || '',
+        message: 'RIO Authorization Blocked',
+        additionalInfo: formatCaseRioError(rioMismatch)
+      });
+      setShowResultModal(true);
+      return;
+    }
+    setShowPauseModal(true);
   };
 
   // Show confirmation modal for finish inspection
   const handleFinishClick = () => {
-    setConfirmModalConfig({
-      title: 'Finish Inspection',
-      message: 'Are you sure you want to finish this inspection? This action cannot be undone.',
-      confirmText: 'Finish',
-      cancelText: 'Cancel',
-      isDangerous: true,
-      actionType: 'finish',
-      callNumber: call?.call_no || '',
-      onConfirm: () => {
-        setShowConfirmModal(false);
-        handleFinishInspection();
-      }
-    });
-    setShowConfirmModal(true);
+    const rioMismatch = getCaseRioMismatch(call);
+    if (rioMismatch) {
+      setResultModalConfig({
+        actionType: 'error',
+        callNumber: call?.call_no || '',
+        message: 'RIO Authorization Blocked',
+        additionalInfo: formatCaseRioError(rioMismatch)
+      });
+      setShowResultModal(true);
+      return;
+    }
+    setShowCallResultModal(true);
   };
 
   // Pause Inspection handler - collects all data and saves to database
-  const handlePauseInspectionConfirmed = useCallback(async () => {
+  const handlePauseInspectionConfirmed = useCallback(async (pauseData = {}) => {
     const inspectionCallNo = call?.call_no;
+    const rioMismatch = getCaseRioMismatch(call, inspectionCallNo);
+    if (rioMismatch) {
+      setResultModalConfig({
+        actionType: 'error',
+        callNumber: inspectionCallNo || '',
+        message: 'RIO Authorization Blocked',
+        additionalInfo: formatCaseRioError(rioMismatch)
+      });
+      setShowResultModal(true);
+      return;
+    }
     if (!inspectionCallNo) {
       setResultModalConfig({
         actionType: 'error',
@@ -2654,7 +2708,10 @@ const RawMaterialDashboard = ({ call, onBack, onNavigateToSubModule, onHeatsChan
         workflowTransitionId: call.workflowTransitionId || call.id,
         requestId: inspectionCallNo,
         action: 'PAUSE_INSPECTION_RESUME_NEXT_DAY',
-        remarks: 'Inspection paused by IE',
+        pauseReason: pauseData?.pauseReason || 'Pause for next schedule',
+        remarks: pauseData?.remarks 
+          ? `[Pause: ${pauseData.pauseReason || 'Next Schedule'}] ${pauseData.remarks}`
+          : 'Inspection paused by IE',
         actionBy: userId,
         pincode: call.pincode || '560001'
       };
@@ -3300,6 +3357,8 @@ const RawMaterialDashboard = ({ call, onBack, onNavigateToSubModule, onHeatsChan
           </div>
         </div>
       </div>
+
+      <CaseRioBanner mismatch={getCaseRioMismatch(call)} />
 
 
       {/* Header with Static Data */}
@@ -4459,6 +4518,33 @@ const RawMaterialDashboard = ({ call, onBack, onNavigateToSubModule, onHeatsChan
           </div>
         </div>
       )}
+
+      {/* Pause Inspection Modal */}
+      <PauseInspectionModal
+        isOpen={showPauseModal}
+        onClose={() => setShowPauseModal(false)}
+        onConfirm={(pauseData) => {
+          setShowPauseModal(false);
+          handlePauseInspectionConfirmed(pauseData);
+        }}
+        callNo={call?.call_no}
+        productType="ERC Raw Material Inspection"
+        isSubmitting={isSaving}
+      />
+
+      {/* Call Result Dispatch Modal */}
+      <CallResultDispatchModal
+        isOpen={showCallResultModal}
+        onClose={() => setShowCallResultModal(false)}
+        onConfirm={(dispatchData) => {
+          setShowCallResultModal(false);
+          handleFinishInspection(dispatchData);
+        }}
+        systemStatus={getCalculatedRmSystemStatus()}
+        callNo={call?.call_no}
+        productType="ERC Raw Material Inspection"
+        isSubmitting={isSaving}
+      />
 
       {/* Inspection Result Modal (for pause, finish, draft save) */}
       <InspectionResultModal

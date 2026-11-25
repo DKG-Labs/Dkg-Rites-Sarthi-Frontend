@@ -412,6 +412,7 @@ const SBUDiversionApprovalsTab = ({ rioId: propRioId }) => {
               <div><strong>Source PO:</strong> {selectedRequest.sourcePoSrNo || selectedRequest.sourcePoNo} {selectedRequest.sourceRailwayCode ? `(${selectedRequest.sourceRailwayCode})` : ''}</div>
               <div><strong>Target PO:</strong> {selectedRequest.targetPoSrNo || selectedRequest.targetPoNo} {selectedRequest.targetRailwayCode ? `(${selectedRequest.targetRailwayCode})` : ''}</div>
               <div><strong>Target Consignee:</strong> {selectedRequest.targetConsigneeCode || '-'}</div>
+              <div><strong>Call Date:</strong> {selectedRequest.callDate || '-'}</div>
               <div><strong>Total Diverted Qty:</strong> {selectedRequest.totalDiversionQty != null ? selectedRequest.totalDiversionQty : selectedRequest.totalDivertedQty}</div>
               <div><strong>CM Recommendation Remarks:</strong> {selectedRequest.cmRemarks || 'None'}</div>
             </div>

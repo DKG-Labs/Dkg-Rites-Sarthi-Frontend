@@ -214,7 +214,7 @@ const RailpadProcessIc = ({
     "contractRef", "billPayingOfficer", "consignee", "consigneeManufacturer", "purchasingAuthority", 
     "description", "drgNo", "specNo", "qapNo", "typeOfInspection", "chpClNo",
     "quantityNowPassedText", "reasonsForRejection",
-    "dateOfCall", "noOfVisits", "datesOfInspection", "sealingPattern", "inspectingEngineer"
+    "noOfVisits", "datesOfInspection", "sealingPattern", "inspectingEngineer"
   ];
 
   const fieldProps = {
@@ -584,7 +584,7 @@ const RailpadProcessIc = ({
             <td style={{ ...tdStyle, textAlign: 'center', width: '33%' }}>
               <div style={{ fontWeight: 'bold' }}>Date of call</div>
               <div style={{ marginTop: '4px' }}>
-                <EditableField value={dateOfCall} fieldName="dateOfCall" style={{ textAlign: 'center' }} {...fieldProps} />
+                <EditableField value={dateOfCall} fieldName="dateOfCall" style={{ textAlign: 'center' }} {...fieldProps} isEditing={false} />
               </div>
             </td>
             <td style={{ ...tdStyle, textAlign: 'center', width: '33%' }}>

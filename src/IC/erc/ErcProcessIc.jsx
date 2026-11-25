@@ -660,7 +660,7 @@ const ErcProcessIC = ({ data = {}, isEditing = false, isBusy = false, onChange =
                 <span className="font-semibold text-[10px]">
                   कॉल दिनांक / Date of call:{" "}
                 </span>
-                <EditableField isEditing={isEditing} value={callDate} onChange={(val) => onChange("callDate", val)} className="inline-block" />
+                <EditableField isEditing={false} value={callDate} onChange={() => {}} className="inline-block" />
               </div>
             </div>
             <div className="border-r border-black p-2 pb-3 flex flex-col justify-center">

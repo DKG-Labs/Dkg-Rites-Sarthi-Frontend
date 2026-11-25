@@ -4,6 +4,7 @@ import AnnexuresModal from './AnnexuresModal';
 import { generateCallLetterPDF } from '../utils/generateCallLetterPDF';
 import { API_BASE_URL, apiService } from '../services/api';
 import { getQtyUomRule } from '../utils/uomQuantity';
+import { getCaseRioMismatch, CaseRioBanner } from '../utils/caseRioCheck';
 
 const isSetOrTurnout = (sleeperType, uom) => {
   const u = String(uom || '').toUpperCase();
@@ -276,6 +277,8 @@ const PendingCallDetailsModal = ({
             </div>
           </div>
 
+          <CaseRioBanner mismatch={getCaseRioMismatch(call)} />
+
           <h3 style={{ fontSize: '16px', fontWeight: '800', marginBottom: '18px', color: '#0f172a', display: 'flex', alignItems: 'center', gap: '8px' }}>
             <span style={{ color: '#f59e0b' }}>⚡</span> Actions & Documents
           </h3>
@@ -287,11 +290,13 @@ const PendingCallDetailsModal = ({
                 if (onReschedule) onReschedule();
                 else if (onSchedule) onSchedule();
               }}
+              disabled={Boolean(getCaseRioMismatch(call))}
               style={{ 
                 width: '100%', minHeight: '112px', borderRadius: '16px', fontWeight: '800',
-                background: 'linear-gradient(135deg, #1e40af 0%, #2563eb 100%)', color: '#ffffff', border: 'none', cursor: 'pointer',
+                background: getCaseRioMismatch(call) ? '#94a3b8' : 'linear-gradient(135deg, #1e40af 0%, #2563eb 100%)', color: '#ffffff', border: 'none', cursor: getCaseRioMismatch(call) ? 'not-allowed' : 'pointer',
                 fontSize: '14px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '10px',
-                boxShadow: '0 4px 6px -1px rgba(37, 99, 235, 0.25)', transition: 'all 0.2s', padding: '16px'
+                boxShadow: '0 4px 6px -1px rgba(37, 99, 235, 0.25)', transition: 'all 0.2s', padding: '16px',
+                opacity: getCaseRioMismatch(call) ? 0.65 : 1
               }}
             >
               <div style={{ width: '42px', height: '42px', background: 'rgba(255, 255, 255, 0.2)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -312,11 +317,13 @@ const PendingCallDetailsModal = ({
                 else if (onStart) onStart();
                 else if (onEnterShiftDetails) onEnterShiftDetails();
               }}
+              disabled={Boolean(getCaseRioMismatch(call))}
               style={{ 
                 width: '100%', minHeight: '112px', borderRadius: '16px', fontWeight: '800',
-                background: 'linear-gradient(135deg, #047857 0%, #059669 100%)', color: '#ffffff', border: 'none', cursor: 'pointer',
+                background: getCaseRioMismatch(call) ? '#94a3b8' : 'linear-gradient(135deg, #047857 0%, #059669 100%)', color: '#ffffff', border: 'none', cursor: getCaseRioMismatch(call) ? 'not-allowed' : 'pointer',
                 fontSize: '14px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '10px',
-                boxShadow: '0 4px 6px -1px rgba(5, 150, 105, 0.25)', transition: 'all 0.2s', padding: '16px'
+                boxShadow: '0 4px 6px -1px rgba(5, 150, 105, 0.25)', transition: 'all 0.2s', padding: '16px',
+                opacity: getCaseRioMismatch(call) ? 0.65 : 1
               }}
             >
               <div style={{ width: '42px', height: '42px', background: 'rgba(255, 255, 255, 0.2)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -330,12 +337,14 @@ const PendingCallDetailsModal = ({
             {/* Card 3: Cancel Call */}
             {!isCancelled ? (
               <button 
-                onClick={() => setShowCancelModal(true)} 
+                onClick={() => setShowCancelModal(true)}
+                disabled={Boolean(getCaseRioMismatch(call))}
                 style={{ 
                   width: '100%', minHeight: '112px', borderRadius: '16px', fontWeight: '800', 
-                  background: 'linear-gradient(135deg, #b91c1c 0%, #dc2626 100%)', color: '#ffffff', border: 'none', cursor: 'pointer',
+                  background: getCaseRioMismatch(call) ? '#94a3b8' : 'linear-gradient(135deg, #b91c1c 0%, #dc2626 100%)', color: '#ffffff', border: 'none', cursor: getCaseRioMismatch(call) ? 'not-allowed' : 'pointer',
                   display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '10px',
-                  fontSize: '14px', boxShadow: '0 4px 6px -1px rgba(220, 38, 38, 0.25)', transition: 'all 0.2s', padding: '16px'
+                  fontSize: '14px', boxShadow: '0 4px 6px -1px rgba(220, 38, 38, 0.25)', transition: 'all 0.2s', padding: '16px',
+                  opacity: getCaseRioMismatch(call) ? 0.65 : 1
                 }}
               >
                 <div style={{ width: '42px', height: '42px', background: 'rgba(255, 255, 255, 0.2)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>

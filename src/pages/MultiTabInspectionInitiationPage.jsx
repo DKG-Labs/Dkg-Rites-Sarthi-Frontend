@@ -4,6 +4,7 @@ import InspectionInitiationFormContent from '../components/InspectionInitiationF
 import { saveInspectionInitiation } from '../services/vendorInspectionService';
 import { getStoredUser } from '../services/authService';
 import { performTransitionAction } from '../services/workflowService';
+import { getCaseRioMismatch, formatCaseRioError, CaseRioBanner } from '../utils/caseRioCheck';
 import '../styles/inspectionInitiationPage.css';
 
 // Reason options for withheld/cancel call
@@ -85,6 +86,8 @@ const MultiTabInspectionInitiationPage = ({ calls, onProceed, onBack }) => {
 
   const currentCall = calls[activeCallIndex];
   const currentFormData = formDataByCall[currentCall.id];
+  const currentRioMismatch = getCaseRioMismatch(currentCall);
+  const anyCallRioMismatch = (calls || []).map((c) => getCaseRioMismatch(c)).find(Boolean) || null;
 
   const updateFormData = (callId, updates) => {
     console.log(`🔄 [MultiTab] updateFormData called for callId: ${callId}`, updates);
@@ -106,6 +109,10 @@ const MultiTabInspectionInitiationPage = ({ calls, onProceed, onBack }) => {
 
   // Open call action modal (withheld/cancel)
   const handleOpenCallActionModal = (actionType) => {
+    if (currentRioMismatch) {
+      alert(formatCaseRioError(currentRioMismatch));
+      return;
+    }
     setCallActionType(actionType);
     setCallActionReason('');
     setCallActionRemarks('');
@@ -124,6 +131,10 @@ const MultiTabInspectionInitiationPage = ({ calls, onProceed, onBack }) => {
 
   // Submit call action for current call
   const handleSubmitCallAction = async () => {
+    if (currentRioMismatch) {
+      setCallActionError(formatCaseRioError(currentRioMismatch));
+      return;
+    }
     if (!callActionReason) {
       setCallActionError('Please select a reason');
       return;
@@ -197,6 +208,10 @@ const MultiTabInspectionInitiationPage = ({ calls, onProceed, onBack }) => {
 
   // Open initiate inspection modal
   const handleOpenInitiateModal = () => {
+    if (anyCallRioMismatch) {
+      alert(formatCaseRioError(anyCallRioMismatch));
+      return;
+    }
     console.log('🔍 [MultiTab] handleOpenInitiateModal called');
     console.log('📋 [MultiTab] Current formDataByCall state:', formDataByCall);
     console.log('📋 [MultiTab] Calls array:', calls.map(c => ({ id: c.id, call_no: c.call_no, product_type: c.product_type })));
@@ -271,6 +286,10 @@ const MultiTabInspectionInitiationPage = ({ calls, onProceed, onBack }) => {
 
   // Submit initiation for all calls
   const handleSubmitInitiation = async () => {
+    if (anyCallRioMismatch) {
+      setInitiateError(formatCaseRioError(anyCallRioMismatch));
+      return;
+    }
     if (!initiateShift) {
       setInitiateError('Please select a shift');
       return;
@@ -391,6 +410,8 @@ const MultiTabInspectionInitiationPage = ({ calls, onProceed, onBack }) => {
         </p>
       </div>
 
+      <CaseRioBanner mismatch={anyCallRioMismatch} />
+
       {/* Call Tabs */}
       <div className="multi-inspection-tabs" style={{
         display: 'flex',
@@ -460,7 +481,7 @@ const MultiTabInspectionInitiationPage = ({ calls, onProceed, onBack }) => {
             type="button"
             className="btn btn-warning inspection-action-buttons__btn"
             onClick={() => handleOpenCallActionModal('WITHHELD')}
-            disabled={isSaving}
+            disabled={isSaving || Boolean(currentRioMismatch)}
           >
             Withheld Call
           </button>
@@ -468,7 +489,7 @@ const MultiTabInspectionInitiationPage = ({ calls, onProceed, onBack }) => {
             <button
               className="btn btn-success inspection-action-buttons__btn"
               onClick={handleOpenInitiateModal}
-              disabled={isSaving}
+              disabled={isSaving || Boolean(anyCallRioMismatch)}
             >
               Initiate All Inspections
             </button>

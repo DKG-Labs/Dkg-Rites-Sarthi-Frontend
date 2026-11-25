@@ -11,6 +11,7 @@ import AttachmentRoundedIcon from '@mui/icons-material/AttachmentRounded';
 import { message } from 'antd';
 import CallCancellationModal from './CallCancellationModal';
 import HeatLotDetailsSection from './HeatLotDetailsSection';
+import { getCaseRioMismatch, CaseRioBanner } from '../utils/caseRioCheck';
 
 const PendingCallDetailsModal = ({
   isOpen,
@@ -45,6 +46,8 @@ const PendingCallDetailsModal = ({
 
 
   if (!isOpen || !call) return null;
+
+  const rioMismatch = getCaseRioMismatch(call);
 
   // Resolve Call Letter details fetcher
   const handleDownloadLetter = async () => {
@@ -255,46 +258,49 @@ const PendingCallDetailsModal = ({
             </div>
           )}
 
+          {rioMismatch && <CaseRioBanner mismatch={rioMismatch} />}
+
           <h3 style={{ fontSize: '18px', fontWeight: '700', marginBottom: '20px', color: '#0f172a', display: 'flex', alignItems: 'center', gap: '8px' }}>
             <span style={{ color: '#3b82f6' }}>⚡</span> Actions & Documents
           </h3>
 
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: '16px' }}>
             {availableActions.includes('schedule') && (
-              <button className="btn btn-secondary" onClick={onSchedule} style={{ width: '100%', height: '100%', minHeight: '80px', borderRadius: '16px', fontWeight: 'bold' }}>SCHEDULE</button>
+              <button className="btn btn-secondary" disabled={Boolean(rioMismatch)} onClick={() => !rioMismatch && onSchedule()} style={{ width: '100%', height: '100%', minHeight: '80px', borderRadius: '16px', fontWeight: 'bold', opacity: rioMismatch ? 0.5 : 1, cursor: rioMismatch ? 'not-allowed' : 'pointer' }}>SCHEDULE</button>
             )}
             {availableActions.includes('reschedule') && (
-              <button className="btn btn-secondary" onClick={onReschedule} style={{ width: '100%', height: '100%', minHeight: '80px', borderRadius: '16px', fontWeight: 'bold' }}>RESCHEDULE</button>
+              <button className="btn btn-secondary" disabled={Boolean(rioMismatch)} onClick={() => !rioMismatch && onReschedule()} style={{ width: '100%', height: '100%', minHeight: '80px', borderRadius: '16px', fontWeight: 'bold', opacity: rioMismatch ? 0.5 : 1, cursor: rioMismatch ? 'not-allowed' : 'pointer' }}>RESCHEDULE</button>
             )}
             {availableActions.includes('start') && (
-              <button className="btn btn-primary" onClick={onStart} style={{ width: '100%', height: '100%', minHeight: '80px', borderRadius: '16px', fontWeight: 'bold' }}>START</button>
+              <button className="btn btn-primary" disabled={Boolean(rioMismatch)} onClick={() => !rioMismatch && onStart()} style={{ width: '100%', height: '100%', minHeight: '80px', borderRadius: '16px', fontWeight: 'bold', opacity: rioMismatch ? 0.5 : 1, cursor: rioMismatch ? 'not-allowed' : 'pointer' }}>START</button>
             )}
             {availableActions.includes('resume') && (
-              <button className="btn btn-primary" onClick={() => onEnterShiftDetails(true)} style={{ width: '100%', height: '100%', minHeight: '80px', borderRadius: '16px', fontWeight: 'bold' }}>RESUME</button>
+              <button className="btn btn-primary" disabled={Boolean(rioMismatch)} onClick={() => !rioMismatch && onEnterShiftDetails(true)} style={{ width: '100%', height: '100%', minHeight: '80px', borderRadius: '16px', fontWeight: 'bold', opacity: rioMismatch ? 0.5 : 1, cursor: rioMismatch ? 'not-allowed' : 'pointer' }}>RESUME</button>
             )}
             {availableActions.includes('enterShiftDetails') && (
-              <button className="btn btn-primary" onClick={() => onEnterShiftDetails(false)} style={{ width: '100%', height: '100%', minHeight: '80px', borderRadius: '16px', fontWeight: 'bold' }}>ENTER SHIFT DETAILS</button>
+              <button className="btn btn-primary" disabled={Boolean(rioMismatch)} onClick={() => !rioMismatch && onEnterShiftDetails(false)} style={{ width: '100%', height: '100%', minHeight: '80px', borderRadius: '16px', fontWeight: 'bold', opacity: rioMismatch ? 0.5 : 1, cursor: rioMismatch ? 'not-allowed' : 'pointer' }}>ENTER SHIFT DETAILS</button>
             )}
 
             {call.status !== 'CANCELLED' ? (
               <button
                 className="btn btn-danger"
-                onClick={() => setShowCancelModal(true)}
+                disabled={Boolean(rioMismatch)}
+                onClick={() => !rioMismatch && setShowCancelModal(true)}
                 style={{
                   width: '100%',
                   height: '100%',
                   minHeight: '80px',
                   borderRadius: '16px',
                   fontWeight: 'bold',
-                  background: '#ef4444',
-                  color: '#ffffff',
+                  background: rioMismatch ? '#cbd5e1' : '#ef4444',
+                  color: rioMismatch ? '#64748b' : '#ffffff',
                   border: 'none',
-                  cursor: 'pointer',
+                  cursor: rioMismatch ? 'not-allowed' : 'pointer',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
                   fontSize: '14px',
-                  boxShadow: '0 4px 6px -1px rgba(239, 68, 68, 0.2)'
+                  boxShadow: rioMismatch ? 'none' : '0 4px 6px -1px rgba(239, 68, 68, 0.2)'
                 }}
               >
                 CANCEL CALL

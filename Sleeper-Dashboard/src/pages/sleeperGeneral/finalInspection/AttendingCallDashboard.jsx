@@ -38,33 +38,6 @@ const resolveSleeperCaseNo = (rawCaseNo, rio) => {
     return parts[0] || '-';
 };
 
-const cleanPlantStr = (s) => String(s || '').replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
-
-const isPlantMatching = (callPlantId, allowedPlantList) => {
-    if (!allowedPlantList || allowedPlantList.length === 0) return true;
-    const cleanCall = cleanPlantStr(callPlantId);
-    if (!cleanCall) return false;
-
-    return allowedPlantList.some(target => {
-        const cleanTarget = cleanPlantStr(target);
-        if (!cleanTarget) return false;
-        
-        if (cleanCall === cleanTarget) return true;
-        
-        if (cleanCall.includes(cleanTarget) || cleanTarget.includes(cleanCall)) {
-            const callParts = String(callPlantId).split(/[/:]/).filter(Boolean);
-            const targetParts = String(target).split(/[/:]/).filter(Boolean);
-            if (callParts.length > 1 && targetParts.length > 1) {
-                const callUnit = cleanPlantStr(callParts[callParts.length - 1]);
-                const targetUnit = cleanPlantStr(targetParts[targetParts.length - 1]);
-                return callUnit === targetUnit || callUnit.includes(targetUnit) || targetUnit.includes(callUnit);
-            }
-            return true;
-        }
-        return false;
-    });
-};
-
 const isSetOrTurnout = (sleeperType, uom) => {
     const u = String(uom || '').toUpperCase();
     if (u.includes('SET')) return true;
@@ -443,26 +416,9 @@ const AttendingCallDashboard = ({ mode }) => {
             const userId = user?.userId || localStorage.getItem('userId');
             const activeDutyUnit = dutyUnit || localStorage.getItem('dutyUnit') || localStorage.getItem('plantId');
 
-            let allowedPlants = [];
-            if (activeDutyUnit) {
-                allowedPlants.push(activeDutyUnit);
-            } else {
-                try {
-                    const mappingRes = await apiService.getCompanyUnitsByUser(userId);
-                    const data = mappingRes?.responseData;
-                    if (Array.isArray(data)) {
-                        data.forEach(comp => {
-                            if (Array.isArray(comp.unitNames)) {
-                                allowedPlants.push(...comp.unitNames);
-                            }
-                        });
-                    } else if (data?.unitNames && Array.isArray(data.unitNames)) {
-                        allowedPlants.push(...data.unitNames);
-                    }
-                } catch (e) {
-                    console.error("Error fetching user company units:", e);
-                }
-            }
+            // All four tabs (Pending, Issuance of IC, Completed, Closed) are fetched by the IE assigned in the
+            // workflow transaction (userId) and, when a duty plant is selected, that plant (activeDutyUnit).
+            // No POI/plant-mapping filter: a call assigned to this IE is shown even for an unmapped plant.
 
             const isNonPendingActionOrStatus = (c) => {
                 const action = (c.action || '').toUpperCase();
@@ -525,9 +481,7 @@ const AttendingCallDashboard = ({ mode }) => {
             if (tabToLoad === 'closed') {
                 const closedRes = await apiService.getClosedFinalCalls(activeDutyUnit, userId);
                 const closedData = (closedRes && closedRes.responseData) ? closedRes.responseData : (Array.isArray(closedRes) ? closedRes : []);
-                const mappedClosed = closedData.filter(c => {
-                    return allowedPlants.length === 0 || isPlantMatching(c.plantId, allowedPlants);
-                }).map(item => {
+                const mappedClosed = closedData.map(item => {
                     const action = (item.action || '').toUpperCase();
                     const status = (item.status || '').toUpperCase();
                     const jobStatus = (item.jobStatus || '').toUpperCase();
@@ -553,10 +507,10 @@ const AttendingCallDashboard = ({ mode }) => {
                 const res = await apiService.getAllPendingWorkflowTransitions('Main IE', userId, activeDutyUnit);
                 const pendingData = (res && res.responseData) ? res.responseData : [];
 
-                const pendingList = pendingData.filter(item => {
-                    const matchesPlant = allowedPlants.length === 0 || isPlantMatching(item.plantId, allowedPlants);
-                    return matchesPlant && !isNonPendingActionOrStatus(item);
-                }).map(item => {
+                // Pending calls come from the workflow transaction's assigned_to_user (assignedTo=userId, plus
+                // plantId when a duty unit is selected), so no extra POI/plant-mapping filter: a call assigned
+                // to this IE is shown even if the IE is not mapped to that plant's POI.
+                const pendingList = pendingData.filter(item => !isNonPendingActionOrStatus(item)).map(item => {
                     let displayStatus = item.jobStatus;
                     if (!displayStatus || displayStatus === 'PENDING') {
                         if (item.scheduleDate || item.scheduledDate || item.action === 'MAIN_IE_SCHEDULE_CALL') {
@@ -616,8 +570,7 @@ const AttendingCallDashboard = ({ mode }) => {
                 const dedupedCompleted = Array.from(uniqueCompletedMap.values());
 
                 const finalCompletedCalls = dedupedCompleted.filter(c => {
-                    const matchesPlant = allowedPlants.length === 0 || isPlantMatching(c.plantId, allowedPlants);
-                    return matchesPlant && (isSignedOrArchived(c) || isWithdrawn(c)) && !isClosedOrSentToIbs(c);
+                    return (isSignedOrArchived(c) || isWithdrawn(c)) && !isClosedOrSentToIbs(c);
                 }).map(item => {
                     const action = (item.action || '').toUpperCase();
                     const jobStatus = (item.jobStatus || '').toUpperCase();
@@ -684,8 +637,7 @@ const AttendingCallDashboard = ({ mode }) => {
                 const dedupedCompleted = Array.from(uniqueCompletedMap.values());
 
                 const certCalls = dedupedCompleted.filter(c => {
-                    const matchesPlant = allowedPlants.length === 0 || isPlantMatching(c.plantId, allowedPlants);
-                    return matchesPlant && !isSignedOrArchived(c) && !isClosedOrSentToIbs(c);
+                    return !isSignedOrArchived(c) && !isClosedOrSentToIbs(c);
                 }).map(item => ({
                     ...item,
                     id: item.workflowTransitionId,

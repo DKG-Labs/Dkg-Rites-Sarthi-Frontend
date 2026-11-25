@@ -349,14 +349,15 @@ const LoginPage = () => {
       seenConsolidated.add('SBU Head');
     }
 
-    // Consolidate "IE" and "Process IE" into one "IE Dashboard" option
+    // Consolidate "IE" and "Process IE" into ERC IE options
     // Prefer "Process IE" over "IE" so QR auth triggers correctly when both roles exist
     if (roles.some(r => r === 'IE' || r === 'Process IE')) {
       const ieRole = roles.includes('Process IE') ? 'Process IE' : 'IE';
+      const ercLabel = ieRole === 'Process IE' ? 'ERC Process IE' : 'ERC Main IE';
       options.push({
         id: 'ie_option',
-        label: 'IE Dashboard',
-        description: 'Access IE and Process IE modules',
+        label: ercLabel,
+        description: ieRole === 'Process IE' ? 'Access ERC Process IE modules' : 'Access ERC Main IE modules',
         icon: '🛠️',
         roleToStore: ieRole
       });
@@ -378,12 +379,14 @@ const LoginPage = () => {
 
     // Handle Sleeper Roles
     if (roles.some(r => r === 'Sleeper Process IE' || r === 'Main IE')) {
+      const sleeperRole = roles.includes('Main IE') ? 'Main IE' : 'Sleeper Process IE';
+      const sleeperLabel = sleeperRole === 'Main IE' ? 'Sleeper Main IE' : 'Sleeper Process IE';
       options.push({
         id: 'sleeper_option',
-        label: 'Sleeper Dashboard',
-        description: 'Access Sleeper Process modules',
+        label: sleeperLabel,
+        description: sleeperRole === 'Main IE' ? 'Access Sleeper Main IE modules' : 'Access Sleeper Process IE modules',
         icon: '🚄',
-        roleToStore: roles.includes('Main IE') ? 'Main IE' : 'Sleeper Process IE'
+        roleToStore: sleeperRole
       });
       seenConsolidated.add('Sleeper Process IE');
       seenConsolidated.add('Main IE');
@@ -397,8 +400,8 @@ const LoginPage = () => {
 
       options.push({
         id: 'railpad_option',
-        label: isDual ? 'Railpad Main & Process IE Dashboard' : (isProcessOnly ? 'Railpad Process IE Dashboard' : 'Railpad Dashboard'),
-        description: isDual ? 'Access Railpad Main IE & Process IE modules' : (isProcessOnly ? 'Access Railpad Process IE platform' : 'Access Railpad IE modules'),
+        label: isDual ? 'Rail Pad Main IE & Rail Pad Process IE' : (isProcessOnly ? 'Rail Pad Process IE' : 'Rail Pad Main IE'),
+        description: isDual ? 'Access Rail Pad Main IE & Process IE modules' : (isProcessOnly ? 'Access Rail Pad Process IE platform' : 'Access Rail Pad Main IE modules'),
         icon: '🛤️',
         roleToStore: (railpadRoles.length > 0 ? railpadRoles : ['Railpad IE']).join(',')
       });
@@ -422,9 +425,9 @@ const LoginPage = () => {
           description = 'Access Railway Board Dashboard';
           icon = '🛤️';
         } else if (r === 'R Process IE' || r === 'Rail SMS') {
-          // SMS process role: stored as 'R Process IE', shown as 'Rail Process IE'
-          label = 'Rail Process IE Dashboard';
-          description = 'Access Rail Process IE platform';
+          // SMS process role: stored as 'R Process IE', shown as 'Rail Pad Process IE'
+          label = 'Rail Pad Process IE';
+          description = 'Access Rail Pad Process IE platform';
           icon = '🛤️';
         } else if (r === 'R Main IE') {
           label = 'Rail Main IE Dashboard';

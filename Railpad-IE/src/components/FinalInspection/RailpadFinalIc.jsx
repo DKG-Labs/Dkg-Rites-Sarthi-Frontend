@@ -120,7 +120,7 @@ const RailpadFinalIc = ({ data = {}, isEditing = false, isBusy = false, isViewOn
     "bookNo", "setNo", "offeredInstNo", "passedInstNo", "contractRef",
     "billPayingOfficer", "consignee", "purchasingAuthority", "description",
     "qtyOfferedPreviously", "qtyPassedPreviously", "qtyStillDue",
-    "quantityNowPassedText", "noOfItemsChecked", "dateOfCall", "noOfVisits", "datesOfInspection",
+    "quantityNowPassedText", "noOfItemsChecked", "noOfVisits", "datesOfInspection",
     "trRecDate", "reasonsForRejection", "sealingPattern", "contractor",
     "placeOfInspection", "certificateDate", "inspectingEngineer"
   ];
@@ -585,7 +585,7 @@ const RailpadFinalIc = ({ data = {}, isEditing = false, isBusy = false, isViewOn
                 <div style={{ width: '15%', padding: '4px', borderRight: '1px solid black', fontSize: '9px' }}>
                   <div style={{ fontWeight: 'bold', lineHeight: '1.2' }}>बुलावे की तारीख<br />Date of call</div>
                   <div style={{ marginTop: '8px', fontWeight: 'bold', fontSize: '10px' }}>
-                    <EditableField value={dateOfCall} fieldName="dateOfCall" style={{ fontSize: '10px', fontWeight: 'bold' }} {...fieldProps} />
+                    <EditableField value={dateOfCall} fieldName="dateOfCall" style={{ fontSize: '10px', fontWeight: 'bold' }} {...fieldProps} isEditing={false} />
                   </div>
                 </div>
                 <div style={{ width: '10%', padding: '4px', borderRight: '1px solid black', fontSize: '9px' }}>

@@ -24,6 +24,9 @@ import { clearWorkflowCache } from '../services/workflowService';
 import { checkTolerance } from '../utils/toleranceValidation';
 import ImageCaptureComponent from '../components/ImageCaptureComponent';
 import { useInspection } from '../context/InspectionContext';
+import CallResultDispatchModal from '../components/CallResultDispatchModal';
+import PauseInspectionModal from '../components/PauseInspectionModal';
+import { getCaseRioMismatch, formatCaseRioError, CaseRioBanner } from '../utils/caseRioCheck';
 
 // Reason options for withheld/cancel call
 const WITHHELD_REASONS = [
@@ -1847,7 +1850,12 @@ const ProcessDashboard = ({ call, onBack, onNavigateToSubModule, productionLines
   // Handle call number selection from modal
   const handleSelectNewCall = (callData, skipInitiation = false, rowArg = null) => {
     const callNo = typeof callData === 'object' ? callData.call_no : callData;
-    const rowData = typeof callData === 'object' ? callData : rowArg;
+    const rowData = typeof callData === 'object' ? callData : (rowArg || allProcessCalls.find(c => c.call_no === callNo) || null);
+    const rioMismatch = getCaseRioMismatch(rowData, callNo);
+    if (rioMismatch) {
+      showNotification('error', formatCaseRioError(rioMismatch));
+      return;
+    }
 
     console.log('🔵 Call selected:', callNo, 'skipInitiation:', skipInitiation, 'hasRowData:', !!rowData);
     console.log('📍 Transition ID:', rowData?.id);
@@ -2035,6 +2043,11 @@ const ProcessDashboard = ({ call, onBack, onNavigateToSubModule, productionLines
 
   // Handle scheduling from AddNewCallModal
   const handleOpenScheduleModal = async (callData, reschedule = false) => {
+    const rioMismatch = getCaseRioMismatch(callData);
+    if (rioMismatch) {
+      showNotification('error', formatCaseRioError(rioMismatch));
+      return;
+    }
     setSelectedCallForSchedule(callData);
     setIsReschedule(reschedule);
     setScheduleDate('');
@@ -2063,6 +2076,11 @@ const ProcessDashboard = ({ call, onBack, onNavigateToSubModule, productionLines
 
   // Submit schedule/reschedule
   const handleScheduleSubmit = async () => {
+    const rioMismatch = getCaseRioMismatch(selectedCallForSchedule);
+    if (rioMismatch) {
+      showNotification('error', formatCaseRioError(rioMismatch));
+      return;
+    }
     if (!scheduleDate) {
       showNotification('warning', 'Please select a schedule date');
       return;
@@ -2880,6 +2898,11 @@ const ProcessDashboard = ({ call, onBack, onNavigateToSubModule, productionLines
   const [showFinishCallSelectionModal, setShowFinishCallSelectionModal] = useState(false);
   const [selectedCallsToFinish, setSelectedCallsToFinish] = useState([]);
   const [callsGroupedByIc, setCallsGroupedByIc] = useState([]);
+
+  // Call result dispatch and pause inspection modal states
+  const [showCallResultModal, setShowCallResultModal] = useState(false);
+  const [showPauseModal, setShowPauseModal] = useState(false);
+  const [pendingCallsToFinish, setPendingCallsToFinish] = useState([]);
 
   /**
    * Reset all production lines related state
@@ -4044,6 +4067,39 @@ const ProcessDashboard = ({ call, onBack, onNavigateToSubModule, productionLines
       visualCheck: 0 // Blank
     };
   }, [manufacturedQty, rejectedQty]);
+
+  // Calculate system-evaluated status for Process IE (placed after rejectedQty is defined)
+  const getCalculatedProcessSystemStatus = useCallback(() => {
+    try {
+      let totalRej = 0;
+      let totalMfg = 0;
+      if (localProductionLines && localProductionLines.length > 0) {
+        localProductionLines.forEach((prodLine, idx) => {
+          const internalLineKey = `Line-${idx + 1}`;
+          const currentLineNum = prodLine?.lineNumber || (idx + 1);
+          const lineNoKey = `Line-${currentLineNum}`;
+          const lineCallNo = prodLine?.icNumber || call?.call_no;
+          const linePoNo = prodLine?.poNumber || prodLine?.po_no || call?.po_no;
+          const determinedShift = shift || sessionStorage.getItem('inspectionShift') || 'A';
+          const lineFinal = loadFromLocalStorage('lineFinalResult', lineCallNo, linePoNo, lineNoKey, determinedShift) ||
+                            loadFromLocalStorage('lineFinalResult', lineCallNo, linePoNo, internalLineKey, determinedShift);
+          if (lineFinal) {
+            totalRej += parseInt(lineFinal.totalRejected || 0, 10);
+            totalMfg += parseInt(lineFinal.totalManufactured || lineFinal.shearingManufactured || 0, 10);
+          }
+        });
+      }
+      if (totalRej === 0 && rejectedQty?.totalRejected) {
+        totalRej = rejectedQty.totalRejected;
+      }
+      if (totalRej === 0) return 'ACCEPTED';
+      const netAccepted = Math.max(0, totalMfg - totalRej);
+      if (netAccepted === 0 && totalRej > 0) return 'REJECTED';
+      return 'PARTIALLY_ACCEPTED';
+    } catch (e) {
+      return (rejectedQty?.totalRejected || 0) > 0 ? 'PARTIALLY_ACCEPTED' : 'ACCEPTED';
+    }
+  }, [localProductionLines, call, shift, rejectedQty]);
 
   // Persist lineFinalResult for current selected line & lot using current manufactured/rejected values
   // `persistLineFinalResult` is declared later in the file (after `lotOfferedQtyMap` memo)
@@ -5572,22 +5628,21 @@ const ProcessDashboard = ({ call, onBack, onNavigateToSubModule, productionLines
   }, [localProductionLines, validateLotGridData, shift, getLineLabel]);
 
   /**
-   * Handle Shift Completed - collect lot-wise data from ALL production lines and trigger performTransitionAction
-   * Groups by unique (callNumber + lotNumber) combinations and sends separate API calls for each
+   * Handle Shift Completed / Pause Inspection click - validates data and opens PauseInspectionModal
    */
-  const handleInspectionCompleted = useCallback(async () => {
+  const handleInspectionCompleted = useCallback(() => {
+    const primaryMismatch = getCaseRioMismatch(call) || availableCalls.map(c => getCaseRioMismatch(c)).find(Boolean);
+    if (primaryMismatch) {
+      showNotification('error', formatCaseRioError(primaryMismatch));
+      return;
+    }
     if (isProcessingShiftRef.current || isSaving) {
       console.warn('⚠️ Shift completion already in progress, ignoring duplicate click');
       return;
     }
 
-    setIsSaving(true);
-    isProcessingShiftRef.current = true;
-
     // Image validation (maximum 10 only)
     if (capturedImages && capturedImages.length > 10) {
-      setIsSaving(false);
-      isProcessingShiftRef.current = false;
       showNotification('error', `Maximum of 10 inspection images allowed (Currently: ${capturedImages.length})`);
       return;
     }
@@ -5597,8 +5652,6 @@ const ProcessDashboard = ({ call, onBack, onNavigateToSubModule, productionLines
     const validation = validateAllLots();
 
     if (!validation.isValid) {
-      setIsSaving(false);
-      isProcessingShiftRef.current = false;
       // Build error message
       const errorContent = (
         <div>
@@ -5629,7 +5682,27 @@ const ProcessDashboard = ({ call, onBack, onNavigateToSubModule, productionLines
       return;
     }
 
-    console.log('🔍 [Shift Completed] ✅ Validation passed, proceeding with shift completion...');
+    console.log('🔍 [Shift Completed] ✅ Validation passed, opening Pause Inspection modal...');
+    setShowPauseModal(true);
+  }, [validateAllLots, capturedImages, isSaving, call, availableCalls]);
+
+  /**
+   * Execute pause process inspection with structured reason and remarks
+   */
+  const executePauseProcessInspection = useCallback(async (pauseReason, pauseRemarks) => {
+    const primaryMismatch = getCaseRioMismatch(call) || availableCalls.map(c => getCaseRioMismatch(c)).find(Boolean);
+    if (primaryMismatch) {
+      showNotification('error', formatCaseRioError(primaryMismatch));
+      return;
+    }
+    if (isProcessingShiftRef.current || isSaving) {
+      console.warn('⚠️ Shift completion already in progress, ignoring duplicate click');
+      return;
+    }
+
+    setIsSaving(true);
+    isProcessingShiftRef.current = true;
+    setShowPauseModal(false);
 
     let pauseSuccess = false;
     let pausePayload = null;
@@ -5821,7 +5894,8 @@ const ProcessDashboard = ({ call, onBack, onNavigateToSubModule, productionLines
 
       pausePayload = {
         inspectionCallNo: call.call_no,
-        remarks: 'Shift Completed',
+        remarks: pauseReason ? `[${pauseReason}] ${pauseRemarks || ''}`.trim() : 'Shift Completed',
+        pauseReason: pauseReason || 'Shift completed',
         shift: linesData.length > 0 ? linesData[0].lineFinalResult?.shift || shift || sessionStorage.getItem('inspectionShift') || call.shiftOfInspection || call.shift : shift || sessionStorage.getItem('inspectionShift') || call.shiftOfInspection || call.shift,
         linesData: linesData,
         createdBy: userId,
@@ -6064,14 +6138,15 @@ const ProcessDashboard = ({ call, onBack, onNavigateToSubModule, productionLines
           const actionData = {
             workflowTransitionId: currentTransitionId,
             requestId: callNo,
-            action: 'ENTRY_INSPECTION_RESULTS',
+            action: 'PAUSE_INSPECTION_RESUME_NEXT_DAY',
+            pauseReason: pauseReason || 'Shift completed',
             lotNo: lotNo,
             heatNo: heatNo,
             offeredQty: Math.max(0, offeredQty),
             manufacturedQty: Math.max(0, currentShiftManufacturedQty),
             rejectedQty: Math.max(0, currentShiftRejectedQty),
             inspectedQty: currentShiftInspectedQty,
-            remarks: `Shift completed for lot ${lotNo}, heat ${heatNo}. Current shift - Manufactured: ${currentShiftManufacturedQty}, Rejected: ${currentShiftRejectedQty}, Inspected: ${currentShiftInspectedQty}. Cumulative - Manufactured: ${cumulativeManufacturedQty}, Rejected: ${cumulativeRejectedQty}, Accepted: ${cumulativeAcceptedQty}`,
+            remarks: `[${pauseReason || 'Shift Completed'}] ${pauseRemarks || ''} - Lot ${lotNo}, heat ${heatNo}. Current shift - Manufactured: ${currentShiftManufacturedQty}, Rejected: ${currentShiftRejectedQty}, Inspected: ${currentShiftInspectedQty}. Cumulative - Manufactured: ${cumulativeManufacturedQty}, Rejected: ${cumulativeRejectedQty}, Accepted: ${cumulativeAcceptedQty}`,
             actionBy: userId,
             pincode: pincode,
             shiftCode: lotData.shiftCode,
@@ -6093,7 +6168,7 @@ const ProcessDashboard = ({ call, onBack, onNavigateToSubModule, productionLines
         }
       }
 
-      showNotification('success', 'Shift completed successfully!');
+      showNotification('success', `Inspection paused successfully (${pauseReason || 'Shift completed'}). Status updated to: Under inspection - Paused for Next Schedule`);
 
       // Perform comprehensive cleanup ONLY after 100% successful API saves (Clear only this shift)
       performInspectionCleanup(call?.call_no, localProductionLines, manufacturingLines, shift, false);
@@ -6124,13 +6199,13 @@ const ProcessDashboard = ({ call, onBack, onNavigateToSubModule, productionLines
       setIsSaving(false);
       isProcessingShiftRef.current = false;
     }
-  }, [call, localProductionLines, allCallOptions, callInitiationDataCache, manufacturedQtyByLine, manufacturingLines, onBack, resetProductionLinesState, validateAllLots, shift, capturedImages, selectedLine, selectedLotByLine, selectedLotForDisplay, isSaving]);
+  }, [call, availableCalls, localProductionLines, allCallOptions, callInitiationDataCache, manufacturedQtyByLine, manufacturingLines, onBack, resetProductionLinesState, shift, capturedImages, selectedLine, selectedLotByLine, selectedLotForDisplay, isSaving]);
 
   /**
    * Finishes inspection for the selected calls
    * Saves data and marks as complete
    */
-  const executeFinishInspection = useCallback(async (selectedCalls = []) => {
+  const executeFinishInspection = useCallback(async (selectedCalls = [], callResult = 'ACCEPTED', finishRemarks = '') => {
     // Image validation (minimum 5, maximum 10)
     if (!capturedImages || capturedImages.length < 5) {
       showNotification('error', `At least 5 inspection images are required to finish the inspection (Currently: ${capturedImages?.length || 0})`);
@@ -6333,7 +6408,8 @@ const ProcessDashboard = ({ call, onBack, onNavigateToSubModule, productionLines
 
       const payload = {
         inspectionCallNo: call.call_no,
-        remarks: 'Inspection Finished',
+        remarks: finishRemarks ? `[Result: ${callResult}] ${finishRemarks}` : 'Inspection Finished',
+        callResult: callResult,
         shift: linesData.length > 0 ? linesData[0].lineFinalResult?.shift || sessionStorage.getItem('inspectionShift') || call.shiftOfInspection || call.shift : sessionStorage.getItem('inspectionShift') || call.shiftOfInspection || call.shift,
         shiftCode: (linesData.length > 0 ? linesData[0].lineFinalResult?.shift || sessionStorage.getItem('inspectionShift') || call.shiftOfInspection || call.shift : sessionStorage.getItem('inspectionShift') || call.shiftOfInspection || call.shift)?.charAt(0).toUpperCase() || 'A',
         linesData: linesData,
@@ -6369,6 +6445,14 @@ const ProcessDashboard = ({ call, onBack, onNavigateToSubModule, productionLines
    * Handle finish selected calls from modal
    */
   const handleFinishSelectedCalls = useCallback(async () => {
+    const selectedMismatch = (availableCalls || [])
+      .filter(c => selectedCallsToFinish.includes(c.call_no))
+      .map(c => getCaseRioMismatch(c))
+      .find(Boolean) || getCaseRioMismatch(call);
+    if (selectedMismatch) {
+      showNotification('error', formatCaseRioError(selectedMismatch));
+      return;
+    }
     if (isProcessingFinishRef.current || isSaving) {
       console.warn('⚠️ Finish inspection already in progress, ignoring duplicate click');
       return;
@@ -6434,7 +6518,44 @@ const ProcessDashboard = ({ call, onBack, onNavigateToSubModule, productionLines
       return;
     }
 
-    console.log('🔍 [Finish] ✅ Validation passed, proceeding with finish inspection...');
+    if (!capturedImages || capturedImages.length < 5) {
+      setIsSaving(false);
+      isProcessingFinishRef.current = false;
+      showNotification('error', `At least 5 inspection images are required to finish the inspection (Currently: ${capturedImages?.length || 0})`);
+      return;
+    }
+
+    console.log('🔍 [Finish] ✅ Validation passed, opening Call Result Dispatch modal...');
+    setPendingCallsToFinish(callsToFinish);
+    setShowFinishCallSelectionModal(false);
+    setShowCallResultModal(true);
+    setIsSaving(false);
+    isProcessingFinishRef.current = false;
+  }, [selectedCallsToFinish, validateAllLots, capturedImages, isSaving, call, availableCalls]);
+
+  /**
+   * Execute finish inspection with selected call result and remarks
+   */
+  const executeFinishSelectedCallsWithResult = useCallback(async (callResult, finishRemarks) => {
+    const selectedMismatch = (availableCalls || [])
+      .filter(c => selectedCallsToFinish.includes(c.call_no))
+      .map(c => getCaseRioMismatch(c))
+      .find(Boolean) || getCaseRioMismatch(call);
+    if (selectedMismatch) {
+      showNotification('error', formatCaseRioError(selectedMismatch));
+      return;
+    }
+    if (isProcessingFinishRef.current || isSaving) {
+      console.warn('⚠️ Finish inspection already in progress, ignoring duplicate click');
+      return;
+    }
+
+    setIsSaving(true);
+    isProcessingFinishRef.current = true;
+    setShowCallResultModal(false);
+
+    const callsToFinish = pendingCallsToFinish.length > 0 ? pendingCallsToFinish : [...selectedCallsToFinish];
+    const systemStatus = getCalculatedProcessSystemStatus();
 
     try {
       // Get logged in user
@@ -6652,9 +6773,6 @@ const ProcessDashboard = ({ call, onBack, onNavigateToSubModule, productionLines
           currentShiftManufacturedQty,
           currentShiftRejectedQty,
           currentShiftInspectedQty,
-          cumulativeManufacturedQty,
-          cumulativeRejectedQty,
-          cumulativeAcceptedQty,
           pincode,
           action
         } = lotData;
@@ -6672,24 +6790,27 @@ const ProcessDashboard = ({ call, onBack, onNavigateToSubModule, productionLines
             manufacturedQty: Math.max(0, currentShiftManufacturedQty),
             rejectedQty: Math.max(0, currentShiftRejectedQty),
             inspectedQty: currentShiftInspectedQty,
-            remarks: `Inspection ${action === 'INSPECTION_COMPLETE_CONFIRM' ? 'completed' : 'paused'} for lot ${lotNo}, heat ${heatNo}. Current shift - Manufactured: ${currentShiftManufacturedQty}, Rejected: ${currentShiftRejectedQty}, Inspected: ${currentShiftInspectedQty}. Cumulative - Manufactured: ${cumulativeManufacturedQty}, Rejected: ${cumulativeRejectedQty}, Accepted: ${cumulativeAcceptedQty}`,
+            callResult: callResult,
+            resultStatus: callResult,
+            systemStatus: systemStatus,
+            remarks: finishRemarks ? `[Result: ${callResult}] ${finishRemarks}` : `Inspection finished with result ${callResult} for lot ${lotNo}`,
             actionBy: userId,
             pincode: pincode,
             shiftCode: lotData.shiftCode,
             dateOfInspection: sessionStorage.getItem('inspectionDate') || new Date().toISOString().split('T')[0]
           };
 
-          console.log(`🔄 [Finish] Sending API call for ${key} with action ${action}:`, actionData);
+          console.log(`🔄 [Finish With Result] Sending API call for ${key} with action ${action}:`, actionData);
 
           const transitionResponse = await performTransitionAction(actionData);
           if (transitionResponse?.workflowTransitionId || transitionResponse?.id) {
             activeTransitionIdByCall.set(callNo, transitionResponse.workflowTransitionId || transitionResponse.id);
           }
 
-          console.log(`✅ [Finish] Workflow transition successful for ${key}`);
+          console.log(`✅ [Finish With Result] Workflow transition successful for ${key}`);
           workflowResults.push({ key, callNo, lotNo, heatNo, action, success: true });
         } catch (workflowError) {
-          console.error(`❌ [Finish] Workflow API error for ${key}:`, workflowError);
+          console.error(`❌ [Finish With Result] Workflow API error for ${key}:`, workflowError);
           throw new Error(`Failed to finish inspection for ${key}: ${workflowError?.message || workflowError}`);
         }
       }
@@ -6697,8 +6818,13 @@ const ProcessDashboard = ({ call, onBack, onNavigateToSubModule, productionLines
       setShowFinishCallSelectionModal(false);
       setSelectedCallsToFinish([]);
       setCallsGroupedByIc([]);
+      setPendingCallsToFinish([]);
 
-      await executeFinishInspection(callsToFinish);
+      if (callResult === 'REJECTED') {
+        showNotification('warning', '⚠️ Inspection REJECTED: Result dispatched to IBS and vendor blocked.');
+      }
+
+      await executeFinishInspection(callsToFinish, callResult, finishRemarks);
 
     } catch (error) {
       console.error('Error finishing inspection:', error);
@@ -6707,7 +6833,7 @@ const ProcessDashboard = ({ call, onBack, onNavigateToSubModule, productionLines
       setIsSaving(false);
       isProcessingFinishRef.current = false;
     }
-  }, [selectedCallsToFinish, executeFinishInspection, localProductionLines, call, callInitiationDataCache, manufacturedQtyByLine, selectedLotByLine, selectedLine, selectedLotForDisplay, shift, allCallOptions, validateAllLots, rejectedQty.totalRejected, isSaving]);
+  }, [pendingCallsToFinish, selectedCallsToFinish, getCalculatedProcessSystemStatus, executeFinishInspection, localProductionLines, call, availableCalls, callInitiationDataCache, manufacturedQtyByLine, selectedLotByLine, selectedLine, selectedLotForDisplay, shift, allCallOptions, rejectedQty.totalRejected, isSaving]);
 
 
 
@@ -6828,6 +6954,8 @@ const ProcessDashboard = ({ call, onBack, onNavigateToSubModule, productionLines
           </div>
         </div>
       </div>
+
+      <CaseRioBanner mismatch={getCaseRioMismatch(call) || availableCalls.map(c => getCaseRioMismatch(c)).find(Boolean)} />
 
 
       <div className="process-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--space-24)' }}>
@@ -8287,8 +8415,13 @@ const ProcessDashboard = ({ call, onBack, onNavigateToSubModule, productionLines
         isOpen={showAddCallModal}
         onClose={() => setShowAddCallModal(false)}
         availableCalls={availableCallNumbersForModal}
-        onStart={(row) => handleSelectNewCall(row.call_no)}
+        onStart={(row) => handleSelectNewCall(row.call_no, false, row)}
         onResume={(row, isResume) => {
+          const rioMismatch = getCaseRioMismatch(row);
+          if (rioMismatch) {
+            showNotification('error', formatCaseRioError(rioMismatch));
+            return;
+          }
           if (isResume) {
             // "RESUME" action for active calls - add directly to dashboard without modal
             console.log(`⏩ [Process Dashboard] Direct RESUME for call ${row.call_no} (skipping modal)`);
@@ -8303,10 +8436,20 @@ const ProcessDashboard = ({ call, onBack, onNavigateToSubModule, productionLines
           }
         }}
         onWithheld={(row) => {
+          const rioMismatch = getCaseRioMismatch(row);
+          if (rioMismatch) {
+            showNotification('error', formatCaseRioError(rioMismatch));
+            return;
+          }
           setSelectedNewCall(row.call_no);
           handleOpenNewCallActionModal('WITHHELD');
         }}
         onCancel={(row) => {
+          const rioMismatch = getCaseRioMismatch(row);
+          if (rioMismatch) {
+            showNotification('error', formatCaseRioError(rioMismatch));
+            return;
+          }
           setSelectedNewCall(row.call_no);
           handleOpenNewCallActionModal('CANCELLED');
         }}
@@ -8549,6 +8692,28 @@ const ProcessDashboard = ({ call, onBack, onNavigateToSubModule, productionLines
           </div>
         </div>
       )}
+
+      {/* Structured Pause Inspection Modal */}
+      <PauseInspectionModal
+        isOpen={showPauseModal}
+        onClose={() => setShowPauseModal(false)}
+        onConfirm={({ reason, remarks }) => {
+          executePauseProcessInspection(reason, remarks);
+        }}
+        isSubmitting={isSaving}
+        defaultRemarks={finalInspectionRemarks || ''}
+      />
+
+      {/* Call Result Dispatch Modal */}
+      <CallResultDispatchModal
+        isOpen={showCallResultModal}
+        onClose={() => setShowCallResultModal(false)}
+        systemStatus={getCalculatedProcessSystemStatus()}
+        isSubmitting={isSaving}
+        onConfirm={({ callResult, remarks: finishRemarks }) => {
+          executeFinishSelectedCallsWithResult(callResult, finishRemarks);
+        }}
+      />
     </div>
   );
 };

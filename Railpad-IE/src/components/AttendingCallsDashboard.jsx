@@ -40,7 +40,7 @@ import {
   downloadMergedIcAndCorrectionSlip
 } from '../services/correctionSlipService';
 import { downloadOrNotifyCaseLetter, fetchSavedCaseLetterInfo, viewSavedCaseLetterPdf } from '../services/caseLetterService';
-import { getCaseRioMismatch, CaseRioLockedAction } from '../utils/caseRioCheck';
+import { getCaseRioMismatch, formatCaseRioError, ensureIeRioStored, CaseRioLockedAction } from '../utils/caseRioCheck';
 
 const isProcessCall = (call) => {
   if (!call) return false;
@@ -132,6 +132,7 @@ const AttendingCallsDashboard = ({
   // Pagination states
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
+  const [, setRioVersion] = useState(0);
   
   const user = propUser || getStoredUser();
 
@@ -347,6 +348,9 @@ const AttendingCallsDashboard = ({
   useEffect(() => {
     localStorage.setItem('railpad_attending_calls_tab', activeTab);
     activeTabRef.current = activeTab;
+    ensureIeRioStored(`${getBaseUrl()}/v1/profile`).then((resolvedRio) => {
+      if (resolvedRio) setRioVersion((v) => v + 1);
+    });
     loadCalls();
   }, [activeTab, dutyPlantId, mappedPlantsKey]);
 
@@ -511,6 +515,11 @@ const AttendingCallsDashboard = ({
 
   const handleConfirmSendToIbs = async () => {
     if (!sendIbsCallRow) return;
+    const rioMismatch = getCaseRioMismatch(sendIbsCallRow);
+    if (rioMismatch) {
+      setNotification({ message: formatCaseRioError(rioMismatch), type: 'error' });
+      return;
+    }
     if (!hasCaseLetter) {
       setNotification({
         message: 'Case Letter is mandatory before sending call to IBS.',
@@ -631,6 +640,11 @@ const AttendingCallsDashboard = ({
   };
 
   const handleOpenSchedule = (call) => {
+    const rioMismatch = getCaseRioMismatch(call);
+    if (rioMismatch) {
+      setNotification({ message: formatCaseRioError(rioMismatch), type: 'error' });
+      return;
+    }
     setSelectedCall(call);
     setScheduleDate('');
     setScheduleReason('');
@@ -638,6 +652,11 @@ const AttendingCallsDashboard = ({
   };
 
   const onScheduleSubmit = async () => {
+    const rioMismatch = getCaseRioMismatch(selectedCall);
+    if (rioMismatch) {
+      setNotification({ message: formatCaseRioError(rioMismatch), type: 'error' });
+      return;
+    }
     if (!scheduleDate) {
       setNotification({ message: 'Please select a date', type: 'error' });
       return;
@@ -676,6 +695,11 @@ const AttendingCallsDashboard = ({
   };
 
   const handleStartInspection = async (call) => {
+    const rioMismatch = getCaseRioMismatch(call);
+    if (rioMismatch) {
+      setNotification({ message: formatCaseRioError(rioMismatch), type: 'error' });
+      return;
+    }
     setIsSubmitting(true);
     try {
       const actionData = {
@@ -710,6 +734,11 @@ const AttendingCallsDashboard = ({
   };
 
   const handleIssueICClick = (call) => {
+    const rioMismatch = getCaseRioMismatch(call);
+    if (rioMismatch) {
+      setNotification({ message: formatCaseRioError(rioMismatch), type: 'error' });
+      return;
+    }
     if (onIssueIc) {
       onIssueIc(call, false);
     }
@@ -784,11 +813,21 @@ const AttendingCallsDashboard = ({
   };
 
   const handleResumeClick = (call) => {
+    const rioMismatch = getCaseRioMismatch(call);
+    if (rioMismatch) {
+      setNotification({ message: formatCaseRioError(rioMismatch), type: 'error' });
+      return;
+    }
     setCallToResume(call);
     setShowResumeModal(true);
   };
 
   const handleResumeSubmit = async (shiftData) => {
+    const rioMismatch = getCaseRioMismatch(callToResume);
+    if (rioMismatch) {
+      setNotification({ message: formatCaseRioError(rioMismatch), type: 'error' });
+      return;
+    }
     // If the call is PAUSED, perform RESUME workflow transition first
     if (callToResume && (callToResume.jobStatus === 'PAUSED' || callToResume.status === 'PAUSED')) {
       try {
@@ -833,6 +872,11 @@ const AttendingCallsDashboard = ({
 
   const handleAction = async (action) => {
     if (!selectedCall) return;
+    const rioMismatch = getCaseRioMismatch(selectedCall);
+    if (rioMismatch) {
+      setNotification({ message: formatCaseRioError(rioMismatch), type: 'error' });
+      return;
+    }
 
     setIsSubmitting(true);
     try {

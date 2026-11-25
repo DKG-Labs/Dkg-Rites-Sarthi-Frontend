@@ -361,7 +361,8 @@ export const storeAuthData = (authData) => {
   localStorage.setItem('userName', authData.userName);
   localStorage.setItem('roleName', authData.roleName);
   localStorage.setItem('shortName', authData.shortName || '');  // IE short name for IC generation
-  localStorage.setItem('rio', authData.rio || '');  // RIO for Call Desk filtering
+  localStorage.setItem('rio', authData.rio || authData.region || '');  // RIO for IE/Call Desk validation & filtering
+  localStorage.setItem('rioUserId', currentUserId);
   localStorage.setItem('employeeCode', authData.employeeCode || ''); // Real employee code
 };
 
@@ -469,6 +470,8 @@ export const logoutUser = () => {
   localStorage.removeItem('roleName');
   localStorage.removeItem('shortName');
   localStorage.removeItem('rio');
+  localStorage.removeItem('region');
+  localStorage.removeItem('rioUserId');
   localStorage.removeItem('employeeCode');
   localStorage.removeItem('udm_cache');
 };

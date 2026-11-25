@@ -1,0 +1,47 @@
+/* SMS Chemical Analysis ISO reports (page 1 / 2): the table looks like the printed form
+   (square black grid, no rounded corners / grey borders), and keeps its rows even when empty. */
+
+.chem-iso .ant-table-wrapper,
+.chem-iso .ant-table,
+.chem-iso .ant-table-container,
+.chem-iso .ant-table-content,
+.chem-iso .ant-table-thead > tr:first-child > th:first-child,
+.chem-iso .ant-table-thead > tr:first-child > th:last-child {
+  border-radius: 0 !important;
+}
+.chem-iso .ant-table { background: #fff; }
+
+/* one black grid, like the paper format */
+.chem-iso .ant-table-container { border: 0 !important; }
+.chem-iso .ant-table-bordered > .ant-table-container > .ant-table-content > table,
+.chem-iso .ant-table-bordered table { border-collapse: collapse !important; border: 1px solid #000 !important; }
+.chem-iso .ant-table-thead > tr > th,
+.chem-iso .ant-table-tbody > tr > td {
+  border: 1px solid #000 !important;
+}
+.chem-iso .ant-table-thead > tr > th {
+  background: #fff !important; color: #000; font-weight: 600;
+  padding: 4px !important; font-size: 11px; text-align: center !important;
+}
+.chem-iso .ant-table-thead > tr > th::before { display: none !important; }   /* antd column separators */
+.chem-iso .ant-table-tbody > tr > td {
+  height: 28px; padding: 2px 4px !important; font-size: 11px; vertical-align: middle; color: #000;
+}
+.chem-iso .ant-table-tbody > tr:hover > td { background: transparent !important; }
+
+/* antd's hidden column-measure row (from scroll.x) showed as an empty strip under the header */
+.chem-iso .ant-table-measure-row,
+.chem-iso .ant-table-measure-row > td { height: 0 !important; padding: 0 !important; border: 0 !important; line-height: 0 !important; }
+.chem-iso .ant-table-placeholder { display: none; }
+
+/* On screen: landscape sheet */
+.a4-container.landscape.chem-iso { max-width: 297mm; aspect-ratio: auto; }
+
+/* Print (A4 landscape set in the print call): full width, fixed row heights, 12 entry rows on one page */
+@media print {
+  .chem-iso { padding: 0 !important; max-width: 100% !important; aspect-ratio: auto !important; }
+  .chem-iso .iso-table, .chem-iso .ant-table-wrapper, .chem-iso table { width: 100% !important; }
+  .chem-iso .ant-table-thead > tr > th { font-size: 9px; padding: 2px !important; }
+  .chem-iso .ant-table-tbody > tr > td { height: 22px; font-size: 9px; padding: 1px 3px !important; }
+  .chem-iso tr { page-break-inside: avoid; break-inside: avoid; }
+}

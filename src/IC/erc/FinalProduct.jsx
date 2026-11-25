@@ -541,7 +541,7 @@ export default function FinalProductCertificate({ call = {}, onBack }) {
               noOfVisits: savedEdit.noOfVisits || initialData.noOfVisits,
               datesOfInspection: savedEdit.datesOfInspection || initialData.datesOfInspection,
               sealingPattern: savedEdit.sealingPattern || initialData.sealingPattern,
-              dateOfCall: savedEdit.dateOfCall || initialData.dateOfCall,
+              dateOfCall: initialData.dateOfCall || savedEdit.dateOfCall,
             };
           }
           
@@ -567,6 +567,7 @@ export default function FinalProductCertificate({ call = {}, onBack }) {
   }, [call]);
 
   const handleFieldChange = (fieldName, value) => {
+    if (fieldName === 'dateOfCall' || fieldName === 'callDate') return;
     setData(prev => {
       const updated = { ...prev, [fieldName]: value };
       if (['qtyOnOrder', 'qtyPassedPreviously', 'qtyNowPassed', 'qtyNowOffered', 'qtyNowRejected', 'ercUsedForTesting'].includes(fieldName)) {
@@ -883,7 +884,7 @@ export default function FinalProductCertificate({ call = {}, onBack }) {
           noOfVisits: savedEdit.noOfVisits || initialData.noOfVisits,
           datesOfInspection: savedEdit.datesOfInspection || initialData.datesOfInspection,
           sealingPattern: savedEdit.sealingPattern || initialData.sealingPattern,
-          dateOfCall: savedEdit.dateOfCall || initialData.dateOfCall,
+          dateOfCall: initialData.dateOfCall || savedEdit.dateOfCall,
         };
       }
     }

@@ -3,6 +3,7 @@ import React, { useEffect, useRef, useState } from 'react'
 import IsoHeader from '../../../../components/DKG_IsoHeader'
 import VerificationSearchFilter from './SearchFilter'
 import { apiCall } from '../../../../utils/CommonFunctions'
+import './VerificationIso.css'
 import { useSelector } from 'react-redux'
 import { Button } from 'antd'
 import { useReactToPrint } from 'react-to-print';
@@ -126,8 +127,10 @@ const VerificationIso = () => {
   })
 
   const handlePrint = useReactToPrint({
-    content: () => repRef.current,
+    contentRef: repRef,   // react-to-print v3
     documentTitle: "sms_verification_iso_report",
+    // print on A4 portrait, same layout with or without data
+    pageStyle: "@page { size: A4 portrait; margin: 10mm; } body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }",
   });
 
   const {token} = useSelector(state => state.auth);
@@ -236,7 +239,7 @@ const VerificationIso = () => {
   return (
     <div>
     <VerificationSearchFilter showDate showShift showRailGrade showSms onFinish={onFinish} />
-    <div className='a4-container' ref={repRef}>
+    <div className='a4-container sms-ver-iso' ref={repRef}>
       <IsoHeader
         engTitle="WITNESSED / VERIFICATION REPORT <br /> (CONVERTER & CASTING)"
         hinTitle="विटनेस / सत्यापन रिपोर्ट <br /> (कनवर्टर एवं कास्टिंग)"
@@ -256,7 +259,7 @@ const VerificationIso = () => {
           <h2 className='font-semibold !text-sm'>Date & Shift</h2>
           </div>
           <div>
-            {formData.date + " " + formData.shift}
+            {[formData.date, formData.shift].filter(Boolean).join("  ")}
           </div>
         </div>
 
@@ -271,7 +274,7 @@ const VerificationIso = () => {
           <h2 className='font-semibold !text-sm'>Grade</h2>
           </div>
           <div>
-            {formData.railGrade}
+            {formData.railGrade || ""}
           </div>
         </div>
       </div>
@@ -348,6 +351,10 @@ const VerificationIso = () => {
           <div className='text-center !text-sm'>{formData?.degassingDtlList[2]?.vacuum}</div>
           <div className='text-center !text-sm'>{formData?.degassingDtlList[2]?.time}</div>
           <div className='text-center !text-sm col-span-2'>{formData?.degassingDtlList[2]?.castingTimeWv}</div>
+          <div className='text-center !text-sm'>{formData?.degassingDtlList[3]?.castNo}</div>
+          <div className='text-center !text-sm'>{formData?.degassingDtlList[3]?.vacuum}</div>
+          <div className='text-center !text-sm'>{formData?.degassingDtlList[3]?.time}</div>
+          <div className='text-center !text-sm col-span-2'>{formData?.degassingDtlList[3]?.castingTimeWv}</div>
         </div>
         </div>
 
@@ -400,9 +407,9 @@ Temp. at 20m-30m (Min. 1480 °C)
         </div>
 
         <div className="text-center !text-sm p-2">Ladle to Tundish</div>
-        <div className="text-center !text-sm p-2">{formData?.ladleToTundishUsed}</div>
+        <div className="text-center !text-sm p-2">{formData?.ladleToTundishUsed || "Yes / No"}</div>
         <div className="text-center !text-sm p-2">Tundish to Mould</div>
-        <div className="text-center !text-sm p-2">{formData?.tundishToMouldUsed}</div>
+        <div className="text-center !text-sm p-2">{formData?.tundishToMouldUsed || "Yes / No"}</div>
 
 
         <div className="p-2">

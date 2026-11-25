@@ -33,6 +33,9 @@ import ImageCaptureComponent from '../ImageCaptureComponent';
 import Notification from '../Notification';
 import AnnexureLoader from '../annexures/AnnexureLoader';
 import PeriodicTestingTab from './PeriodicTestingTab';
+import CallResultDispatchModal from '../CallResultDispatchModal';
+import PauseInspectionModal from '../PauseInspectionModal';
+import { getCaseRioMismatch, formatCaseRioError, CaseRioBanner } from '../../utils/caseRioCheck';
 
 const HardnessCell = ({ value, onChange, min, max }) => {
   const [isEditing, setIsEditing] = React.useState(false);
@@ -347,6 +350,26 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
   const [searchTerm, setSearchTerm] = useState('');
   const [activeSubmoduleTab, setActiveSubmoduleTab] = useState('visualDim');
   const [visibleLoadRows, setVisibleLoadRows] = useState(4);
+  const [showCallResultModal, setShowCallResultModal] = useState(false);
+  const [showPauseModal, setShowPauseModal] = useState(false);
+
+  const getCalculatedRailpadFinalSystemStatus = () => {
+    try {
+      if (effectiveLots && effectiveLots.length > 0) {
+        const statuses = effectiveLots.map(l => String(l.status || '').toUpperCase());
+        const allPass = statuses.every(s => s === 'PASSED' || s === 'ACCEPTED' || s === 'PASS');
+        if (allPass) return 'ACCEPTED';
+        const allRej = statuses.every(s => s === 'REJECTED' || s === 'FAIL' || s === 'FAILED');
+        if (allRej) return 'REJECTED';
+        return 'PARTIALLY_ACCEPTED';
+      }
+      if (activeLotOverallStatus === 'ACCEPTED' || activeLotOverallStatus === 'PASS') return 'ACCEPTED';
+      if (activeLotOverallStatus === 'REJECTED' || activeLotOverallStatus === 'FAIL') return 'REJECTED';
+      return 'PARTIALLY_ACCEPTED';
+    } catch (e) {
+      return activeLotOverallStatus === 'ACCEPTED' ? 'ACCEPTED' : 'PARTIALLY_ACCEPTED';
+    }
+  };
 
   useEffect(() => {
     if (isT55_2023) {
@@ -2824,7 +2847,12 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
     return lotPromises;
   };
 
-  const handleSaveAction = async (actionType) => {
+  const handleSaveAction = async (actionType, options = {}) => {
+    const rioMismatch = getCaseRioMismatch(call);
+    if (rioMismatch) {
+      showNotification(formatCaseRioError(rioMismatch), 'error');
+      return;
+    }
     // Flush current lot's in-memory data to draft storage immediately before any async save
     saveCurrentLotDraftSync();
 
@@ -4106,13 +4134,19 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
           workflowTransitionId: call?.workflowTransitionId || call?.id,
           requestId: currentCallId,
           action: 'FINISH',
-          remarks: remarks || `Inspection completed with status: ${activeLotOverallStatus}`,
+          callResult: options?.callResult || 'ACCEPTED',
+          resultStatus: options?.callResult || 'ACCEPTED',
+          systemStatus: options?.systemStatus || getCalculatedRailpadFinalSystemStatus(),
+          remarks: options?.remarks ? `[Result: ${options?.callResult || 'ACCEPTED'}] ${options.remarks}` : (remarks || `Inspection completed with status: ${activeLotOverallStatus}`),
           actionBy: userId,
           pincode: call?.pincode || '560001',
           dateOfInspection: formattedDate
         };
 
         await performTransitionAction(workflowActionData);
+        if (options?.callResult === 'REJECTED') {
+          showNotification('⚠️ Inspection REJECTED: Result dispatched to IBS and vendor blocked.', 'warning');
+        }
 
         const updatedLots = lots.map(l => {
           if (l.id === selectedLot) {
@@ -5432,7 +5466,8 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
           workflowTransitionId: call?.workflowTransitionId || call?.id,
           requestId: currentCallId,
           action: 'PAUSE',
-          remarks: remarks || 'Inspection paused by IE',
+          pauseReason: options?.pauseReason || 'Pause for next schedule',
+          remarks: options?.remarks ? `[${options?.pauseReason || 'Pause'}] ${options.remarks}` : (remarks || 'Inspection paused by IE'),
           actionBy: userId,
           pincode: call?.pincode || '560001',
           dateOfInspection: formattedDate
@@ -6939,6 +6974,7 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
           fullScreen={true}
         />
       )}
+      <CaseRioBanner mismatch={getCaseRioMismatch(call)} />
       <style>
         {`
           @keyframes slideDown {
@@ -11566,8 +11602,15 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
                 Save Draft
               </button>
               <button
-                onClick={() => handleSaveAction('PAUSE')}
-                disabled={isSubmitting}
+                onClick={() => {
+                  const rioMismatch = getCaseRioMismatch(call);
+                  if (rioMismatch) {
+                    showNotification(formatCaseRioError(rioMismatch), 'error');
+                    return;
+                  }
+                  setShowPauseModal(true);
+                }}
+                disabled={isSubmitting || Boolean(getCaseRioMismatch(call))}
                 style={{
                   padding: '8px 20px',
                   fontSize: '13px',
@@ -11605,10 +11648,11 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
                 const hasPendingLotsInMultiLot = totalLots > 1 && effectiveLots.some(l => l.status === 'Pending');
                 const isSingleLotPending = totalLots === 1 && (activeLotOverallStatus === 'PENDING' || !activeLotOverallStatus);
 
-                const isFinishDisabled = isSubmitting || !remarks || isHologramRequired || hasPendingLotsInMultiLot || isSingleLotPending;
+                const isFinishDisabled = isSubmitting || Boolean(getCaseRioMismatch(call)) || !remarks || isHologramRequired || hasPendingLotsInMultiLot || isSingleLotPending;
 
                 let finishTitle = '';
-                if (isSubmitting) finishTitle = 'Submitting inspection...';
+                if (getCaseRioMismatch(call)) finishTitle = formatCaseRioError(getCaseRioMismatch(call));
+                else if (isSubmitting) finishTitle = 'Submitting inspection...';
                 else if (!remarks) finishTitle = 'Please enter remarks to finish inspection';
                 else if (isHologramRequired) finishTitle = 'Please add hologram entries for accepted lots';
                 else if (hasPendingLotsInMultiLot) finishTitle = 'Please complete all lots before finishing inspection';
@@ -11616,7 +11660,10 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
 
                 return (
                   <button
-                    onClick={() => handleSaveAction('FINISH')}
+                    onClick={() => {
+                      saveCurrentLotDraftSync();
+                      setShowCallResultModal(true);
+                    }}
                     disabled={isFinishDisabled}
                     title={finishTitle}
                     style={{
@@ -11639,6 +11686,28 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
           </div>
         );
       })()}
+
+        <PauseInspectionModal
+          isOpen={showPauseModal}
+          onClose={() => setShowPauseModal(false)}
+          onConfirm={({ reason, remarks: pauseRemarks }) => {
+            setShowPauseModal(false);
+            handleSaveAction('PAUSE', { pauseReason: reason, remarks: pauseRemarks });
+          }}
+          isSubmitting={isSubmitting}
+          defaultRemarks={remarks || ''}
+        />
+
+        <CallResultDispatchModal
+          isOpen={showCallResultModal}
+          onClose={() => setShowCallResultModal(false)}
+          systemStatus={getCalculatedRailpadFinalSystemStatus()}
+          isSubmitting={isSubmitting}
+          onConfirm={({ callResult, remarks: finishRemarks }) => {
+            setShowCallResultModal(false);
+            handleSaveAction('FINISH', { callResult, systemStatus: getCalculatedRailpadFinalSystemStatus(), remarks: finishRemarks });
+          }}
+        />
       </div>
     );
   } catch (error) {

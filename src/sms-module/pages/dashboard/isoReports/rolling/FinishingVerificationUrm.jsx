@@ -192,7 +192,7 @@ const columns = [
 ];
 
     const handlePrint = useReactToPrint({
-        content: () => repRef.current,
+        contentRef: repRef,   // react-to-print v3
         documentTitle: "rolling_finishing_verification", // Set custom filename
       });
       const [formData, setFormData] = useState({}

@@ -13,7 +13,7 @@ const SriFinalInsp = () => {
 	const [formData, setFormData] = useState({});
 
 	const handlePrint = useReactToPrint({
-		content: () => repRef.current,
+		contentRef: repRef,   // react-to-print v3
 		documentTitle: "sri_final_insp", // Set custom filename
 	});
 

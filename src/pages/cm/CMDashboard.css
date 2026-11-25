@@ -836,9 +836,10 @@
   word-break: break-word; /* Break long unbroken strings like PO Number if needed */
 }
 
-/* Force both dates in the DP Date column to have the same font size */
-.cm-table td:nth-child(4) div {
+/* Force stacked dates (DP Date & Ext. DP Date, Desired Inspection Date & Call Date) to stay single-line with consistent font size */
+.cm-table td.cm-stacked-date-cell div {
   font-size: inherit !important;
+  white-space: nowrap;
 }
 
 .cm-table tbody tr:hover td {

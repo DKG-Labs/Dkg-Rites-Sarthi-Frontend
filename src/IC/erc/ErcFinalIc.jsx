@@ -6,7 +6,7 @@ const allowedFields = [
   "billPayingOfficer", "consignee", "purchasingAuthority", "description", 
   "qtyOfferedPreviously", "qtyPassedPreviously", "qtyNowOffered", "qtyNowPassed", "qtyNowRejected", "qtyStillDue", "trRecDate",
   "quantityNowPassedText", "noOfVisits", "datesOfInspection", "sealingPattern",
-  "facsimileText", "reasonsForRejection", "inspectingEngineer", "dateOfCall"
+  "facsimileText", "reasonsForRejection", "inspectingEngineer"
 ];
 
 // Editable field component moved outside to prevent re-mounting
@@ -576,7 +576,7 @@ const ErcFinalIc = ({ data = {}, isEditing = false, isBusy = false, onFieldChang
           <div className="border-r border-black p-1 flex flex-col">
             <div className="font-bold leading-tight">बुलावे की तिथि / Date of call</div>
             <div className="mt-1">
-              <EditableField isEditing={isEditing} onFieldChange={onFieldChange} isBusy={isBusy} value={dateOfCall} fieldName="dateOfCall" className="text-black font-bold" />
+              <EditableField isEditing={false} onFieldChange={onFieldChange} isBusy={isBusy} value={dateOfCall} fieldName="dateOfCall" className="text-black font-bold" />
             </div>
           </div>
           <div className="border-r border-black p-1 flex flex-col">

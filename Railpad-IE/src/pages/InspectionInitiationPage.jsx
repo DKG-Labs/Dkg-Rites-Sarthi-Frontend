@@ -6,6 +6,7 @@ import ShiftDutyForm from '../components/ShiftDutyForm';
 import Notification from '../components/Notification';
 import { getBaseUrl, getDefaultHeaders } from '../services/apiConfig';
 import CustomSelect from '../components/common/CustomSelect';
+import { getCaseRioMismatch, formatCaseRioError, CaseRioBanner } from '../utils/caseRioCheck';
 import './InspectionInitiationPage.css';
 
 const RAIL_PAD_OPTIONS = [
@@ -119,7 +120,13 @@ const InspectionInitiationPage = ({ call, onProceed, onBack, onUpdateCall }) => 
    * Called when the IE officer clicks "OPEN & VERIFY FORM".
    * Both sections must be approved first.
    */
+  const rioMismatch = getCaseRioMismatch(call);
+
   const handleOpenVerifyForm = () => {
+    if (rioMismatch) {
+      setNotification({ message: formatCaseRioError(rioMismatch), type: 'error' });
+      return;
+    }
     if (sectionAStatus !== 'approved' || sectionBStatus !== 'approved') {
       setNotification({ message: 'Please verify both sections first', type: 'warning' });
       return;
@@ -134,6 +141,10 @@ const InspectionInitiationPage = ({ call, onProceed, onBack, onUpdateCall }) => 
    * 3. On success → navigate forward.
    */
   const handleVerifyAndSubmit = async (shiftData) => {
+    if (rioMismatch) {
+      setNotification({ message: formatCaseRioError(rioMismatch), type: 'error' });
+      return;
+    }
     setShowShiftModal(false);
     setIsSubmitting(true);
     const user = getStoredUser();
@@ -227,6 +238,10 @@ const InspectionInitiationPage = ({ call, onProceed, onBack, onUpdateCall }) => 
   };
 
   const handleWithheldCall = async () => {
+    if (rioMismatch) {
+      setNotification({ message: formatCaseRioError(rioMismatch), type: 'error' });
+      return;
+    }
     if (sectionAStatus !== 'approved' || sectionBStatus !== 'approved') {
       setNotification({ message: 'Please verify both sections first', type: 'warning' });
       return;
@@ -256,6 +271,10 @@ const InspectionInitiationPage = ({ call, onProceed, onBack, onUpdateCall }) => 
   };
 
   const handleCancelCall = async () => {
+    if (rioMismatch) {
+      setNotification({ message: formatCaseRioError(rioMismatch), type: 'error' });
+      return;
+    }
     if (sectionAStatus !== 'approved' || sectionBStatus !== 'approved') {
       setNotification({ message: 'Please verify both sections first', type: 'warning' });
       return;
@@ -326,6 +345,7 @@ const InspectionInitiationPage = ({ call, onProceed, onBack, onUpdateCall }) => 
       </div>
 
       <div className="sections-container">
+        <CaseRioBanner mismatch={rioMismatch} />
         {/* SECTION A: PO Information */}
         <div className={`initiation-card ${sectionAStatus === 'rejected' ? 'rejected-border' : ''}`}>
           <div className="card-header" onClick={() => setSectionAExpanded(!sectionAExpanded)}>
@@ -530,7 +550,7 @@ const InspectionInitiationPage = ({ call, onProceed, onBack, onUpdateCall }) => 
         <div className="right-buttons">
           <button 
             className="withheld-btn"
-            disabled={isSubmitting || sectionAStatus !== 'approved' || sectionBStatus !== 'approved'}
+            disabled={isSubmitting || Boolean(rioMismatch) || sectionAStatus !== 'approved' || sectionBStatus !== 'approved'}
             onClick={handleWithheldCall}
           >
             WITHHELD CALL
@@ -538,7 +558,7 @@ const InspectionInitiationPage = ({ call, onProceed, onBack, onUpdateCall }) => 
           <button
             className="initiate-btn"
             onClick={handleOpenVerifyForm}
-            disabled={isSubmitting || sectionAStatus !== 'approved' || sectionBStatus !== 'approved'}
+            disabled={isSubmitting || Boolean(rioMismatch) || sectionAStatus !== 'approved' || sectionBStatus !== 'approved'}
           >
             {isSubmitting ? 'VERIFYING...' : 'OPEN & VERIFY FORM'}
           </button>

@@ -319,7 +319,7 @@ export default function RawMaterialCertificate({ call = {}, onBack }) {
               trRecDate: savedEdit.trRecDate || initialData.trRecDate,
               inspectionDate: savedEdit.inspectionDate || initialData.inspectionDate,
               visitsNo: savedEdit.visitsNo || initialData.visitsNo,
-              callDate: savedEdit.callDate || savedEdit.dateOfCall || initialData.callDate,
+              callDate: initialData.callDate || savedEdit.callDate || savedEdit.dateOfCall,
             };
           }
           
@@ -344,6 +344,7 @@ export default function RawMaterialCertificate({ call = {}, onBack }) {
   }, [call, poDetails]);
 
   const handleDataChange = (field, value) => {
+    if (field === 'callDate' || field === 'dateOfCall') return;
     setEditableData((prev) => ({ ...prev, [field]: value }));
     if (field === 'bookNo' || field === 'setNo' || field === 'icType') {
       setBookSetValidation({ isValid: null, message: null, isValidating: false });
@@ -667,7 +668,7 @@ export default function RawMaterialCertificate({ call = {}, onBack }) {
             qapNo: savedEdit.qapNo || initialData.qapNo,
             chpClause: savedEdit.chpClause || initialData.chpClause,
             visitsNo: savedEdit.visitsNo || initialData.visitsNo,
-            callDate: savedEdit.callDate || savedEdit.dateOfCall || initialData.callDate,
+            callDate: initialData.callDate || savedEdit.callDate || savedEdit.dateOfCall,
             drgNo: savedEdit.drawingNo || initialData.drgNo,
             manufacturer: savedEdit.manufacturer || initialData.manufacturer,
           };

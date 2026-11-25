@@ -59,7 +59,8 @@ export const storeAuthData = (authData) => {
   }
   localStorage.setItem('userId', authData.userId);
   // RIO of the user (e.g. ERIO): actions are allowed only on calls whose case number starts with its letter
-  localStorage.setItem('rio', authData.rio || '');
+  localStorage.setItem('rio', authData.rio || authData.region || '');
+  localStorage.setItem('rioUserId', String(authData.userId || ''));
   localStorage.setItem('userName', authData.userName);
   localStorage.setItem('roleName', authData.roleName);
   // Reset navigation to landing page upon login
@@ -169,9 +170,15 @@ export const logoutUser = () => {
   } catch (e) { /* ignore */ }
 
   localStorage.removeItem('authToken');
+  localStorage.removeItem('token');
+  localStorage.removeItem('sleeper_token');
   localStorage.removeItem('userId');
   localStorage.removeItem('userName');
   localStorage.removeItem('roleName');
+  localStorage.removeItem('employeeCode');
+  localStorage.removeItem('rio');
+  localStorage.removeItem('region');
+  localStorage.removeItem('rioUserId');
   // Reset navigation to landing page upon logout
   localStorage.setItem('activeMainView', 'Main Dashboard');
 };

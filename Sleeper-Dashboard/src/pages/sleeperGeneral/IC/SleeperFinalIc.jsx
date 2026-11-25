@@ -7,7 +7,7 @@ const allowedFields = [
   "contractRef", "maNumberAndDate", "billPayingOfficer", "consignee", "purchasingAuthority",
   "itemNo", "description", "qtyOfferedPreviously", "qtyPassedPreviously", "qtyStillDue", "trRecDate",
   "quantityNowPassedText", "noOfVisits", "datesOfInspection", "sealingPattern", "facsimileText",
-  "reasonsForRejection", "inspectingEngineer", "noOfItemsChecked", "dateOfCall"
+  "reasonsForRejection", "inspectingEngineer", "noOfItemsChecked"
 ];
 
 // Top-level EditableField component to prevent focus loss during typing
@@ -596,7 +596,7 @@ const SleeperFinalIc = ({
                   <div style={{ width: '22%', padding: '4px 6px', borderRight: '1px solid black', fontSize: '9px' }}>
                     <div style={{ fontWeight: 'bold', lineHeight: '1.2' }}>बुलावे की तारीख<br />Date of call</div>
                     <div style={{ marginTop: '4px', fontWeight: 'bold', fontSize: '10px' }}>
-                      <EditableField value={dateOfCall} fieldName="dateOfCall" style={{ fontSize: '10px', fontWeight: 'bold' }} {...fieldProps} />
+                      <EditableField value={dateOfCall} fieldName="dateOfCall" style={{ fontSize: '10px', fontWeight: 'bold' }} {...fieldProps} isEditing={false} />
                     </div>
                   </div>
                   <div style={{ width: '13%', padding: '4px 6px', borderRight: '1px solid black', fontSize: '9px' }}>

@@ -58,7 +58,7 @@ const RollingControlIso60E1A1 = () => {
   const repRef = useRef();
 
   const handlePrint = useReactToPrint({
-    content: () => repRef.current,
+    contentRef: repRef,   // react-to-print v3
     documentTitle: "rolling_control_60e1a1", // Set custom filename
   });
   return (

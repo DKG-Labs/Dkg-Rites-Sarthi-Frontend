@@ -175,7 +175,7 @@ export default function ProcessMaterialCertificate({ call = {}, onBack }) {
               specNo: savedEdit.specNo || initialData.specNo,
               placeOfInspection: savedEdit.placeOfInspection || initialData.placeOfInspection,
               uom: savedEdit.uom || initialData.uom,
-              callDate: savedEdit.callDate || savedEdit.dateOfCall || initialData.callDate,
+              callDate: initialData.callDate || savedEdit.callDate || savedEdit.dateOfCall,
               lots: restoredLots,
             };
           }
@@ -215,6 +215,7 @@ export default function ProcessMaterialCertificate({ call = {}, onBack }) {
   }, [call]);
 
   const handleDataChange = (field, value) => {
+    if (field === 'callDate' || field === 'dateOfCall') return;
     setEditableData((prev) => ({ ...prev, [field]: value }));
     if (field === 'bookNo' || field === 'setNo') {
       setBookSetValidation({ isValid: null, message: null, isValidating: false });
@@ -599,7 +600,7 @@ export default function ProcessMaterialCertificate({ call = {}, onBack }) {
           description: savedEdit.description || initialData.description,
           drgNo: savedEdit.drawingNo || savedEdit.drgNo || initialData.drgNo,
           specNo: savedEdit.specNo || initialData.specNo,
-          callDate: savedEdit.callDate || savedEdit.dateOfCall || initialData.callDate,
+          callDate: initialData.callDate || savedEdit.callDate || savedEdit.dateOfCall,
           lots: restoredLots,
         };
       }

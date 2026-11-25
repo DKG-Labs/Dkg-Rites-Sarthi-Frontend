@@ -24,7 +24,7 @@ import {
 } from '../../../services/correctionSlipService';
 import { downloadOrNotifyCaseLetter, fetchSavedCaseLetterInfo, viewSavedCaseLetterPdf } from '../../../services/caseLetterService';
 import { getQtyUomRule, roundQty } from '../../../utils/uomQuantity';
-import { getCaseRioMismatch, CaseRioLockedAction } from '../../../utils/caseRioCheck';
+import { getCaseRioMismatch, formatCaseRioError, ensureIeRioStored, CaseRioLockedAction } from '../../../utils/caseRioCheck';
 
 const resolveSleeperCaseNo = (rawCaseNo, rio) => {
     if (!rawCaseNo || !String(rawCaseNo).trim()) return '-';
@@ -108,6 +108,7 @@ const AttendingCallDashboard = ({ mode }) => {
     const [isResumeShift, setIsResumeShift] = useState(true);
 
     const [pendingCalls, setPendingCalls] = useState([]);
+    const [, setRioVersion] = useState(0);
     const [searchTerm, setSearchTerm] = useState('');
     const [isLoading, setIsLoading] = useState(false);
     const [showSchedulePopup, setShowSchedulePopup] = useState(false);
@@ -360,6 +361,14 @@ const AttendingCallDashboard = ({ mode }) => {
 
     const handleConfirmSendToIbs = async () => {
         if (!sendIbsCallRow) return;
+        const resolvedCase = (sendIbsCallRow?.rio || sendIbsCallRow?.plantRio)
+            ? resolveSleeperCaseNo(sendIbsCallRow.caseNo || sendIbsCallRow.ibsCaseNo, sendIbsCallRow.rio || sendIbsCallRow.plantRio)
+            : null;
+        const rioMismatch = getCaseRioMismatch(sendIbsCallRow, resolvedCase);
+        if (rioMismatch) {
+            showNotification(formatCaseRioError(rioMismatch), 'error');
+            return;
+        }
         setIsSendingIbs(true);
         try {
             const callNo = sendIbsCallRow.requestId || sendIbsCallRow.callNo || sendIbsCallRow.call_no || sendIbsCallRow.id;
@@ -661,6 +670,9 @@ const AttendingCallDashboard = ({ mode }) => {
     const fetchClosedCalls = () => loadCalls('closed');
 
     useEffect(() => {
+        ensureIeRioStored(`${API_BASE_URL}/v1/profile`).then((resolvedRio) => {
+            if (resolvedRio) setRioVersion((v) => v + 1);
+        });
         loadCalls(activeTab);
     }, [activeTab, dutyUnit]); // Track which call has actions shown
 
@@ -678,6 +690,14 @@ const AttendingCallDashboard = ({ mode }) => {
     };
 
     const handleWorkflowAction = async (call, actionName) => {
+        const resolvedCase = (call?.rio || call?.plantRio)
+            ? resolveSleeperCaseNo(call.caseNo || call.ibsCaseNo, call.rio || call.plantRio)
+            : null;
+        const rioMismatch = getCaseRioMismatch(call, resolvedCase);
+        if (rioMismatch) {
+            showNotification(formatCaseRioError(rioMismatch), 'error');
+            return;
+        }
         try {
             const user = getStoredUser();
             const payload = {
@@ -712,6 +732,14 @@ const AttendingCallDashboard = ({ mode }) => {
             const user = getStoredUser();
             const call = selectedCallForShift;
             if (!call) return;
+            const resolvedCase = (call?.rio || call?.plantRio)
+                ? resolveSleeperCaseNo(call.caseNo || call.ibsCaseNo, call.rio || call.plantRio)
+                : null;
+            const rioMismatch = getCaseRioMismatch(call, resolvedCase);
+            if (rioMismatch) {
+                showNotification(formatCaseRioError(rioMismatch), 'error');
+                return;
+            }
 
             let updatedCall = {
                 ...call,
@@ -785,6 +813,14 @@ const AttendingCallDashboard = ({ mode }) => {
     };
 
     const handleIssueIC = async (call) => {
+        const resolvedCase = (call?.rio || call?.plantRio)
+            ? resolveSleeperCaseNo(call.caseNo || call.ibsCaseNo, call.rio || call.plantRio)
+            : null;
+        const rioMismatch = getCaseRioMismatch(call, resolvedCase);
+        if (rioMismatch) {
+            showNotification(formatCaseRioError(rioMismatch), 'error');
+            return;
+        }
         try {
             const currentStatus = (call.jobStatus || call.status || call.action || '').toUpperCase();
             let updatedCall = { ...call };
@@ -1734,6 +1770,14 @@ const AttendingCallDashboard = ({ mode }) => {
                     call={selectedCallForSchedule} 
                     onClose={() => setShowSchedulePopup(false)} 
                     onConfirm={async (data) => {
+                        const resolvedCase = (selectedCallForSchedule?.rio || selectedCallForSchedule?.plantRio)
+                            ? resolveSleeperCaseNo(selectedCallForSchedule.caseNo || selectedCallForSchedule.ibsCaseNo, selectedCallForSchedule.rio || selectedCallForSchedule.plantRio)
+                            : null;
+                        const rioMismatch = getCaseRioMismatch(selectedCallForSchedule, resolvedCase);
+                        if (rioMismatch) {
+                            showNotification(formatCaseRioError(rioMismatch), 'error');
+                            return;
+                        }
                         try {
                             const user = getStoredUser();
                             const isReschedule = data.isReschedule ?? (

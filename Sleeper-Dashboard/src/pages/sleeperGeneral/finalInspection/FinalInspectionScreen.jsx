@@ -5,7 +5,10 @@ import { getStoredUser } from '../../../services/authService';
 import ModernSearchableSelect from '../../../components/common/ModernSearchableSelect';
 import CallCancellationModal from '../../../components/CallCancellationModal';
 import ImageCaptureComponent from '../../../components/ImageCaptureComponent';
+import CallResultDispatchModal from '../../../components/CallResultDispatchModal';
+import PauseInspectionModal from '../../../components/PauseInspectionModal';
 import { getQtyUomRule, roundQty, parseQty, computeAcceptedQty, sanitizeQtyInput } from '../../../utils/uomQuantity';
+import { getCaseRioMismatch, formatCaseRioError, CaseRioBanner } from '../../../utils/caseRioCheck';
 
 const PoVerificationSkeleton = ({ onBack }) => (
     <div className="verification-modal-page skeleton-screen-wrapper">
@@ -107,6 +110,8 @@ const FinalInspectionScreen = ({ call, onBack }) => {
     const [poVerified, setPoVerified] = useState(false);
     const [isLoadingData, setIsLoadingData] = useState(true);
     const [showCancelModal, setShowCancelModal] = useState(false);
+    const [showCallResultModal, setShowCallResultModal] = useState(false);
+    const [showPauseModal, setShowPauseModal] = useState(false);
 
     useEffect(() => {
         // Handle Resuming from Pause or previously initiated steps
@@ -489,6 +494,11 @@ const FinalInspectionScreen = ({ call, onBack }) => {
     };
 
     const handlePoVerify = async () => {
+        const rioMismatch = getCaseRioMismatch(call);
+        if (rioMismatch) {
+            alert(formatCaseRioError(rioMismatch));
+            return;
+        }
         if (isVerificationBusy) return;
         setIsVerifyingPo(true);
         try {
@@ -1270,7 +1280,20 @@ const FinalInspectionScreen = ({ call, onBack }) => {
         }
     };
 
-    const handleWorkflowAction = async (actionName) => {
+    const getCalculatedSleeperSystemStatus = () => {
+        const rej = qtyUomRule ? (roundQty(rejectedSetsQty, qtyDecimals) || 0) : (isSetUom ? Number(rejectedSetsQty || 0) : Number(totalRejected || 0));
+        const acc = qtyUomRule ? (computeAcceptedQty(ruleOffered, ruleRejected, qtyDecimals) || 0) : (isSetUom ? Number(acceptedSetsQty || 0) : Number(totalAccepted || 0));
+        if (rej === 0) return 'ACCEPTED';
+        if (acc === 0 && rej > 0) return 'REJECTED';
+        return 'PARTIALLY_ACCEPTED';
+    };
+
+    const handleWorkflowAction = async (actionName, { callResult, systemStatus, pauseReason, remarks: actionRemarks } = {}) => {
+        const rioMismatch = getCaseRioMismatch(call);
+        if (rioMismatch) {
+            alert(formatCaseRioError(rioMismatch));
+            return;
+        }
         if (isProcessing) return;
         try {
             if (actionName === 'PAUSE') setActiveActionLoading('pause');
@@ -1302,19 +1325,31 @@ const FinalInspectionScreen = ({ call, onBack }) => {
 
             // 2. Perform Workflow Transition
             let remarks = "Inspection performed from inspection screen";
-            if (actionName === 'PAUSE') remarks = "Inspection paused";
-            else if (actionName === 'CANCEL') remarks = "Inspection cancelled";
-            else if (actionName === 'FINISH') remarks = "Inspection completed";
+            if (actionName === 'PAUSE') {
+                remarks = pauseReason ? `[${pauseReason}] ${actionRemarks || 'Inspection paused'}` : "Inspection paused";
+            } else if (actionName === 'CANCEL') {
+                remarks = "Inspection cancelled";
+            } else if (actionName === 'FINISH') {
+                remarks = actionRemarks ? `[Result: ${callResult || 'ACCEPTED'}] ${actionRemarks}` : `[Result: ${callResult || 'ACCEPTED'}] Inspection completed`;
+            }
 
             const transitionPayload = {
                 workflowTransitionId: call.workflowTransitionId || call.id,
                 moduleId: call.moduleId || 0,
                 requestId: callNo,
                 action: actionName,
+                callResult: callResult,
+                resultStatus: callResult,
+                systemStatus: systemStatus,
+                pauseReason: pauseReason,
                 remarks: remarks,
                 actionBy: Number(user?.userId || 0)
             };
             await apiService.performTransitionAction(transitionPayload);
+
+            if (actionName === 'FINISH' && callResult === 'REJECTED') {
+                alert("⚠️ Inspection REJECTED: Result dispatched to IBS and vendor flagged.");
+            }
 
             // 3. Clear draft only on finish or cancel
             if (actionName === 'FINISH' || actionName === 'CANCEL') {
@@ -1504,6 +1539,7 @@ const FinalInspectionScreen = ({ call, onBack }) => {
                     </div>
 
                     <div className="verification-content-wrapper">
+                        <CaseRioBanner mismatch={getCaseRioMismatch(call)} />
                         {/* SECTION A */}
                         <div className={`verification-collapsible-card ${sectionAStatus === 'approved' ? 'card-verified' : ''}`}>
                             <div className="card-header-toggle" onClick={() => setSectionAExpanded(!sectionAExpanded)}>
@@ -1838,6 +1874,7 @@ const FinalInspectionScreen = ({ call, onBack }) => {
             </header>
 
             <main className="inspection-layout">
+                <CaseRioBanner mismatch={getCaseRioMismatch(call)} />
                 {/* Section 1: PO & Vendor Details */}
                 <section className="section summary-header-modern">
                     <div className="section-title-bar">
@@ -2250,7 +2287,7 @@ const FinalInspectionScreen = ({ call, onBack }) => {
                             </button>
                             <button
                                 className="btn-action-custom btn-pause-inspection"
-                                onClick={() => handleWorkflowAction('PAUSE')}
+                                onClick={() => setShowPauseModal(true)}
                                 disabled={isProcessing}
                                 style={{ opacity: isProcessing ? 0.6 : 1, cursor: isProcessing ? 'not-allowed' : 'pointer' }}
                             >
@@ -2267,7 +2304,13 @@ const FinalInspectionScreen = ({ call, onBack }) => {
                             </button>
                             <button
                                 className="btn-action-custom btn-finish-inspection"
-                                onClick={() => handleWorkflowAction('FINISH')}
+                                onClick={() => {
+                                    if (!capturedImages || capturedImages.length < 5) {
+                                        alert(`❌ At least 5 inspection photos are required to finish the inspection (Currently: ${capturedImages?.length || 0})`);
+                                        return;
+                                    }
+                                    setShowCallResultModal(true);
+                                }}
                                 disabled={isProcessing}
                                 style={{ opacity: isProcessing ? 0.6 : 1, cursor: isProcessing ? 'not-allowed' : 'pointer' }}
                             >
@@ -2289,6 +2332,27 @@ const FinalInspectionScreen = ({ call, onBack }) => {
                     }
                     setShowCancelModal(false);
                     if (onBack) onBack();
+                }}
+            />
+
+            <PauseInspectionModal
+                isOpen={showPauseModal}
+                onClose={() => setShowPauseModal(false)}
+                onConfirm={({ reason, remarks }) => {
+                    setShowPauseModal(false);
+                    handleWorkflowAction('PAUSE', { pauseReason: reason, remarks });
+                }}
+                isSubmitting={activeActionLoading === 'pause'}
+            />
+
+            <CallResultDispatchModal
+                isOpen={showCallResultModal}
+                onClose={() => setShowCallResultModal(false)}
+                systemStatus={getCalculatedSleeperSystemStatus()}
+                isSubmitting={activeActionLoading === 'finish'}
+                onConfirm={({ callResult, remarks: finishRemarks }) => {
+                    setShowCallResultModal(false);
+                    handleWorkflowAction('FINISH', { callResult, systemStatus: getCalculatedSleeperSystemStatus(), remarks: finishRemarks });
                 }}
             />
         </div>

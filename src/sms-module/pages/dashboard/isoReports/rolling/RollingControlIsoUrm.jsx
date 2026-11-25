@@ -96,7 +96,7 @@ const RollingControlIsoUrm = () => {
   const repRef = useRef();
 
   const handlePrint = useReactToPrint({
-    content: () => repRef.current,
+    contentRef: repRef,   // react-to-print v3
     documentTitle: "rolling_control_urm", // Set custom filename
   });
 

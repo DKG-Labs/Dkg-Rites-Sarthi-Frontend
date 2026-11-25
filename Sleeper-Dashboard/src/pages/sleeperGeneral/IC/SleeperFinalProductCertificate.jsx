@@ -365,7 +365,7 @@ export default function SleeperFinalProductCertificate() {
                           trRecDate: savedEdit.trRecDate || updated.trRecDate || prev.trRecDate,
                           noOfVisits: savedEdit.noOfVisits || updated.noOfVisits || prev.noOfVisits,
                           datesOfInspection: savedEdit.datesOfInspection || updated.datesOfInspection || prev.datesOfInspection,
-                          dateOfCall: savedEdit.dateOfCall || updated.dateOfCall || prev.dateOfCall,
+                          dateOfCall: updated.dateOfCall || prev.dateOfCall || savedEdit.dateOfCall,
                           sealingPattern: savedEdit.sealingPattern || updated.sealingPattern || prev.sealingPattern,
                           reasonsForRejection: (savedEdit.reasonsForRejection && savedEdit.reasonsForRejection !== 'Not Applicable') ? savedEdit.reasonsForRejection : (updated.reasonsForRejection || prev.reasonsForRejection),
                           facsimileText: savedEdit.facsimileText || updated.facsimileText || prev.facsimileText,
@@ -567,6 +567,7 @@ export default function SleeperFinalProductCertificate() {
   }, [call, data]);
 
   const handleFieldChange = (fieldName, value) => {
+    if (fieldName === 'dateOfCall' || fieldName === 'callDate') return;
     setData(prev => {
       const updated = { ...prev, [fieldName]: value };
       if (['qtyOnOrder', 'qtyPassedPreviously', 'qtyNowPassed', 'qtyOfferedPreviously'].includes(fieldName)) {

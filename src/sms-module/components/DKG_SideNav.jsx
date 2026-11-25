@@ -60,6 +60,15 @@ const ROLE_PERMISSIONS = {
   LOCAL_ADMIN: [
     'home', 'duty', 'records', 'iso-reports', 'admin', 'data-analysis', 'ai-system'
   ],
+  // R Main IE: R Process IE stages + Testing, QCT, Calibration, Short Rail
+  RAIL_MAIN_IE: [
+    'home', 'duty-sms', 'duty-rolling', 'duty-ndt', 'duty-vi', 'duty-welding',
+    'duty-testing', 'duty-qct', 'duty-calibration', 'duty-sr-inspection', 'duty-sri', 'iso-reports'
+  ],
+  // R Analyst: reports only (records + ISO reports), no duty
+  RAIL_ANALYST: [
+    'home', 'records', 'iso-reports'
+  ],
   MAIN_ADMIN: [
     'full-access'
   ]
@@ -537,9 +546,20 @@ const items = [
     icon: <FileTextOutlined />,
     label: "Record",
     activeTab: 3,
-    path: "/sms/",
     permission: "records",
-    underConstruction: true,
+    // SMS records are live; the other stages' records open when their stage is enabled
+    items: [
+      {
+        key: "3.1",
+        icon: <MessageOutlined />,
+        label: "SMS",
+        permission: "records",
+        items: [
+          { key: "3.1.1", icon: <LineChartOutlined />, label: "SMS Summary", path: "/sms/record/sms/summary", permission: "records" },
+          { key: "3.1.2", icon: <FileTextOutlined />, label: "SMS Heats", path: "/sms/record/sms/heat", permission: "records" },
+        ],
+      },
+    ],
   },
   {
     key: "4",
@@ -802,11 +822,17 @@ const SideNav = ({ collapsed, toggleCollapse, isMobile }) => {
     for (const item of menuItems) {
       // Rail-mill stage not yet enabled: keep it in the menu as "Under Development" (no sub-menu, no navigation)
       if ((item.permission && !isPermissionModuleEnabled(item.permission)) || (item.module && !isModuleEnabled(item.module))) {
-        // shown for every role (display only — it cannot be opened)
+        // Report-only roles never see duty stages, not even as "Under Development"
+        if (userType === 'RAIL_ANALYST' && String(item.permission || '').startsWith('duty')) continue;
+        // shown for every other role (display only — it cannot be opened)
         const { items: _children, path: _path, ...rest } = item;
         result.push({ ...rest, underConstruction: true });
         continue;
       }
+      // A duty stage the user has no permission for is dropped with all its pages
+      // (its pages carry no permission of their own, so they would otherwise keep the stage visible)
+      if (String(item.permission || '').startsWith('duty-') && !hasPermission(item.permission)) continue;
+
       let subItems = [];
       if (item.items) {
         subItems = filterMenuItems(item.items);

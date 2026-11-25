@@ -34,13 +34,26 @@ export const sendComplaintToCm = (rejectionId, { rio, cmUserId, remarks }) =>
         body: JSON.stringify({ rio, cmUserId, remarks }),
     }).then(handleResponse).then(unwrap);
 
-/** Complaint Cell → close (transaction CC_CLOSE_COMPLAINT). */
-export const closeComplaint = (rejectionId, remarks) =>
-    fetch(`${BASE}/${rejectionId}/close`, {
+/**
+ * Complaint Cell → close (transaction CC_CLOSE_COMPLAINT).
+ * file: optional supporting PDF (max 5 MB) — sent as multipart; without it, plain JSON as before.
+ */
+export const closeComplaint = (rejectionId, remarks, file) => {
+    if (file) {
+        const fd = new FormData();
+        fd.append('data', new Blob([JSON.stringify({ remarks })], { type: 'application/json' }));
+        fd.append('file', file);
+        const h = getAuthHeaders();
+        delete h['Content-Type'];   // browser sets the multipart boundary
+        return fetch(`${BASE}/${rejectionId}/close`, { method: 'POST', headers: h, body: fd })
+            .then(handleResponse).then(unwrap);
+    }
+    return fetch(`${BASE}/${rejectionId}/close`, {
         method: 'POST',
         headers: { ...getAuthHeaders(), 'Content-Type': 'application/json' },
         body: JSON.stringify({ remarks }),
     }).then(handleResponse).then(unwrap);
+};
 
 /** Timeline of a complaint. */
 export const getComplaintHistory = (rejectionId) =>

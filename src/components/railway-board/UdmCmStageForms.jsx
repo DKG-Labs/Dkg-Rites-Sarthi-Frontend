@@ -34,6 +34,7 @@ const steps = (stage, path) => {
 
 const DOC_LABEL = {
     JI_REPORT: 'JI Report', AUDIT_REPORT: 'Audit Report', RCA_EVIDENCE: 'RCA Evidence', CAPA_EVIDENCE: 'CAPA Evidence',
+    CLOSURE_DOCUMENT: 'Closure Document (Complaint Cell)',
 };
 
 const todayIst = () => new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' }); // yyyy-mm-dd
@@ -435,8 +436,8 @@ function ChipMulti({ options = [], value = [], onChange }) {
 }
 ChipMulti.propTypes = { options: PropTypes.array, value: PropTypes.array, onChange: PropTypes.func };
 
-/** PDF only, max 5 MB (checked again on the server). */
-function PdfPicker({ label, required, file, onChange }) {
+/** PDF only, max 5 MB (checked again on the server). Also used by the Complaint Cell close dialog. */
+export function PdfPicker({ label, required, file, onChange }) {
     const ref = useRef(null);
     const [err, setErr] = useState('');
     const pick = (e) => {

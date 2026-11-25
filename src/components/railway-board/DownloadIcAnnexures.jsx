@@ -155,7 +155,8 @@ const DownloadIcAnnexures = ({ selectedProduct = 'ERC', fromDate: initialFromDat
     const [rowsPerPage, setRowsPerPage] = useState(10);
 
     // 3. Sorting state
-    const [sortConfig, setSortConfig] = useState({ key: 'poWise', direction: 'asc' });
+    // Latest issued IC on top by default (ERC, Sleeper, Rail Pad); column headers can still re-sort
+    const [sortConfig, setSortConfig] = useState({ key: 'icIssuedDate', direction: 'desc' });
 
     // 4. Download Dialog animation state
     const [isDownloading, setIsDownloading] = useState(false);

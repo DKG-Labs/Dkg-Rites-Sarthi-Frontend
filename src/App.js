@@ -328,7 +328,7 @@ const App = () => {
             <Route 
               path="/sms/*"
               element={
-                <ProtectedRoute allowedRoles={['R Process IE', 'Rail SMS']}>
+                <ProtectedRoute allowedRoles={['R Process IE', 'Rail SMS', 'R Main IE', 'R Analyst']}>
                   <SmsDashboardWrapper />
                 </ProtectedRoute>
               }
@@ -374,9 +374,11 @@ const isRailpadRole = (role) => {
  */
 const isSmsRole = (role) => {
   if (!role) return false;
-  // SMS process role is stored as 'R Process IE' ('Rail SMS' kept for old sessions)
-  if (role === 'R Process IE' || role === 'Rail SMS') return true;
-  return typeof role === 'string' && role.split(',').some(r => ['R Process IE', 'Rail SMS'].includes(r.trim()));
+  // SMS process role is stored as 'R Process IE' ('Rail SMS' kept for old sessions);
+  // rail-mill roles are stored with an 'R ' prefix: R Process IE, R Main IE, R Analyst (reports only)
+  const RAIL_MILL_ROLES = ['R Process IE', 'Rail SMS', 'R Main IE', 'R Analyst'];
+  if (RAIL_MILL_ROLES.includes(role)) return true;
+  return typeof role === 'string' && role.split(',').some(r => RAIL_MILL_ROLES.includes(r.trim()));
 };
 
 export default App;

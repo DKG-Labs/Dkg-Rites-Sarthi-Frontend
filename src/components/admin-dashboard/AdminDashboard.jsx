@@ -1,4 +1,6 @@
 import React, { useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
+
 import { UserList } from './UserList';
 import { UserForm } from './UserForm';
 import { MasterList } from './MasterList';
@@ -18,6 +20,12 @@ import ProcessDefectSummaryCard from '../ProcessDefectSummaryCard';
 import ManageIcDatesForm from './ManageIcDatesForm';
 import CancelTransaction from './CancelTransaction';
 import ChangeOfferedQty from './ChangeOfferedQty';
+import TemporaryDpChange from './TemporaryDpChange';
+
+// Sections of the admin screen (value of ?section=). User Management is the default.
+const ADMIN_SECTIONS = ['users', 'masters', 'calibration', 'mapping', 'certificates', 'ibs-data', 'process-defect-summary',
+    'ic-dates', 'cancel-transaction', 'offered-qty', 'dp-change'];
+const SUPER_ADMIN_SECTIONS = ['ic-dates', 'cancel-transaction', 'offered-qty', 'dp-change'];
 
 export const parseUserFriendlyErrorMessage = (rawErrorMsg) => {
     if (!rawErrorMsg) return 'Failed to save user. Please try again.';
@@ -75,19 +83,20 @@ export const AdminDashboard = () => {
         return lower === 'admin' || lower === 'super admin' || lower.includes('super');
     });
 
-    const [activeModule, setActiveModule] = useState(() => {
-        const saved = localStorage.getItem('adminActiveModule') || 'users';
-        if (saved === 'udm-rejections' || saved === 'railpad-rejection-basket') {
-            localStorage.setItem('adminActiveModule', 'users');
-            return 'users';
-        }
-        return saved;
-    });
+    // Open section lives in the URL (/admin?section=dp-change):
+    //  - a refresh stays on the same section, Back / Forward move between sections
+    //  - a fresh login opens /admin without a section -> User Management
+    // Unknown sections, or Super Admin sections for a plain Admin, fall back to User Management.
+    const [searchParams, setSearchParams] = useSearchParams();
+    const requested = searchParams.get('section') || 'users';
+    const activeModule = ADMIN_SECTIONS.includes(requested)
+        && (isSuperAdmin || !SUPER_ADMIN_SECTIONS.includes(requested)) ? requested : 'users';
     const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
 
     const handleModuleSelect = (moduleName) => {
-        localStorage.setItem('adminActiveModule', moduleName);
-        setActiveModule(moduleName);
+        if (moduleName !== activeModule) {
+            setSearchParams(moduleName === 'users' ? {} : { section: moduleName });
+        }
         setIsMobileNavOpen(false);
     };
     const [modalOpen, setModalOpen] = useState(false);
@@ -393,7 +402,6 @@ export const AdminDashboard = () => {
                 }
             }
 
-            localStorage.setItem('adminActiveModule', 'mapping');
             setSnackbar({ open: true, message: selectedItem ? 'Mapping updated successfully!' : 'Mapping created successfully!', severity: 'success' });
             setModalOpen(false);
             refreshData();
@@ -611,6 +619,15 @@ export const AdminDashboard = () => {
                                     <span>Change Offered Qty</span>
                                 </button>
                             </li>
+                            <li className="nav-item">
+                                <button
+                                    className={`nav-link ${activeModule === 'dp-change' ? 'active' : ''}`}
+                                    onClick={() => handleModuleSelect('dp-change')}
+                                >
+                                    <i className="fa-solid fa-calendar-plus nav-ico" aria-hidden="true"></i>
+                                    <span>Temporary DP Change</span>
+                                </button>
+                            </li>
                         </>
                     )}
 
@@ -639,6 +656,7 @@ export const AdminDashboard = () => {
                         {activeModule === 'ic-dates' && 'IC Date Change'}
                         {activeModule === 'cancel-transaction' && 'Cancel Last Transaction'}
                         {activeModule === 'offered-qty' && 'Change Offered Qty'}
+                        {activeModule === 'dp-change' && 'Temporary DP Change'}
                     </div>
                 </div>
 
@@ -709,6 +727,11 @@ export const AdminDashboard = () => {
                     )}
                     {isSuperAdmin && activeModule === 'offered-qty' && (
                         <ChangeOfferedQty
+                            onNotify={(msg, severity) => setSnackbar({ open: true, message: msg, severity: severity || 'info' })}
+                        />
+                    )}
+                    {isSuperAdmin && activeModule === 'dp-change' && (
+                        <TemporaryDpChange
                             onNotify={(msg, severity) => setSnackbar({ open: true, message: msg, severity: severity || 'info' })}
                         />
                     )}

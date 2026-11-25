@@ -63,7 +63,13 @@
 }
 .ucx-foot-who { font-weight: 600; }
 .ucx-foot-who i { color: #16a34a; font-size: 11px; }
-.ucx-foot-note { color: #64748b; font-style: italic; }
+/* Remarks: show the full text (wraps), not cut to one line */
+.ucx-foot-note {
+  color: #64748b; font-style: italic;
+  max-width: 100%; white-space: pre-wrap; overflow: visible; text-overflow: clip;
+  align-items: flex-start; overflow-wrap: anywhere; line-height: 1.45;
+}
+.ucx-foot-note i { margin-top: 3px; }
 .ucx-foot-note i { color: #94a3b8; font-size: 11px; font-style: normal; }
 .ucx-foot-actions { display: flex; gap: 8px; margin-left: auto; }
 .ucx-viewonly {

@@ -5,6 +5,7 @@ import {
     getComplaintRios, getComplaintCmsByRio, sendComplaintToCm, closeComplaint, getComplaintHistory,
 } from '../../services/udmComplaintService';
 import './UdmComplaintActions.css';
+import { PdfPicker } from './UdmCmStageForms';
 
 /* ─── Status meta (single source for chip text/colour) ─────────────── */
 export const COMPLAINT_STATUS = {
@@ -371,6 +372,7 @@ SendToCmModal.propTypes = { r: PropTypes.object.isRequired, onCancel: PropTypes.
 /* ─── Close complaint modal ─────────────────────────────────────────── */
 export function CloseComplaintModal({ r, onCancel, onDone }) {
     const [remarks, setRemarks] = useState('');
+    const [file, setFile] = useState(null);   // optional supporting PDF
     const [saving, setSaving] = useState(false);
     const [err, setErr] = useState('');
 
@@ -378,7 +380,7 @@ export function CloseComplaintModal({ r, onCancel, onDone }) {
         if (!remarks.trim() || saving) return;
         setSaving(true); setErr('');
         try {
-            const res = await closeComplaint(r.id, remarks.trim());
+            const res = await closeComplaint(r.id, remarks.trim(), file);
             onDone(res, 'Complaint closed.');
         } catch (e) {
             setErr(e.message || 'Could not close the complaint.');
@@ -404,6 +406,7 @@ export function CloseComplaintModal({ r, onCancel, onDone }) {
                             placeholder="e.g. Not attributable to RITES / duplicate complaint…" autoFocus />
                         <span className="ucx-count">{remarks.length}/500</span>
                     </div>
+                    <PdfPicker label="Supporting document (PDF, max 5 MB)" required={false} file={file} onChange={setFile} />
                     {err && <div className="ucx-err"><i className="fa-solid fa-circle-exclamation" /> {err}</div>}
                 </div>
                 <div className="ucx-dialog-foot">

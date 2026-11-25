@@ -4,6 +4,7 @@ import { getStoredUser } from '../services/authService';
 import { viewSignedCertificate, checkSignedCertificateExists } from '../services/certificateService';
 import { generateRailpadCallLetterPDF } from '../utils/generateCallLetterPDF';
 import { generateInspectionPhotosPDF } from '../utils/generateInspectionPhotosPDF';
+import RailpadProcessAnnexureA from './ProcessInspection/RailpadProcessAnnexureA';
 import { 
   fetchCaseLetterMetadata, 
   fetchSavedCaseLetterInfo,
@@ -160,8 +161,36 @@ const GenerateCaseLetterModal = ({
       if (currentStage === 'RPP') return doc.rpp;
       if (currentStage === 'RPF') return doc.rpf;
       return true;
-    });
+    }).map(doc => (
+      // RPP: "Relevant Annexures" = the call's process hourly shift report (Annexure-A), built by the system.
+      // The IE can still upload a file instead when the call has no process records.
+      currentStage === 'RPP' && doc.key === 'RELEVANT_ANNEXURES'
+        ? { ...doc, isAutoFetch: true, isDisabled: false, remarks: 'Process hourly shift report (Annexure-A)',
+            finalSource: 'System Generated (Process hourly shift report)' }
+        : doc
+    ));
   }, []);
+
+  // Process hourly shift report (RPP): rendered off-screen once per open, PDF handed back via onPdfReady
+  const [annexureJob, setAnnexureJob] = useState(0);   // 0 = not running; otherwise a run id (remounts the generator)
+  const [annexureNote, setAnnexureNote] = useState('');
+  const onAnnexureReady = useCallback((blob, reason) => {
+    setAnnexureJob(0);
+    if (blob && blob.size > 0) {
+      setSystemDocBlobs(prev => ({ ...prev, RELEVANT_ANNEXURES: blob }));
+      setAnnexureNote('');
+    } else {
+      setFetchFailed(prev => ({ ...prev, RELEVANT_ANNEXURES: true }));
+      setAnnexureNote(reason || 'Process annexure could not be generated.');
+    }
+    setLoadingItems(prev => ({ ...prev, RELEVANT_ANNEXURES: false }));
+  }, []);
+  // Safety net: never leave the row spinning (e.g. a very long date range)
+  useEffect(() => {
+    if (!annexureJob) return undefined;
+    const t = setTimeout(() => onAnnexureReady(null, 'Generating the process annexure took too long. Please upload it instead.'), 120000);
+    return () => clearTimeout(t);
+  }, [annexureJob, onAnnexureReady]);
 
   // Initialize on modal open
   useEffect(() => {
@@ -189,6 +218,10 @@ const GenerateCaseLetterModal = ({
     setSuccessMessage('');
     setShowConfirmDialog(false);
     setOrderDirection('bottom-to-top');
+
+    // Process hourly shift report (RPP): start the off-screen generator
+    setAnnexureNote('');
+    setAnnexureJob(filteredDocs.some(d => d.key === 'RELEVANT_ANNEXURES' && d.isAutoFetch && !d.isDisabled) ? Date.now() : 0);
 
     // Auto-fetch metadata and all system documents
     loadAllDocuments(callNo, currentStage, filteredDocs);
@@ -739,6 +772,25 @@ const GenerateCaseLetterModal = ({
         }
       }}
     >
+      {/* Off-screen generator of the process hourly shift report (RPP): not visible, not clickable */}
+      {annexureJob ? (
+        <div aria-hidden="true" style={{ position: 'fixed', left: '-12000px', top: 0, width: '1100px', pointerEvents: 'none' }}>
+          <RailpadProcessAnnexureA
+            key={annexureJob}
+            // same call shape as the "Daily Report" button: plant + vendor normalised; dates come from the batches
+            call={{
+              ...call,
+              callNo,
+              requestId: callNo,
+              plantId: String(call?.plantId || call?.plant_id || call?.unit || '').replace(/^:/, '').trim(),
+              unit: String(call?.plantId || call?.plant_id || call?.unit || '').replace(/^:/, '').trim(),
+              vendorName: call?.vendorName || call?.vendor_code || call?.vendorCode || '',
+              company: call?.vendorName || call?.vendor_code || call?.vendorCode || '',
+            }}
+            onPdfReady={onAnnexureReady}
+          />
+        </div>
+      ) : null}
       <div style={{
         background: '#ffffff',
         borderRadius: '20px',
@@ -977,6 +1029,11 @@ const GenerateCaseLetterModal = ({
                                 {!doc.isDisabled && (
                                   <span style={{ marginLeft: '6px', color: '#94a3b8' }}>
                                     • Max {maxMb} MB
+                                  </span>
+                                )}
+                                {doc.key === 'RELEVANT_ANNEXURES' && annexureNote && !uploadedFiles[doc.key] && (
+                                  <span style={{ display: 'block', marginTop: '2px', color: '#b45309' }}>
+                                    {annexureNote} You can upload it instead.
                                   </span>
                                 )}
                               </span>

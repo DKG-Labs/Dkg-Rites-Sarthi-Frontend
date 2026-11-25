@@ -134,8 +134,7 @@ const RitesAdminDashboard = () => {
           className="rites-admin-card active-card"
           style={{ cursor: 'pointer' }}
           onClick={() => {
-            localStorage.setItem('adminActiveModule', 'certificates');
-            navigate(ROUTES.ADMIN_DASHBOARD);
+            navigate(`${ROUTES.ADMIN_DASHBOARD}?section=certificates`);
           }}
         >
           <div className="card-status-badge active-badge">

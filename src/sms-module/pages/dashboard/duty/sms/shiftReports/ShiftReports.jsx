@@ -5,11 +5,9 @@ import { FireOutlined, CheckCircleOutlined, CheckSquareOutlined } from '@ant-des
 import TabList from '../../../../../components/DKG_TabList';
 import Btn from '../../../../../components/DKG_Btn';
 import { useNavigate } from 'react-router-dom';
-import data from '../../../../../utils/db.json'
+import { shallowEqual, useSelector } from 'react-redux';
 import GeneralInfo from '../../../../../components/DKG_GeneralInfo';
 import FormContainer from '../../../../../components/DKG_FormContainer';
-
-const {smsGeneralInfo} = data
 
 const smsDutyEndTabs = [
   {
@@ -31,6 +29,14 @@ const smsDutyEndTabs = [
 
 const ShiftReports = () => {
   const navigate = useNavigate()
+  // shift info of the running SMS duty (was sample data)
+  const smsGeneralInfo = useSelector(state => ({
+    StartTime: state?.smsDuty?.startTime,
+    Date: state?.smsDuty?.date,
+    Shift: state?.smsDuty?.shift,
+    Sms: state?.smsDuty?.sms,
+    RailGrade: state?.smsDuty?.railGrade
+  }), shallowEqual);
   return (
     <FormContainer className='flex flex-col gap-4'>
       <SubHeader title='SMS - Shift Reports' link='/sms/sms/dutyEnd' />

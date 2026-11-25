@@ -1,434 +1,140 @@
+/* Super Admin – Manage IC Dates. Tokens from FRONTEND_DESIGN_RULES.md. */
 .manage-ic-dates-container {
-  --mic-green: #15803d;
-  --mic-green-dark: #166534;
-  --mic-mint: #dcfce7;
-  --mic-text: #0f172a;
-  --mic-muted: #64748b;
-  --mic-border: rgba(255, 255, 255, 0.7);
-  --mic-glass: rgba(255, 255, 255, 0.62);
-  --mic-glass-strong: rgba(255, 255, 255, 0.82);
-
-  position: relative;
-  max-width: 920px;
-  margin: 24px auto;
-  padding: 32px;
-  border-radius: 24px;
-  background:
-    radial-gradient(circle at 0% 0%, rgba(187, 247, 208, 0.55), transparent 45%),
-    radial-gradient(circle at 100% 100%, rgba(186, 230, 253, 0.5), transparent 45%),
-    var(--mic-glass);
-  backdrop-filter: blur(18px) saturate(160%);
-  -webkit-backdrop-filter: blur(18px) saturate(160%);
-  border: 1px solid var(--mic-border);
-  box-shadow:
-    0 20px 50px -20px rgba(21, 128, 61, 0.25),
-    0 2px 6px rgba(15, 23, 42, 0.04),
-    inset 0 1px 0 rgba(255, 255, 255, 0.9);
-  color: var(--mic-text);
-  overflow: hidden;
+  --mic-bg: #f8fafc; --mic-card: #ffffff; --mic-b: #e2e8f0; --mic-ink: #1e293b; --mic-m: #64748b;
+  --mic-accent: #2563eb; --mic-accent-h: #1d4ed8; --mic-ring: 0 0 0 3px rgba(59, 130, 246, 0.12);
+  --mic-danger: #dc2626; --mic-danger-bg: #fef2f2;
+  color: var(--mic-ink); font-size: 14px;
+  display: flex; flex-direction: column; gap: 16px; max-width: 880px;
 }
 
-.manage-ic-dates-header {
-  margin-bottom: 28px;
-  padding-bottom: 18px;
-  border-bottom: 1px solid rgba(21, 128, 61, 0.12);
+.mic-head h2 { margin: 0; font-size: 20px; font-weight: 600; line-height: 1.3; color: var(--mic-ink); }
+.mic-head p { margin: 4px 0 0; font-size: 14px; color: var(--mic-m); }
+
+.mic-card {
+  background: var(--mic-card); border: 1px solid var(--mic-b); border-radius: 12px; padding: 24px;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+  display: flex; flex-direction: column; gap: 12px;
+}
+.mic-section-title { font-size: 16px; font-weight: 600; }
+.mic-label { font-size: 13px; font-weight: 500; color: var(--mic-ink); }
+.mic-req { color: var(--mic-danger); }
+.mic-hint { font-size: 12px; color: var(--mic-m); }
+.mic-error-msg { font-size: 12px; color: var(--mic-danger); }
+
+/* Search row */
+.mic-search { display: flex; gap: 8px; max-width: 560px; }
+.mic-search-box {
+  flex: 1; min-width: 0; height: 40px; display: flex; align-items: center; gap: 8px; padding: 0 12px;
+  border: 1px solid var(--mic-b); border-radius: 8px; background: var(--mic-card);
+  transition: border-color .15s, box-shadow .15s;
+}
+.mic-search-box:focus-within { border-color: var(--mic-accent); box-shadow: var(--mic-ring); }
+.mic-search-box.is-error { border-color: var(--mic-danger); }
+.mic-search-box > i { color: var(--mic-m); font-size: 13px; }
+.mic-search-box input {
+  flex: 1; min-width: 0; height: 100%; border: 0; outline: 0; background: transparent;
+  font: inherit; font-size: 14px; color: var(--mic-ink);
+}
+.mic-search-box input:disabled { color: var(--mic-ink); font-weight: 500; }
+.mic-search-box:has(input:disabled) { background: var(--mic-bg); }
+.mic-clear {
+  width: 28px; height: 28px; border: 0; border-radius: 6px; background: transparent; color: var(--mic-m);
+  display: inline-flex; align-items: center; justify-content: center; cursor: pointer;
+}
+.mic-clear:hover { background: #f1f5f9; color: var(--mic-ink); }
+
+/* Buttons */
+.mic-btn {
+  height: 40px; padding: 0 16px; border-radius: 8px; font: inherit; font-size: 14px; font-weight: 500;
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px; cursor: pointer; white-space: nowrap;
+  transition: background-color .15s, border-color .15s;
+}
+.mic-btn-primary { background: var(--mic-accent); border: 1px solid var(--mic-accent); color: #fff; }
+.mic-btn-primary:hover:not(:disabled) { background: var(--mic-accent-h); border-color: var(--mic-accent-h); }
+.mic-btn-secondary { background: var(--mic-card); border: 1px solid var(--mic-b); color: var(--mic-ink); }
+.mic-btn-secondary:hover:not(:disabled) { background: var(--mic-bg); }
+.mic-btn:disabled { opacity: .55; cursor: not-allowed; }
+.mic-btn:focus-visible, .mic-clear:focus-visible, .mic-doc:focus-visible, .mic-link:focus-visible {
+  outline: none; box-shadow: var(--mic-ring), 0 0 0 1px var(--mic-accent);
+}
+.mic-spinner {
+  width: 14px; height: 14px; border-radius: 50%; border: 2px solid rgba(255, 255, 255, .45); border-top-color: #fff;
+  animation: mic-spin .7s linear infinite;
+}
+@keyframes mic-spin { to { transform: rotate(360deg); } }
+
+/* Empty state: how it works */
+.mic-steps { list-style: none; margin: 4px 0 0; padding: 0; display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+.mic-steps li {
+  display: flex; align-items: flex-start; gap: 8px; padding: 12px; border-radius: 8px; background: var(--mic-bg);
+  font-size: 13px; color: var(--mic-m); line-height: 1.45;
+}
+.mic-steps li span {
+  flex: 0 0 auto; width: 20px; height: 20px; border-radius: 50%; background: #dbeafe; color: var(--mic-accent);
+  font-size: 12px; font-weight: 600; display: inline-flex; align-items: center; justify-content: center;
 }
 
-.manage-ic-dates-header h2 {
-  margin: 0 0 6px;
-  font-size: 26px;
-  font-weight: 700;
-  letter-spacing: -0.02em;
-  background: linear-gradient(90deg, var(--mic-green-dark), #0d9488);
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
+/* Loading skeleton (same layout as the details) */
+.mic-skeleton { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+.mic-skeleton span { height: 44px; border-radius: 8px; background: linear-gradient(90deg, #f1f5f9, #e2e8f0, #f1f5f9);
+  background-size: 200% 100%; animation: mic-shimmer 1.2s ease-in-out infinite; }
+@keyframes mic-shimmer { from { background-position: 200% 0; } to { background-position: -200% 0; } }
+
+/* Alerts */
+.mic-alert {
+  display: flex; align-items: center; gap: 8px; padding: 8px 12px; border-radius: 8px;
+  background: var(--mic-danger-bg); color: var(--mic-danger); font-size: 13px;
+}
+.mic-link { margin-left: auto; border: 0; background: none; color: var(--mic-danger); font: inherit; font-weight: 600; cursor: pointer; text-decoration: underline; }
+
+/* IC details */
+.mic-details { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+.mic-detail {
+  display: flex; flex-direction: column; gap: 4px; min-width: 0; padding: 12px; border-radius: 8px;
+  background: var(--mic-bg); border: 1px solid #eef2f7;
+}
+.mic-detail > span { font-size: 12px; color: var(--mic-m); }
+.mic-detail > strong { font-size: 14px; font-weight: 600; overflow-wrap: anywhere; }
+.mic-doc { display: inline-flex; align-items: center; gap: 6px; font-weight: 600; color: var(--mic-accent); text-decoration: none; border-radius: 4px; }
+.mic-doc:hover { text-decoration: underline; }
+.mic-divider { height: 1px; background: var(--mic-b); margin: 4px 0; }
+
+/* New date */
+.mic-change { display: flex; align-items: flex-end; gap: 16px; flex-wrap: wrap; }
+.mic-field { display: flex; flex-direction: column; gap: 6px; }
+.mic-field input[type="date"] {
+  height: 40px; width: 220px; padding: 0 12px; border: 1px solid var(--mic-b); border-radius: 8px;
+  font: inherit; font-size: 14px; color: var(--mic-ink); background: var(--mic-card);
+}
+.mic-field input[type="date"]:focus { outline: none; border-color: var(--mic-accent); box-shadow: var(--mic-ring); }
+.mic-field input.is-error { border-color: var(--mic-danger); }
+.mic-preview {
+  height: 40px; display: inline-flex; align-items: center; gap: 10px; padding: 0 14px; border-radius: 8px;
+  background: #eff6ff; color: var(--mic-ink); font-size: 14px; margin-bottom: 22px;
+}
+.mic-preview i { color: var(--mic-accent); font-size: 12px; }
+.mic-old { color: var(--mic-m); text-decoration: line-through; }
+
+.mic-actions { display: flex; justify-content: flex-end; gap: 8px; }
+
+/* Responsive */
+@media (max-width: 768px) {
+  .mic-details, .mic-skeleton { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .mic-steps { grid-template-columns: 1fr; }
+}
+@media (max-width: 480px) {
+  .mic-card { padding: 16px; }
+  .mic-search { flex-direction: column; max-width: none; }
+  .mic-details, .mic-skeleton { grid-template-columns: 1fr; }
+  .mic-field, .mic-field input[type="date"] { width: 100%; }
+  .mic-preview { margin-bottom: 0; }
+  .mic-actions .mic-btn { flex: 1; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .mic-spinner, .mic-skeleton span { animation: none; }
 }
 
-.manage-ic-dates-header p {
-  margin: 0;
-  font-size: 14px;
-  color: var(--mic-muted);
-}
-
-.manage-ic-dates-form {
-  display: flex;
-  flex-direction: column;
-  gap: 22px;
-}
-
-.manage-ic-dates-form .form-group {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.manage-ic-dates-form .form-group label {
-  font-size: 12px;
-  font-weight: 600;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: var(--mic-muted);
-}
-
-.manage-ic-dates-form .form-group input {
-  height: 48px;
-  padding: 0 16px;
-  font-size: 15px;
-  font-family: inherit;
-  color: var(--mic-text);
-  background: var(--mic-glass-strong);
-  border: 1px solid rgba(148, 163, 184, 0.35);
-  border-radius: 14px;
-  box-shadow: inset 0 1px 2px rgba(15, 23, 42, 0.04);
-  transition: border-color 0.2s, box-shadow 0.2s, background 0.2s;
-}
-
-.manage-ic-dates-form .form-group input:focus {
-  outline: none;
-  background: #fff;
-  border-color: var(--mic-green);
-  box-shadow: 0 0 0 4px rgba(21, 128, 61, 0.14);
-}
-
-.manage-ic-dates-form .form-group input:disabled {
-  color: var(--mic-muted);
-  background: rgba(241, 245, 249, 0.7);
-}
-
-.manage-ic-dates-form .form-group input.error {
-  border-color: #ef4444;
-  box-shadow: 0 0 0 4px rgba(239, 68, 68, 0.1);
-}
-
-.manage-ic-dates-form .form-group small {
-  font-size: 12px;
-  color: var(--mic-muted);
-}
-
-.manage-ic-dates-form .input-group {
-  display: flex;
-  gap: 10px;
-}
-
-.manage-ic-dates-form .input-group input {
-  flex: 1;
-  min-width: 0;
-}
-
-.manage-ic-dates-form .btn-fetch,
-.manage-ic-dates-form .btn-save {
-  height: 48px;
-  padding: 0 26px;
-  border: none;
-  border-radius: 14px;
-  font-size: 15px;
-  font-weight: 600;
-  color: #fff;
-  background: linear-gradient(135deg, #22c55e, var(--mic-green));
-  box-shadow: 0 8px 20px -8px rgba(21, 128, 61, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.3);
-  cursor: pointer;
-  white-space: nowrap;
-  transition: transform 0.15s, box-shadow 0.2s, opacity 0.2s;
-}
-
-.manage-ic-dates-form .btn-fetch:hover:not(:disabled),
-.manage-ic-dates-form .btn-save:hover:not(:disabled) {
-  transform: translateY(-1px);
-  box-shadow: 0 12px 24px -8px rgba(21, 128, 61, 0.65), inset 0 1px 0 rgba(255, 255, 255, 0.3);
-}
-
-.manage-ic-dates-form .btn-fetch:disabled,
-.manage-ic-dates-form .btn-save:disabled {
-  opacity: 0.55;
-  cursor: not-allowed;
-  box-shadow: none;
-}
-
-.manage-ic-dates-form .btn-cancel {
-  height: 48px;
-  padding: 0 24px;
-  border-radius: 14px;
-  font-size: 15px;
-  font-weight: 600;
-  color: var(--mic-text);
-  background: var(--mic-glass-strong);
-  border: 1px solid rgba(148, 163, 184, 0.4);
-  cursor: pointer;
-  transition: background 0.2s, border-color 0.2s;
-}
-
-.manage-ic-dates-form .btn-cancel:hover:not(:disabled) {
-  background: #fff;
-  border-color: rgba(100, 116, 139, 0.5);
-}
-
-.manage-ic-dates-form .btn-cancel:disabled {
-  opacity: 0.55;
-  cursor: not-allowed;
-}
-
-.manage-ic-dates-form .error-msg {
-  font-size: 12px;
-  color: #dc2626;
-}
-
-.manage-ic-dates-form .error-box {
-  padding: 12px 16px;
-  font-size: 14px;
-  color: #b91c1c;
-  background: rgba(254, 226, 226, 0.75);
-  border: 1px solid rgba(248, 113, 113, 0.4);
-  border-radius: 14px;
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
-}
-
-.manage-ic-dates-form .ic-details {
-  padding: 24px;
-  border-radius: 20px;
-  background: rgba(255, 255, 255, 0.55);
-  border: 1px solid var(--mic-border);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.9);
-  animation: mic-fade-in 0.3s ease-out;
-}
-
-.manage-ic-dates-form .details-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
-  gap: 14px;
-  margin-bottom: 24px;
-}
-
-.manage-ic-dates-form .detail-item {
-  position: relative;
-  padding: 14px 16px;
-  border-radius: 16px;
-  background: var(--mic-glass-strong);
-  border: 1px solid rgba(255, 255, 255, 0.9);
-  box-shadow: 0 4px 14px -6px rgba(15, 23, 42, 0.1);
-  overflow: hidden;
-}
-
-.manage-ic-dates-form .detail-item::before {
-  content: '';
-  position: absolute;
-  inset: 0 auto 0 0;
-  width: 4px;
-  background: linear-gradient(180deg, #22c55e, #0d9488);
-}
-
-.manage-ic-dates-form .detail-item label {
-  display: block;
-  margin-bottom: 6px;
-  font-size: 11px;
-  font-weight: 600;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--mic-muted);
-}
-
-.manage-ic-dates-form .detail-item p {
-  margin: 0;
-  font-size: 15px;
-  font-weight: 600;
-  color: var(--mic-text);
-  word-break: break-word;
-}
-
-.manage-ic-dates-form .btn-view-ic {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 8px 14px;
-  font-size: 13px;
-  font-weight: 600;
-  color: #0369a1;
-  text-decoration: none;
-  background: rgba(224, 242, 254, 0.85);
-  border: 1px solid rgba(125, 211, 252, 0.6);
-  border-radius: 999px;
-  transition: background 0.2s, transform 0.15s;
-}
-
-.manage-ic-dates-form .btn-view-ic:hover {
-  background: #e0f2fe;
-  transform: translateY(-1px);
-}
-
-.manage-ic-dates-form .form-actions {
-  display: flex;
-  justify-content: flex-end;
-  gap: 12px;
-  margin-top: 8px;
-}
-
-/* ---------- Animated gloss layer ---------- */
-
-.manage-ic-dates-container {
-  animation: mic-card-in 0.6s cubic-bezier(0.22, 1, 0.36, 1) both;
-  isolation: isolate;
-}
-
-/* Drifting soft colour blobs behind the glass */
-.manage-ic-dates-container::before,
-.manage-ic-dates-container::after {
-  content: '';
-  position: absolute;
-  z-index: -1;
-  width: 380px;
-  height: 380px;
-  border-radius: 50%;
-  filter: blur(60px);
-  opacity: 0.55;
-  pointer-events: none;
-}
-
-.manage-ic-dates-container::before {
-  top: -140px;
-  left: -120px;
-  background: radial-gradient(circle, #86efac, transparent 70%);
-  animation: mic-drift-a 14s ease-in-out infinite alternate;
-}
-
-.manage-ic-dates-container::after {
-  bottom: -160px;
-  right: -120px;
-  background: radial-gradient(circle, #7dd3fc, transparent 70%);
-  animation: mic-drift-b 16s ease-in-out infinite alternate;
-}
-
-/* Animated gradient underline under the title */
-.manage-ic-dates-header {
-  position: relative;
-  border-bottom-color: transparent;
-}
-
-.manage-ic-dates-header::after {
-  content: '';
-  position: absolute;
-  left: 0;
-  right: 0;
-  bottom: -1px;
-  height: 2px;
-  border-radius: 2px;
-  background: linear-gradient(90deg, #22c55e, #0d9488, #38bdf8, #22c55e);
-  background-size: 300% 100%;
-  animation: mic-flow 6s linear infinite;
-}
-
-.manage-ic-dates-header h2 {
-  background-size: 200% auto;
-  background-image: linear-gradient(90deg, #166534, #0d9488, #16a34a, #166534);
-  animation: mic-flow 8s linear infinite;
-}
-
-/* Light sweep across primary buttons */
-.manage-ic-dates-form .btn-fetch,
-.manage-ic-dates-form .btn-save {
-  position: relative;
-  overflow: hidden;
-}
-
-.manage-ic-dates-form .btn-fetch::after,
-.manage-ic-dates-form .btn-save::after {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: -75%;
-  width: 50%;
-  height: 100%;
-  background: linear-gradient(120deg, transparent, rgba(255, 255, 255, 0.55), transparent);
-  transform: skewX(-20deg);
-  animation: mic-shine 3.2s ease-in-out infinite;
-}
-
-.manage-ic-dates-form .btn-fetch:disabled::after,
-.manage-ic-dates-form .btn-save:disabled::after {
-  animation: none;
-  display: none;
-}
-
-.manage-ic-dates-form .btn-fetch:active:not(:disabled),
-.manage-ic-dates-form .btn-save:active:not(:disabled) {
-  transform: scale(0.97);
-}
-
-/* Glow pulse on focused input */
-.manage-ic-dates-form .form-group input:focus {
-  animation: mic-glow 2s ease-in-out infinite;
-}
-
-/* Staggered tile entrance + hover lift */
-.manage-ic-dates-form .detail-item {
-  opacity: 0;
-  animation: mic-rise 0.5s cubic-bezier(0.22, 1, 0.36, 1) forwards;
-  transition: transform 0.25s ease, box-shadow 0.25s ease;
-}
-
-.manage-ic-dates-form .detail-item:nth-child(1) { animation-delay: 0.05s; }
-.manage-ic-dates-form .detail-item:nth-child(2) { animation-delay: 0.12s; }
-.manage-ic-dates-form .detail-item:nth-child(3) { animation-delay: 0.19s; }
-.manage-ic-dates-form .detail-item:nth-child(4) { animation-delay: 0.26s; }
-
-.manage-ic-dates-form .detail-item:hover {
-  transform: translateY(-4px);
-  box-shadow: 0 14px 28px -12px rgba(21, 128, 61, 0.3);
-}
-
-/* Glossy highlight across each tile */
-.manage-ic-dates-form .detail-item::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  border-radius: inherit;
-  background: linear-gradient(160deg, rgba(255, 255, 255, 0.7) 0%, transparent 45%);
-  pointer-events: none;
-}
-
-.manage-ic-dates-form .btn-view-ic:hover {
-  box-shadow: 0 6px 16px -6px rgba(3, 105, 161, 0.4);
-}
-
-@keyframes mic-card-in {
-  from { opacity: 0; transform: translateY(16px) scale(0.98); }
-  to { opacity: 1; transform: translateY(0) scale(1); }
-}
-
-@keyframes mic-drift-a {
-  from { transform: translate(0, 0) scale(1); }
-  to { transform: translate(120px, 60px) scale(1.15); }
-}
-
-@keyframes mic-drift-b {
-  from { transform: translate(0, 0) scale(1); }
-  to { transform: translate(-110px, -70px) scale(1.1); }
-}
-
-@keyframes mic-flow {
-  from { background-position: 0% 50%; }
-  to { background-position: 300% 50%; }
-}
-
-@keyframes mic-shine {
-  0% { left: -75%; }
-  55%, 100% { left: 130%; }
-}
-
-@keyframes mic-glow {
-  0%, 100% { box-shadow: 0 0 0 4px rgba(21, 128, 61, 0.12); }
-  50% { box-shadow: 0 0 0 6px rgba(21, 128, 61, 0.2); }
-}
-
-@keyframes mic-rise {
-  from { opacity: 0; transform: translateY(12px); }
-  to { opacity: 1; transform: translateY(0); }
-}
-
-/* ---------- Toast ---------- */
-
+/* ── Toast ─────────────────────────────────────────────────────── */
 .mic-toast.MuiAlert-root {
   --toast-accent: #16a34a;
   --toast-tint: rgba(220, 252, 231, 0.55);
@@ -560,69 +266,3 @@
   }
 }
 
-@media (prefers-reduced-motion: reduce) {
-  .manage-ic-dates-container,
-  .manage-ic-dates-container *,
-  .manage-ic-dates-container::before,
-  .manage-ic-dates-container::after {
-    animation: none !important;
-    transition: none !important;
-  }
-
-  .manage-ic-dates-form .detail-item {
-    opacity: 1;
-  }
-}
-
-@keyframes mic-fade-in {
-  from { opacity: 0; transform: translateY(6px); }
-  to { opacity: 1; transform: translateY(0); }
-}
-
-@media (max-width: 768px) {
-  .manage-ic-dates-container {
-    margin: 16px;
-    padding: 22px 18px;
-    border-radius: 20px;
-  }
-
-  .manage-ic-dates-header h2 {
-    font-size: 22px;
-  }
-
-  .manage-ic-dates-form .input-group {
-    flex-direction: column;
-  }
-
-  .manage-ic-dates-form .btn-fetch {
-    width: 100%;
-  }
-
-  .manage-ic-dates-form .details-grid {
-    grid-template-columns: 1fr;
-  }
-
-  .manage-ic-dates-form .ic-details {
-    padding: 16px;
-  }
-
-  .manage-ic-dates-form .form-actions {
-    flex-direction: column-reverse;
-  }
-
-  .manage-ic-dates-form .btn-save,
-  .manage-ic-dates-form .btn-cancel {
-    width: 100%;
-  }
-}
-
-@media (max-width: 400px) {
-  .manage-ic-dates-container {
-    margin: 12px;
-    padding: 18px 14px;
-  }
-
-  .manage-ic-dates-form .form-group input {
-    font-size: 16px;
-  }
-}

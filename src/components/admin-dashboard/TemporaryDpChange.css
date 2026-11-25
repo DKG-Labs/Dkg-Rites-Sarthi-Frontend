@@ -1,0 +1,54 @@
+/* Super Admin – Temporary DP Change (builds on ChangeOfferedQty.css .coq tokens) */
+.dpc .coq-chip.warn { background: #fef3c7; color: #92400e; }
+.dpc-title { font-weight: 700; font-size: 14px; display: flex; gap: 8px; align-items: center; }
+.dpc-title i { color: var(--brand); }
+/* PO picker: compact, no stretching */
+.dpc-po-field { width: 100%; max-width: 420px; }
+.dpc-dropdown .coq-opt { min-width: min(380px, 88vw); }
+.dpc-center { display: flex; justify-content: center; padding: 24px; }
+.dpc-empty { color: var(--m); text-align: center; padding: 24px; }
+
+.dpc-summary { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px 16px; }
+.dpc-summary > div { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.dpc-summary span { font-size: 11px; font-weight: 600; letter-spacing: .4px; text-transform: uppercase; color: var(--m); }
+.dpc-summary strong { font-size: 14px; overflow-wrap: anywhere; }
+.dpc-summary .dpc-wide { grid-column: span 2; }
+
+.dpc-table-wrap { overflow-x: auto; }
+.dpc-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.dpc-table th { text-align: left; font-size: 11px; font-weight: 700; color: var(--m); text-transform: uppercase; letter-spacing: .4px;
+  padding: 8px 10px; border-bottom: 1px solid var(--b); white-space: nowrap; }
+.dpc-table td { padding: 10px; border-bottom: 1px solid #f1f5f9; vertical-align: top; }
+.dpc-desc { max-width: 280px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dpc-remarks { max-width: 260px; white-space: pre-wrap; overflow-wrap: anywhere; }
+.dpc-sub { font-size: 12px; color: var(--m); margin-top: 2px; }
+.dpc-old { color: var(--m); text-decoration: line-through; }
+.dpc-link { border: 0; background: none; padding: 0; color: var(--brand); font: inherit; font-weight: 600; cursor: pointer; }
+.dpc-link:hover { text-decoration: underline; }
+.dpc-active { border-color: #a5f3fc; background: var(--brand-bg); }
+
+.dpc-btn { border: 1px solid var(--brand); background: var(--brand); color: #fff; border-radius: 8px; padding: 6px 12px;
+  font-weight: 600; font-size: 13px; cursor: pointer; white-space: nowrap; }
+.dpc-btn.ghost { background: #fff; color: var(--brand); }
+.dpc-btn:disabled { opacity: .55; cursor: not-allowed; }
+.dpc-btn:focus-visible, .dpc-link:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; }
+.dpc-pager { display: flex; justify-content: flex-end; align-items: center; gap: 10px; font-size: 13px; color: var(--m); flex-wrap: wrap; }
+.dpc-size { display: inline-flex; align-items: center; gap: 6px; }
+.dpc-size select { border: 1px solid var(--b); border-radius: 6px; padding: 4px 6px; font: inherit; background: #fff; }
+
+.dpc-overlay { position: fixed; inset: 0; background: rgba(15, 23, 42, .45); display: flex; align-items: center; justify-content: center;
+  z-index: 1050; padding: 16px; }
+.dpc-dialog { background: #fff; border-radius: 12px; width: 100%; max-width: 460px; padding: 20px; display: flex; flex-direction: column; gap: 12px;
+  box-shadow: 0 20px 40px rgba(15, 23, 42, .2); color: var(--ink, #0f172a); }
+.dpc-dialog h3 { margin: 0; font-size: 17px; }
+.dpc-dialog .coq-field > span { font-size: 12px; font-weight: 600; color: #64748b; }
+.dpc-dialog input, .dpc-dialog textarea { border: 1px solid #e2e8f0; border-radius: 8px; padding: 8px 10px; font: inherit; width: 100%; }
+.dpc-dialog input:focus, .dpc-dialog textarea:focus { outline: 2px solid #0e7490; outline-offset: 0; border-color: transparent; }
+.dpc-req { color: #b91c1c; }
+.dpc-note { font-size: 12.5px; background: #ecfeff; color: #155e75; padding: 8px 10px; border-radius: 8px; }
+.dpc-warn { font-size: 12.5px; background: #fef3c7; color: #92400e; padding: 8px 10px; border-radius: 8px; }
+.dpc-actions { display: flex; justify-content: flex-end; gap: 8px; }
+
+@media (max-width: 600px) {
+  .dpc-summary .dpc-wide { grid-column: span 1; }
+}

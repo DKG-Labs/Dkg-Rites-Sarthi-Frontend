@@ -605,6 +605,8 @@ const App = () => {
           const mappedData = data.map(item => ({
             id: item.id,
             mouldNumber: item.mouldNumber,
+            castingDate: item.castingDate,   // date + shift of the check: date-wise overview
+            shift: item.shift,
             timeOfCheck: item.timeOfCheck,
             dimensionalAccuracy: item.dimensionalAccuracy,
             dimensionalRemarks: item.dimensionalRemarks,

@@ -1,4 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useMemo } from 'react';
+
+// Cards whose table gets the date-wise overview
+const DATE_OVERVIEW_TYPES = new Set(['mould-verification']);
 
 const PAGE_SIZES = [10, 25, 50];
 
@@ -17,10 +20,63 @@ const pageList = (current, total) => {
 
 const wrapCell = { whiteSpace: 'normal', wordBreak: 'break-word', maxWidth: '260px' };
 
+// Day of an entry (yyyy-mm-dd): its inspection date, else the day it was saved
+const dayOf = (e) => (e.castingDate || (e.timestamp ? String(e.timestamp).slice(0, 10) : '') || '').slice(0, 10);
+const fmtDate = (d) => {
+  if (!d) return '-';
+  const [y, m, day] = d.split('-');
+  return y && m && day ? `${day}-${m}-${y}` : d;
+};
+
+/**
+ * Date-wise overview (cards that carry a date): one chip per day with the number of checks,
+ * OK / Not OK and shifts. Clicking a day filters the table to that day.
+ */
+const DateOverview = ({ data, selected, onSelect }) => {
+  const days = useMemo(() => {
+    const map = new Map();
+    data.forEach(e => {
+      const d = dayOf(e);
+      if (!map.has(d)) map.set(d, { day: d, total: 0, ok: 0, notOk: 0, shifts: new Set() });
+      const g = map.get(d);
+      g.total += 1;
+      if (e.status === 'OK') g.ok += 1; else g.notOk += 1;
+      if (e.shift) g.shifts.add(e.shift);
+    });
+    return [...map.values()].sort((a, b) => (a.day < b.day ? 1 : -1));   // latest day first
+  }, [data]);
+  if (days.length === 0) return null;
+  return (
+    <div className="tv-days" role="tablist" aria-label="Date-wise overview">
+      <button type="button" role="tab" aria-selected={!selected}
+        className={`tv-day${!selected ? ' active' : ''}`} onClick={() => onSelect('')}>
+        <strong>All dates</strong>
+        <span>{data.length} checks · {days.length} days</span>
+      </button>
+      {days.map(g => (
+        <button key={g.day || 'none'} type="button" role="tab" aria-selected={selected === g.day}
+          className={`tv-day${selected === g.day ? ' active' : ''}`} onClick={() => onSelect(g.day)}>
+          <strong>{fmtDate(g.day)}</strong>
+          <span>
+            {g.total} {g.total === 1 ? 'mould' : 'moulds'}
+            {g.shifts.size > 0 && ` · Shift ${[...g.shifts].sort().join(', ')}`}
+          </span>
+          <span className="tv-day-counts">
+            <em className="ok">{g.ok} OK</em>
+            {g.notOk > 0 && <em className="not-ok">{g.notOk} Not OK</em>}
+          </span>
+        </button>
+      ))}
+    </div>
+  );
+};
+
 // Data columns per card type. `label` is the desktop header AND the label shown on mobile cards.
 // Status and Actions are added to every type below.
 const COLUMNS = {
   'mould-verification': [
+    { label: 'Date', render: e => fmtDate(dayOf(e)) },
+    { label: 'Shift', render: e => e.shift || '-' },
     { label: 'Mould / Drawing No.', render: e => e.mouldNumber, style: wrapCell },
     { label: 'Time Checked', render: e => e.timeOfCheck },
     { label: 'Dim. Accuracy', render: e => e.dimensionalAccuracy },
@@ -65,18 +121,42 @@ const COLUMNS = {
 };
 
 const TableView = ({ type, data, isShiftActive, onEdit, onView, onDelete, isLoading }) => {
-  const [page, setPage] = useState(1);
+  const [pageState, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
+  const [selectedDay, setSelectedDay] = useState('');   // date-wise overview: '' = all dates
+  const [prevType, setPrevType] = useState(type);
 
-  const total = data.length;
+  // Switching cards: back to page 1, all dates (adjusted during render, no effect needed)
+  if (type !== prevType) {
+    setPrevType(type);
+    setPage(1);
+    setSelectedDay('');
+  }
+
+  const withOverview = DATE_OVERVIEW_TYPES.has(type);
+  // A selected day that no longer has entries (e.g. its last entry was deleted) falls back to all dates
+  const day = selectedDay && data.some(e => dayOf(e) === selectedDay) ? selectedDay : '';
+  const selectDay = (d) => { setSelectedDay(d); setPage(1); };
+  // Keep each row's index in the full list so Edit / Delete still target the right record
+  const rows = useMemo(() => {
+    const all = data.map((entry, index) => ({ entry, index }));
+    if (!withOverview) return all;
+    const filtered = day ? all.filter(r => dayOf(r.entry) === day) : all;
+    // latest day first, then latest check first
+    return [...filtered].sort((a, b) => {
+      const da = dayOf(a.entry), db = dayOf(b.entry);
+      if (da !== db) return da < db ? 1 : -1;
+      return String(b.entry.timeOfCheck || '').localeCompare(String(a.entry.timeOfCheck || ''));
+    });
+  }, [data, day, withOverview]);
+
+  const total = rows.length;
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
-
-  // Back to page 1 when switching cards; stay in range after a delete
-  useEffect(() => { setPage(1); }, [type]);
-  useEffect(() => { if (page > totalPages) setPage(totalPages); }, [page, totalPages]);
+  // stay in range after a delete
+  const page = Math.min(pageState, totalPages);
 
   const start = (page - 1) * pageSize;
-  const pageRows = data.slice(start, start + pageSize);
+  const pageRows = rows.slice(start, start + pageSize);
 
   const columns = COLUMNS[type] || [];
   const colCount = columns.length + 2; // + Status + Actions
@@ -115,6 +195,7 @@ const TableView = ({ type, data, isShiftActive, onEdit, onView, onDelete, isLoad
 
   return (
     <div className="table-container">
+      {withOverview && !isLoading && <DateOverview data={data} selected={day} onSelect={selectDay} />}
       <table className="data-table">
         <thead>
           <tr>
@@ -142,7 +223,7 @@ const TableView = ({ type, data, isShiftActive, onEdit, onView, onDelete, isLoad
             </tr>
           ) : (
             // Pass the index in the full list so Edit/Delete still target the right record
-            pageRows.map((entry, i) => renderRow(entry, start + i))
+            pageRows.map(r => renderRow(r.entry, r.index))
           )}
         </tbody>
       </table>
@@ -167,7 +248,7 @@ const TableView = ({ type, data, isShiftActive, onEdit, onView, onDelete, isLoad
                 type="button"
                 className="tv-page-btn"
                 disabled={page === 1}
-                onClick={() => setPage(p => p - 1)}
+                onClick={() => setPage(page - 1)}
                 aria-label="Previous page"
               >
                 ‹
@@ -191,7 +272,7 @@ const TableView = ({ type, data, isShiftActive, onEdit, onView, onDelete, isLoad
                 type="button"
                 className="tv-page-btn"
                 disabled={page === totalPages}
-                onClick={() => setPage(p => p + 1)}
+                onClick={() => setPage(page + 1)}
                 aria-label="Next page"
               >
                 ›

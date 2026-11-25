@@ -18,6 +18,7 @@ import ProcessDefectSummaryCard from '../ProcessDefectSummaryCard';
 import ManageIcDatesForm from './ManageIcDatesForm';
 import CancelTransaction from './CancelTransaction';
 import ChangeOfferedQty from './ChangeOfferedQty';
+import TemporaryDpChange from './TemporaryDpChange';
 
 export const parseUserFriendlyErrorMessage = (rawErrorMsg) => {
     if (!rawErrorMsg) return 'Failed to save user. Please try again.';
@@ -599,6 +600,15 @@ export const AdminDashboard = () => {
                                     <span>Change Offered Qty</span>
                                 </button>
                             </li>
+                            <li className="nav-item">
+                                <button
+                                    className={`nav-link ${activeModule === 'dp-change' ? 'active' : ''}`}
+                                    onClick={() => handleModuleSelect('dp-change')}
+                                >
+                                    <i className="fa-solid fa-calendar-plus nav-ico" aria-hidden="true"></i>
+                                    <span>Temporary DP Change</span>
+                                </button>
+                            </li>
                         </>
                     )}
 
@@ -627,6 +637,7 @@ export const AdminDashboard = () => {
                         {activeModule === 'ic-dates' && 'IC Date Change'}
                         {activeModule === 'cancel-transaction' && 'Cancel Last Transaction'}
                         {activeModule === 'offered-qty' && 'Change Offered Qty'}
+                        {activeModule === 'dp-change' && 'Temporary DP Change'}
                     </div>
                 </div>
 
@@ -697,6 +708,11 @@ export const AdminDashboard = () => {
                     )}
                     {isSuperAdmin && activeModule === 'offered-qty' && (
                         <ChangeOfferedQty
+                            onNotify={(msg, severity) => setSnackbar({ open: true, message: msg, severity: severity || 'info' })}
+                        />
+                    )}
+                    {isSuperAdmin && activeModule === 'dp-change' && (
+                        <TemporaryDpChange
                             onNotify={(msg, severity) => setSnackbar({ open: true, message: msg, severity: severity || 'info' })}
                         />
                     )}

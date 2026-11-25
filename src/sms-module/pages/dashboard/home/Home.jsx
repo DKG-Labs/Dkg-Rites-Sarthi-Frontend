@@ -62,7 +62,15 @@ const Home = () => {
   // Filter duty tabs based on user permissions
   // role-allowed modules + every module still "Under Development" (shown dimmed, not openable)
   const allowedIds = new Set(filterByPermissions(dutyItemTabs, userType).map(t => t.id));
-  const filteredTabs = dutyItemTabs.filter(t => allowedIds.has(t.id) || (t.permission && isUnderDevelopment(t.permission)));
+  // Rail Analyst is reports-only: no duty cards (not even the "Under Development" ones)
+  const isAnalyst = userType === 'RAIL_ANALYST';
+  const filteredTabs = isAnalyst ? [] : dutyItemTabs.filter(t => allowedIds.has(t.id) || (t.permission && isUnderDevelopment(t.permission)));
+  const reportTabs = [
+    { id: 'rec-sms-summary', title: 'SMS Summary', icon: <LineChartOutlined />, link: '/sms/record/sms/summary' },
+    { id: 'rec-sms-heats', title: 'SMS Heats', icon: <FileTextOutlined />, link: '/sms/record/sms/heat' },
+    { id: 'iso-sms', title: 'ISO Reports - SMS', icon: <ProfileOutlined />, link: '/sms/iso/sms?tab=0' },
+    { id: 'iso-rolling', title: 'ISO Reports - Rolling', icon: <ProfileOutlined />, link: '/sms/iso/rolling' },
+  ];
 
   // Check if any blockable duty is currently active (excludes QCT and Calibration)
   const getActiveDuty = () => {
@@ -236,8 +244,27 @@ const Home = () => {
         </div>
       </div>
 
+      {/* Reports (Rail Analyst) */}
+      {isAnalyst && (
+        <div style={{ marginBottom: '1.5rem' }}>
+          <div style={{ marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <div style={{ width: '3px', height: '18px', background: '#21808d', borderRadius: '2px' }} />
+            <span style={{ fontSize: '0.875rem', fontWeight: 700, color: '#13343b', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+              Reports
+            </span>
+          </div>
+          <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4">
+            {reportTabs.map(r => (
+              <div key={r.id}>
+                <Tab title={r.title} icon={r.icon} onClick={() => navigate(r.link)} isActive={location.pathname === r.link.split('?')[0]} />
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Duty Modules Cards Grid */}
-      <div style={{ marginBottom: '1.5rem' }}>
+      {!isAnalyst && <div style={{ marginBottom: '1.5rem' }}>
         <div style={{ marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
           <div style={{ width: '3px', height: '18px', background: '#21808d', borderRadius: '2px' }} />
           <span style={{ fontSize: '0.875rem', fontWeight: 700, color: '#13343b', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
@@ -254,7 +281,7 @@ const Home = () => {
             <p>No duty modules available for your role.</p>
           </div>
         )}
-      </div>
+      </div>}
 
       {/* Dashboard Overview Section */}
       <div style={{ marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
@@ -274,7 +301,9 @@ const Home = () => {
       >
         <p style={{ fontSize: '0.875rem', color: '#626c71', margin: 0, lineHeight: 1.7 }}>
           Welcome to the <strong style={{ color: '#13343b' }}>RITES Quality Assurance System</strong>.
-          {(userType === 'LOCAL_ADMIN' || userType === 'MAIN_ADMIN')
+          {isAnalyst
+            ? ' Use the report cards above or the Record and ISO Reports menus to view the rail-mill reports.'
+            : (userType === 'LOCAL_ADMIN' || userType === 'MAIN_ADMIN')
             ? ' Use the quick access cards above or the navigation menu to access different modules based on your role permissions.'
             : ' Use the duty cards above or the navigation menu to access different modules based on your role permissions.'
           }

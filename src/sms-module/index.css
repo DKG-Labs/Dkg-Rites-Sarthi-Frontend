@@ -1177,7 +1177,9 @@ textarea.ant-input {
   border-color: var(--teal-primary);
   color: var(--teal-primary);
   background: var(--teal-light);
-  transform: translateY(-1px);
+  /* keep the vertical centring (-translate-y-1/2 on the button) and lift 1px; a plain translateY(-1px)
+     replaced the centring and made the button drop half its height on hover */
+  transform: translateY(calc(-50% - 1px));
   box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.08);
 }
 

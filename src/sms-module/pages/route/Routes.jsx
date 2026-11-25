@@ -1,6 +1,6 @@
 /* eslint-disable */
 import React from "react";
-import { Route, Routes } from "react-router-dom";
+import { Navigate, Route, Routes } from "react-router-dom";
 import Dashboard from "../dashboard/Dashboard";
 import PrivateRoutes from "./PrivateRoutes";
 import RoleBasedRoute from "./RoleBasedRoute";
@@ -62,7 +62,6 @@ import RollingControlSample from "../dashboard/duty/stage/rollingStage/rollingCo
 import RollingVerification from "../dashboard/duty/stage/rollingVerification/RollingVerification";
 import FinishingVerification from "../dashboard/duty/stage/finishingVerification/FinishingVerification";
 import SmsRecord from "../dashboard/records/SmsRecord";
-import SmsRecordMain from "../dashboard/records/SmsRecordMain";
 import SmsHeatReport from "../dashboard/records/SmsHeatReport";
 import NdtReport from "../dashboard/records/NdtReport";
 import ShiftSummary from "../dashboard/duty/ndt/shiftSummary/ShiftSummary";
@@ -138,7 +137,8 @@ const RoutesComponent = () => {
 
             {/* Records - Available for MANAGER, LOCAL_ADMIN, MAIN_ADMIN */}
             <Route element={<RoleBasedRoute requiredPermission="records" />}>
-              <Route path="record/sms" element={<SmsRecordMain />} />
+              {/* SMS Records card page removed: the menu links straight to Summary / Heats */}
+              <Route path="record/sms" element={<Navigate to="/sms/record/sms/summary" replace />} />
               <Route path="record/sms/summary" element={<SmsRecord />} />
               <Route path="record/sms/heat" element={<SmsHeatReport />} />
               <Route path="record/ndt" element={<NdtReport />} />

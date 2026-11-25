@@ -32,8 +32,13 @@ const authSlice = createSlice({
             
             // Map roleName to userType for SMS module permissions
             const roles = action.payload.roleName || [];
-            if (roles.includes("R Process IE") || roles.includes("Rail SMS") || roles.includes("IE") || roles.includes("Process IE")) {
+            // rail-mill roles: R Main IE (all stages), R Process IE, R Analyst (reports only)
+            if (roles.includes("R Main IE")) {
+                state.userType = "RAIL_MAIN_IE";
+            } else if (roles.includes("R Process IE") || roles.includes("Rail SMS") || roles.includes("IE") || roles.includes("Process IE")) {
                 state.userType = "INSPECTING_ENGINEER";
+            } else if (roles.includes("R Analyst")) {
+                state.userType = "RAIL_ANALYST";     // reports only
             } else if (roles.includes("Rites Admin") || roles.includes("MAIN_ADMIN")) {
                 state.userType = "MAIN_ADMIN";
             } else if (roles.includes("LOCAL_ADMIN")) {

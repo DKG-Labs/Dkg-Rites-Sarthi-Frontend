@@ -9,7 +9,6 @@ import CustomDatePicker from "../../../components/DKG_CustomDatePicker";
 import Btn from "../../../components/DKG_Btn";
 import SubHeader from "../../../components/DKG_SubHeader";
 import FormDropdownItem from "../../../components/DKG_FormDropdownItem";
-import QuickAccess from "../../../components/DKG_QuickAccess";
 
 const shiftList = [
     {
@@ -237,8 +236,7 @@ const SmsHeatReport = () => {
 
   return (
     <div className="flex flex-col gap-4 md:gap-2 bg-white p-4 w-full min-h-screen">
-      <QuickAccess />
-      <SubHeader title="SMS Heat Summary" link="/record/sms" />
+      <SubHeader title="SMS Heat Summary" link="/sms/" />
 
       <div className="mt-4 border border-darkBlueHover p-2 py-4">
         <div>

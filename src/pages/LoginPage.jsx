@@ -418,6 +418,14 @@ const LoginPage = () => {
           label = 'Rail Process IE Dashboard';
           description = 'Access Rail Process IE platform';
           icon = '🛤️';
+        } else if (r === 'R Main IE') {
+          label = 'Rail Main IE Dashboard';
+          description = 'Access Rail Main IE platform';
+          icon = '🛤️';
+        } else if (r === 'R Analyst') {
+          label = 'Rail Analyst Dashboard';
+          description = 'View rail-mill reports (SMS records and ISO reports)';
+          icon = '📊';
         } else if (r === 'Complaint Cell') {
           label = 'Complaint Cell Dashboard';
           description = 'UDM / IMMS consignee rejections — forward to CM or close';

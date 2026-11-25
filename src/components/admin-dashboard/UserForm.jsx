@@ -1104,7 +1104,9 @@ export const UserForm = ({ user, roles = [], rolesLoading = false, existingUsers
         'Rail Main IE': 'Railpad Main IE',
         'Rail Process IE': 'Railpad Process IE',
         'R Process IE': 'Rail Process IE',
-        'Rail SMS': 'Rail Process IE'
+        'Rail SMS': 'Rail Process IE',
+        'R Main IE': 'Rail Main IE',
+        'R Analyst': 'Rail Analyst'
     };
 
     return (

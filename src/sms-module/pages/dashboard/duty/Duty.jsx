@@ -51,7 +51,9 @@ const Duty = () => {
   // Filter duty tabs based on user permissions
   // role-allowed modules + every module still "Under Development" (shown dimmed, not openable)
   const allowedIds = new Set(filterByPermissions(dutyItemTabs, userType).map(t => t.id));
-  const filteredTabs = dutyItemTabs.filter(t => allowedIds.has(t.id) || (t.permission && isUnderDevelopment(t.permission)));
+  // Rail Analyst is reports-only: no duty cards
+  const filteredTabs = userType === 'RAIL_ANALYST' ? []
+    : dutyItemTabs.filter(t => allowedIds.has(t.id) || (t.permission && isUnderDevelopment(t.permission)));
 
   // Check if any blockable duty is currently active (excludes QCT and Calibration)
   const getActiveDuty = () => {

@@ -9,6 +9,7 @@ const TableComponent = ({
   dataSource,
   hideExport,
   hideManageColumns,
+  loading = false,   // optional spinner while the parent loads data
 }) => {
   const [hiddenColumns, setHiddenColumns] = useState([]);
   const [searchText, setSearchText] = useState({});
@@ -116,17 +117,22 @@ const TableComponent = ({
           </Checkbox>
         ),
       })),
-      { type: "divider" },
-      {
-        key: "__ok",
-        label: (
-          <Button type="primary" onClick={() => setColumnDropdownVisible(false)} block>
-            OK
-          </Button>
-        ),
-      },
     ],
   };
+  // Long column lists scroll inside the menu; OK stays visible at the bottom
+  const renderColumnMenu = (menu) => (
+    <div style={{ background: "#fff", borderRadius: 10, boxShadow: "0 10px 30px rgba(15,23,42,0.10)", overflow: "hidden" }}>
+      <div style={{ maxHeight: 280, overflowY: "auto" }}>
+        {React.cloneElement(menu, { style: { boxShadow: "none" } })}
+      </div>
+      <div style={{ padding: 8, borderTop: "1px solid #e2e8f0" }}>
+        <Button onClick={() => setColumnDropdownVisible(false)} block
+          style={{ height: 36, background: "#21808d", borderColor: "#21808d", color: "#fff", fontWeight: 600 }}>
+          OK
+        </Button>
+      </div>
+    </div>
+  );
 
   useEffect(() => {
     setFilteredData(dataSource);
@@ -141,9 +147,13 @@ const TableComponent = ({
             {!hideManageColumns && (
               <Dropdown
                 menu={columnOptions}
+                popupRender={renderColumnMenu}
+                placement="bottomRight"
+                autoAdjustOverflow={false}   // always open below the button (the list scrolls inside)
                 trigger={["click"]}
                 open={columnDropdownVisible}
-                onOpenChange={(open) => setColumnDropdownVisible(open)}
+                // ticking a column must not close the list: close only on OK or a click outside
+                onOpenChange={(open, info) => { if (open || info?.source !== "menu") setColumnDropdownVisible(open); }}
               >
                 <Button>
                   Manage Columns <DownOutlined />
@@ -166,6 +176,7 @@ const TableComponent = ({
         columns={enhancedColumns}
         scroll={{ x: true }}
         pagination={true}
+        loading={loading}
         rowKey={(record) => record.id || record.key || JSON.stringify(record)}
         bordered
       />

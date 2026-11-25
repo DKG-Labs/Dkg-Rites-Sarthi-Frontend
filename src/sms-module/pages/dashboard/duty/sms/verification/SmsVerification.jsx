@@ -1,57 +1,48 @@
 /* eslint-disable */
 import React from "react";
-import { Table } from "antd";
+import { Table, Alert, Button } from "antd";
 import SubHeader from "../../../../../components/DKG_SubHeader";
 import GeneralInfo from "../../../../../components/DKG_GeneralInfo";
 import { useNavigate } from "react-router-dom";
 import Btn from "../../../../../components/DKG_Btn";
-import data from "../../../../../utils/db.json";
 import FormContainer from "../../../../../components/DKG_FormContainer";
+import useSmsShiftHeats, { num } from "../../../../../utils/useSmsShiftHeats";
 
-const { smsVerificationReportData: sampleData, smsGeneralInfo } = data;
-
+// Process verification of the current SMS duty's heats (converter turn-down, degassing, casting)
+const withUnit = (unit) => (v) => (v === null || v === undefined || v === "" ? "-" : `${v} ${unit}`);
 const columns = [
-  {
-    title: "Stage",
-    dataIndex: "stage",
-    key: "stage",
-  },
-  {
-    title: "Cast No.",
-    dataIndex: "castNumber",
-    key: "castNumber",
-  },
-  {
-    title: "Turn Down Temp.",
-    dataIndex: "turnDownTemperature",
-    key: "turnDownTemperature",
-  },
-  {
-    title: "Witnessed / Verified",
-    dataIndex: "witnessedVerified",
-    key: "witnessedVerified",
-  },
+  { title: "S.No.", dataIndex: "serialNumber", key: "serialNumber", width: 70 },
+  { title: "Cast No.", dataIndex: "heatNo", key: "heatNo", fixed: "left" },
+  { title: "Converter - Turn Down Temp.", dataIndex: "turnDownTemp", key: "turnDownTemp", render: withUnit("°C") },
+  { title: "Degassing - Vacuum", dataIndex: "degassingVacuum", key: "degassingVacuum", render: num },
+  { title: "Degassing - Duration", dataIndex: "degassingDuration", key: "degassingDuration", render: withUnit("min") },
+  { title: "Casting Temp.", dataIndex: "castingTemp", key: "castingTemp", render: withUnit("°C") },
+  { title: "Prime / CO / Rejected Blooms", key: "blooms",
+    render: (_, r) => `${num(r.noOfPrimeBlooms)} / ${num(r.noOfCoBlooms)} / ${num(r.noOfRejectedBlooms)}` },
 ];
 
 const SmsVerification = () => {
-  const navigate = useNavigate()
+  const navigate = useNavigate();
+  const { info, rows, loading, error, reload } = useSmsShiftHeats();
   return (
     <FormContainer>
       <SubHeader title="SMS - Verification Report" link="/sms/sms/shiftReports" />
-      <GeneralInfo data={smsGeneralInfo} />
+      <GeneralInfo data={info} />
       <section>
+        {error && (
+          <Alert type="warning" showIcon message={error} className="mb-3"
+            action={<Button size="small" onClick={reload}>Retry</Button>} />
+        )}
         <Table
-          dataSource={sampleData}
+          dataSource={rows}
           columns={columns}
+          loading={loading}
           scroll={{ x: true }}
-          pagination={{
-            pageSize: 5,
-            showSizeChanger: true,
-            pageSizeOptions: ["5", "10", "20"],
-          }}
+          locale={{ emptyText: "No heats recorded in this shift yet." }}
+          pagination={{ pageSize: 5, showSizeChanger: true, pageSizeOptions: ["5", "10", "20"] }}
         />
       </section>
-        <Btn onClick={() => navigate(-1)} className='mx-auto'> Go Back </Btn>
+      <Btn onClick={() => navigate(-1)} className="mx-auto"> Go Back </Btn>
     </FormContainer>
   );
 };

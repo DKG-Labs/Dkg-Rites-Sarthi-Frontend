@@ -1,0 +1,38 @@
+/* SMS Summary record: filter bar (tokens from FRONTEND_DESIGN_RULES.md, teal accent of the rail-mill app) */
+.sms-sum {
+  display: flex; flex-direction: column; gap: 16px;
+  margin-top: 16px; padding: 16px; border: 1px solid #e2e8f0; border-radius: 12px; background: #ffffff;
+}
+
+/* Shift wise / Day wise */
+.sms-sum-toggle { display: inline-flex; align-self: flex-start; padding: 3px; border-radius: 10px; background: #f1f5f9; }
+.sms-sum-toggle button {
+  height: 34px; padding: 0 16px; border: 0; border-radius: 8px; background: transparent;
+  font: inherit; font-size: 14px; font-weight: 600; color: #475569; cursor: pointer;
+}
+.sms-sum-toggle button.on { background: #ffffff; color: #13343b; box-shadow: 0 1px 2px rgba(15, 23, 42, 0.12); }
+.sms-sum-toggle button:focus-visible { outline: 2px solid #21808d; outline-offset: 2px; }
+
+/* Filters: 5 fields + actions on one row on desktop, all 40px high, labels on the same line */
+.sms-sum-filters {
+  display: grid; gap: 12px; align-items: end;
+  grid-template-columns: repeat(5, minmax(0, 1fr)) auto;
+}
+.sms-sum-field { display: flex; flex-direction: column; gap: 6px; min-width: 0; margin: 0; }
+.sms-sum-field > span { font-size: 13px; font-weight: 500; color: #1e293b; white-space: nowrap; }
+.sms-sum-field > span em { color: #dc2626; font-style: normal; }
+.sms-sum-field .ant-picker, .sms-sum-field .ant-select { width: 100%; }
+.sms-sum-actions { display: flex; gap: 8px; }
+.sms-sum-actions .ant-btn { height: 40px; }
+.sms-sum-search.ant-btn-primary { background: #21808d; border-color: #21808d; }
+.sms-sum-search.ant-btn-primary:not(:disabled):hover { background: #1a6b76; border-color: #1a6b76; }
+
+@media (max-width: 1200px) {
+  .sms-sum-filters { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .sms-sum-actions { grid-column: span 3; justify-content: flex-end; }
+}
+@media (max-width: 640px) {
+  .sms-sum-filters { grid-template-columns: 1fr; }
+  .sms-sum-actions { grid-column: auto; }
+  .sms-sum-actions .ant-btn { flex: 1; }
+}

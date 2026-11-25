@@ -1,0 +1,13 @@
+/* SMS Witnessed / Verification ISO report: keep the printed form's layout even when there is no data.
+   Empty table cells otherwise collapse to 0 height and whole sections shrink to a single line. */
+.sms-ver-iso .grid > div:not(.grid):not([class*="col-span-3"]) { min-height: 26px; }
+.sms-ver-iso .grid > div.text-center { display: flex; align-items: center; justify-content: center; }
+@media print {
+  .sms-ver-iso .grid > div:not(.grid):not([class*="col-span-3"]) { min-height: 24px; }
+}
+
+/* Print (A4 portrait set in the print call): form fills the page, rows keep their height, nothing splits */
+@media print {
+  .sms-ver-iso { padding: 0 !important; max-width: 100% !important; aspect-ratio: auto !important; }
+  .sms-ver-iso .grid > div { break-inside: avoid; page-break-inside: avoid; }
+}

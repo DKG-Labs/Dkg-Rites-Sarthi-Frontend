@@ -22,7 +22,7 @@ const WeldTltIso = () => {
 
   const repRef = useRef();
   const handlePrint = useReactToPrint({
-    content: () => repRef.current,
+    contentRef: repRef,   // react-to-print v3
     documentTitle: "sms_chemical_analysis", // Set custom filename
   });
 

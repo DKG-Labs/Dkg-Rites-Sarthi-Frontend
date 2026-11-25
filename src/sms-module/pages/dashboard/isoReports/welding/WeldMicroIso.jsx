@@ -14,7 +14,7 @@ const WeldMicroIso = () => {
 
   const repRef = useRef();
   const handlePrint = useReactToPrint({
-    content: () => repRef.current,
+    contentRef: repRef,   // react-to-print v3
     documentTitle: "welding_micro_iso", // Set custom filename
   });
 

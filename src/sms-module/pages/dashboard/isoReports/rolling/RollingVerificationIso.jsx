@@ -70,7 +70,7 @@ const RollingVerificationIso = () => {
   const repRef = useRef();
 
   const handlePrint = useReactToPrint({
-        content: () => repRef.current,
+        contentRef: repRef,   // react-to-print v3
         documentTitle: "rolling_verification", // Set custom filename
       });
 

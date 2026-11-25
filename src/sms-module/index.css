@@ -1350,6 +1350,13 @@ table * {
 }
 
 @media print {
+  /* Other SARTHI screens print with "body * { visibility: hidden }" + their own area; all CSS is bundled together,
+     so without this the rail-mill report sheet printed as a blank page */
+  .a4-container,
+  .a4-container * {
+    visibility: visible !important;
+  }
+
   .a4-container {
     max-width: 100% !important;
   }

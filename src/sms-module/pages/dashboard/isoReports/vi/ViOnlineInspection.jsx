@@ -118,7 +118,7 @@ const ViOnlineInspection = () => {
 
   const repRef = useRef();
   const handlePrint = useReactToPrint({
-    content: () => repRef.current,
+    contentRef: repRef,   // react-to-print v3
     documentTitle: "vi_online_inspection", // Set custom filename
   });
 

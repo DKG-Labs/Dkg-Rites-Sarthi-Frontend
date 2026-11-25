@@ -69,7 +69,7 @@ const mergeHeatDetails = (data, formData) =>  {
   const repRef = useRef();
 
    const handlePrint = useReactToPrint({
-          content: () => repRef.current,
+          contentRef: repRef,   // react-to-print v3
           documentTitle: "rolling_control", // Set custom filename
         });
   return (

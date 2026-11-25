@@ -5,6 +5,7 @@ import { saveInspectionInitiation } from '../services/vendorInspectionService';
 import { markAsUnderInspection, markAsWithheld } from '../services/callStatusService';
 import { getStoredUser } from '../services/authService';
 import { performTransitionAction } from '../services/workflowService';
+import { getCaseRioMismatch, formatCaseRioError, CaseRioBanner } from '../utils/caseRioCheck';
 import '../styles/inspectionInitiationPage.css';
 
 // Helper to check if call is Process or Final Product (mock mode)
@@ -215,8 +216,14 @@ const InspectionInitiationPage = ({ call, onProceed, onBack, onShiftChange, onSe
   const [showInitiateModal, setShowInitiateModal] = useState(false);
   const [initiateError, setInitiateError] = useState('');
 
+  const rioMismatch = getCaseRioMismatch(call);
+
   // Open call action modal (withheld/cancel)
   const handleOpenCallActionModal = (actionType) => {
+    if (rioMismatch) {
+      alert(formatCaseRioError(rioMismatch));
+      return;
+    }
     setCallActionType(actionType);
     setCallActionReason('');
     setCallActionRemarks('');
@@ -235,6 +242,10 @@ const InspectionInitiationPage = ({ call, onProceed, onBack, onShiftChange, onSe
 
   // Submit call action (withheld/cancel)
   const handleSubmitCallAction = async () => {
+    if (rioMismatch) {
+      setCallActionError(formatCaseRioError(rioMismatch));
+      return;
+    }
     if (!callActionReason) {
       setCallActionError('Please select a reason');
       return;
@@ -339,6 +350,10 @@ const InspectionInitiationPage = ({ call, onProceed, onBack, onShiftChange, onSe
 
   // Open initiate inspection modal
   const handleOpenInitiateModal = () => {
+    if (rioMismatch) {
+      alert(formatCaseRioError(rioMismatch));
+      return;
+    }
     // Check if any required section is not verified
     // Section D verification removed as checkboxes were removed
     const hasValidationErrors =
@@ -366,6 +381,10 @@ const InspectionInitiationPage = ({ call, onProceed, onBack, onShiftChange, onSe
 
   // Submit initiate inspection
   const handleSubmitInitiation = async () => {
+    if (rioMismatch) {
+      setInitiateError(formatCaseRioError(rioMismatch));
+      return;
+    }
     if (!shiftOfInspection) {
       setInitiateError('Please select Shift of Inspection');
       return;
@@ -452,6 +471,8 @@ const InspectionInitiationPage = ({ call, onProceed, onBack, onShiftChange, onSe
         <div className="inspection-page-header__datetime">{currentDateTime}</div>
       </div>
 
+      <CaseRioBanner mismatch={rioMismatch} />
+
       <div className="inspection-form-container">
         <InspectionInitiationFormContent
           call={call}
@@ -471,7 +492,7 @@ const InspectionInitiationPage = ({ call, onProceed, onBack, onShiftChange, onSe
             type="button"
             className="btn btn-warning inspection-action-buttons__btn"
             onClick={() => handleOpenCallActionModal('WITHHELD')}
-            disabled={isSaving}
+            disabled={isSaving || Boolean(rioMismatch)}
           >
             Withheld Call
           </button>
@@ -479,7 +500,7 @@ const InspectionInitiationPage = ({ call, onProceed, onBack, onShiftChange, onSe
             type="button"
             className="btn btn-success inspection-action-buttons__btn"
             onClick={handleOpenInitiateModal}
-            disabled={isSaving}
+            disabled={isSaving || Boolean(rioMismatch)}
           >
             Initiate Inspection
           </button>

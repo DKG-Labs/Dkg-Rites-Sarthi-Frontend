@@ -13,6 +13,8 @@ import Notification from '../components/Notification';
 import { scheduleInspection, rescheduleInspection, getScheduleByCallNo, validateScheduleLimit, MAX_CALLS_PER_DAY } from '../services/scheduleService';
 import { raiseBill, updateBillingStatus, approvePayment, BILLING_STATUS } from '../services/billingService';
 import { getStoredUser } from '../services/authService';
+import { API_BASE_URL } from '../services/apiConfig';
+import { getCaseRioMismatch, formatCaseRioError, ensureIeRioStored } from '../utils/caseRioCheck';
 import { fetchUserPendingCalls, performTransitionAction, clearWorkflowCache, fetchLatestWorkflowTransition } from '../services/workflowService';
 import { markAsScheduled, isCallInitiated, getCallStatusData } from '../services/callStatusService';
 import { fetchCompletedCallsForIC, fetchSignedCallsForIC, fetchClosedCallsForIC, getCurrentUserId } from '../services/workflowApiService';
@@ -30,6 +32,14 @@ const IELandingPage = ({ onStartInspection, onStartMultipleInspections, setSelec
   useEffect(() => {
     document.body.classList.add('ie-landing-white');
     return () => document.body.classList.remove('ie-landing-white');
+  }, []);
+
+  // Ensure IE RIO is loaded into localStorage (backfill from /api/v1/profile if absent)
+  const [, setRioVersion] = useState(0);
+  useEffect(() => {
+    ensureIeRioStored(`${API_BASE_URL}/api/v1/profile`).then((resolvedRio) => {
+      if (resolvedRio) setRioVersion((v) => v + 1);
+    });
   }, []);
 
   // Restore active tab from sessionStorage on page load, fallback to initialTab
@@ -267,8 +277,20 @@ const IELandingPage = ({ onStartInspection, onStartMultipleInspections, setSelec
   ];
 
 
+  const checkCallsRioAllowed = (callsList) => {
+    for (const c of callsList || []) {
+      const mismatch = getCaseRioMismatch(c);
+      if (mismatch) {
+        showNotification(formatCaseRioError(mismatch), 'error');
+        return false;
+      }
+    }
+    return true;
+  };
+
   // Handle schedule button click (first time scheduling)
   const handleSchedule = (call, refreshFn) => {
+    if (!checkCallsRioAllowed([call])) return;
     setSelectedCallLocal(call);
     setSelectedCalls([call]);
     setIsBulkSchedule(false);
@@ -283,6 +305,7 @@ const IELandingPage = ({ onStartInspection, onStartMultipleInspections, setSelec
 
   // Handle reschedule button click - fetch existing schedule data
   const handleReschedule = async (call, refreshFn) => {
+    if (!checkCallsRioAllowed([call])) return;
     setSelectedCallLocal(call);
     setSelectedCalls([call]);
     setIsBulkSchedule(false);
@@ -343,6 +366,7 @@ const IELandingPage = ({ onStartInspection, onStartMultipleInspections, setSelec
   }
 
   const handleBulkSchedule = (calls, options = {}) => {
+    if (!checkCallsRioAllowed(calls)) return;
     const { scheduledCallsWithInfo = [], refreshSchedules } = options;
     setSelectedCalls(calls);
     setAlreadyScheduledCallsInfo(scheduledCallsWithInfo);
@@ -373,8 +397,12 @@ const IELandingPage = ({ onStartInspection, onStartMultipleInspections, setSelec
     const userId = currentUser?.userId || 0;
 
     try {
-      // Validate scheduled date is on or after desired inspection date
+      // Validate scheduled date is on or after desired inspection date & enforce RIO match
       const callsToValidate = isBulkSchedule ? selectedCalls : [selectedCallLocal];
+      if (!checkCallsRioAllowed(callsToValidate)) {
+        setIsSubmitting(false);
+        return;
+      }
       for (const call of callsToValidate) {
         if (call?.desired_inspection_date) {
           const scheduledDateObj = new Date(scheduleDate);
@@ -465,6 +493,7 @@ const IELandingPage = ({ onStartInspection, onStartMultipleInspections, setSelec
 
   // Handle Start/Resume button - routes immediately, validates in background
   const handleStart = (call, scheduleInfo) => {
+    if (!checkCallsRioAllowed([call])) return;
     // console.log('🔍 handleStart called for:', call.call_no);
     // console.log('🔍 Call status:', call.status);
 
@@ -674,6 +703,7 @@ const IELandingPage = ({ onStartInspection, onStartMultipleInspections, setSelec
 
   // Handle Enter Shift Details button - for PAUSE_INSPECTION_RESUME_NEXT_DAY status
   const handleEnterShiftDetails = (call, isResume = false) => {
+    if (!checkCallsRioAllowed([call])) return;
     // console.log('🔍 handleEnterShiftDetails called for:', call.call_no, 'isResume:', isResume);
     // console.log('🔍 Call status:', call.status);
 
@@ -821,6 +851,7 @@ const IELandingPage = ({ onStartInspection, onStartMultipleInspections, setSelec
   */
 
   const handleBulkStart = (calls, scheduleInfo) => {
+    if (!checkCallsRioAllowed(calls)) return;
     const { unscheduledCalls, scheduledCalls, refreshSchedules } = scheduleInfo || {};
 
     // If there are unscheduled calls, show the popup

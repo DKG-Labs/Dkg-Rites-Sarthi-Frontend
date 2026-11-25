@@ -483,7 +483,7 @@ export default function RailpadFinalProductCertificate({ call = {}, onBack, isVi
             mappedData.quantityNowPassedText = savedEdit.quantityNowPassedText || mappedData.quantityNowPassedText;
             mappedData.noOfItemsChecked = savedEdit.noOfItemsChecked || mappedData.noOfItemsChecked;
             mappedData.datesOfInspection = savedEdit.datesOfInspection || mappedData.datesOfInspection;
-            mappedData.dateOfCall = savedEdit.dateOfCall || mappedData.dateOfCall;
+            mappedData.dateOfCall = mappedData.dateOfCall || savedEdit.dateOfCall;
             mappedData.noOfVisits = savedEdit.noOfVisits ?? mappedData.noOfVisits;
             mappedData.trRecDate = savedEdit.trRecDate || mappedData.trRecDate;
             if (savedEdit.sealingPattern && savedEdit.sealingPattern !== HARDCODED_SEAL) {
@@ -580,6 +580,7 @@ export default function RailpadFinalProductCertificate({ call = {}, onBack, isVi
   }, [call]);
 
   const handleFieldChange = (fieldName, value) => {
+    if (fieldName === 'dateOfCall' || fieldName === 'callDate') return;
     setData(prev => ({ ...prev, [fieldName]: value }));
     if (fieldName === 'bookNo' || fieldName === 'setNo') {
       setBookSetValidation({ isValid: null, message: null, isValidating: false });

@@ -9,6 +9,9 @@ import Notification from '../Notification';
 import AnnexureLoader from '../annexures/AnnexureLoader';
 import { NCRGRSP_CATALOG, resolveNcrgrspCatalogKey, normalizeDwg } from './ncrgrspCatalog';
 import { RailpadProcessAnnexureAModal } from './RailpadProcessAnnexureA';
+import CallResultDispatchModal from '../CallResultDispatchModal';
+import PauseInspectionModal from '../PauseInspectionModal';
+import { getCaseRioMismatch, formatCaseRioError, CaseRioBanner } from '../../utils/caseRioCheck';
 import './ProcessInspection.css';
 
 // SVG Icons for clean, modern, zero-dependency rendering
@@ -51,6 +54,20 @@ const RailpadProcessInspectionDashboard = ({ user, call, currentShift, onBack, o
   const [showNcrgrspAckModal, setShowNcrgrspAckModal] = useState(false);
   const [incompleteNcrDrawings, setIncompleteNcrDrawings] = useState([]);
   const [showDailyReportModal, setShowDailyReportModal] = useState(false);
+  const [showCallResultModal, setShowCallResultModal] = useState(false);
+  const [showPauseModal, setShowPauseModal] = useState(false);
+
+  const getCalculatedRailpadProcessSystemStatus = () => {
+    try {
+      const rej = Number(totals?.totalRejected || 0);
+      const acc = Number(totals?.totalAccepted || 0);
+      if (rej === 0) return 'ACCEPTED';
+      if (acc === 0 && rej > 0) return 'REJECTED';
+      return 'PARTIALLY_ACCEPTED';
+    } catch (e) {
+      return 'ACCEPTED';
+    }
+  };
 
   const getDraftKey = () => `process_ic_draft_state_v5_${call.requestId || call.callNo}`;
 
@@ -614,6 +631,11 @@ const RailpadProcessInspectionDashboard = ({ user, call, currentShift, onBack, o
 
   // Save / Finish Execution
   const handleSaveOrFinish = async (actionType) => {
+    const rioMismatch = getCaseRioMismatch(call);
+    if (rioMismatch) {
+      showNotification(formatCaseRioError(rioMismatch), 'error');
+      return;
+    }
     const isFinish = actionType === 'FINISH';
 
     if (Object.keys(selectedBatches).length === 0) {
@@ -666,15 +688,24 @@ const RailpadProcessInspectionDashboard = ({ user, call, currentShift, onBack, o
         }
       }
 
-      setPendingAction(actionType);
-      setShowConfirmModal(true);
+      setShowCallResultModal(true);
+      return;
+    }
+
+    if (actionType === 'PAUSE') {
+      setShowPauseModal(true);
       return;
     }
 
     await executeSaveOrFinish(actionType);
   };
 
-  const executeSaveOrFinish = async (actionType) => {
+  const executeSaveOrFinish = async (actionType, options = {}) => {
+    const rioMismatch = getCaseRioMismatch(call);
+    if (rioMismatch) {
+      showNotification(formatCaseRioError(rioMismatch), 'error');
+      return;
+    }
     const isFinish = actionType === 'FINISH';
     setIsSubmitting(true);
     try {
@@ -817,22 +848,29 @@ const RailpadProcessInspectionDashboard = ({ user, call, currentShift, onBack, o
           workflowTransitionId: call.workflowTransitionId || call.id,
           requestId: call.requestId || call.callNo,
           action: 'FINISH',
+          callResult: options?.callResult || 'ACCEPTED',
+          resultStatus: options?.callResult || 'ACCEPTED',
+          systemStatus: options?.systemStatus || getCalculatedRailpadProcessSystemStatus(),
           fromState: 'PENDING_INSPECTION',
           toState: 'INSPECTION_DONE',
-          remarks: remarks || 'Process Inspection completed',
+          remarks: options?.remarks ? `[Result: ${options?.callResult || 'ACCEPTED'}] ${options.remarks}` : (remarks || 'Process Inspection completed'),
           actionBy: user?.userId || 1,
           role: 'Rail Main IE',
           userName: user?.userName || 'Railpad IE'
         };
         await performTransitionAction(transitionPayload);
+        if (options?.callResult === 'REJECTED') {
+          showNotification('⚠️ Inspection REJECTED: Result dispatched to IBS and vendor blocked.', 'warning');
+        }
       } else if (actionType === 'PAUSE') {
         const transitionPayload = {
           workflowTransitionId: call.workflowTransitionId || call.id,
           requestId: call.requestId || call.callNo,
           action: 'PAUSE',
+          pauseReason: options?.pauseReason || 'Pause for next schedule',
           fromState: 'PENDING_INSPECTION',
           toState: 'PAUSE',
-          remarks: 'Inspection progress paused',
+          remarks: options?.remarks ? `[${options?.pauseReason || 'Pause'}] ${options.remarks}` : 'Inspection progress paused',
           actionBy: user?.userId || 1,
           role: 'Rail Main IE',
           userName: user?.userName || 'Railpad IE'
@@ -898,6 +936,8 @@ const RailpadProcessInspectionDashboard = ({ user, call, currentShift, onBack, o
       {notification.message && (
         <Notification message={notification.message} type={notification.type} onClose={() => setNotification({ message: '', type: 'info' })} />
       )}
+
+      <CaseRioBanner mismatch={getCaseRioMismatch(call)} />
 
       {/* Dashboard Header */}
       <header className="dashboard-header" style={{ padding: '24px 32px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#ffffff', borderBottom: '1px solid #e2e8f0', borderRadius: '12px 12px 0 0' }}>
@@ -2072,6 +2112,28 @@ const RailpadProcessInspectionDashboard = ({ user, call, currentShift, onBack, o
         onClose={() => setShowDailyReportModal(false)}
         call={call}
         currentShift={currentShift}
+      />
+
+      <PauseInspectionModal
+        isOpen={showPauseModal}
+        onClose={() => setShowPauseModal(false)}
+        onConfirm={({ reason, remarks: pauseRemarks }) => {
+          setShowPauseModal(false);
+          executeSaveOrFinish('PAUSE', { pauseReason: reason, remarks: pauseRemarks });
+        }}
+        isSubmitting={isSubmitting}
+        defaultRemarks={remarks || ''}
+      />
+
+      <CallResultDispatchModal
+        isOpen={showCallResultModal}
+        onClose={() => setShowCallResultModal(false)}
+        systemStatus={getCalculatedRailpadProcessSystemStatus()}
+        isSubmitting={isSubmitting}
+        onConfirm={({ callResult, remarks: finishRemarks }) => {
+          setShowCallResultModal(false);
+          executeSaveOrFinish('FINISH', { callResult, systemStatus: getCalculatedRailpadProcessSystemStatus(), remarks: finishRemarks });
+        }}
       />
     </div>
   );

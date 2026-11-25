@@ -636,6 +636,7 @@ const S = {
 const HIDDEN_DROPDOWN_KEYS = [
   'certificateNo',
   'certificateDate',
+  'dateOfCall',
   'bookNo',
   'setNo',
   'contractRef',

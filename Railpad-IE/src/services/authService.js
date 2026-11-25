@@ -98,7 +98,8 @@ export const storeAuthData = (authData) => {
   }
   localStorage.setItem('userId', authData.userId);
   // RIO of the user (e.g. ERIO): actions are allowed only on calls whose case number starts with its letter
-  localStorage.setItem('rio', authData.rio || '');
+  localStorage.setItem('rio', authData.rio || authData.region || '');
+  localStorage.setItem('rioUserId', String(authData.userId || ''));
   localStorage.setItem('userName', authData.userName);
   const roles = Array.isArray(authData.roleName)
     ? authData.roleName.join(',')
@@ -161,4 +162,7 @@ export const logoutUser = () => {
   localStorage.removeItem('userName');
   localStorage.removeItem('roleName');
   localStorage.removeItem('employeeCode');
+  localStorage.removeItem('rio');
+  localStorage.removeItem('region');
+  localStorage.removeItem('rioUserId');
 };

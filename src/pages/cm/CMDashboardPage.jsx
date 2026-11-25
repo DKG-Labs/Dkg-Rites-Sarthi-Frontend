@@ -8,6 +8,7 @@ import ProfessionalCardSection from '../../components/railway-board/Professional
 import { Level1Row } from '../../components/railway-board/LevelRows';
 import Pagination from '../../components/Pagination';
 import { formatDate, downloadCrisPoDocument } from '../../utils/helpers';
+import { downloadSignedCertificateFile, downloadAnnexureDocument } from '../../services/certificateService';
 
 // Heavy tabs load on demand (smaller first load)
 const CMDiversionApprovalsTab = lazy(() => import('./tabs/CMDiversionApprovalsTab'));
@@ -1085,6 +1086,8 @@ export const CMDashboardPage = ({ isEmbedded = false, activeTabFromProps = null,
   const [approvals, setApprovals] = useState(INITIAL_APPROVALS);
   const [notification, setNotification] = useState(null);
   const [downloadingPo, setDownloadingPo] = useState(null);
+  const [callDocsModal, setCallDocsModal] = useState(null);
+  const [downloadingDocKey, setDownloadingDocKey] = useState(null);
 
   const handleOpenCallDetailsModal = (ieName, type, callsList) => {
     setCallPopupData({
@@ -1195,7 +1198,14 @@ export const CMDashboardPage = ({ isEmbedded = false, activeTabFromProps = null,
           // Use the raw status coming directly from the API
           status: item.status || 'Pending',
           subStatus: '',
-          docs: { ic: false, po: !!item.poNumber, itp: false, annexure: false, calibration: false },
+          hasIc: Boolean(item.hasIc),
+          icNumber: item.icNumber || '',
+          annexureCount: Number(item.annexureCount || 0),
+          docs: {
+            ic: Boolean(item.hasIc),
+            po: Boolean(item.pdfPath || item.poPdfPath || item.poNumber),
+            annexure: Number(item.annexureCount || 0) > 0,
+          },
           inspectionStartDate: '',
           inspectionCompletionDate: ''
         });
@@ -1505,29 +1515,76 @@ export const CMDashboardPage = ({ isEmbedded = false, activeTabFromProps = null,
 
   // Sort Call list
   const sortedCalls = useMemo(() => {
+    const parseDateMs = (val) => {
+      if (!val || val === '-' || val === 'N/A') return null;
+      const str = String(val).trim();
+      const dmy = str.match(/^(\d{2})[-/](\d{2})[-/](\d{4})/);
+      if (dmy) {
+        return Date.UTC(Number(dmy[3]), Number(dmy[2]) - 1, Number(dmy[1]));
+      }
+      const ms = Date.parse(str);
+      return Number.isNaN(ms) ? null : ms;
+    };
+
+    const compareDates = (d1, d2) => {
+      const msA = parseDateMs(d1);
+      const msB = parseDateMs(d2);
+      if (msA === null && msB === null) return 0;
+      if (msA === null) return 1;
+      if (msB === null) return -1;
+      return sortDirection === 'asc' ? msA - msB : msB - msA;
+    };
+
+    const compareStrings = (s1, s2) => {
+      const strA = String(s1 ?? '').trim();
+      const strB = String(s2 ?? '').trim();
+      if (!strA && !strB) return 0;
+      if (!strA) return 1;
+      if (!strB) return -1;
+      return sortDirection === 'asc'
+        ? strA.localeCompare(strB, undefined, { numeric: true, sensitivity: 'base' })
+        : strB.localeCompare(strA, undefined, { numeric: true, sensitivity: 'base' });
+    };
+
+    const docSortValue = (call) => {
+      const parts = [];
+      if (call?.docs?.po) parts.push('PO');
+      if (call?.docs?.ic) parts.push('IC');
+      const annexCount = Number(call?.annexureCount || (call?.docs?.annexure ? 1 : 0));
+      if (annexCount > 0) parts.push(`ANNEXURE-${annexCount}`);
+      const count = (call?.docs?.po ? 1 : 0) + (call?.docs?.ic ? 1 : 0) + annexCount;
+      return { count, names: parts.join(',') };
+    };
+
     const sorted = [...filteredCalls];
     sorted.sort((a, b) => {
-      let valA = a[sortField];
-      let valB = b[sortField];
-
-      // Handle nested values or custom mappings
+      if (sortField === 'dpDate') {
+        const primary = compareDates(a.dpDate, b.dpDate);
+        return primary !== 0 ? primary : compareDates(a.extDpDate, b.extDpDate);
+      }
+      if (sortField === 'desiredInspectionDate') {
+        const primary = compareDates(a.desiredInspectionDate, b.desiredInspectionDate);
+        return primary !== 0 ? primary : compareDates(a.callDate, b.callDate);
+      }
+      if (sortField === 'callDate') {
+        return compareDates(a.callDate, b.callDate);
+      }
       if (sortField === 'status') {
-        valA = `${a.status}-${a.subStatus}`;
-        valB = `${b.status}-${b.subStatus}`;
+        return compareStrings(
+          a.subStatus ? `${a.status || ''}-${a.subStatus}` : (a.status || ''),
+          b.subStatus ? `${b.status || ''}-${b.subStatus}` : (b.status || '')
+        );
       }
-
-      if (valA === undefined || valA === null) return 1;
-      if (valB === undefined || valB === null) return -1;
-
-      if (typeof valA === 'string') {
-        return sortDirection === 'asc'
-          ? valA.localeCompare(valB)
-          : valB.localeCompare(valA);
-      } else {
-        return sortDirection === 'asc'
-          ? valA - valB
-          : valB - valA;
+      if (sortField === 'documents') {
+        const docA = docSortValue(a);
+        const docB = docSortValue(b);
+        if (docA.count !== docB.count) {
+          return sortDirection === 'asc' ? docA.count - docB.count : docB.count - docA.count;
+        }
+        const byNames = compareStrings(docA.names, docB.names);
+        return byNames !== 0 ? byNames : compareStrings(a.callNumber, b.callNumber);
       }
+      return compareStrings(a[sortField], b[sortField]);
     });
     return sorted;
   }, [filteredCalls, sortField, sortDirection]);
@@ -1611,22 +1668,97 @@ export const CMDashboardPage = ({ isEmbedded = false, activeTabFromProps = null,
     }, 800);
   };
 
-  // Handle downloading all available documents as one consolidated package
-  const handleDownloadAllDocs = (callNumber, docs) => {
-    const availableDocs = Object.entries(docs || {})
-      .filter(([_, val]) => val)
-      .map(([key, _]) => key.toUpperCase());
+  // Open Call Documents modal backed by DB tables (po_header, certificate_storage, IC_ANNEXURE_DOCUMENT)
+  const handleOpenDocsModal = async (call) => {
+    if (!call) return;
+    setCallDocsModal({ call, loading: true, error: null, data: null });
+    try {
+      const res = await reportService.getCmCallDocuments(call.callNumber, call.poNumber);
+      const docData = res?.responseData || res || null;
+      setCallDocsModal(prev =>
+        prev && prev.call?.callNumber === call.callNumber
+          ? { ...prev, loading: false, data: docData, error: null }
+          : prev
+      );
+    } catch (err) {
+      setCallDocsModal(prev =>
+        prev && prev.call?.callNumber === call.callNumber
+          ? { ...prev, loading: false, error: err.message || 'Failed to load DB documents for this call.' }
+          : prev
+      );
+    }
+  };
 
-    if (availableDocs.length === 0) {
-      triggerNotification(`No documents available for ${callNumber}.`, 'warning');
+  const handleDownloadIcDoc = async (icNumber, { openInTab = false } = {}) => {
+    if (!icNumber) return;
+    const key = `ic:${icNumber}:${openInTab ? 'view' : 'dl'}`;
+    setDownloadingDocKey(key);
+    try {
+      await downloadSignedCertificateFile(icNumber, { openInTab });
+      triggerNotification(`${openInTab ? 'Opened' : 'Downloaded'} Signed IC (${icNumber}).`, 'success');
+    } catch (err) {
+      triggerNotification(err.message || `Failed to fetch Signed IC (${icNumber}).`, 'error');
+    } finally {
+      setDownloadingDocKey(null);
+    }
+  };
+
+  const handleDownloadAnnexureDoc = async (annex, { openInTab = false } = {}) => {
+    if (!annex?.id) return;
+    const key = `anx:${annex.id}:${openInTab ? 'view' : 'dl'}`;
+    setDownloadingDocKey(key);
+    try {
+      await downloadAnnexureDocument(annex.id, annex.fileName, { openInTab });
+      triggerNotification(`${openInTab ? 'Opened' : 'Downloaded'} Annexure (${annex.fileName || annex.id}).`, 'success');
+    } catch (err) {
+      triggerNotification(err.message || 'Failed to fetch Annexure document.', 'error');
+    } finally {
+      setDownloadingDocKey(null);
+    }
+  };
+
+  const handleDownloadAllCallDocs = async (call, docData) => {
+    const callNo = docData?.callNumber || call?.callNumber;
+    const poInfo = docData?.po || {};
+    const icInfo = docData?.ic || {};
+    const annexures = Array.isArray(docData?.annexures) ? docData.annexures : [];
+
+    const hasPo = Boolean(poInfo.poNumber || call?.poNumber);
+    const icNumber = icInfo.available ? icInfo.icNumber : (call?.hasIc ? call?.icNumber : null);
+
+    if (!hasPo && !icNumber && annexures.length === 0) {
+      triggerNotification(`No documents available in database for ${callNo}.`, 'warning');
       return;
     }
 
-    triggerNotification(`Downloading all documents (${availableDocs.join(', ')}) as one package for ${callNumber}...`, 'info');
-
-    setTimeout(() => {
-      triggerNotification(`All documents for ${callNumber} downloaded as one package successfully!`, 'success');
-    }, 1000);
+    setDownloadingDocKey(`all:${callNo}`);
+    let downloadedCount = 0;
+    try {
+      if (hasPo) {
+        await downloadCrisPoDocument(
+          poInfo.poNumber || call?.poNumber,
+          poInfo.pdfPath || call?.pdfPath || '',
+          setDownloadingPo,
+          triggerNotification
+        );
+        downloadedCount += 1;
+      }
+      if (icNumber) {
+        await downloadSignedCertificateFile(icNumber, { openInTab: false });
+        downloadedCount += 1;
+      }
+      for (const annex of annexures) {
+        if (annex?.id) {
+          await downloadAnnexureDocument(annex.id, annex.fileName, { openInTab: false });
+          downloadedCount += 1;
+        }
+      }
+      triggerNotification(`Downloaded ${downloadedCount} document(s) for ${callNo}.`, 'success');
+    } catch (err) {
+      triggerNotification(err.message || `Error while downloading documents for ${callNo}.`, 'error');
+    } finally {
+      setDownloadingDocKey(null);
+    }
   };
 
   // Handle header sorting click
@@ -1637,6 +1769,18 @@ export const CMDashboardPage = ({ isEmbedded = false, activeTabFromProps = null,
       setSortField(field);
       setSortDirection('asc');
     }
+    setCurrentPage(1);
+  };
+
+  const renderCallSortIcon = (field) => {
+    if (sortField !== field) {
+      return <span style={{ opacity: 0.45, marginLeft: '5px', fontSize: '11px' }}>↕</span>;
+    }
+    return (
+      <span style={{ marginLeft: '5px', color: '#86efac', fontSize: '11px' }}>
+        {sortDirection === 'asc' ? '▲' : '▼'}
+      </span>
+    );
   };
 
   // Switch to specific Call Monitoring subsection
@@ -3171,18 +3315,33 @@ export const CMDashboardPage = ({ isEmbedded = false, activeTabFromProps = null,
                 <table className="cm-table">
                   <thead>
                     <tr>
-                      <th className="sortable" style={{ whiteSpace: 'nowrap' }} onClick={() => handleSort('callNumber')}>Call Number</th>
-                      <th className="sortable" onClick={() => handleSort('product')}>Product & Stage of Inspection</th>
-                      <th className="sortable" onClick={() => handleSort('poNumber')}>PO Number</th>
-                      <th className="sortable" style={{ minWidth: '130px' }} onClick={() => handleSort('dpDate')}>DP Date & EXT DP Date</th>
-                      <th className="sortable" onClick={() => handleSort('vendorName')}>Vendor Name</th>
-                      <th className="sortable" style={{ minWidth: '120px' }} onClick={() => handleSort('desiredInspectionDate')}>Inspection Desired Date</th>
-                      <th className="sortable" style={{ minWidth: '100px' }} onClick={() => handleSort('callDate')}>Call Date</th>
-                      <th className="sortable" onClick={() => handleSort('ieName')}>IE Name</th>
-                      <th>CM Name</th>
-                      <th className="sortable" onClick={() => handleSort('ritesRio')}>RITES RIO</th>
-                      <th className="sortable" onClick={() => handleSort('status')}>Status</th>
-                      <th>Documents</th>
+                      <th className="sortable" style={{ whiteSpace: 'nowrap' }} onClick={() => handleSort('callNumber')}>
+                        Call Number {renderCallSortIcon('callNumber')}
+                      </th>
+                      <th className="sortable" onClick={() => handleSort('poNumber')}>
+                        PO Number {renderCallSortIcon('poNumber')}
+                      </th>
+                      <th className="sortable" style={{ minWidth: '130px' }} onClick={() => handleSort('dpDate')}>
+                        DP Date &amp; Ext. DP Date {renderCallSortIcon('dpDate')}
+                      </th>
+                      <th className="sortable" onClick={() => handleSort('vendorName')}>
+                        Vendor Name {renderCallSortIcon('vendorName')}
+                      </th>
+                      <th className="sortable" style={{ minWidth: '140px' }} onClick={() => handleSort('desiredInspectionDate')}>
+                        Desired Inspection Date &amp; Call Date {renderCallSortIcon('desiredInspectionDate')}
+                      </th>
+                      <th className="sortable" onClick={() => handleSort('ieName')}>
+                        IE Name {renderCallSortIcon('ieName')}
+                      </th>
+                      <th className="sortable" onClick={() => handleSort('cmName')}>
+                        CM Name {renderCallSortIcon('cmName')}
+                      </th>
+                      <th className="sortable" onClick={() => handleSort('status')}>
+                        Status {renderCallSortIcon('status')}
+                      </th>
+                      <th className="sortable" onClick={() => handleSort('documents')}>
+                        Documents {renderCallSortIcon('documents')}
+                      </th>
                     </tr>
                   </thead>
                   <tbody>
@@ -3190,15 +3349,15 @@ export const CMDashboardPage = ({ isEmbedded = false, activeTabFromProps = null,
                       // Skeleton rows while the first load is in progress (instead of "No matching calls")
                       Array.from({ length: 6 }).map((_, i) => (
                         <tr key={`sk-${i}`} className="cm-skeleton-row">
-                          <td colSpan="12"><span className="cm-skeleton cm-skeleton-line" /></td>
+                          <td colSpan="9"><span className="cm-skeleton cm-skeleton-line" /></td>
                         </tr>
                       ))
                     ) : paginatedCalls.length > 0 ? (
                       paginatedCalls.flatMap((call) => {
                         const ies = call.ieName ? call.ieName.split(',').map(ie => ie.trim()) : ['Unassigned'];
                         return ies.map((singleIeName, ieIndex) => {
-                          // Concatenated status is formatted exactly as `${call.status}-${call.subStatus}` (e.g. Pending-Raised)
-                          const concatenatedStatus = `${call.status}-${call.subStatus}`;
+                          // Concatenated status is formatted cleanly without a trailing hyphen when subStatus is blank
+                          const concatenatedStatus = call.subStatus ? `${call.status}-${call.subStatus}` : call.status;
 
                           let statusColor = '#3b82f6';
                           let statusBg = 'rgba(59, 130, 246, 0.1)';
@@ -3220,16 +3379,13 @@ export const CMDashboardPage = ({ isEmbedded = false, activeTabFromProps = null,
 
                           return (
                             <tr key={`${call.id}-${ieIndex}`} style={{ background: overdueFlag ? '#fef2f2' : '' }}>
-                              {/* Call Number */}
+                              {/* 1. Call Number */}
                               <td style={{ fontWeight: 'bold', whiteSpace: 'nowrap' }}>
                                 {call.callNumber}
                                 {overdueFlag && <span style={{ color: '#ef4444', marginLeft: '4px' }} title="Overdue Warning">⚠️</span>}
                               </td>
 
-                              {/* Product & Stage of Inspection (eg. ERC- Process, Sleeper- Final…) */}
-                              <td className="wrap-cell">{`${call.product}- ${call.stage}`}</td>
-
-                              {/* PO Number - hyperlink to download PO */}
+                              {/* 2. PO Number - hyperlink to download PO */}
                               <td className="wrap-cell">
                                 <button
                                   type="button"
@@ -3267,31 +3423,28 @@ export const CMDashboardPage = ({ isEmbedded = false, activeTabFromProps = null,
                                 </button>
                               </td>
 
-                              {/* DP Date & Ext DP Date */}
-                              <td className="wrap-cell">
+                              {/* 3. DP Date & Ext. DP Date */}
+                              <td className="wrap-cell cm-stacked-date-cell">
                                 <div>{formatDate(call.dpDate)}</div>
                                 {call.extDpDate && <div style={{ fontSize: '11px', color: '#4b6b4b' }}>({formatDate(call.extDpDate)})</div>}
                               </td>
 
-                              {/* Vendor Name */}
+                              {/* 4. Vendor Name */}
                               <td className="vendor-cell">{call.vendorName}</td>
 
-                              {/* Inspection Desired Date */}
-                              <td style={{ whiteSpace: 'nowrap' }}>{formatDate(call.desiredInspectionDate)}</td>
+                              {/* 5. Desired Inspection Date & Call Date */}
+                              <td className="wrap-cell cm-stacked-date-cell">
+                                <div>{formatDate(call.desiredInspectionDate)}</div>
+                                {call.callDate && <div style={{ fontSize: '11px', color: '#4b6b4b' }}>({formatDate(call.callDate)})</div>}
+                              </td>
 
-                              {/* Call Date */}
-                              <td style={{ whiteSpace: 'nowrap' }}>{formatDate(call.callDate)}</td>
-
-                              {/* IE Name */}
+                              {/* 6. IE Name */}
                               <td className="wrap-cell">{singleIeName}</td>
 
-                              {/* CM Name */}
+                              {/* 7. CM Name */}
                               <td className="wrap-cell">{call.cmName}</td>
 
-                              {/* RITES RIO */}
-                              <td>{call.ritesRio}</td>
-
-                              {/* Concatenated Status */}
+                              {/* 8. Status */}
                               <td>
                                 <span
                                   className="cm-status-badge"
@@ -3301,28 +3454,54 @@ export const CMDashboardPage = ({ isEmbedded = false, activeTabFromProps = null,
                                 </span>
                               </td>
 
-                              {/* Documents (Download single pdf sequence) */}
+                              {/* 9. Documents (Real DB documents: PO, Signed IC, Annexures) */}
                               <td>
-                                <div className="cm-doc-download-bar" style={{ justifyContent: 'center' }}>
-                                  <button
-                                    className="cm-doc-link"
-                                    title="Download all documents as one PDF"
-                                    onClick={() => handleDownloadAllDocs(call.callNumber, call.docs)}
-                                    style={{
-                                      display: 'inline-flex',
-                                      alignItems: 'center',
-                                      justifyContent: 'center',
-                                      gap: '4px',
-                                      height: '24px',
-                                      padding: '0 8px',
-                                      fontSize: '11px',
-                                      fontWeight: 'bold',
-                                      cursor: 'pointer'
-                                    }}
-                                  >
-                                    <i className="fa-solid fa-download"></i>
-                                  </button>
-                                </div>
+                                {(() => {
+                                  const hasPo = Boolean(call.docs?.po);
+                                  const hasIc = Boolean(call.docs?.ic);
+                                  const annexCount = Number(call.annexureCount || 0);
+                                  const totalDocs = (hasPo ? 1 : 0) + (hasIc ? 1 : 0) + annexCount;
+                                  return (
+                                    <div
+                                      className="cm-doc-download-bar"
+                                      style={{ flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '4px' }}
+                                    >
+                                      <button
+                                        type="button"
+                                        className="cm-doc-link"
+                                        title={totalDocs > 0 ? `View / Download ${totalDocs} document(s)` : 'View Call Documents'}
+                                        onClick={() => handleOpenDocsModal(call)}
+                                        style={{
+                                          display: 'inline-flex',
+                                          alignItems: 'center',
+                                          justifyContent: 'center',
+                                          gap: '4px',
+                                          height: '24px',
+                                          padding: '0 8px',
+                                          fontSize: '11px',
+                                          fontWeight: 'bold',
+                                          cursor: 'pointer'
+                                        }}
+                                      >
+                                        <i className="fa-solid fa-download"></i>
+                                        <span>{totalDocs > 0 ? `(${totalDocs})` : 'Docs'}</span>
+                                      </button>
+                                      {totalDocs > 0 && (
+                                        <div style={{ display: 'flex', gap: '3px', flexWrap: 'wrap', justifyContent: 'center' }}>
+                                          {hasPo && (
+                                            <span style={{ fontSize: '9px', padding: '1px 4px', borderRadius: '4px', background: '#dbeafe', color: '#1e40af', fontWeight: 600 }}>PO</span>
+                                          )}
+                                          {hasIc && (
+                                            <span style={{ fontSize: '9px', padding: '1px 4px', borderRadius: '4px', background: '#dcfce7', color: '#166534', fontWeight: 600 }}>IC</span>
+                                          )}
+                                          {annexCount > 0 && (
+                                            <span style={{ fontSize: '9px', padding: '1px 4px', borderRadius: '4px', background: '#fef3c7', color: '#92400e', fontWeight: 600 }}>Anx {annexCount}</span>
+                                          )}
+                                        </div>
+                                      )}
+                                    </div>
+                                  );
+                                })()}
                               </td>
                             </tr>
                           );
@@ -3330,7 +3509,7 @@ export const CMDashboardPage = ({ isEmbedded = false, activeTabFromProps = null,
                       })
                     ) : (
                       <tr>
-                        <td colSpan="12">
+                        <td colSpan="9">
                           <div className="cm-empty-state">
                             <i className="cm-empty-icon fa-solid fa-folder-open"></i>
                             <h4>No matching inspection calls found</h4>
@@ -4842,6 +5021,193 @@ export const CMDashboardPage = ({ isEmbedded = false, activeTabFromProps = null,
                 className="btn btn--primary"
                 style={{ padding: '8px 20px', fontSize: '12px', fontWeight: 'bold', cursor: 'pointer', borderRadius: '8px' }}
                 onClick={() => setCallPopupData(null)}
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Call Documents Modal (DB-backed PO, Signed IC, Annexures) */}
+      {callDocsModal && (
+        <div className="cm-modal-overlay" onClick={() => setCallDocsModal(null)}>
+          <div
+            className="cm-modal cm-modal-wide"
+            style={{ maxWidth: '720px', width: '95%' }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #cbd5e1', paddingBottom: '12px' }}>
+              <div>
+                <div className="cm-modal-title" style={{ fontSize: '15px', fontWeight: 'bold', color: '#14532d', marginBottom: '2px' }}>
+                  Call Documents — {callDocsModal.call?.callNumber}
+                </div>
+                <div style={{ fontSize: '12px', color: '#475569' }}>
+                  {callDocsModal.call?.vendorName || ''} {callDocsModal.call?.poNumber ? `• PO: ${callDocsModal.call.poNumber}` : ''}
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setCallDocsModal(null)}
+                style={{ background: 'none', border: 'none', fontSize: '18px', color: '#64748b', cursor: 'pointer' }}
+                aria-label="Close"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="cm-modal-content" style={{ marginTop: '14px', display: 'flex', flexDirection: 'column', gap: '12px', maxHeight: '62vh', overflowY: 'auto' }}>
+              {callDocsModal.loading && (
+                <div style={{ padding: '12px', background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '6px', fontSize: '12px', color: '#334155' }}>
+                  <i className="fa-solid fa-spinner fa-spin" style={{ marginRight: '8px' }} />
+                  Fetching live documents from database...
+                </div>
+              )}
+              {callDocsModal.error && (
+                <div style={{ padding: '10px 12px', background: '#fef2f2', border: '1px solid #fecaca', borderRadius: '6px', fontSize: '12px', color: '#991b1b' }}>
+                  {callDocsModal.error}
+                </div>
+              )}
+
+              {(() => {
+                const docData = callDocsModal.data || {};
+                const poInfo = docData.po || {
+                  poNumber: callDocsModal.call?.poNumber,
+                  pdfPath: callDocsModal.call?.pdfPath,
+                  available: Boolean(callDocsModal.call?.pdfPath),
+                };
+                const poNumber = poInfo.poNumber || callDocsModal.call?.poNumber;
+                const poPdfPath = poInfo.pdfPath || callDocsModal.call?.pdfPath || '';
+                const icInfo = docData.ic || {
+                  available: Boolean(callDocsModal.call?.hasIc),
+                  icNumber: callDocsModal.call?.icNumber,
+                };
+                const annexures = Array.isArray(docData.annexures) ? docData.annexures : [];
+
+                return (
+                  <>
+                    {/* 1. Purchase Order Document */}
+                    <div style={{ border: '1px solid #cbd5e1', borderRadius: '8px', padding: '12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px' }}>
+                      <div>
+                        <div style={{ fontSize: '13px', fontWeight: 700, color: '#0f172a' }}>Purchase Order (PO)</div>
+                        <div style={{ fontSize: '11.5px', color: '#475569' }}>
+                          {poNumber ? `PO No: ${poNumber}${poPdfPath ? ' (DB path linked)' : ''}` : 'No PO number linked'}
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        className="btn btn--primary"
+                        disabled={!poNumber || downloadingPo === poNumber}
+                        onClick={() => downloadCrisPoDocument(poNumber, poPdfPath, setDownloadingPo, triggerNotification)}
+                        style={{ padding: '6px 12px', fontSize: '11.5px', opacity: poNumber ? 1 : 0.5, cursor: poNumber ? 'pointer' : 'not-allowed' }}
+                      >
+                        {downloadingPo === poNumber ? 'Downloading...' : 'Download PO'}
+                      </button>
+                    </div>
+
+                    {/* 2. Signed Inspection Certificate (IC) */}
+                    <div style={{ border: '1px solid #cbd5e1', borderRadius: '8px', padding: '12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px' }}>
+                      <div>
+                        <div style={{ fontSize: '13px', fontWeight: 700, color: '#0f172a' }}>Signed Inspection Certificate (IC)</div>
+                        <div style={{ fontSize: '11.5px', color: '#475569' }}>
+                          {icInfo.available && icInfo.icNumber
+                            ? `IC No: ${icInfo.icNumber}${icInfo.icDate ? ` • Date: ${icInfo.icDate}` : ''}`
+                            : 'Not issued / uploaded yet'}
+                        </div>
+                      </div>
+                      {icInfo.available && icInfo.icNumber ? (
+                        <div style={{ display: 'flex', gap: '6px' }}>
+                          <button
+                            type="button"
+                            className="btn btn--outline"
+                            disabled={downloadingDocKey === `ic:${icInfo.icNumber}:view`}
+                            onClick={() => handleDownloadIcDoc(icInfo.icNumber, { openInTab: true })}
+                            style={{ padding: '6px 10px', fontSize: '11.5px', cursor: 'pointer' }}
+                          >
+                            View
+                          </button>
+                          <button
+                            type="button"
+                            className="btn btn--primary"
+                            disabled={downloadingDocKey === `ic:${icInfo.icNumber}:dl`}
+                            onClick={() => handleDownloadIcDoc(icInfo.icNumber, { openInTab: false })}
+                            style={{ padding: '6px 12px', fontSize: '11.5px', cursor: 'pointer' }}
+                          >
+                            Download IC
+                          </button>
+                        </div>
+                      ) : (
+                        <span style={{ fontSize: '11px', color: '#94a3b8', fontWeight: 600 }}>Unavailable</span>
+                      )}
+                    </div>
+
+                    {/* 3. Uploaded Annexures */}
+                    <div style={{ border: '1px solid #cbd5e1', borderRadius: '8px', padding: '12px' }}>
+                      <div style={{ fontSize: '13px', fontWeight: 700, color: '#0f172a', marginBottom: '8px' }}>
+                        IC Annexures ({annexures.length})
+                      </div>
+                      {annexures.length === 0 ? (
+                        <div style={{ fontSize: '11.5px', color: '#64748b' }}>No active annexure documents found in database for this call.</div>
+                      ) : (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                          {annexures.map((anx) => (
+                            <div
+                              key={anx.id}
+                              style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '10px', padding: '8px', background: '#f8fafc', borderRadius: '6px', border: '1px solid #e2e8f0' }}
+                            >
+                              <div style={{ minWidth: 0 }}>
+                                <div style={{ fontSize: '12px', fontWeight: 600, color: '#0f172a', wordBreak: 'break-word' }}>
+                                  {anx.fileName || `Annexure #${anx.id}`}
+                                </div>
+                                <div style={{ fontSize: '11px', color: '#64748b' }}>
+                                  {[anx.moduleType, anx.uploadedBy, anx.uploadedAt ? String(anx.uploadedAt).slice(0, 10) : ''].filter(Boolean).join(' • ')}
+                                </div>
+                              </div>
+                              <div style={{ display: 'flex', gap: '6px', flexShrink: 0 }}>
+                                <button
+                                  type="button"
+                                  className="btn btn--outline"
+                                  disabled={downloadingDocKey === `anx:${anx.id}:view`}
+                                  onClick={() => handleDownloadAnnexureDoc(anx, { openInTab: true })}
+                                  style={{ padding: '5px 10px', fontSize: '11px', cursor: 'pointer' }}
+                                >
+                                  View
+                                </button>
+                                <button
+                                  type="button"
+                                  className="btn btn--primary"
+                                  disabled={downloadingDocKey === `anx:${anx.id}:dl`}
+                                  onClick={() => handleDownloadAnnexureDoc(anx, { openInTab: false })}
+                                  style={{ padding: '5px 10px', fontSize: '11px', cursor: 'pointer' }}
+                                >
+                                  Download
+                                </button>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </>
+                );
+              })()}
+            </div>
+
+            <div className="cm-modal-actions" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '18px', borderTop: '1px solid #f0fdf4', paddingTop: '14px' }}>
+              <button
+                type="button"
+                className="btn btn--primary"
+                disabled={callDocsModal.loading || downloadingDocKey === `all:${callDocsModal.call?.callNumber}`}
+                onClick={() => handleDownloadAllCallDocs(callDocsModal.call, callDocsModal.data)}
+                style={{ padding: '8px 16px', fontSize: '12px', fontWeight: 'bold', cursor: 'pointer', borderRadius: '8px' }}
+              >
+                {downloadingDocKey === `all:${callDocsModal.call?.callNumber}` ? 'Downloading All...' : 'Download All Available'}
+              </button>
+              <button
+                type="button"
+                className="btn btn--outline"
+                style={{ padding: '8px 20px', fontSize: '12px', fontWeight: 'bold', cursor: 'pointer', borderRadius: '8px' }}
+                onClick={() => setCallDocsModal(null)}
               >
                 Close
               </button>

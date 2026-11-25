@@ -2,6 +2,7 @@ import React from 'react';
 import DataTable from './DataTable';
 import StatusBadge from './StatusBadge';
 import { getDisplayStatus as getDisplayStatusFromMapper, getAvailableActions, API_STATUS } from '../utils/statusMapper';
+import { getCaseRioMismatch, CaseRioLockedAction } from '../utils/caseRioCheck';
 
 /**
  * AddNewCallModal Component
@@ -25,6 +26,7 @@ const AddNewCallModal = ({
     const columns = [
         { key: 'call_no', label: 'Call No.' },
         { key: 'po_no', label: 'PO No.' },
+        { key: 'ibsCaseNo', label: 'IBS Case Number', render: (val, row) => val || row?.caseNo || '-' },
         { key: 'vendor_name', label: 'Vendor Name', render: (val) => val || '-' },
         { key: 'product_type', label: 'Product Type', render: (val) => val || '-' },
         {
@@ -38,6 +40,11 @@ const AddNewCallModal = ({
     ];
 
     const rowActions = (row) => {
+        const mismatch = getCaseRioMismatch(row);
+        if (mismatch) {
+            return <CaseRioLockedAction mismatch={mismatch} align="left" />;
+        }
+
         const apiStatus = row.status || API_STATUS.CALL_REGISTERED;
         const availableActions = getAvailableActions(apiStatus);
 

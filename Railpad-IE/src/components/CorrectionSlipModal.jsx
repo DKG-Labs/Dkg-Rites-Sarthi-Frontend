@@ -102,6 +102,7 @@ const getFieldMap = (productType) => {
 const HIDDEN_DROPDOWN_KEYS = [
   'certificateNo',
   'certificateDate',
+  'dateOfCall',
   'bookNo',
   'setNo',
   'contractRef',

@@ -4,6 +4,7 @@ import { getBaseUrl } from '../services/apiConfig';
 import CallCancellationModal from './CallCancellationModal';
 import Notification from './Notification';
 import { generateRailpadCallLetterPDF } from '../utils/generateCallLetterPDF';
+import { getCaseRioMismatch, CaseRioBanner } from '../utils/caseRioCheck';
 
 const PendingCallDetailsModal = ({
   isOpen,
@@ -261,6 +262,8 @@ const PendingCallDetailsModal = ({
             </div>
           </div>
 
+          <CaseRioBanner mismatch={getCaseRioMismatch(call)} />
+
           <h3 style={{ fontSize: '17px', fontWeight: '800', marginBottom: '20px', color: '#0f172a', display: 'flex', alignItems: 'center', gap: '8px' }}>
             <span style={{ color: '#f59e0b' }}>⚡</span> Actions & Documents
           </h3>
@@ -268,12 +271,14 @@ const PendingCallDetailsModal = ({
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0, 1fr))', gap: '16px', alignItems: 'stretch' }}>
             {availableActions.includes('schedule') && (
               <button 
-                onClick={onSchedule} 
+                onClick={onSchedule}
+                disabled={Boolean(getCaseRioMismatch(call))}
                 style={{ 
                   width: '100%', minHeight: '112px', borderRadius: '16px', fontWeight: '800',
-                  background: '#2563eb', color: '#ffffff', border: 'none', cursor: 'pointer',
+                  background: getCaseRioMismatch(call) ? '#94a3b8' : '#2563eb', color: '#ffffff', border: 'none', cursor: getCaseRioMismatch(call) ? 'not-allowed' : 'pointer',
                   fontSize: '14px', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  boxShadow: '0 4px 6px -1px rgba(37, 99, 235, 0.25)', transition: 'all 0.2s'
+                  boxShadow: '0 4px 6px -1px rgba(37, 99, 235, 0.25)', transition: 'all 0.2s',
+                  opacity: getCaseRioMismatch(call) ? 0.65 : 1
                 }}
               >
                 SCHEDULE
@@ -281,12 +286,14 @@ const PendingCallDetailsModal = ({
             )}
             {availableActions.includes('reschedule') && (
               <button 
-                onClick={onReschedule} 
+                onClick={onReschedule}
+                disabled={Boolean(getCaseRioMismatch(call))}
                 style={{ 
                   width: '100%', minHeight: '112px', borderRadius: '16px', fontWeight: '800',
-                  background: '#2563eb', color: '#ffffff', border: 'none', cursor: 'pointer',
+                  background: getCaseRioMismatch(call) ? '#94a3b8' : '#2563eb', color: '#ffffff', border: 'none', cursor: getCaseRioMismatch(call) ? 'not-allowed' : 'pointer',
                   fontSize: '14px', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  boxShadow: '0 4px 6px -1px rgba(37, 99, 235, 0.25)', transition: 'all 0.2s'
+                  boxShadow: '0 4px 6px -1px rgba(37, 99, 235, 0.25)', transition: 'all 0.2s',
+                  opacity: getCaseRioMismatch(call) ? 0.65 : 1
                 }}
               >
                 RESCHEDULE
@@ -294,12 +301,14 @@ const PendingCallDetailsModal = ({
             )}
             {availableActions.includes('start') && (
               <button 
-                onClick={onStart} 
+                onClick={onStart}
+                disabled={Boolean(getCaseRioMismatch(call))}
                 style={{ 
                   width: '100%', minHeight: '112px', borderRadius: '16px', fontWeight: '800',
-                  background: '#2563eb', color: '#ffffff', border: 'none', cursor: 'pointer',
+                  background: getCaseRioMismatch(call) ? '#94a3b8' : '#2563eb', color: '#ffffff', border: 'none', cursor: getCaseRioMismatch(call) ? 'not-allowed' : 'pointer',
                   fontSize: '14px', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  boxShadow: '0 4px 6px -1px rgba(37, 99, 235, 0.25)', transition: 'all 0.2s'
+                  boxShadow: '0 4px 6px -1px rgba(37, 99, 235, 0.25)', transition: 'all 0.2s',
+                  opacity: getCaseRioMismatch(call) ? 0.65 : 1
                 }}
               >
                 START
@@ -307,12 +316,14 @@ const PendingCallDetailsModal = ({
             )}
             {availableActions.includes('resume') && (
               <button 
-                onClick={onResume} 
+                onClick={onResume}
+                disabled={Boolean(getCaseRioMismatch(call))}
                 style={{ 
                   width: '100%', minHeight: '112px', borderRadius: '16px', fontWeight: '800',
-                  background: '#2563eb', color: '#ffffff', border: 'none', cursor: 'pointer',
+                  background: getCaseRioMismatch(call) ? '#94a3b8' : '#2563eb', color: '#ffffff', border: 'none', cursor: getCaseRioMismatch(call) ? 'not-allowed' : 'pointer',
                   fontSize: '14px', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  boxShadow: '0 4px 6px -1px rgba(37, 99, 235, 0.25)', transition: 'all 0.2s'
+                  boxShadow: '0 4px 6px -1px rgba(37, 99, 235, 0.25)', transition: 'all 0.2s',
+                  opacity: getCaseRioMismatch(call) ? 0.65 : 1
                 }}
               >
                 RESUME
@@ -320,12 +331,14 @@ const PendingCallDetailsModal = ({
             )}
             {availableActions.includes('enterShiftDetails') && (
               <button 
-                onClick={onEnterShiftDetails} 
+                onClick={onEnterShiftDetails}
+                disabled={Boolean(getCaseRioMismatch(call))}
                 style={{ 
                   width: '100%', minHeight: '112px', borderRadius: '16px', fontWeight: '800',
-                  background: '#2563eb', color: '#ffffff', border: 'none', cursor: 'pointer',
+                  background: getCaseRioMismatch(call) ? '#94a3b8' : '#2563eb', color: '#ffffff', border: 'none', cursor: getCaseRioMismatch(call) ? 'not-allowed' : 'pointer',
                   fontSize: '14px', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  boxShadow: '0 4px 6px -1px rgba(37, 99, 235, 0.25)', transition: 'all 0.2s'
+                  boxShadow: '0 4px 6px -1px rgba(37, 99, 235, 0.25)', transition: 'all 0.2s',
+                  opacity: getCaseRioMismatch(call) ? 0.65 : 1
                 }}
               >
                 ENTER SHIFT DETAILS
@@ -334,22 +347,24 @@ const PendingCallDetailsModal = ({
 
             {!isCancelled ? (
               <button 
-                onClick={() => setShowCancelModal(true)} 
+                onClick={() => setShowCancelModal(true)}
+                disabled={Boolean(getCaseRioMismatch(call))}
                 style={{ 
                   width: '100%', 
                   minHeight: '112px', 
                   borderRadius: '16px', 
                   fontWeight: '800', 
-                  background: '#ef4444', 
+                  background: getCaseRioMismatch(call) ? '#94a3b8' : '#ef4444', 
                   color: '#ffffff', 
                   border: 'none', 
-                  cursor: 'pointer',
+                  cursor: getCaseRioMismatch(call) ? 'not-allowed' : 'pointer',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
                   fontSize: '14px',
                   boxShadow: '0 4px 6px -1px rgba(239, 68, 68, 0.25)',
-                  transition: 'all 0.2s'
+                  transition: 'all 0.2s',
+                  opacity: getCaseRioMismatch(call) ? 0.65 : 1
                 }}
               >
                 CANCEL CALL

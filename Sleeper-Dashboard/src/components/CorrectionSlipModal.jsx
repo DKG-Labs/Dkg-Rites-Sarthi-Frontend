@@ -54,6 +54,7 @@ const SLEEPER_FIELD_MAP = {
 const HIDDEN_DROPDOWN_KEYS = [
   'certificateNo',
   'certificateDate',
+  'dateOfCall',
   'bookNo',
   'setNo',
 ];

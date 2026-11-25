@@ -116,7 +116,7 @@ const RailpadDiversionApprovals = ({ mode = 'CM' }) => {
                 <td style={s.td}>{r.targetPoNo} / {r.targetPoSrNo}</td>
                 <td style={{ ...s.td, ...s.num }}>{fmtQty(r.totalDiversionQty)} {r.unitOfMeasurement}</td>
                 <td style={s.td}>{r.diversionType === 'COMPLETE' ? 'Complete' : 'Partial'}</td>
-                <td style={s.td}>{r.railwayPermissionNo}<div style={{ color: '#64748b', fontSize: 12 }}>{fmtDate(r.railwayPermissionDate)}</div>
+                <td style={s.td}>{r.railwayPermissionNo}<div style={{ color: '#64748b', fontSize: 12 }}>{fmtDate(r.railwayPermissionDate)}</div>{r.callDate && <div style={{ color: '#0369a1', fontSize: 12 }}>Call Date: {fmtDate(r.callDate)}</div>}
                   <button type="button" style={s.link} onClick={() => openLetter(r.id)}>View</button></td>
                 <td style={s.td}>{STATUS[r.status] || r.status}{r.divertedCallNo && <div style={{ color: '#64748b', fontSize: 12 }}>Call {r.divertedCallNo}</div>}</td>
                 <td style={{ ...s.td, whiteSpace: 'nowrap' }}>

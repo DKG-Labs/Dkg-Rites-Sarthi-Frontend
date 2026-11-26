@@ -190,7 +190,7 @@
   color: #fff !important;
   background: var(--toast-accent);
   box-shadow: 0 6px 14px -6px var(--toast-accent);
-  animation: mic-pop 0.45s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+  animation: mic-pop 0.18s cubic-bezier(0.2, 0, 0, 1) both;   /* rule 1.8: short, no overshoot */
 }
 
 .mic-toast .MuiAlert-icon svg {
@@ -243,8 +243,8 @@
 }
 
 @keyframes mic-pop {
-  from { transform: scale(0.4) rotate(-15deg); opacity: 0; }
-  to { transform: scale(1) rotate(0); opacity: 1; }
+  from { transform: scale(0.95); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
 }
 
 @keyframes mic-countdown {

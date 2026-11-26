@@ -60,6 +60,18 @@ Status colours are only for status (badges, alerts). Never for decoration.
 - Keyboard works: Tab order, Enter to submit, Escape closes modals and menus. Visible focus ring.
 - Contrast at least 4.5:1 for text. Icons that act as buttons have `aria-label`.
 
+### 1.8 Motion
+SARTHI is a work tool: motion should make it feel fast and steady, never playful.
+- **Durations:** dropdowns, menus, popovers, tooltips 150–250 ms. Exits faster than entrances (e.g. 150 ms in, 100 ms out). Nothing over 300 ms on work screens.
+- **Easing:** `ease-out` when something appears, `ease-in-out` when something moves. Use one curve: `cubic-bezier(0.2, 0, 0, 1)`.
+- **Popovers / menus / modals** open from `scale(0.95)` + fade, never from `scale(0)`.
+- **No bounce or overshoot** on everyday UI (buttons, cards, toasts, menus, modals).
+- **Hover:** change colour, border or shadow, not position. Don't move elements on hover (`transform: translateY(...)`): it fights layouts that use `transform` and makes targets jump.
+- **Lists:** staggered row entrance only on cards / dashboards (≤ 30 ms per item), never on data tables.
+- **Not used:** squash & stretch, anticipation, follow-through, motion arcs.
+- **Reduced motion:** honour `prefers-reduced-motion: reduce` (turn animations and transitions off).
+- Existing screens are brought in line when they are changed; no bulk rework.
+
 ---
 
 ## 2. API, security and config
@@ -135,6 +147,7 @@ Status colours are only for status (badges, alerts). Never for decoration.
 - [ ] Dropdowns styled (shared `SelectMenu`), searchable when long; controls aligned at 40px
 - [ ] Loading skeleton, empty state, error with retry, success toast
 - [ ] Works at 375px, keyboard and focus OK
+- [ ] Motion: 150–250 ms, no bounce, no hover movement, reduced-motion respected
 - [ ] No hard-coded base URL; all calls via `services/` and the token interceptor
 - [ ] Pagination / debounce / abort on lists; no per-row API calls
 - [ ] Caching with TTL and invalidation after writes; nothing sensitive stored

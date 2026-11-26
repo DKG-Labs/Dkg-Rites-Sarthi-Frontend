@@ -143,7 +143,7 @@ const VerifiedOpenCallsTab = ({ callType, calls = [], kpis = {}, onViewHistory }
       key: 'status',
       label: 'Status',
       render: (_value, row) => {
-        const { mainStatus, combinedText } = getDetailedStatus(row.originalStatus || row.status);
+        const { mainStatus, combinedText } = getDetailedStatus(row.originalStatus || row.status, row.callNumber, row);
         return <StatusBadge status={mainStatus} text={combinedText} />;
       }
     },
@@ -295,7 +295,9 @@ const VerifiedOpenCallsTab = ({ callType, calls = [], kpis = {}, onViewHistory }
         const selected = filters.statuses;
         const callStatus = (call.status || '').toLowerCase();
         const originalStatus = (call.originalStatus || '').toLowerCase();
-        const detailed = getDetailedStatus(call.originalStatus || call.status);
+        const callAction = (call.action || '').toLowerCase();
+        const callJobStatus = (call.jobStatus || '').toLowerCase();
+        const detailed = getDetailedStatus(call.originalStatus || call.status, call.callNumber, call);
         const detailedText = (detailed.combinedText || '').toLowerCase();
         const mainStatus = (detailed.mainStatus || '').toLowerCase();
 
@@ -306,6 +308,7 @@ const VerifiedOpenCallsTab = ({ callType, calls = [], kpis = {}, onViewHistory }
             return callStatus === 'verified_registered' ||
                    originalStatus.includes('verif') ||
                    originalStatus.includes('register') ||
+                   callJobStatus.includes('verif') ||
                    detailedText.includes('registered') ||
                    detailedText.includes('verified');
           }
@@ -317,6 +320,8 @@ const VerifiedOpenCallsTab = ({ callType, calls = [], kpis = {}, onViewHistory }
           if (s === 'scheduled') {
             return callStatus === 'scheduled' ||
                    originalStatus.includes('schedule') ||
+                   callAction.includes('schedule') ||
+                   callJobStatus.includes('schedule') ||
                    detailedText.includes('scheduled');
           }
           if (s === 'under_inspection') {
@@ -331,6 +336,8 @@ const VerifiedOpenCallsTab = ({ callType, calls = [], kpis = {}, onViewHistory }
           if (s === 'inspection_paused') {
             return callStatus === 'inspection_paused' ||
                    originalStatus.includes('paus') ||
+                   callAction.includes('paus') ||
+                   callJobStatus.includes('paus') ||
                    detailedText.includes('paused');
           }
           if (s === 'under_lab_testing') {
@@ -369,7 +376,7 @@ const VerifiedOpenCallsTab = ({ callType, calls = [], kpis = {}, onViewHistory }
     if (searchTerm && searchTerm.trim()) {
       const term = searchTerm.trim().toLowerCase();
       result = result.filter(call => {
-        const detailed = getDetailedStatus(call.originalStatus || call.status);
+        const detailed = getDetailedStatus(call.originalStatus || call.status, call.callNumber, call);
         const detailedText = (detailed.combinedText || '').toLowerCase();
         
         return (
@@ -451,7 +458,7 @@ const VerifiedOpenCallsTab = ({ callType, calls = [], kpis = {}, onViewHistory }
     requested_date: call.submissionDateTime,
     stage: call.stage,
     status: call.status,
-    status_label: CALL_STATUS_CONFIG[call.status]?.label || getDetailedStatus(call.originalStatus || call.status).combinedText || call.status
+    status_label: getDetailedStatus(call.originalStatus || call.status, call.callNumber, call).combinedText || CALL_STATUS_CONFIG[call.status]?.label || call.status
   })), [calls]);
 
   // Map filtered calls for CallsFilterSection
@@ -463,7 +470,7 @@ const VerifiedOpenCallsTab = ({ callType, calls = [], kpis = {}, onViewHistory }
     requested_date: call.submissionDateTime,
     stage: call.stage,
     status: call.status,
-    status_label: CALL_STATUS_CONFIG[call.status]?.label || getDetailedStatus(call.originalStatus || call.status).combinedText || call.status
+    status_label: getDetailedStatus(call.originalStatus || call.status, call.callNumber, call).combinedText || CALL_STATUS_CONFIG[call.status]?.label || call.status
   })), [filteredCalls]);
 
   return (
@@ -543,7 +550,10 @@ const VerifiedOpenCallsTab = ({ callType, calls = [], kpis = {}, onViewHistory }
                 <option value="assigned_to_ie">IE Assigned</option>
                 <option value="scheduled">Scheduled</option>
                 <option value="under_inspection">Under Inspection</option>
+                <option value="inspection_paused">Inspection Paused</option>
                 <option value="under_lab_testing">Under Lab Testing</option>
+                <option value="withheld">Withheld</option>
+                <option value="ic_pending">IC Pending</option>
                 <option value="billing_pending">Billing Pending</option>
                 <option value="payment_pending">Payment Pending</option>
               </>

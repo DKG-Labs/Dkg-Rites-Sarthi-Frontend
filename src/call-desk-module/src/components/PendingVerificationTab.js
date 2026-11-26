@@ -162,7 +162,7 @@ const PendingVerificationTab = ({
       key: 'status',
       label: 'Status',
       render: (_value, row) => {
-        const { mainStatus, combinedText } = getDetailedStatus(row.originalStatus || row.status);
+        const { mainStatus, combinedText } = getDetailedStatus(row.originalStatus || row.status, row.callNumber, row);
         return <StatusBadge status={mainStatus} text={combinedText} />;
       }
     },
@@ -231,7 +231,7 @@ const PendingVerificationTab = ({
     if (searchTerm && searchTerm.trim()) {
       const term = searchTerm.trim().toLowerCase();
       result = result.filter(call => {
-        const detailed = getDetailedStatus(call.originalStatus || call.status);
+        const detailed = getDetailedStatus(call.originalStatus || call.status, call.callNumber, call);
         const detailedText = (detailed.combinedText || '').toLowerCase();
 
         return (

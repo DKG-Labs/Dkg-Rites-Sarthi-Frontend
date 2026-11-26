@@ -151,16 +151,18 @@ export const useCallDeskData = (activeTab = 'pending', callType = 'ERC') => {
     const filteredCalls = allCalls.filter(item => isRioMatching(user?.rio, item.rio));
 
     const mappedCalls = filteredCalls.map(item => {
-      // Map backend status to internal CALL_STATUS
+      // Map backend status, action, and jobStatus to internal CALL_STATUS
       let internalStatus = CALL_STATUS.PENDING_VERIFICATION;
-      const backendStatus = item.status ? item.status.toString() : '';
+      const backendStatus = (item.status || '').toString().toUpperCase();
+      const backendAction = (item.action || '').toString().toUpperCase();
+      const combinedBackend = [backendStatus, backendAction, (item.jobStatus || '').toString().toUpperCase()].join(' ');
 
-      if (backendStatus === 'Created' || backendStatus === 'CREATED') {
-        internalStatus = CALL_STATUS.FRESH_SUBMISSION;
-      } else if (backendStatus === 'ReSubmitted' || backendStatus === 'RESUBMITTED') {
+      if (combinedBackend.includes('RESUBMIT')) {
         internalStatus = CALL_STATUS.RESUBMISSION;
-      } else if (backendStatus === 'RETURNED' || backendStatus === 'RETURN_TO_VENDOR' || backendStatus.includes('RETURNED')) {
+      } else if (combinedBackend.includes('RETURN')) {
         internalStatus = CALL_STATUS.RETURNED;
+      } else if (backendStatus === 'CREATED' || backendAction === 'CREATED') {
+        internalStatus = CALL_STATUS.FRESH_SUBMISSION;
       }
 
       const { rlyShortName, actualPoNo, actualSerialNo } = parsePoInfo(item);
@@ -184,6 +186,12 @@ export const useCallDeskData = (activeTab = 'pending', callType = 'ERC') => {
         dpDates: `${item.dpDate || '-'} / ${item.extDpDate || '-'}`,
         status: internalStatus,
         originalStatus: item.status,
+        action: item.action || null,
+        jobStatus: item.jobStatus || null,
+        nextRole: item.nextRole || item.nextRoleName || null,
+        currentRole: item.currentRole || item.currentRoleName || null,
+        scheduleDate: item.scheduleDate || item.scheduledDate || null,
+        ibsStatus: item.ibsStatus || null,
         assignedIE: item.assignedToUserName || item.ieName || (item.assignedToUserEmployeeCode ? `${item.assignedToUserName || 'IE'} (${item.assignedToUserEmployeeCode})` : '-'),
         assignedIeName: item.assignedToUserName || item.ieName || null,
         ieName: item.ieName || item.assignedToUserName || null,
@@ -276,28 +284,53 @@ export const useCallDeskData = (activeTab = 'pending', callType = 'ERC') => {
     });
     
     const mappedVerified = openCalls.map(item => {
-      // Map backend status to internal CALL_STATUS
+      // Map backend status, action, and jobStatus to internal CALL_STATUS (most specific first)
       let internalStatus = item.status;
       const backendStatus = [
-        item.status || '', 
-        item.action || '', 
+        item.status || '',
+        item.action || '',
         item.jobStatus || ''
       ].join(' ').toUpperCase();
 
-      if (backendStatus.includes('SCHEDULE')) {
-        internalStatus = 'scheduled';
-      } else if (backendStatus.includes('INITIATE') || backendStatus.includes('PROGRESS')) {
-        internalStatus = 'under_inspection';
-      } else if (backendStatus.includes('VERIFIED') || backendStatus.includes('REGISTERED')) {
-        internalStatus = 'verified_registered';
-      } else if (backendStatus.includes('COMPLETE') || backendStatus.includes('CONFIRM')) {
-        internalStatus = 'ic_pending';
-      } else if (backendStatus.includes('LAB')) {
-        internalStatus = 'under_lab_testing';
+      if (backendStatus.includes('PAYMENT') || backendStatus.includes('BLOCKED')) {
+        internalStatus = 'payment_pending';
       } else if (backendStatus.includes('BILLING')) {
         internalStatus = 'billing_pending';
-      } else if (backendStatus.includes('PAYMENT') || backendStatus.includes('BLOCKED')) {
-        internalStatus = 'payment_pending';
+      } else if (
+        backendStatus.includes('COMPLETE') ||
+        backendStatus.includes('CONFIRM') ||
+        backendStatus.includes('FINISH') ||
+        backendStatus.includes('IC_ISSUE') ||
+        backendStatus.includes('ISSUE IC') ||
+        backendStatus.includes('GENERATE_IC') ||
+        backendStatus.includes('IC_GENERATION') ||
+        backendStatus.includes('DSC_SIGN')
+      ) {
+        internalStatus = 'ic_pending';
+      } else if (backendStatus.includes('WITHHELD')) {
+        internalStatus = 'withheld';
+      } else if (backendStatus.includes('PAUS')) {
+        internalStatus = 'inspection_paused';
+      } else if (backendStatus.includes('LAB')) {
+        internalStatus = 'under_lab_testing';
+      } else if (
+        backendStatus.includes('INITIATE') ||
+        backendStatus.includes('PROGRESS') ||
+        backendStatus.includes('SHIFT') ||
+        backendStatus.includes('PO_DETAILS') ||
+        backendStatus.includes('PO_VERIFICATION') ||
+        backendStatus.includes('RESUME') ||
+        backendStatus.includes('UNDER_INSPECTION') ||
+        backendStatus.includes('MATERIAL_AVAILABILITY') ||
+        backendStatus.includes('INSPECTION_RESULTS')
+      ) {
+        internalStatus = 'under_inspection';
+      } else if (backendStatus.includes('ASSIGN')) {
+        internalStatus = 'assigned_to_ie';
+      } else if (backendStatus.includes('SCHEDULE')) {
+        internalStatus = 'scheduled';
+      } else if (backendStatus.includes('VERIF') || backendStatus.includes('REGISTER')) {
+        internalStatus = 'verified_registered';
       }
 
       const { rlyShortName, actualPoNo, actualSerialNo } = parsePoInfo(item);
@@ -321,6 +354,12 @@ export const useCallDeskData = (activeTab = 'pending', callType = 'ERC') => {
         placeOfInspection: item.placeOfInspection || item.poiCode || '-',
         status: internalStatus,
         originalStatus: item.status,
+        action: item.action || null,
+        jobStatus: item.jobStatus || null,
+        nextRole: item.nextRole || item.nextRoleName || null,
+        currentRole: item.currentRole || item.currentRoleName || null,
+        scheduleDate: item.scheduleDate || item.scheduledDate || null,
+        ibsStatus: item.ibsStatus || null,
         assignedIE: item.assignedToUserName || item.ieName || '-',
         assignedToUser: item.assignedToUser,
         assignedToUserEmployeeCode: item.assignedToUserEmployeeCode,
@@ -371,32 +410,36 @@ export const useCallDeskData = (activeTab = 'pending', callType = 'ERC') => {
 
     const mappedDisposed = filteredData.map(item => {
       let internalStatus = item.status;
-      const backendStatus = item.status ? item.status.toString().toUpperCase() : '';
+      const backendStatus = [
+        item.status || '',
+        item.action || '',
+        item.jobStatus || ''
+      ].join(' ').toUpperCase();
 
-      if (backendStatus.includes('GENERATE_IC')) {
-        internalStatus = 'ic_pending';
-      } else if (backendStatus.includes('DSC_SIGN_IC')) {
-        internalStatus = 'ic_issued';
-      } else if (backendStatus.includes('INSPECTION_COMPLETE_CONFIRM')) {
-        internalStatus = 'inspection_completed';
-      } else if (backendStatus.includes('COMPLETE') || backendStatus.includes('CONFIRM') || backendStatus.includes('IC')) {
-        internalStatus = 'completed';
-      } else if (backendStatus.includes('VERIFIED') || backendStatus.includes('REGISTERED')) {
-        internalStatus = 'verified_registered';
-      } else if (backendStatus.includes('SCHEDULE')) {
-        internalStatus = 'scheduled';
-      } else if (backendStatus.includes('INITIATE') || backendStatus.includes('PROGRESS')) {
-        internalStatus = 'under_inspection';
-      } else if (backendStatus.includes('LAB')) {
-        internalStatus = 'under_lab_testing';
-      } else if (backendStatus.includes('BILLING')) {
-        internalStatus = 'billing_pending';
-      } else if (backendStatus.includes('PAYMENT') || backendStatus.includes('BLOCKED')) {
-        internalStatus = 'payment_pending';
-      } else if (backendStatus.includes('WITHDRAW') || backendStatus.includes('WITHHELD')) {
+      if (backendStatus.includes('WITHDRAW') || backendStatus.includes('WITHHELD')) {
         internalStatus = 'withdrawn';
       } else if (backendStatus.includes('CANCEL')) {
         internalStatus = 'cancelled_chargeable';
+      } else if (backendStatus.includes('SEND_CALL_TO_IBS') || backendStatus.includes('SENT_TO_IBS') || backendStatus.includes('CLOSED')) {
+        internalStatus = 'completed';
+      } else if (backendStatus.includes('DSC_SIGN_IC') || backendStatus.includes('IC_SIGNED') || backendStatus.includes('GENERATE_IC') || backendStatus.includes('IC_GENERATION') || backendStatus.includes('IC_ISSUE') || backendStatus.includes('ISSUE IC')) {
+        internalStatus = 'ic_issued';
+      } else if (backendStatus.includes('INSPECTION_COMPLETE_CONFIRM') || backendStatus.includes('FINISH')) {
+        internalStatus = 'inspection_completed';
+      } else if (backendStatus.includes('COMPLETE') || backendStatus.includes('CONFIRM') || backendStatus.includes('IC')) {
+        internalStatus = 'completed';
+      } else if (backendStatus.includes('PAYMENT') || backendStatus.includes('BLOCKED')) {
+        internalStatus = 'payment_pending';
+      } else if (backendStatus.includes('BILLING')) {
+        internalStatus = 'billing_pending';
+      } else if (backendStatus.includes('LAB')) {
+        internalStatus = 'under_lab_testing';
+      } else if (backendStatus.includes('INITIATE') || backendStatus.includes('PROGRESS') || backendStatus.includes('SHIFT') || backendStatus.includes('PO_VERIFICATION')) {
+        internalStatus = 'under_inspection';
+      } else if (backendStatus.includes('SCHEDULE')) {
+        internalStatus = 'scheduled';
+      } else if (backendStatus.includes('VERIFIED') || backendStatus.includes('REGISTERED')) {
+        internalStatus = 'verified_registered';
       }
 
       const { rlyShortName, actualPoNo, actualSerialNo } = parsePoInfo(item);
@@ -421,6 +464,12 @@ export const useCallDeskData = (activeTab = 'pending', callType = 'ERC') => {
         placeOfInspection: item.placeOfInspection || item.poiCode || '-',
         status: internalStatus,
         originalStatus: item.status,
+        action: item.action || null,
+        jobStatus: item.jobStatus || null,
+        nextRole: item.nextRole || item.nextRoleName || null,
+        currentRole: item.currentRole || item.currentRoleName || null,
+        scheduleDate: item.scheduleDate || item.scheduledDate || null,
+        ibsStatus: item.ibsStatus || null,
         assignedIE: item.assignedToUserName || item.ieName || '-',
         rio: item.rio,
         disposalReason: item.remarks || '-'

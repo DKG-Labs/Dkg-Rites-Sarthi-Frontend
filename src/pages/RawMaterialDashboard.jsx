@@ -2030,13 +2030,17 @@ const RawMaterialDashboard = ({ call, onBack, onNavigateToSubModule, onHeatsChan
       });
 
       // Calculate overall inspection status based on all heat results
+      // Rule: 1 heat -> ACCEPTED (even with minor visual qty rejection if accepted > 0) or REJECTED;
+      //       multiple heats -> ACCEPTED, REJECTED, or PARTIALLY_ACCEPTED.
       const acceptedHeats = heatFinalResults.filter(h => h.status === 'ACCEPTED').length;
       const rejectedHeats = heatFinalResults.filter(h => h.status === 'REJECTED').length;
       const partiallyAcceptedHeats = heatFinalResults.filter(h => h.status === 'PARTIALLY_ACCEPTED').length;
       const totalHeats = heatFinalResults.length;
 
       let overallInspectionStatus = 'PENDING';
-      if (acceptedHeats === totalHeats && totalHeats > 0) {
+      if (totalHeats === 1) {
+        overallInspectionStatus = rejectedHeats === 1 ? 'REJECTED' : 'ACCEPTED';
+      } else if (acceptedHeats === totalHeats && totalHeats > 0) {
         overallInspectionStatus = 'ACCEPTED';
       } else if (rejectedHeats === totalHeats && totalHeats > 0) {
         overallInspectionStatus = 'REJECTED';
@@ -2258,23 +2262,50 @@ const RawMaterialDashboard = ({ call, onBack, onNavigateToSubModule, onHeatsChan
     try {
       const heats = consolidatedHeats || [];
       if (heats.length === 0) return 'ACCEPTED';
-      let hasRejected = false;
-      let hasAccepted = false;
-      heats.forEach(heat => {
+
+      const inspectionCallNo = call?.call_no || sessionStorage.getItem('selectedInspectionCallNo') || '';
+      const visualKey = inspectionCallNo ? `${STORAGE_KEYS.VISUAL_INSPECTION}_${inspectionCallNo}${getShiftSuffix()}` : null;
+      const visualRaw = visualKey ? localStorage.getItem(visualKey) : null;
+      const visualData = visualRaw ? JSON.parse(visualRaw) : [];
+
+      let rejectedCount = 0;
+      let partialCount = 0;
+      let acceptedCount = 0;
+
+      heats.forEach((heat, heatIndex) => {
         const heatNo = heat.heatNo || heat.heat_no || 'Unknown';
         const st = heatSubmoduleStatuses[heatNo];
-        if (st) {
-          const isRej = Object.values(st).some(val => val === 'NOT OK' || val === 'REJECTED');
-          if (isRej) hasRejected = true;
-          else hasAccepted = true;
+        const offeredWeight = parseFloat(heat.weight) || 0;
+        const heatVisualData = getStoredHeatData(visualData, heatNo, heatIndex);
+        const totalRejectedWeight = heatVisualData ? calculateVisualRejectedWeight(heatVisualData, offeredWeight) : 0;
+        const acceptedWeight = offeredWeight - totalRejectedWeight;
+
+        const isFullVisualRejection = offeredWeight > 0 && totalRejectedWeight >= offeredWeight;
+        const isNotOk = st ? Object.values(st).some(val => val === 'NOT OK' || val === 'REJECTED') : false;
+
+        if (isNotOk || isFullVisualRejection) {
+          rejectedCount++;
+        } else if (offeredWeight > 0 && totalRejectedWeight > 0 && acceptedWeight > 0) {
+          partialCount++;
+        } else if (st && Object.values(st).some(val => val === 'PARTIAL')) {
+          partialCount++;
         } else {
-          hasAccepted = true;
+          acceptedCount++;
         }
       });
-      if (hasRejected && !hasAccepted) return 'REJECTED';
-      if (hasRejected && hasAccepted) return 'PARTIALLY_ACCEPTED';
+
+      // Single heat: only ACCEPTED (including small visual rejection) or REJECTED
+      if (heats.length === 1) {
+        return rejectedCount === 1 ? 'REJECTED' : 'ACCEPTED';
+      }
+
+      // Multiple heats: ACCEPTED, REJECTED, or PARTIALLY_ACCEPTED
+      if (rejectedCount === heats.length) return 'REJECTED';
+      if (partialCount > 0 || (rejectedCount > 0 && (acceptedCount > 0 || partialCount > 0))) {
+        return 'PARTIALLY_ACCEPTED';
+      }
       return 'ACCEPTED';
-    } catch (e) {
+    } catch {
       return 'ACCEPTED';
     }
   };
@@ -3741,7 +3772,12 @@ const RawMaterialDashboard = ({ call, onBack, onNavigateToSubModule, onHeatsChan
                 statusBg = '#fee2e2';
                 statusColor = '#991b1b';
                 statusBorder = '#fca5a5';
-              } else if (totalHeats > 0) {
+              } else if (totalHeats === 1) {
+                overallStatus = 'ACCEPTED';
+                statusBg = '#dcfce7';
+                statusColor = '#166534';
+                statusBorder = '#86efac';
+              } else if (totalHeats > 1) {
                 overallStatus = 'PARTIALLY ACCEPTED';
                 statusBg = '#ffedd5';
                 statusColor = '#c2410c';
@@ -4527,7 +4563,7 @@ const RawMaterialDashboard = ({ call, onBack, onNavigateToSubModule, onHeatsChan
           setShowPauseModal(false);
           handlePauseInspectionConfirmed(pauseData);
         }}
-        callNo={call?.call_no}
+        callNo={call?.call_no || call?.callNo || call?.requestId || sessionStorage.getItem('selectedInspectionCallNo')}
         productType="ERC Raw Material Inspection"
         isSubmitting={isSaving}
       />
@@ -4541,7 +4577,8 @@ const RawMaterialDashboard = ({ call, onBack, onNavigateToSubModule, onHeatsChan
           handleFinishInspection(dispatchData);
         }}
         systemStatus={getCalculatedRmSystemStatus()}
-        callNo={call?.call_no}
+        allowPartiallyAccepted={(consolidatedHeats?.length || 0) > 1}
+        callNo={call?.call_no || call?.callNo || call?.requestId || sessionStorage.getItem('selectedInspectionCallNo')}
         productType="ERC Raw Material Inspection"
         isSubmitting={isSaving}
       />

@@ -1282,10 +1282,9 @@ const FinalInspectionScreen = ({ call, onBack }) => {
 
     const getCalculatedSleeperSystemStatus = () => {
         const rej = qtyUomRule ? (roundQty(rejectedSetsQty, qtyDecimals) || 0) : (isSetUom ? Number(rejectedSetsQty || 0) : Number(totalRejected || 0));
-        const acc = qtyUomRule ? (computeAcceptedQty(ruleOffered, ruleRejected, qtyDecimals) || 0) : (isSetUom ? Number(acceptedSetsQty || 0) : Number(totalAccepted || 0));
-        if (rej === 0) return 'ACCEPTED';
+        const acc = qtyUomRule ? (Number(acceptedSetsQty) || 0) : (isSetUom ? Number(acceptedSetsQty || 0) : Number(totalAccepted || 0));
         if (acc === 0 && rej > 0) return 'REJECTED';
-        return 'PARTIALLY_ACCEPTED';
+        return 'ACCEPTED';
     };
 
     const handleWorkflowAction = async (actionName, { callResult, systemStatus, pauseReason, remarks: actionRemarks } = {}) => {
@@ -2342,6 +2341,8 @@ const FinalInspectionScreen = ({ call, onBack }) => {
                     setShowPauseModal(false);
                     handleWorkflowAction('PAUSE', { pauseReason: reason, remarks });
                 }}
+                callNo={call?.requestId || call?.callNo || call?.call_no || call?.callNumber || icForm?.callNo || summaryData?.callNo || call?.id}
+                productType="Concrete Sleeper Inspection"
                 isSubmitting={activeActionLoading === 'pause'}
             />
 
@@ -2349,6 +2350,9 @@ const FinalInspectionScreen = ({ call, onBack }) => {
                 isOpen={showCallResultModal}
                 onClose={() => setShowCallResultModal(false)}
                 systemStatus={getCalculatedSleeperSystemStatus()}
+                allowPartiallyAccepted={false}
+                callNo={call?.requestId || call?.callNo || call?.call_no || call?.callNumber || icForm?.callNo || summaryData?.callNo || call?.id}
+                productType="Concrete Sleeper Inspection"
                 isSubmitting={activeActionLoading === 'finish'}
                 onConfirm={({ callResult, remarks: finishRemarks }) => {
                     setShowCallResultModal(false);

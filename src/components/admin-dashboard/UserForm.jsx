@@ -156,6 +156,7 @@ export const UserForm = ({ user, roles = [], rolesLoading = false, existingUsers
         notificationPreferences: '',
         employeeCode: '',
         employmentType: '',
+        companyCode: '',
         fullName: '',
         shortName: '',
         dateOfBirth: '',
@@ -381,6 +382,7 @@ export const UserForm = ({ user, roles = [], rolesLoading = false, existingUsers
                 notificationPreferences: '',
                 employeeCode: '',
                 employmentType: 'REGULAR',
+                companyCode: '',
                 fullName: '',
                 shortName: '',
                 dateOfBirth: '',
@@ -2241,6 +2243,21 @@ export const UserForm = ({ user, roles = [], rolesLoading = false, existingUsers
                                     required
                                 />
                             </div>
+                            {!isZonalRailway && (
+                                <div className="form-group">
+                                    <label className="form-label">Employment Type</label>
+                                    <select
+                                        name="employmentType"
+                                        className="form-control"
+                                        value={formData.employmentType}
+                                        onChange={handleChange}
+                                    >
+                                        <option value="REGULAR">REGULAR</option>
+                                        <option value="CONTRACTUAL">CONTRACTUAL</option>
+                                        <option value="MPA">MPA</option>
+                                    </select>
+                                </div>
+                            )}
                             {(!isZonalRailway || (isZonalRailway && user)) && (
                                 <div className="form-group">
                                     <label className="form-label">Employee Code <span className="required-star">*</span></label>
@@ -2261,6 +2278,20 @@ export const UserForm = ({ user, roles = [], rolesLoading = false, existingUsers
                                             Fixed for Zonal Railway user (cannot be modified)
                                         </small>
                                     )}
+                                </div>
+                            )}
+                            {!isZonalRailway && (
+                                <div className="form-group">
+                                    <label className="form-label">Company Code</label>
+                                    <input
+                                        type="text"
+                                        name="companyCode"
+                                        className="form-control"
+                                        value={isMpa ? (formData.companyCode || '') : (formData.employeeCode || '')}
+                                        onChange={handleChange}
+                                        disabled={!isMpa}
+                                        style={!isMpa ? { backgroundColor: '#f1f5f9', cursor: 'not-allowed' } : {}}
+                                    />
                                 </div>
                             )}
                             {!isZonalRailway && (
@@ -2315,19 +2346,6 @@ export const UserForm = ({ user, roles = [], rolesLoading = false, existingUsers
                                             {DISCIPLINES.map(discipline => (
                                                 <option key={discipline} value={discipline}>{discipline}</option>
                                             ))}
-                                        </select>
-                                    </div>
-                                    <div className="form-group">
-                                        <label className="form-label">Employment Type</label>
-                                        <select
-                                            name="employmentType"
-                                            className="form-control"
-                                            value={formData.employmentType}
-                                            onChange={handleChange}
-                                        >
-                                            <option value="REGULAR">REGULAR</option>
-                                            <option value="CONTRACTUAL">CONTRACTUAL</option>
-                                            <option value="MPA">MPA</option>
                                         </select>
                                     </div>
                                     <div className="form-group">

@@ -1063,6 +1063,10 @@ export const UserForm = ({ user, roles = [], rolesLoading = false, existingUsers
             showValidationToast('Date of Birth is required for MPA employee.');
             return;
         }
+        if (String(formData.employmentType || '').toUpperCase() === 'MPA' && !String(formData.companyCode || '').trim()) {
+            showValidationToast('Company Code is required.');
+            return;
+        }
 
         if (!user) {
             const existing = existingUsers.find(u => 
@@ -2282,13 +2286,14 @@ export const UserForm = ({ user, roles = [], rolesLoading = false, existingUsers
                             )}
                             {!isZonalRailway && (
                                 <div className="form-group">
-                                    <label className="form-label">Company Code</label>
+                                    <label className="form-label">Company Code <span className="required-star">*</span></label>
                                     <input
                                         type="text"
                                         name="companyCode"
                                         className="form-control"
                                         value={isMpa ? (formData.companyCode || '') : (formData.employeeCode || '')}
                                         onChange={handleChange}
+                                        required={isMpa}
                                         disabled={!isMpa}
                                         style={!isMpa ? { backgroundColor: '#f1f5f9', cursor: 'not-allowed' } : {}}
                                     />

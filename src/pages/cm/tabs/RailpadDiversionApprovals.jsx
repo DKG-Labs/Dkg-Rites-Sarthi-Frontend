@@ -121,7 +121,6 @@ const RailpadDiversionApprovals = ({ mode = 'CM' }) => {
                 <td style={s.td}>{STATUS[r.status] || r.status}{r.divertedCallNo && <div style={{ color: '#64748b', fontSize: 12 }}>Call {r.divertedCallNo}</div>}</td>
                 <td style={{ ...s.td, whiteSpace: 'nowrap' }}>
                   {view === 'pending' && <button type="button" style={s.link} onClick={() => open('approve', r)}>Approve</button>}
-                  {view === 'pending' && isCm && <button type="button" style={s.link} onClick={() => open('sbu', r)}>To SBU Head</button>}
                   {view === 'pending' && <button type="button" style={{ ...s.link, color: '#b91c1c' }} onClick={() => open('return', r)}>Return</button>}
                   <button type="button" style={s.link} onClick={() => open('history', r)}>History</button>
                 </td>

@@ -1577,7 +1577,7 @@ export default function FinalProductDashboard({ onBack, onNavigateToSubModule })
       return;
     }
 
-    const rioMismatch = getCaseRioMismatch(selectedCall, callNo);
+    const rioMismatch = getCaseRioMismatch(selectedCall);
     if (rioMismatch) {
       alert(formatCaseRioError(rioMismatch));
       return;
@@ -1601,7 +1601,7 @@ export default function FinalProductDashboard({ onBack, onNavigateToSubModule })
     const callNo = selectedCall?.call_no;
     if (!callNo) return;
 
-    const rioMismatch = getCaseRioMismatch(selectedCall, callNo);
+    const rioMismatch = getCaseRioMismatch(selectedCall);
     if (rioMismatch) {
       alert(formatCaseRioError(rioMismatch));
       return;
@@ -1802,7 +1802,7 @@ export default function FinalProductDashboard({ onBack, onNavigateToSubModule })
       setPauseErrorData({ message: 'Call number not found. Cannot pause inspection.' });
       return;
     }
-    const rioMismatch = getCaseRioMismatch(selectedCall, callNo);
+    const rioMismatch = getCaseRioMismatch(selectedCall);
     if (rioMismatch) {
       setPauseErrorData({ message: formatCaseRioError(rioMismatch) });
       return;
@@ -1813,7 +1813,7 @@ export default function FinalProductDashboard({ onBack, onNavigateToSubModule })
   const confirmPauseInspection = async (pauseData = {}) => {
     setShowPauseConfirm(false);
     const callNo = selectedCall?.call_no;
-    const rioMismatch = getCaseRioMismatch(selectedCall, callNo);
+    const rioMismatch = getCaseRioMismatch(selectedCall);
     if (rioMismatch) {
       setPauseErrorData({ message: formatCaseRioError(rioMismatch) });
       return;

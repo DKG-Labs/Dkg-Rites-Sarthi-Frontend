@@ -412,14 +412,14 @@ const InspectionResultModal = ({
 
         {/* Clean, Non-boxy Clock Timestamp & Info */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '20px' }}>
-          {/* Timestamp Sub-element */}
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', color: '#64748b', fontSize: '12px', fontWeight: '500' }}>
+          {/* Timestamp Sub-element (only for a real "Saved at" time) */}
+          {(!additionalInfo || /^Saved\s+at/i.test(additionalInfo)) && (<div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', color: '#64748b', fontSize: '12px', fontWeight: '500' }}>
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
               <circle cx="12" cy="12" r="10"></circle>
               <polyline points="12 6 12 12 16 14"></polyline>
             </svg>
             <span>Saved at {getFormattedTime()}</span>
-          </div>
+          </div>)}
 
           {/* Pause Info */}
           {actionType === 'pause' && (

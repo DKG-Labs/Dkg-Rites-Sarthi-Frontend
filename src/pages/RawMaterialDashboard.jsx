@@ -1654,7 +1654,7 @@ const RawMaterialDashboard = ({ call, onBack, onNavigateToSubModule, onHeatsChan
    */
   const handleFinishInspection = useCallback(async (dispatchData = {}) => {
     const inspectionCallNo = call?.call_no;
-    const rioMismatch = getCaseRioMismatch(call, inspectionCallNo);
+    const rioMismatch = getCaseRioMismatch(call);
     if (rioMismatch) {
       setResultModalConfig({
         actionType: 'error',
@@ -2314,7 +2314,7 @@ const RawMaterialDashboard = ({ call, onBack, onNavigateToSubModule, onHeatsChan
   // Pause Inspection handler - collects all data and saves to database
   const handlePauseInspectionConfirmed = useCallback(async (pauseData = {}) => {
     const inspectionCallNo = call?.call_no;
-    const rioMismatch = getCaseRioMismatch(call, inspectionCallNo);
+    const rioMismatch = getCaseRioMismatch(call);
     if (rioMismatch) {
       setResultModalConfig({
         actionType: 'error',

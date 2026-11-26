@@ -1851,7 +1851,7 @@ const ProcessDashboard = ({ call, onBack, onNavigateToSubModule, productionLines
   const handleSelectNewCall = (callData, skipInitiation = false, rowArg = null) => {
     const callNo = typeof callData === 'object' ? callData.call_no : callData;
     const rowData = typeof callData === 'object' ? callData : (rowArg || allProcessCalls.find(c => c.call_no === callNo) || null);
-    const rioMismatch = getCaseRioMismatch(rowData, callNo);
+    const rioMismatch = getCaseRioMismatch(rowData);
     if (rioMismatch) {
       showNotification('error', formatCaseRioError(rioMismatch));
       return;

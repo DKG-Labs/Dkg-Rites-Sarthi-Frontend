@@ -124,7 +124,7 @@ export const getCaseRioMismatch = (call, overrideCaseNo = null) => {
 };
 
 export const formatCaseRioError = (mismatch) =>
-  `Case No. ${mismatch.caseNo} belongs to ${mismatch.caseRio}, but you are mapped to ${mismatch.ieRio}. Cross-RIO inspection is not allowed even after reassignment. Ask the Call Desk / CM to correct the case number or reassign this call.`;
+  `This call belongs to ${mismatch.caseRio} (Case No. ${mismatch.caseNo}), but you are in ${mismatch.ieRio}. Please ask the Call Desk or CM to reassign it.`;
 
 /** Disabled action button + short message, shown instead of the normal action button. */
 export const CaseRioLockedAction = ({ mismatch, label = 'VIEW ACTIONS', align = 'right' }) => {

@@ -47,6 +47,9 @@ const SleeperQualityReport = ({ fromDate, toDate, selectedZone = 'all', onZonesU
                         rejHoneyCombing: row.honeyCombingSurfaceDefectCrack ?? 0,
                         rejMissingDowel: row.missingDowel ?? 0,
                         rejOther: row.otherDefectsInsertSinkTilt ?? 0,
+                        rejSbt: row.sbt ?? 0,
+                        rejNftc: row.nftc ?? 0,
+                        rejAnyOther: row.anyOtherDefect ?? 0,
                         remarks: ''
                     };
                 });
@@ -142,7 +145,7 @@ const SleeperQualityReport = ({ fromDate, toDate, selectedZone = 'all', onZonesU
                     railway: rly,
                     csps: {},
                     sNo: rlyIndex++,
-                    subTotal: { produced: 0, inspected: 0, rejectedInProcess: 0, icIssuedQty: 0, icIssuedCount: 0, totalNosRej: 0, rejDimension: 0, rejEndDamage: 0, rejHoneyCombing: 0, rejMissingDowel: 0, rejOther: 0 }
+                    subTotal: { produced: 0, inspected: 0, rejectedInProcess: 0, icIssuedQty: 0, icIssuedCount: 0, totalNosRej: 0, rejDimension: 0, rejEndDamage: 0, rejHoneyCombing: 0, rejMissingDowel: 0, rejOther: 0, rejSbt: 0, rejNftc: 0, rejAnyOther: 0 }
                 };
             }
 
@@ -165,6 +168,9 @@ const SleeperQualityReport = ({ fromDate, toDate, selectedZone = 'all', onZonesU
             sub.rejHoneyCombing += item.rejHoneyCombing;
             sub.rejMissingDowel += item.rejMissingDowel;
             sub.rejOther += item.rejOther;
+            sub.rejSbt += item.rejSbt;
+            sub.rejNftc += item.rejNftc;
+            sub.rejAnyOther += item.rejAnyOther;
         });
 
         return Object.values(railwayGroups).map(group => {
@@ -176,7 +182,7 @@ const SleeperQualityReport = ({ fromDate, toDate, selectedZone = 'all', onZonesU
     }, [data, searchQuery, selectedTypeFilter, selectedZone]);
 
     const grandTotal = useMemo(() => {
-        const total = { produced: 0, inspected: 0, rejectedInProcess: 0, icIssuedQty: 0, icIssuedCount: 0, totalNosRej: 0, rejDimension: 0, rejEndDamage: 0, rejHoneyCombing: 0, rejMissingDowel: 0, rejOther: 0 };
+        const total = { produced: 0, inspected: 0, rejectedInProcess: 0, icIssuedQty: 0, icIssuedCount: 0, totalNosRej: 0, rejDimension: 0, rejEndDamage: 0, rejHoneyCombing: 0, rejMissingDowel: 0, rejOther: 0, rejSbt: 0, rejNftc: 0, rejAnyOther: 0 };
         filteredAndGroupedData.forEach(rly => {
             const sub = rly.subTotal;
             total.produced += sub.produced;
@@ -190,6 +196,9 @@ const SleeperQualityReport = ({ fromDate, toDate, selectedZone = 'all', onZonesU
             total.rejHoneyCombing += sub.rejHoneyCombing;
             total.rejMissingDowel += sub.rejMissingDowel;
             total.rejOther += sub.rejOther;
+            total.rejSbt += sub.rejSbt;
+            total.rejNftc += sub.rejNftc;
+            total.rejAnyOther += sub.rejAnyOther;
         });
         total.percentage = total.produced > 0 ? ((total.totalNosRej / total.produced) * 100).toFixed(2) : '0.00';
         return total;
@@ -219,13 +228,14 @@ const SleeperQualityReport = ({ fromDate, toDate, selectedZone = 'all', onZonesU
                         'Total IC Rejections': item.totalNosRej, 'Rejection Dimension': item.rejDimension,
                         'Rejection End Damage': item.rejEndDamage, 'Rejection Honey Combing': item.rejHoneyCombing,
                         'Rejection Missing Dowel': item.rejMissingDowel, 'Rejection Other': item.rejOther,
+                        'Rejection SBT': item.rejSbt, 'Rejection NFTC': item.rejNftc, 'Rejection Any Other Defect': item.rejAnyOther,
                         'Remarks': item.remarks || '', 'Rejection Percentage': item.produced > 0 ? ((item.totalNosRej / item.produced) * 100).toFixed(2) + '%' : '0.00%'
                     });
                 });
             });
         });
         if (flattened.length === 0) return;
-        const headers = [{ label: 'Railway', key: 'Railway' }, { label: 'CSP Name', key: 'CSP Name' }, { label: 'Sleeper Type', key: 'Sleeper Type' }, { label: 'Sleepers Produced', key: 'Sleepers Produced' }, { label: 'Sleepers Inspected', key: 'Sleepers Inspected' }, { label: 'Rejected In Process', key: 'Rejected In Process' }, { label: 'IC Issued Qty', key: 'IC Issued Qty' }, { label: 'IC Issued Count', key: 'IC Issued Count' }, { label: 'Last IC Date', key: 'Last IC Date' }, { label: 'Total IC Rejections', key: 'Total IC Rejections' }, { label: 'Rejection Dimension', key: 'Rejection Dimension' }, { label: 'Rejection End Damage', key: 'Rejection End Damage' }, { label: 'Rejection Honey Combing', key: 'Rejection Honey Combing' }, { label: 'Rejection Missing Dowel', key: 'Rejection Missing Dowel' }, { label: 'Rejection Other', key: 'Rejection Other' }, { label: 'Remarks', key: 'Remarks' }, { label: 'Rejection %', key: 'Rejection Percentage' }];
+        const headers = [{ label: 'Railway', key: 'Railway' }, { label: 'CSP Name', key: 'CSP Name' }, { label: 'Sleeper Type', key: 'Sleeper Type' }, { label: 'Sleepers Produced', key: 'Sleepers Produced' }, { label: 'Sleepers Inspected', key: 'Sleepers Inspected' }, { label: 'Rejected In Process', key: 'Rejected In Process' }, { label: 'IC Issued Qty', key: 'IC Issued Qty' }, { label: 'IC Issued Count', key: 'IC Issued Count' }, { label: 'Last IC Date', key: 'Last IC Date' }, { label: 'Total IC Rejections', key: 'Total IC Rejections' }, { label: 'Rejection Dimension', key: 'Rejection Dimension' }, { label: 'Rejection End Damage', key: 'Rejection End Damage' }, { label: 'Rejection Honey Combing', key: 'Rejection Honey Combing' }, { label: 'Rejection Missing Dowel', key: 'Rejection Missing Dowel' }, { label: 'Rejection Other', key: 'Rejection Other' }, { label: 'Rejection SBT', key: 'Rejection SBT' }, { label: 'Rejection NFTC', key: 'Rejection NFTC' }, { label: 'Rejection Any Other Defect', key: 'Rejection Any Other Defect' }, { label: 'Remarks', key: 'Remarks' }, { label: 'Rejection %', key: 'Rejection Percentage' }];
         downloadExcel(flattened, headers, 'Quality_of_PSC_Sleepers_Report');
     };
 
@@ -297,13 +307,13 @@ const SleeperQualityReport = ({ fromDate, toDate, selectedZone = 'all', onZonesU
                             <th rowSpan="3" className="col-ic-qty">IC Issued Qty.</th>
                             <th rowSpan="3" className="col-ic-cnt">No. of IC issued in the month</th>
                             <th rowSpan="3" className="col-ic-date">Last Date of IC Issued</th>
-                            <th colSpan="6" className="rejection-main-header">No. of sleepers rejected during process & final & reasons for rejection<br/>Based on IC</th>
+                            <th colSpan="9" className="rejection-main-header">No. of sleepers rejected during process & final & reasons for rejection<br/>Based on IC</th>
                             <th rowSpan="3" className="col-remarks">Remarks, if any</th>
                             <th rowSpan="3" className="col-pct-rej">%age rejection</th>
                         </tr>
                         <tr>
                             <th rowSpan="2" className="col-rej-tot">Total Nos.<br/>(Process + final)</th>
-                            <th colSpan="5" className="defect-sub-header">Defect Category</th>
+                            <th colSpan="8" className="defect-sub-header">Defect Category</th>
                         </tr>
                         <tr className="defect-names-header">
                             <th>for Dimension/<br/>Toe Gauge</th>
@@ -311,6 +321,9 @@ const SleeperQualityReport = ({ fromDate, toDate, selectedZone = 'all', onZonesU
                             <th>Honey combing/<br/>Surface defect/Crack</th>
                             <th>Missing<br/>dowel</th>
                             <th>other defects<br/>(Insert sink/Tilt)</th>
+                            <th>SBT</th>
+                            <th>NFTC</th>
+                            <th>Any other<br/>defect</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -363,6 +376,9 @@ const SleeperQualityReport = ({ fromDate, toDate, selectedZone = 'all', onZonesU
                                                     <td className="text-right text-slate-600">{fmtDefect(item.rejHoneyCombing)}</td>
                                                     <td className="text-right text-slate-600">{fmtDefect(item.rejMissingDowel)}</td>
                                                     <td className="text-right text-slate-600">{fmtDefect(item.rejOther)}</td>
+                                                    <td className="text-right text-slate-600">{fmtDefect(item.rejSbt)}</td>
+                                                    <td className="text-right text-slate-600">{fmtDefect(item.rejNftc)}</td>
+                                                    <td className="text-right text-slate-600">{fmtDefect(item.rejAnyOther)}</td>
                                                     <td className="col-remarks text-slate-500 text-left font-normal" style={{ minWidth: '220px', fontSize: '11px', lineHeight: '1.3' }}>
                                                         {item.remarks || '-'}
                                                     </td>
@@ -388,6 +404,9 @@ const SleeperQualityReport = ({ fromDate, toDate, selectedZone = 'all', onZonesU
                                         <td className="text-right font-semibold">{rlyGroup.subTotal.rejHoneyCombing.toLocaleString()}</td>
                                         <td className="text-right font-semibold">{rlyGroup.subTotal.rejMissingDowel.toLocaleString()}</td>
                                         <td className="text-right font-semibold">{rlyGroup.subTotal.rejOther.toLocaleString()}</td>
+                                        <td className="text-right font-semibold">{rlyGroup.subTotal.rejSbt.toLocaleString()}</td>
+                                        <td className="text-right font-semibold">{rlyGroup.subTotal.rejNftc.toLocaleString()}</td>
+                                        <td className="text-right font-semibold">{rlyGroup.subTotal.rejAnyOther.toLocaleString()}</td>
                                         <td></td>
                                         <td className="text-right font-bold text-slate-800">{rlyGroup.subTotal.percentage}%</td>
                                     </tr>
@@ -412,6 +431,9 @@ const SleeperQualityReport = ({ fromDate, toDate, selectedZone = 'all', onZonesU
                                 <td className="text-right font-bold">{grandTotal.rejHoneyCombing.toLocaleString()}</td>
                                 <td className="text-right font-bold">{grandTotal.rejMissingDowel.toLocaleString()}</td>
                                 <td className="text-right font-bold">{grandTotal.rejOther.toLocaleString()}</td>
+                                <td className="text-right font-bold">{grandTotal.rejSbt.toLocaleString()}</td>
+                                <td className="text-right font-bold">{grandTotal.rejNftc.toLocaleString()}</td>
+                                <td className="text-right font-bold">{grandTotal.rejAnyOther.toLocaleString()}</td>
                                 <td></td>
                                 <td className="text-right font-bold text-slate-900">{grandTotal.percentage}%</td>
                             </tr>

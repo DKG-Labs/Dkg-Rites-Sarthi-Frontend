@@ -268,4 +268,19 @@
     cursor: wait !important;
 }
 
-
+
+/* Monthly Analysis of Units: two-row header. Stick the whole thead instead of each th,
+   otherwise both header rows stick at top:0 and the second row hides the group labels. */
+.prof-table.sleeper-mau-table thead {
+    position: sticky;
+    top: 0;
+    z-index: 50;
+}
+.prof-table.sleeper-mau-table th {
+    position: static !important;
+    top: auto !important;
+}
+.prof-table.sleeper-mau-table td.mau-plant,
+.prof-table.sleeper-mau-table th.mau-plant {
+    min-width: 260px;
+}

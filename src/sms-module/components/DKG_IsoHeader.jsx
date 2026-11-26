@@ -3,7 +3,7 @@ import React from "react";
 import { ReactComponent as Logo } from "../assets/images/logo.svg";
 
 
-const IsoHeader = ({engTitle, hinTitle, col3AdtnlLine}) => {
+const IsoHeader = ({engTitle, hinTitle, col3AdtnlLine, issueNo = "02"}) => {
   const formattedEngTitle = engTitle.split("<br />").map((line, index) => (
     <React.Fragment key={index}>
       {line}
@@ -38,7 +38,7 @@ const IsoHeader = ({engTitle, hinTitle, col3AdtnlLine}) => {
       </div>
 
       <div className="flex flex-col justify-center items-center !text-xs font-semibold text-center">
-        ISO 9001:2015 <br /> ISSUE NO. 02 <br />
+        ISO 9001:2015 <br /> ISSUE NO. {issueNo} <br />
         {
           col3AdtnlLine && (
             <>

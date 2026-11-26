@@ -7,6 +7,7 @@ import Subheading from "../sms/Subheading";
 import { apiCall } from "../../../../utils/CommonFunctions";
 import { useSelector } from "react-redux";
 import { useReactToPrint } from "react-to-print";
+import { BlankRows, dateShift } from "./isoRows";
 
 const customRsL = [
       {
@@ -24,7 +25,7 @@ const customRsL = [
   ]
 
 const RollingControlIso = () => {
-  const [formData, setFormData] = useState([]);
+  const [formData, setFormData] = useState({});
   /* tableData */
 
   /* railData */
@@ -36,7 +37,7 @@ const RollingControlIso = () => {
   
 
 const mergeHeatDetails = (data, formData) =>  {
-    if (!data || data.length === 0) return null;
+    if (!data || data.length === 0) return { shift: formData.shift, date: formData.date, railGrade: formData.railGrade, heatDtlList: [] };
 
     // Pick vernierNumber, micrometerNumber, numberOfGauges from the first object
     const { vernierNumber, micrometerNumber, numberOfGauges } = data[0];
@@ -95,7 +96,7 @@ const mergeHeatDetails = (data, formData) =>  {
             hinTitle="रोलिंग चरण नियंत्रण के लिए प्रारूप (आरएसएम)"
             col3AdtnlLine="APPROVED DIVISIONAL HEAD"
         />
-        <Subheading formatNo="F/CR-BSP/7.5/17/05" page="1 OF 1" pageRev="NIL" effDate="12/05/2021" dsVis dsVal={formData.date + " - " + formData.shift} grdVis grdVal={formData.railGrade} stdWtVis stdWtVal={formData.heatDtlList?.[0].weight} mmVis mmVal={formData.micrometerNumber} vVis vVal={formData.vernierNumber} ggVis ggVal={formData.numberOfGauges} />
+        <Subheading formatNo="F/CR-BSP/7.5/17/05" page="1 OF 1" pageRev="NIL" effDate="12/05/2021" dsVis dsVal={dateShift(formData?.date, formData?.shift)} grdVis grdVal={formData.railGrade} stdWtVis stdWtVal={formData.heatDtlList?.[0]?.weight} mmVis mmVal={formData.micrometerNumber} vVis vVal={formData.vernierNumber} ggVis ggVal={formData.numberOfGauges} />
         <div style={{ overflowX: "auto" }} className="iso-table">
           <table className="iso-table"
             border="1"
@@ -310,6 +311,8 @@ const mergeHeatDetails = (data, formData) =>  {
                   </td>
                 </tr>
               ))}
+              <BlankRows filled={formData?.heatDtlList?.length || 0} cols={14} />
+
 
               <tr className="border border-black">
                 <td colSpan={7} className="text-left py-8 px-4 font-semibold">ब्रांडिंग / Branding: ......................</td>

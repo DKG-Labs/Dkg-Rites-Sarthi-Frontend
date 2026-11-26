@@ -108,7 +108,7 @@
 }
 
 .summary-card:hover {
-  transform: translateY(-4px);
+  transform: none; /* rule 1.8: no movement on hover / focus / select */
   box-shadow: 0 12px 25px -5px rgba(0, 0, 0, 0.08);
   border-color: var(--primary-color);
 }
@@ -634,7 +634,7 @@ textarea.ant-input {
 .ant-btn-primary:hover,
 .ant-btn-primary:focus {
   background: var(--primary-hover) !important;
-  transform: translateY(-1px) !important;
+  transform: none !important; /* rule 1.8: no movement on hover / focus / select */
   box-shadow: 0 4px 10px rgba(33, 128, 141, 0.25) !important;
   filter: brightness(1.05) !important;
 }
@@ -679,7 +679,7 @@ textarea.ant-input {
   background: var(--neutral-50) !important;
   border-color: var(--neutral-400) !important;
   color: var(--neutral-700) !important;
-  transform: translateY(-1px) !important;
+  transform: none !important; /* rule 1.8: no movement on hover / focus / select */
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.06) !important;
 }
 
@@ -837,19 +837,19 @@ textarea.ant-input {
 }
 
 .dkg-premium-card:hover {
-  transform: translateY(-4px);
+  transform: none; /* rule 1.8: no movement on hover / focus / select */
   box-shadow: 0 12px 24px rgba(19, 52, 59, 0.15) !important;
   border-color: var(--primary-color) !important;
 }
 
 .dkg-premium-card:active {
-  transform: translateY(-1px);
+  transform: none; /* rule 1.8: no movement on hover / focus / select */
   box-shadow: 0 4px 8px rgba(19, 52, 59, 0.1) !important;
 }
 
 .active-premium,
 .dkg-premium-card.active-premium {
-  transform: translateY(-4px);
+  transform: none; /* rule 1.8: no movement on hover / focus / select */
   box-shadow: 0 15px 35px rgba(33, 128, 141, 0.3) !important;
   border-color: var(--primary-color) !important;
   border-width: 2px !important;
@@ -1058,7 +1058,7 @@ textarea.ant-input {
 
 .dkg-duty-card:hover {
   border-color: var(--primary-color);
-  transform: translateY(-2px);
+  transform: none; /* rule 1.8: no movement on hover / focus / select */
   box-shadow: var(--shadow-md);
   color: var(--primary-color);
 }
@@ -1179,7 +1179,7 @@ textarea.ant-input {
   background: var(--teal-light);
   /* keep the vertical centring (-translate-y-1/2 on the button) and lift 1px; a plain translateY(-1px)
      replaced the centring and made the button drop half its height on hover */
-  transform: translateY(calc(-50% - 1px));
+  transform: translateY(-50%);   /* rule 1.8: keep the centring, no hover movement */
   box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.08);
 }
 
@@ -1596,7 +1596,7 @@ table * {
 .ie-tab-card:hover {
   border-color: var(--teal-primary);
   background: var(--teal-light); /* Standardized light teal hover */
-  transform: translateY(-3px);
+  transform: none; /* rule 1.8: no movement on hover / focus / select */
   box-shadow: 0 10px 15px -3px rgba(66, 129, 140, 0.12);
 }
 
@@ -1604,7 +1604,7 @@ table * {
   background: #f0f9fa !important; /* Perfect Image 2 Background */
   border: 2px solid #42818c !important; /* Strong Teal Border */
   box-shadow: 0 12px 24px -5px rgba(66, 129, 140, 0.2);
-  transform: translateY(-3px);
+  transform: none; /* rule 1.8: no movement on hover / focus / select */
 }
 
 .ie-tab-card .duty-tab-icon {

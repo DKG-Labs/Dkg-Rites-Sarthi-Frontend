@@ -13,6 +13,7 @@ import { RETURN_CALL_FLAGS } from '../utils/constants';
 import useCallDeskData from '../hooks/useCallDeskData';
 import useCallActions from '../hooks/useCallActions';
 import { formatDate } from '../../../utils/helpers';
+import { getDetailedStatus } from '../../../utils/statusMapper';
 import '../styles/CallDeskDashboard.css';
 import { generateCallLetterPDF } from '../utils/generateCallLetterPDF';
 import { fetchCallLetterDetails } from '../services/callLetterApi';
@@ -442,7 +443,7 @@ const CallDeskDashboard = () => {
                           </td>
                           <td>
                             <span className="history-status-badge history-status-default">
-                              {formatStatusText(row.status)}
+                              {getDetailedStatus(row.status, selectedCall?.callNumber, row).combinedText || formatStatusText(row.status)}
                             </span>
                           </td>
                           <td>

@@ -2004,6 +2004,30 @@ select.form-control {
   border: 1px solid rgba(239, 68, 68, 0.35);
 }
 
+.status-badge.closed {
+  background: rgba(100, 116, 139, 0.15);
+  color: #334155;
+  border: 1px solid rgba(100, 116, 139, 0.35);
+}
+
+.status-badge.withdrawn {
+  background: rgba(239, 68, 68, 0.15);
+  color: #b91c1c;
+  border: 1px solid rgba(239, 68, 68, 0.35);
+}
+
+.status-badge.blocked {
+  background: rgba(253, 126, 20, 0.15);
+  color: #c45d00;
+  border: 1px solid rgba(253, 126, 20, 0.35);
+}
+
+.status-badge.returned {
+  background: rgba(239, 68, 68, 0.15);
+  color: #b91c1c;
+  border: 1px solid rgba(239, 68, 68, 0.35);
+}
+
 /* Stats Grid */
 .stats-grid {
   display: grid;

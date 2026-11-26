@@ -15,10 +15,19 @@ const CallResultDispatchModal = ({
   systemStatus = 'ACCEPTED',
   callNo = '',
   productType = 'Inspection Call',
+  allowPartiallyAccepted = true,
   isSubmitting = false
 }) => {
-  // Normalize system status to uppercase
-  const normalizedSystemStatus = (systemStatus || 'ACCEPTED').toUpperCase().replace(/\s+/g, '_');
+  // Normalize system status to uppercase and enforce allowed statuses
+  const rawNormalizedStatus = (systemStatus || 'ACCEPTED').toUpperCase().replace(/\s+/g, '_');
+  const canonicalStatus = rawNormalizedStatus === 'PARTIAL' ? 'PARTIALLY_ACCEPTED' : rawNormalizedStatus;
+  const normalizedSystemStatus =
+    canonicalStatus === 'REJECTED'
+      ? 'REJECTED'
+      : canonicalStatus === 'PARTIALLY_ACCEPTED' && allowPartiallyAccepted
+      ? 'PARTIALLY_ACCEPTED'
+      : 'ACCEPTED';
+  const displayCallNo = (callNo !== null && callNo !== undefined && String(callNo).trim() !== '') ? String(callNo).trim() : 'N/A';
   
   // Local state for IE's selection
   const [selectedResult, setSelectedResult] = useState('ACCEPTED');
@@ -28,11 +37,7 @@ const CallResultDispatchModal = ({
   // Synchronize initial selection when modal opens
   useEffect(() => {
     if (isOpen) {
-      if (['ACCEPTED', 'PARTIALLY_ACCEPTED', 'REJECTED'].includes(normalizedSystemStatus)) {
-        setSelectedResult(normalizedSystemStatus);
-      } else {
-        setSelectedResult('ACCEPTED');
-      }
+      setSelectedResult(normalizedSystemStatus);
       setRemarks('');
       setRemarksError('');
     }
@@ -176,7 +181,7 @@ const CallResultDispatchModal = ({
                 Finish Inspection — Call Result Dispatch
               </h3>
               <p style={{ margin: '3px 0 0', fontSize: '13px', color: '#94a3b8' }}>
-                {productType} • Call No: <strong style={{ color: '#f8fafc' }}>{callNo || 'N/A'}</strong>
+                {productType} • Call No: <strong style={{ color: '#f8fafc' }}>{displayCallNo}</strong>
               </p>
             </div>
           </div>
@@ -272,7 +277,9 @@ const CallResultDispatchModal = ({
               }}
             >
               <option value="ACCEPTED">Accepted — Call Accepted</option>
-              <option value="PARTIALLY_ACCEPTED">Partially Accepted — Call Partially Accepted</option>
+              {allowPartiallyAccepted && (
+                <option value="PARTIALLY_ACCEPTED">Partially Accepted — Call Partially Accepted</option>
+              )}
               <option value="REJECTED">Rejected — Call Rejected</option>
             </select>
           </div>

@@ -80,7 +80,7 @@ const DisposedCallsTab = ({ calls = [], onViewHistory }) => {
       label: 'Status',
       sortable: true,
       render: (_value, row) => {
-        const { mainStatus, combinedText } = getDetailedStatus(row.originalStatus || row.status);
+        const { mainStatus, combinedText } = getDetailedStatus(row.originalStatus || row.status, row.callNumber, row);
         return <StatusBadge status={mainStatus} text={combinedText} />;
       }
     },
@@ -153,7 +153,7 @@ const DisposedCallsTab = ({ calls = [], onViewHistory }) => {
     if (searchTerm && searchTerm.trim()) {
       const term = searchTerm.trim().toLowerCase();
       result = result.filter(call => {
-        const detailed = getDetailedStatus(call.originalStatus || call.status);
+        const detailed = getDetailedStatus(call.originalStatus || call.status, call.callNumber, call);
         const detailedText = (detailed.combinedText || '').toLowerCase();
 
         return (

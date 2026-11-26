@@ -4,6 +4,13 @@ import { PieChart, Pie, Cell, Tooltip } from 'recharts';
 import ExcelJS from 'exceljs/dist/exceljs.min.js';
 import './SleeperSummary.css';
 
+// Numeric (sorted as numbers) columns of the Monthly Analysis of Units table
+const MAU_NUMERIC_KEYS = new Set([
+    'sno',
+    'fyInspected', 'fyAcceptance', 'fyProcessRejection', 'fyFinalRejection', 'fyRejectionPercentage',
+    'monthInspected', 'monthAcceptance', 'monthProcessRejection', 'monthFinalRejection', 'monthRejectionPercentage'
+]);
+
 // Reuse common components if possible, otherwise define them locally
 const ExportButton = ({ label, onClick, disabled, variant = 'green' }) => (
     <button
@@ -270,7 +277,7 @@ const SleeperMauReport = ({ startDate, endDate, mauData: propMauData, loading: p
     const [mauData, setMauData] = useState(propMauData || []);
     const [loading, setLoading] = useState(propLoading || false);
     const [searchTerm, setSearchTerm] = useState('');
-    const [sortConfig, setSortConfig] = useState({ key: 'plantName', direction: 'asc' });
+    const [sortConfig, setSortConfig] = useState({ key: 'sno', direction: 'asc' });
 
     const handleSort = (key) => {
         let direction = 'asc';
@@ -317,7 +324,7 @@ const SleeperMauReport = ({ startDate, endDate, mauData: propMauData, loading: p
         let valB = b[key];
 
         // Handle numeric values
-        if (key === 'production' || key === 'acceptance' || key === 'processRejection' || key === 'finalRejection' || key === 'rejectionPercentage' || key === 'noOfPos' || key === 'poQty') {
+        if (MAU_NUMERIC_KEYS.has(key)) {
             valA = Number(valA) || 0;
             valB = Number(valB) || 0;
             return direction === 'asc' ? valA - valB : valB - valA;
@@ -340,8 +347,26 @@ const SleeperMauReport = ({ startDate, endDate, mauData: propMauData, loading: p
     // Filtered data based on search
     const filteredData = sortedData.filter(plant =>
         (plant.plantName || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-        (plant.inspectedBy || '').toLowerCase().includes(searchTerm.toLowerCase())
+        (plant.zonalRailway || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (plant.rio || '').toLowerCase().includes(searchTerm.toLowerCase())
     );
+
+    const fyStartYear = new Date().getMonth() >= 3 ? new Date().getFullYear() : new Date().getFullYear() - 1;
+    const fyLabel = `Cumulative for FY ${String(fyStartYear).slice(2)}-${String(fyStartYear + 1).slice(2)} (upto Current Month)`;
+    const fmtNum = (v) => (v === undefined || v === null ? '-' : Number(v).toLocaleString('en-IN'));
+    const fmtPct = (v) => (v === undefined || v === null ? '-' : `${Number(v).toFixed(2)}%`);
+    const sortIcon = (key) => (sortConfig.key === key ? (sortConfig.direction === 'asc' ? ' ▲' : ' ▼') : '');
+    const grpTh = { textAlign: 'center', borderLeft: '2px solid rgba(255,255,255,0.5)' };
+    const grpSep = { borderLeft: '2px solid #e2e8f0' };
+    const windowCols = (prefix) => [
+        { key: `${prefix}Inspected`, label: 'Inspected' },
+        { key: `${prefix}Acceptance`, label: 'Acceptance' },
+        { key: `${prefix}ProcessRejection`, label: 'Rejection (Process)' },
+        { key: `${prefix}FinalRejection`, label: 'Rejection (Final)' },
+        { key: `${prefix}RejectionPercentage`, label: 'Rejection %' },
+    ];
+    const fyCols = windowCols('fy');
+    const monthCols = windowCols('month');
 
     // Excel Export Utility
     const downloadExcel = async (data, headers, filename) => {
@@ -429,28 +454,27 @@ const SleeperMauReport = ({ startDate, endDate, mauData: propMauData, loading: p
         <>
             <div className={`sleeper-report-container animate-up ${batchReportData ? 'no-print' : ''}`}>
                 <div className="sec-title" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px' }}>
-                    <span>Monthly Analysis of Units (Sleeper)</span>
+                    <span>Monthly Analysis of Units - Process Inspection</span>
                     <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
                         <ExportButton
                             label="Download Summary"
                             variant="white"
                             onClick={() => downloadExcel(
-                                mauData.map(row => ({
+                                filteredData.map((row, idx) => ({
                                     ...row,
-                                    poQty: row.poQty !== undefined && row.poQty !== null ? `${row.poQty} ${row.uom || ''}`.trim() : '-'
+                                    srNo: idx + 1,
+                                    plantName: formatDisplayName(row.plantName),
+                                    fyRejectionPercentage: fmtPct(row.fyRejectionPercentage),
+                                    monthRejectionPercentage: fmtPct(row.monthRejectionPercentage)
                                 })),
                                 [
-                                    { label: 'Plant Name', key: 'plantName' },
-                                    { label: 'Inspected By', key: 'inspectedBy' },
-                                    { label: 'No. of PO', key: 'noOfPos' },
-                                    { label: 'PO Qty', key: 'poQty' },
-                                    { label: 'Production', key: 'production' },
-                                    { label: 'Acceptance', key: 'acceptance' },
-                                    { label: 'Process Rejection', key: 'processRejection' },
-                                    { label: 'Final Rejection', key: 'finalRejection' },
-                                    { label: '% Rejection', key: 'rejectionPercentage' }
+                                    { label: 'Sr. No.', key: 'srNo' },
+                                    { label: 'Zonal Railway', key: 'zonalRailway' },
+                                    { label: 'PSC Sleeper Plant', key: 'plantName' },
+                                    ...fyCols.map(c => ({ label: `FY - ${c.label}`, key: c.key })),
+                                    ...monthCols.map(c => ({ label: `Current Month - ${c.label}`, key: c.key }))
                                 ],
-                                'Sleeper_MAU_Summary'
+                                'Sleeper_Monthly_Analysis_of_Units_Process_Inspection'
                             )}
                         />
                         <ExportButton
@@ -477,60 +501,51 @@ const SleeperMauReport = ({ startDate, endDate, mauData: propMauData, loading: p
                             Fetching Sleeper Analysis Data...
                         </div>
                     ) : (
-                        <table className="prof-table">
+                        <table className="prof-table sleeper-mau-table">
                             <thead>
                                 <tr>
-                                    <th style={{ cursor: 'default' }}>S.NO.</th>
-                                    <th onClick={() => handleSort('plantName')} style={{ cursor: 'pointer' }}>
-                                        PLANT NAME
-                                    </th>
-                                    <th onClick={() => handleSort('inspectedBy')} style={{ cursor: 'pointer' }}>
-                                        INSPECTED BY
-                                    </th>
-                                    <th onClick={() => handleSort('noOfPos')} style={{ cursor: 'pointer' }} className="text-right">
-                                        NO. OF PO
-                                    </th>
-                                    <th onClick={() => handleSort('poQty')} style={{ cursor: 'pointer' }} className="text-right">
-                                        PO QTY
-                                    </th>
-                                    <th onClick={() => handleSort('production')} style={{ cursor: 'pointer' }} className="text-right">
-                                        PRODUCTION (NOS.)
-                                    </th>
-                                    <th onClick={() => handleSort('acceptance')} style={{ cursor: 'pointer' }} className="text-right">
-                                        ACCEPTANCE (NOS.)
-                                    </th>
-                                    <th onClick={() => handleSort('processRejection')} style={{ cursor: 'pointer' }} className="text-right">
-                                        PROCESS REJECTION
-                                    </th>
-                                    <th onClick={() => handleSort('finalRejection')} style={{ cursor: 'pointer' }} className="text-right">
-                                        FINAL REJECTION
-                                    </th>
-                                    <th onClick={() => handleSort('rejectionPercentage')} style={{ cursor: 'pointer' }} className="text-right">
-                                        % REJECTION
-                                    </th>
+                                    <th rowSpan={2} onClick={() => handleSort('sno')} style={{ cursor: 'pointer' }}>SR. NO.{sortIcon('sno')}</th>
+                                    <th rowSpan={2} onClick={() => handleSort('zonalRailway')} style={{ cursor: 'pointer' }}>ZONAL RAILWAY{sortIcon('zonalRailway')}</th>
+                                    <th rowSpan={2} className="mau-plant" onClick={() => handleSort('plantName')} style={{ cursor: 'pointer' }}>PSC SLEEPER PLANT{sortIcon('plantName')}</th>
+                                    <th colSpan={5} style={grpTh}>{fyLabel}</th>
+                                    <th colSpan={5} style={grpTh}>During the Current Month</th>
+                                </tr>
+                                <tr>
+                                    {[...fyCols, ...monthCols].map((c, i) => (
+                                        <th
+                                            key={c.key}
+                                            onClick={() => handleSort(c.key)}
+                                            style={{ cursor: 'pointer', ...(i % 5 === 0 ? { borderLeft: '2px solid rgba(255,255,255,0.5)' } : {}) }}
+                                            className="text-right"
+                                        >
+                                            {c.label.toUpperCase()}{sortIcon(c.key)}
+                                        </th>
+                                    ))}
                                 </tr>
                             </thead>
                             <tbody>
                                 {filteredData.length > 0 ? (
                                     filteredData.map((row, idx) => (
-                                        <tr key={idx} className={idx % 2 === 0 ? 'row-odd' : 'row-even'} onClick={() => setSelectedPlant(row)} style={{ cursor: 'pointer' }}>
+                                        <tr key={row.plantId || idx} className={idx % 2 === 0 ? 'row-odd' : 'row-even'} onClick={() => setSelectedPlant(row)} style={{ cursor: 'pointer' }}>
                                             <td>{idx + 1}</td>
-                                            <td className="font-bold text-blue-700">{formatDisplayName(row.plantName)}</td>
-                                            <td><span className="prof-badge" style={{ background: '#f0f9ff', color: '#075985' }}>{row.inspectedBy}</span></td>
-                                            <td className="text-right">{row.noOfPos !== undefined && row.noOfPos !== null ? row.noOfPos : '-'}</td>
-                                            <td className="text-right">{row.poQty !== undefined && row.poQty !== null ? `${row.poQty} ${row.uom || ''}`.trim() : '-'}</td>
-                                            <td className="text-right">{(row.production || 0).toLocaleString()}</td>
-                                            <td className="text-right text-emerald-600 font-bold">{(row.acceptance || 0).toLocaleString()}</td>
-                                            <td className="text-right">{(row.processRejection || 0).toLocaleString()}</td>
-                                            <td className="text-right">{(row.finalRejection || 0).toLocaleString()}</td>
-                                            <td className="text-right">
-                                                <span className="prof-badge" style={{ background: '#fff7ed', color: '#9a3412' }}>{Number(row.rejectionPercentage || 0).toFixed(2)}%</span>
-                                            </td>
+                                            <td>{row.zonalRailway || '-'}</td>
+                                            <td className="font-bold text-blue-700 mau-plant">{formatDisplayName(row.plantName)}</td>
+                                            {['fy', 'month'].map(p => (
+                                                <React.Fragment key={p}>
+                                                    <td className="text-right" style={grpSep}>{fmtNum(row[`${p}Inspected`])}</td>
+                                                    <td className="text-right text-emerald-600 font-bold">{fmtNum(row[`${p}Acceptance`])}</td>
+                                                    <td className="text-right" style={{ color: '#dc2626' }}>{fmtNum(row[`${p}ProcessRejection`])}</td>
+                                                    <td className="text-right" style={{ color: '#dc2626' }}>{fmtNum(row[`${p}FinalRejection`])}</td>
+                                                    <td className="text-right">
+                                                        <span className="prof-badge" style={{ background: '#fff7ed', color: '#9a3412' }}>{fmtPct(row[`${p}RejectionPercentage`])}</span>
+                                                    </td>
+                                                </React.Fragment>
+                                            ))}
                                         </tr>
                                     ))
                                 ) : (
                                     <tr>
-                                        <td colSpan="10" style={{ padding: '30px', textAlign: 'center', color: '#94a3b8' }}>No data found for the selected dates.</td>
+                                        <td colSpan={13} style={{ padding: '30px', textAlign: 'center', color: '#94a3b8' }}>No data found for the selected dates.</td>
                                     </tr>
                                 )}
                             </tbody>

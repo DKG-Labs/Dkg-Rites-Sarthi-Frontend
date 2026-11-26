@@ -59,12 +59,12 @@ const RailpadProcessInspectionDashboard = ({ user, call, currentShift, onBack, o
 
   const getCalculatedRailpadProcessSystemStatus = () => {
     try {
+      if (isNcrgrsp && hasAcceptedSets && numAcceptedSets === 0) return 'REJECTED';
       const rej = Number(totals?.totalRejected || 0);
       const acc = Number(totals?.totalAccepted || 0);
-      if (rej === 0) return 'ACCEPTED';
       if (acc === 0 && rej > 0) return 'REJECTED';
-      return 'PARTIALLY_ACCEPTED';
-    } catch (e) {
+      return 'ACCEPTED';
+    } catch {
       return 'ACCEPTED';
     }
   };
@@ -2120,6 +2120,8 @@ const RailpadProcessInspectionDashboard = ({ user, call, currentShift, onBack, o
           setShowPauseModal(false);
           executeSaveOrFinish('PAUSE', { pauseReason: reason, remarks: pauseRemarks });
         }}
+        callNo={call?.requestId || call?.callNo || call?.call_no || summary?.callNo}
+        productType="Rail Pad Process Inspection"
         isSubmitting={isSubmitting}
         defaultRemarks={remarks || ''}
       />
@@ -2128,6 +2130,9 @@ const RailpadProcessInspectionDashboard = ({ user, call, currentShift, onBack, o
         isOpen={showCallResultModal}
         onClose={() => setShowCallResultModal(false)}
         systemStatus={getCalculatedRailpadProcessSystemStatus()}
+        allowPartiallyAccepted={false}
+        callNo={call?.requestId || call?.callNo || call?.call_no || summary?.callNo}
+        productType="Rail Pad Process Inspection"
         isSubmitting={isSubmitting}
         onConfirm={({ callResult, remarks: finishRemarks }) => {
           setShowCallResultModal(false);

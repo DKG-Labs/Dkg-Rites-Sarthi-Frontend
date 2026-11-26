@@ -12,19 +12,19 @@ const WeldingReportMain = () => {
             id: 1,
             title: 'Welding Summary',
             icon: <MessageOutlined />,
-            link: '/record/welding/summary'
+            link: '/sms/record/welding/summary'
           },
           {
             id: 2,
             title: 'New Weld Report',
             icon: <AuditOutlined />,
-            link: '/record/welding/newWeld'
+            link: '/sms/record/welding/newWeld'
           },
           {
             id: 3,
             title: 'Test Sample Report',
             icon: <ToolOutlined />,
-            link: '/record/welding/testSample'
+            link: '/sms/record/welding/testSample'
           },
     ]
     const navigate = useNavigate()

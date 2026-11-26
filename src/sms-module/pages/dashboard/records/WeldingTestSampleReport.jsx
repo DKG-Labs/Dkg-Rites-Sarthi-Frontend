@@ -166,7 +166,7 @@ const WeldingTestSampleReport = () => {
   return (
     <div className="flex flex-col gap-4 md:gap-2 bg-white p-4 w-full min-h-screen">
       <QuickAccess />
-      <SubHeader title="Welding Test Sample Report" link="/record/welding" />
+      <SubHeader title="Welding Test Sample Report" link="/sms/record/welding" />
 
       <div className="mt-4 border border-darkBlueHover p-2 py-4">
         <div>

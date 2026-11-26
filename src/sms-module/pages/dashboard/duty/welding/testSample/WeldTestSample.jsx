@@ -115,15 +115,15 @@ const WeldTestSample = () => {
 
   const handleRowClick = ({ testType, machineNo, jointNo }) => {
     if (testType === TLT) {
-      navigate("/welding/tltTestDetails", { state: { machineNo, jointNo } });
+      navigate("/sms/welding/tltTestDetails", { state: { machineNo, jointNo } });
     } else if (testType === HARDNESS) {
-      navigate("/welding/hardnessTestDetails", {
+      navigate("/sms/welding/hardnessTestDetails", {
         state: { machineNo, jointNo },
       });
     } else if (testType === MICRO) {
-      navigate("/welding/microTestDetails", { state: { machineNo, jointNo } });
+      navigate("/sms/welding/microTestDetails", { state: { machineNo, jointNo } });
     } else {
-      navigate("/welding/macroTestDetails", { state: { machineNo, jointNo } });
+      navigate("/sms/welding/macroTestDetails", { state: { machineNo, jointNo } });
     }
   };
 
@@ -234,7 +234,7 @@ const WeldTestSample = () => {
 
   return (
     <FormContainer>
-      <SubHeader title="Weld Periodic Test Sample" link="/welding/home" />
+      <SubHeader title="Weld Periodic Test Sample" link="/sms/welding/home" />
       <GeneralInfo data={weldingGeneralInfo} />
 
       {/* <div className="grid grid-cols-1 md:grid-cols-2 sm:grid-cols-2 gap-x-4">

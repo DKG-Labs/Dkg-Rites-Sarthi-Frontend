@@ -87,7 +87,7 @@ const TensileFootTest = () => {
         <div>
             <SubHeader
                 title="Tensile Foot Test"
-                link={"/testing/pendingTestSamples"}
+                link={"/sms/testing/pendingTestSamples"}
             />
             <FormContainer>
                 <Form form={form} layout="vertical" className='grid grid-cols-2 gap-x-2' initialValues={formData} onFinish={handleSubmit}>

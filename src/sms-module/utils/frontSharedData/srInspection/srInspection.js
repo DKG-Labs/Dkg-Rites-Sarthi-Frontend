@@ -5,12 +5,12 @@ const SrInspectionHomeTabs = [
     {
         title: 'Add New Short Rail Inspection',
         icon: <EyeOutlined />,
-        link: "/srInspection/addNewInspection"
+        link: "/sms/srInspection/addNewInspection"
       },
       {
         title: 'Other Work Station Remarks',
         icon: <FileSearchOutlined />,
-        link: "/srInspection/wsRemarks"
+        link: "/sms/srInspection/wsRemarks"
       }
 ]
 

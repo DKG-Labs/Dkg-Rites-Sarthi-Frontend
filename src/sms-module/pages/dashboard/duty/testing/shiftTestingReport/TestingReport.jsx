@@ -44,7 +44,7 @@ const TestingReport = () => {
 
   return (
     <FormContainer>
-        <SubHeader title="Shift Testing Report" link="/testing/home" />
+        <SubHeader title="Shift Testing Report" link="/sms/testing/home" />
         <GeneralInfo data={testingGeneralInfo} />
 
         <FormBody initialValues={formData}>
@@ -92,7 +92,7 @@ const TestingReport = () => {
                     onClick: () => {
                         // Navigate to the desired path when a row is clicked
                         // navigate(`/user/${record.key}`);
-                        navigate(`/welding/home`);
+                        navigate(`/sms/welding/home`);
                     },
                     };
                 }}

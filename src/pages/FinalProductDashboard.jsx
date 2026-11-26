@@ -1510,6 +1510,9 @@ export default function FinalProductDashboard({ onBack, onNavigateToSubModule })
     if (!lotsWithSampling || lotsWithSampling.length === 0) return 'ACCEPTED';
     const acceptedLots = lotsWithSampling.filter(lot => !isLotRejected(lot.lotNo)).length;
     const rejectedLots = lotsWithSampling.filter(lot => isLotRejected(lot.lotNo)).length;
+    if (lotsWithSampling.length === 1) {
+      return rejectedLots > 0 ? 'REJECTED' : 'ACCEPTED';
+    }
     if (acceptedLots === lotsWithSampling.length) return 'ACCEPTED';
     if (rejectedLots === lotsWithSampling.length) return 'REJECTED';
     if (acceptedLots > 0 && rejectedLots > 0) return 'PARTIALLY_ACCEPTED';
@@ -1523,7 +1526,7 @@ export default function FinalProductDashboard({ onBack, onNavigateToSubModule })
       return;
     }
 
-    const rioMismatch = getCaseRioMismatch(selectedCall, callNo);
+    const rioMismatch = getCaseRioMismatch(selectedCall);
     if (rioMismatch) {
       alert(formatCaseRioError(rioMismatch));
       return;
@@ -1547,7 +1550,7 @@ export default function FinalProductDashboard({ onBack, onNavigateToSubModule })
     const callNo = selectedCall?.call_no;
     if (!callNo) return;
 
-    const rioMismatch = getCaseRioMismatch(selectedCall, callNo);
+    const rioMismatch = getCaseRioMismatch(selectedCall);
     if (rioMismatch) {
       alert(formatCaseRioError(rioMismatch));
       return;
@@ -1748,7 +1751,7 @@ export default function FinalProductDashboard({ onBack, onNavigateToSubModule })
       setPauseErrorData({ message: 'Call number not found. Cannot pause inspection.' });
       return;
     }
-    const rioMismatch = getCaseRioMismatch(selectedCall, callNo);
+    const rioMismatch = getCaseRioMismatch(selectedCall);
     if (rioMismatch) {
       setPauseErrorData({ message: formatCaseRioError(rioMismatch) });
       return;
@@ -1759,7 +1762,7 @@ export default function FinalProductDashboard({ onBack, onNavigateToSubModule })
   const confirmPauseInspection = async (pauseData = {}) => {
     setShowPauseConfirm(false);
     const callNo = selectedCall?.call_no;
-    const rioMismatch = getCaseRioMismatch(selectedCall, callNo);
+    const rioMismatch = getCaseRioMismatch(selectedCall);
     if (rioMismatch) {
       setPauseErrorData({ message: formatCaseRioError(rioMismatch) });
       return;
@@ -2903,7 +2906,7 @@ export default function FinalProductDashboard({ onBack, onNavigateToSubModule })
         isOpen={showPauseConfirm}
         onClose={() => setShowPauseConfirm(false)}
         onConfirm={confirmPauseInspection}
-        callNo={selectedCall?.call_no}
+        callNo={selectedCall?.call_no || selectedCall?.callNo || selectedCall?.requestId}
         productType="ERC Final Product Inspection"
         isSubmitting={isPausingInspection}
       />
@@ -2914,7 +2917,8 @@ export default function FinalProductDashboard({ onBack, onNavigateToSubModule })
         onClose={() => setShowFinishConfirm(false)}
         onConfirm={confirmFinishInspection}
         systemStatus={getCalculatedSystemStatus()}
-        callNo={selectedCall?.call_no}
+        allowPartiallyAccepted={(lotsWithSampling?.length || 0) > 1}
+        callNo={selectedCall?.call_no || selectedCall?.callNo || selectedCall?.requestId}
         productType="ERC Final Product Inspection"
         isSubmitting={isFinishingInspection}
       />

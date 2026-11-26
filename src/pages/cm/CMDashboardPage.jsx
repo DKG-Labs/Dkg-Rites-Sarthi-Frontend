@@ -7,8 +7,10 @@ import reportService from '../../services/reportService';
 import ProfessionalCardSection from '../../components/railway-board/ProfessionalCardSection';
 import { Level1Row } from '../../components/railway-board/LevelRows';
 import Pagination from '../../components/Pagination';
-import { formatDate, downloadCrisPoDocument } from '../../utils/helpers';
+import { formatDate, downloadCrisPoDocument, extractVendorName } from '../../utils/helpers';
 import { downloadSignedCertificateFile, downloadAnnexureDocument } from '../../services/certificateService';
+import { fetchCallLetterDetails } from '../../call-desk-module/src/services/callLetterApi';
+import { generateCallLetterPDF } from '../../call-desk-module/src/utils/generateCallLetterPDF';
 
 // Heavy tabs load on demand (smaller first load)
 const CMDiversionApprovalsTab = lazy(() => import('./tabs/CMDiversionApprovalsTab'));
@@ -1086,6 +1088,7 @@ export const CMDashboardPage = ({ isEmbedded = false, activeTabFromProps = null,
   const [approvals, setApprovals] = useState(INITIAL_APPROVALS);
   const [notification, setNotification] = useState(null);
   const [downloadingPo, setDownloadingPo] = useState(null);
+  const [downloadingCallLetter, setDownloadingCallLetter] = useState(null);
   const [callDocsModal, setCallDocsModal] = useState(null);
   const [downloadingDocKey, setDownloadingDocKey] = useState(null);
 
@@ -1189,7 +1192,8 @@ export const CMDashboardPage = ({ isEmbedded = false, activeTabFromProps = null,
           pdfPath: item.pdfPath || item.poPdfPath || '',
           dpDate: item.deliveryDate || '',
           extDpDate: item.expectedDeliveryDate || '',
-          vendorName: item.vendorName,
+          rawVendorName: item.vendorName || '',
+          vendorName: item.vendorName ? extractVendorName(item.vendorName) : '',
           desiredInspectionDate: item.inspectionDesiredDate,
           callDate: item.callDate,
           ieName: item.ieName ? item.ieName.split(',').map(ie => formatNameWithId(ie.trim())).join(', ') : '',
@@ -1758,6 +1762,47 @@ export const CMDashboardPage = ({ isEmbedded = false, activeTabFromProps = null,
       triggerNotification(err.message || `Error while downloading documents for ${callNo}.`, 'error');
     } finally {
       setDownloadingDocKey(null);
+    }
+  };
+
+  // Download Online Inspection Call Letter PDF using the shared Call Letter API + PDF generator
+  const handleDownloadCallLetter = async (call) => {
+    const callNumber = call?.callNumber || call?.call_no || call?.requestId;
+    if (!callNumber) {
+      triggerNotification('Call number not found. Cannot download Call Letter.', 'error');
+      return;
+    }
+
+    setDownloadingCallLetter(callNumber);
+    try {
+      let enrichedCall = {
+        ...call,
+        callNumber,
+        vendorName: call.rawVendorName || call.vendorName || '',
+        rio: call.ritesRio || call.rio || '',
+      };
+
+      try {
+        const details = await fetchCallLetterDetails(callNumber);
+        if (details && typeof details === 'object') {
+          enrichedCall = {
+            ...enrichedCall,
+            ...details,
+            callNumber: details.callNumber || callNumber,
+            rio: details.rio || details.rioCode || enrichedCall.rio || '',
+          };
+        }
+      } catch (fetchErr) {
+        console.warn(`Could not fetch call letter details for ${callNumber}, falling back to row data:`, fetchErr);
+      }
+
+      generateCallLetterPDF(enrichedCall, true);
+      triggerNotification(`Call Letter PDF for ${callNumber} downloaded.`, 'success');
+    } catch (err) {
+      console.error('Failed to generate Call Letter PDF:', err);
+      triggerNotification(err.message || `Failed to generate Call Letter PDF for ${callNumber}.`, 'error');
+    } finally {
+      setDownloadingCallLetter(null);
     }
   };
 
@@ -3342,6 +3387,9 @@ export const CMDashboardPage = ({ isEmbedded = false, activeTabFromProps = null,
                       <th className="sortable" onClick={() => handleSort('documents')}>
                         Documents {renderCallSortIcon('documents')}
                       </th>
+                      <th style={{ textAlign: 'center', whiteSpace: 'nowrap' }}>
+                        Call Letter
+                      </th>
                     </tr>
                   </thead>
                   <tbody>
@@ -3349,7 +3397,7 @@ export const CMDashboardPage = ({ isEmbedded = false, activeTabFromProps = null,
                       // Skeleton rows while the first load is in progress (instead of "No matching calls")
                       Array.from({ length: 6 }).map((_, i) => (
                         <tr key={`sk-${i}`} className="cm-skeleton-row">
-                          <td colSpan="9"><span className="cm-skeleton cm-skeleton-line" /></td>
+                          <td colSpan="10"><span className="cm-skeleton cm-skeleton-line" /></td>
                         </tr>
                       ))
                     ) : paginatedCalls.length > 0 ? (
@@ -3503,13 +3551,39 @@ export const CMDashboardPage = ({ isEmbedded = false, activeTabFromProps = null,
                                   );
                                 })()}
                               </td>
+
+                              {/* 10. Call Letter */}
+                              <td style={{ textAlign: 'center' }}>
+                                <button
+                                  type="button"
+                                  className="cm-doc-link"
+                                  disabled={!call.callNumber || downloadingCallLetter === call.callNumber}
+                                  title={call.callNumber ? `Download Call Letter PDF for ${call.callNumber}` : 'Call number unavailable'}
+                                  onClick={() => handleDownloadCallLetter(call)}
+                                  style={{
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    gap: '4px',
+                                    height: '24px',
+                                    padding: '0 8px',
+                                    fontSize: '11px',
+                                    fontWeight: 'bold',
+                                    cursor: (!call.callNumber || downloadingCallLetter === call.callNumber) ? 'not-allowed' : 'pointer',
+                                    opacity: downloadingCallLetter === call.callNumber ? 0.7 : 1
+                                  }}
+                                >
+                                  <i className={`fa-solid ${downloadingCallLetter === call.callNumber ? 'fa-spinner fa-spin' : 'fa-file-arrow-down'}`}></i>
+                                  <span>{downloadingCallLetter === call.callNumber ? 'Generating...' : 'Download'}</span>
+                                </button>
+                              </td>
                             </tr>
                           );
                         });
                       })
                     ) : (
                       <tr>
-                        <td colSpan="9">
+                        <td colSpan="10">
                           <div className="cm-empty-state">
                             <i className="cm-empty-icon fa-solid fa-folder-open"></i>
                             <h4>No matching inspection calls found</h4>
@@ -5086,6 +5160,25 @@ export const CMDashboardPage = ({ isEmbedded = false, activeTabFromProps = null,
 
                 return (
                   <>
+                    {/* Call Letter PDF */}
+                    <div style={{ border: '1px solid #cbd5e1', borderRadius: '8px', padding: '12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px' }}>
+                      <div>
+                        <div style={{ fontSize: '13px', fontWeight: 700, color: '#0f172a' }}>Inspection Call Letter</div>
+                        <div style={{ fontSize: '11.5px', color: '#475569' }}>
+                          {callDocsModal.call?.callNumber ? `Call No: ${callDocsModal.call.callNumber}` : 'Call number unavailable'}
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        className="btn btn--primary"
+                        disabled={!callDocsModal.call?.callNumber || downloadingCallLetter === callDocsModal.call?.callNumber}
+                        onClick={() => handleDownloadCallLetter(callDocsModal.call)}
+                        style={{ padding: '6px 12px', fontSize: '11.5px', opacity: callDocsModal.call?.callNumber ? 1 : 0.5, cursor: callDocsModal.call?.callNumber ? 'pointer' : 'not-allowed' }}
+                      >
+                        {downloadingCallLetter === callDocsModal.call?.callNumber ? 'Generating...' : 'Download Call Letter'}
+                      </button>
+                    </div>
+
                     {/* 1. Purchase Order Document */}
                     <div style={{ border: '1px solid #cbd5e1', borderRadius: '8px', padding: '12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px' }}>
                       <div>

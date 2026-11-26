@@ -355,19 +355,37 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
 
   const getCalculatedRailpadFinalSystemStatus = () => {
     try {
-      if (effectiveLots && effectiveLots.length > 0) {
-        const statuses = effectiveLots.map(l => String(l.status || '').toUpperCase());
-        const allPass = statuses.every(s => s === 'PASSED' || s === 'ACCEPTED' || s === 'PASS');
-        if (allPass) return 'ACCEPTED';
-        const allRej = statuses.every(s => s === 'REJECTED' || s === 'FAIL' || s === 'FAILED');
-        if (allRej) return 'REJECTED';
-        return 'PARTIALLY_ACCEPTED';
+      const lotList = lots || [];
+      const resolvedStatuses = lotList.map(l => {
+        let lotStatus = l.status || 'Pending';
+        const cachedStatus = currentCallId ? localStorage.getItem(`railpad_status_${currentCallId}_${l.id}`) : null;
+        if (l.id === selectedLot) {
+          lotStatus = activeLotOverallStatus || lotStatus;
+        } else if (cachedStatus) {
+          lotStatus = cachedStatus;
+        }
+        return String(lotStatus).toUpperCase();
+      });
+
+      const isPass = (s) => s === 'PASSED' || s === 'ACCEPTED' || s === 'PASS' || s === 'LOT PASSED';
+      const isRej = (s) => s === 'REJECTED' || s === 'FAIL' || s === 'FAILED' || s === 'PERMANENT REJECT';
+
+      if (resolvedStatuses.length <= 1) {
+        const singleStatus = resolvedStatuses[0] || String(activeLotOverallStatus || '').toUpperCase();
+        return isRej(singleStatus) ? 'REJECTED' : 'ACCEPTED';
       }
-      if (activeLotOverallStatus === 'ACCEPTED' || activeLotOverallStatus === 'PASS') return 'ACCEPTED';
-      if (activeLotOverallStatus === 'REJECTED' || activeLotOverallStatus === 'FAIL') return 'REJECTED';
-      return 'PARTIALLY_ACCEPTED';
-    } catch (e) {
-      return activeLotOverallStatus === 'ACCEPTED' ? 'ACCEPTED' : 'PARTIALLY_ACCEPTED';
+
+      const allPass = resolvedStatuses.every(isPass);
+      if (allPass) return 'ACCEPTED';
+      const allRej = resolvedStatuses.every(isRej);
+      if (allRej) return 'REJECTED';
+      const somePass = resolvedStatuses.some(isPass);
+      const someRej = resolvedStatuses.some(isRej);
+      if (somePass && someRej) return 'PARTIALLY_ACCEPTED';
+      return someRej ? 'PARTIALLY_ACCEPTED' : 'ACCEPTED';
+    } catch {
+      const s = String(activeLotOverallStatus || '').toUpperCase();
+      return (s === 'REJECTED' || s === 'FAIL' || s === 'FAILED') ? 'REJECTED' : 'ACCEPTED';
     }
   };
 
@@ -10832,7 +10850,7 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
           overallStatusBg = '#fee2e2';
           overallStatusColor = '#991b1b';
           overallStatusBorder = '#fca5a5';
-        } else if (totalLots > 0) {
+        } else if (totalLots > 1) {
           overallStatus = 'PARTIALLY ACCEPTED';
           overallStatusBg = '#fef3c7';
           overallStatusColor = '#92400e';
@@ -11694,6 +11712,8 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
             setShowPauseModal(false);
             handleSaveAction('PAUSE', { pauseReason: reason, remarks: pauseRemarks });
           }}
+          callNo={call?.callNo || call?.icNumber || call?.requestId || currentCallId}
+          productType="Rail Pad Final Inspection"
           isSubmitting={isSubmitting}
           defaultRemarks={remarks || ''}
         />
@@ -11702,6 +11722,9 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
           isOpen={showCallResultModal}
           onClose={() => setShowCallResultModal(false)}
           systemStatus={getCalculatedRailpadFinalSystemStatus()}
+          allowPartiallyAccepted={(lots?.length || 0) > 1}
+          callNo={call?.callNo || call?.icNumber || call?.requestId || currentCallId}
+          productType="Rail Pad Final Inspection"
           isSubmitting={isSubmitting}
           onConfirm={({ callResult, remarks: finishRemarks }) => {
             setShowCallResultModal(false);

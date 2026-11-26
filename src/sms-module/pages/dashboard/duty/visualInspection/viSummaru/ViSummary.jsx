@@ -19,7 +19,7 @@ const ViSummary = () => {
     const navigate = useNavigate();
 
     const handleBtnClick = (record) => {
-        navigate("/visual/inspection", {state: record})
+        navigate("/sms/visual/inspection", {state: record})
     }
 
     const handleDelete = async (record) => {

@@ -5,17 +5,17 @@ const testingHomeTabs = [
     {
       title: 'Pending Test Samples',
       icon: <EyeOutlined />,
-      link: "/testing/pendingTestSamples"
+      link: "/sms/testing/pendingTestSamples"
     },
     {
       title: 'Shift Testing Report',
       icon: <FileSearchOutlined />,
-      link: "/testing/testingReport"
+      link: "/sms/testing/testingReport"
     },
     {
         title: 'Heat Pending for Decision',
         icon: <PieChartOutlined />,
-        link: "/testing/heatPending"
+        link: "/sms/testing/heatPending"
     },
 ]
 

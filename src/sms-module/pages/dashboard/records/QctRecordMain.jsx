@@ -12,19 +12,19 @@ const QctRecordMain = () => {
             id: 1,
             title: 'QCT Record 1',
             icon: <MessageOutlined />,
-            link: '/record/qct/record1'
+            link: '/sms/record/qct/record1'
           },
         //   {
         //     id: 2,
         //     title: 'Acceptance Report',
         //     icon: <AuditOutlined />,
-        //     link: '/record/vi/acpt'
+        //     link: '/sms/record/vi/acpt'
         //   },
         //   {
         //     id: 2,
         //     title: 'Test Sample Report',
         //     icon: <ToolOutlined />,
-        //     link: '/record/welding/testSample'
+        //     link: '/sms/record/welding/testSample'
         //   },
     ]
     const navigate = useNavigate()

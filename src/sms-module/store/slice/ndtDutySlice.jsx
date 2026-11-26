@@ -8,6 +8,7 @@ const initialState = {
     date: null,
     startTime: null,
     shift: null,
+    organisation: null,
     mill: null,
     ndt: null,
     railGrade: null,
@@ -30,6 +31,7 @@ const ndtDutySlice = createSlice({
             state.startTime = payload?.startTime;
             state.shift = payload?.shift;
             state.mill = payload?.mill;
+            state.organisation = payload?.organisation;
             state.ndt = payload?.ndt;
             state.railGrade = payload?.railGrade;
             state.railSection = payload?.railSection;
@@ -49,6 +51,7 @@ const ndtDutySlice = createSlice({
             state.startTime = null;
             state.shift = null;
             state.mill = null;
+            state.organisation = null;
             state.ndt = null;
             state.railGrade = null;
             state.railSection = null;
@@ -69,6 +72,7 @@ const ndtDutySlice = createSlice({
             state.startTime = payload?.startTime;
             state.shift = payload?.shift;
             state.mill = payload?.mill;
+            state.organisation = payload?.organisation;
             state.ndt = payload?.ndt;
             state.railGrade = payload?.railGrade;
             state.railSection = payload?.railSection;

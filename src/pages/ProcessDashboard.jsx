@@ -1851,7 +1851,7 @@ const ProcessDashboard = ({ call, onBack, onNavigateToSubModule, productionLines
   const handleSelectNewCall = (callData, skipInitiation = false, rowArg = null) => {
     const callNo = typeof callData === 'object' ? callData.call_no : callData;
     const rowData = typeof callData === 'object' ? callData : (rowArg || allProcessCalls.find(c => c.call_no === callNo) || null);
-    const rioMismatch = getCaseRioMismatch(rowData, callNo);
+    const rioMismatch = getCaseRioMismatch(rowData);
     if (rioMismatch) {
       showNotification('error', formatCaseRioError(rioMismatch));
       return;
@@ -4095,9 +4095,9 @@ const ProcessDashboard = ({ call, onBack, onNavigateToSubModule, productionLines
       if (totalRej === 0) return 'ACCEPTED';
       const netAccepted = Math.max(0, totalMfg - totalRej);
       if (netAccepted === 0 && totalRej > 0) return 'REJECTED';
-      return 'PARTIALLY_ACCEPTED';
-    } catch (e) {
-      return (rejectedQty?.totalRejected || 0) > 0 ? 'PARTIALLY_ACCEPTED' : 'ACCEPTED';
+      return 'ACCEPTED';
+    } catch {
+      return 'ACCEPTED';
     }
   }, [localProductionLines, call, shift, rejectedQty]);
 
@@ -8700,6 +8700,13 @@ const ProcessDashboard = ({ call, onBack, onNavigateToSubModule, productionLines
         onConfirm={({ reason, remarks }) => {
           executePauseProcessInspection(reason, remarks);
         }}
+        callNo={
+          call?.call_no ||
+          call?.callNo ||
+          call?.requestId ||
+          availableCalls?.[0]?.call_no
+        }
+        productType="ERC Process Inspection"
         isSubmitting={isSaving}
         defaultRemarks={finalInspectionRemarks || ''}
       />
@@ -8709,6 +8716,16 @@ const ProcessDashboard = ({ call, onBack, onNavigateToSubModule, productionLines
         isOpen={showCallResultModal}
         onClose={() => setShowCallResultModal(false)}
         systemStatus={getCalculatedProcessSystemStatus()}
+        allowPartiallyAccepted={false}
+        callNo={
+          (pendingCallsToFinish?.length > 0 ? pendingCallsToFinish.join(', ') : null) ||
+          (selectedCallsToFinish?.length > 0 ? selectedCallsToFinish.join(', ') : null) ||
+          call?.call_no ||
+          call?.callNo ||
+          call?.requestId ||
+          availableCalls?.[0]?.call_no
+        }
+        productType="ERC Process Inspection"
         isSubmitting={isSaving}
         onConfirm={({ callResult, remarks: finishRemarks }) => {
           executeFinishSelectedCallsWithResult(callResult, finishRemarks);

@@ -15,34 +15,42 @@ const CallResultDispatchModal = ({
   systemStatus = 'ACCEPTED',
   callNo = '',
   productType = 'Inspection Call',
+  allowPartiallyAccepted = true,
   isSubmitting = false
 }) => {
-  // Normalize system status to uppercase
-  const normalizedSystemStatus = (systemStatus || 'ACCEPTED').toUpperCase().replace(/\s+/g, '_');
+  // Normalize system status to uppercase and enforce allowed statuses
+  const rawNormalizedStatus = (systemStatus || 'ACCEPTED').toUpperCase().replace(/\s+/g, '_');
+  const canonicalStatus = rawNormalizedStatus === 'PARTIAL' ? 'PARTIALLY_ACCEPTED' : rawNormalizedStatus;
+  const normalizedSystemStatus =
+    canonicalStatus === 'REJECTED'
+      ? 'REJECTED'
+      : canonicalStatus === 'PARTIALLY_ACCEPTED' && allowPartiallyAccepted
+      ? 'PARTIALLY_ACCEPTED'
+      : 'ACCEPTED';
+  const displayCallNo = (callNo !== null && callNo !== undefined && String(callNo).trim() !== '') ? String(callNo).trim() : 'N/A';
   
   // Local state for IE's selection
-  const [selectedResult, setSelectedResult] = useState('ACCEPTED');
+  const [selectedResult, setSelectedResult] = useState('');
   const [remarks, setRemarks] = useState('');
+  const [resultError, setResultError] = useState('');
   const [remarksError, setRemarksError] = useState('');
 
   // Synchronize initial selection when modal opens
   useEffect(() => {
     if (isOpen) {
-      if (['ACCEPTED', 'PARTIALLY_ACCEPTED', 'REJECTED'].includes(normalizedSystemStatus)) {
-        setSelectedResult(normalizedSystemStatus);
-      } else {
-        setSelectedResult('ACCEPTED');
-      }
+      setSelectedResult('');
       setRemarks('');
+      setResultError('');
       setRemarksError('');
     }
-  }, [isOpen, normalizedSystemStatus]);
+  }, [isOpen]);
 
   if (!isOpen) return null;
 
   // Validation & Warning conditions
+  const hasSelection = Boolean(selectedResult);
   const isAdverseSelection = selectedResult === 'PARTIALLY_ACCEPTED' || selectedResult === 'REJECTED';
-  const isMismatch = selectedResult !== normalizedSystemStatus;
+  const isMismatch = hasSelection && selectedResult !== normalizedSystemStatus;
   const isSystemAcceptedIeRejected = normalizedSystemStatus === 'ACCEPTED' && selectedResult === 'REJECTED';
   const isSystemAcceptedIePartial = normalizedSystemStatus === 'ACCEPTED' && selectedResult === 'PARTIALLY_ACCEPTED';
   const isSystemRejectedIeAccepted = normalizedSystemStatus === 'REJECTED' && selectedResult === 'ACCEPTED';
@@ -50,15 +58,20 @@ const CallResultDispatchModal = ({
   // Remarks are strictly mandatory when:
   // 1. There is a mismatch with system status, OR
   // 2. The call is being Rejected
-  const isRemarksMandatory = isMismatch || selectedResult === 'REJECTED';
+  const isRemarksMandatory = hasSelection && (isMismatch || selectedResult === 'REJECTED');
 
   const handleResultChange = (e) => {
     const val = e.target.value;
     setSelectedResult(val);
+    setResultError('');
     setRemarksError('');
   };
 
   const handleConfirm = () => {
+    if (!selectedResult) {
+      setResultError('Please select a call result.');
+      return;
+    }
     if (isRemarksMandatory && (!remarks || !remarks.trim())) {
       setRemarksError('Remarks / justification are mandatory for this decision.');
       return;
@@ -118,7 +131,7 @@ const CallResultDispatchModal = ({
       style={{
         position: 'fixed',
         inset: 0,
-        backgroundColor: 'rgba(15, 23, 42, 0.75)',
+        backgroundColor: 'rgba(15, 23, 42, 0.45)',
         backdropFilter: 'blur(3px)',
         display: 'flex',
         alignItems: 'center',
@@ -136,7 +149,8 @@ const CallResultDispatchModal = ({
           borderRadius: '16px',
           width: '100%',
           maxWidth: '560px',
-          boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
+          boxShadow: '0 20px 40px -12px rgba(15, 23, 42, 0.18)',
+          border: '1px solid #e2e8f0',
           overflow: 'hidden',
           display: 'flex',
           flexDirection: 'column',
@@ -147,49 +161,39 @@ const CallResultDispatchModal = ({
         {/* Header */}
         <div
           style={{
-            padding: '20px 24px',
-            backgroundColor: '#0f172a',
-            color: '#ffffff',
+            padding: '18px 24px',
+            background: 'linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%)',
+            color: '#0f172a',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
-            borderBottom: '1px solid #1e293b'
+            borderBottom: '1px solid #e2e8f0'
           }}
         >
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-            <div
-              style={{
-                width: '40px',
-                height: '40px',
-                borderRadius: '10px',
-                backgroundColor: 'rgba(255, 255, 255, 0.12)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                fontSize: '20px'
-              }}
-            >
-              📋
-            </div>
-            <div>
-              <h3 style={{ margin: 0, fontSize: '18px', fontWeight: '700', color: '#ffffff' }}>
-                Finish Inspection — Call Result Dispatch
-              </h3>
-              <p style={{ margin: '3px 0 0', fontSize: '13px', color: '#94a3b8' }}>
-                {productType} • Call No: <strong style={{ color: '#f8fafc' }}>{callNo || 'N/A'}</strong>
-              </p>
-            </div>
+          <div>
+            <h3 style={{ margin: 0, fontSize: '18px', fontWeight: '700', color: '#0f172a' }}>
+              Finish Inspection — Call Result Dispatch
+            </h3>
+            <p style={{ margin: '4px 0 0', fontSize: '13px', color: '#64748b' }}>
+              {productType} • Call No: <strong style={{ color: '#1e293b' }}>{displayCallNo}</strong>
+            </p>
           </div>
           {!isSubmitting && (
             <button
+              type="button"
               onClick={onClose}
               style={{
-                background: 'none',
-                border: 'none',
-                color: '#94a3b8',
-                fontSize: '22px',
+                background: '#ffffff',
+                border: '1px solid #e2e8f0',
+                borderRadius: '8px',
+                color: '#64748b',
+                fontSize: '18px',
                 cursor: 'pointer',
-                padding: '4px 8px',
+                width: '32px',
+                height: '32px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
                 lineHeight: 1
               }}
               title="Close"
@@ -260,21 +264,41 @@ const CallResultDispatchModal = ({
               disabled={isSubmitting}
               style={{
                 width: '100%',
-                padding: '12px 16px',
+                height: 'auto',
+                minHeight: '46px',
+                lineHeight: '1.5',
+                padding: '10px 40px 10px 14px',
                 fontSize: '15px',
                 fontWeight: '600',
                 borderRadius: '10px',
-                border: isMismatch ? '2px solid #f59e0b' : '1.5px solid #cbd5e1',
+                border: resultError ? '1.5px solid #ef4444' : isMismatch ? '2px solid #f59e0b' : '1.5px solid #cbd5e1',
                 backgroundColor: '#ffffff',
-                color: '#0f172a',
+                color: selectedResult ? '#0f172a' : '#64748b',
+                boxSizing: 'border-box',
                 outline: 'none',
                 cursor: isSubmitting ? 'not-allowed' : 'pointer'
               }}
             >
-              <option value="ACCEPTED">Accepted — Call Accepted</option>
-              <option value="PARTIALLY_ACCEPTED">Partially Accepted — Call Partially Accepted</option>
-              <option value="REJECTED">Rejected — Call Rejected</option>
+              <option value="" style={{ color: '#64748b', backgroundColor: '#ffffff' }}>
+                Select...
+              </option>
+              <option value="ACCEPTED" style={{ color: '#0f172a', backgroundColor: '#ffffff' }}>
+                Accepted — Call Accepted
+              </option>
+              {allowPartiallyAccepted && (
+                <option value="PARTIALLY_ACCEPTED" style={{ color: '#0f172a', backgroundColor: '#ffffff' }}>
+                  Partially Accepted — Call Partially Accepted
+                </option>
+              )}
+              <option value="REJECTED" style={{ color: '#0f172a', backgroundColor: '#ffffff' }}>
+                Rejected — Call Rejected
+              </option>
             </select>
+            {resultError && (
+              <p style={{ margin: '6px 0 0', fontSize: '12px', color: '#dc2626', fontWeight: '600' }}>
+                ❌ {resultError}
+              </p>
+            )}
           </div>
 
           {/* WARNING 1: Adverse Selection Warning (Partially Accepted or Rejected) */}
@@ -453,7 +477,9 @@ const CallResultDispatchModal = ({
                   ? '#dc2626'
                   : selectedResult === 'PARTIALLY_ACCEPTED'
                   ? '#d97706'
-                  : '#16a34a',
+                  : selectedResult === 'ACCEPTED'
+                  ? '#16a34a'
+                  : '#64748b',
               color: '#ffffff',
               cursor: isSubmitting ? 'not-allowed' : 'pointer',
               boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
@@ -463,7 +489,7 @@ const CallResultDispatchModal = ({
               gap: '8px'
             }}
           >
-            {isSubmitting ? '⏳ Processing & Dispatching...' : `Confirm & Finish (${selectedBadge.label})`}
+            {isSubmitting ? '⏳ Processing & Dispatching...' : hasSelection ? `Confirm & Finish (${selectedBadge.label})` : 'Confirm & Finish'}
           </button>
         </div>
       </div>

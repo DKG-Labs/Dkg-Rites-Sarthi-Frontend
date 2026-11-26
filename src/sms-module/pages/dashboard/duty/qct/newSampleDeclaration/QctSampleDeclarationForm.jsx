@@ -97,19 +97,19 @@ const QctSampleDeclarationForm = () => {
   const handleRowClick = (row) => {
 
     if (row.qctType === FATIGUE) {
-      navigate(`/qct/fatigue/${row.qctId}`);
+      navigate(`/sms/qct/fatigue/${row.qctId}`);
     }
     if (row.qctType === RESIDUAL) {
-      navigate(`/qct/residual/${row.qctId}`);
+      navigate(`/sms/qct/residual/${row.qctId}`);
     }
     if (row.qctType === FRACTURE_TOUGHNESS) {
-      navigate(`/qct/fracture/${row.qctId}`);
+      navigate(`/sms/qct/fracture/${row.qctId}`);
     }
     if (row.qctType === FCGR) {
-      navigate(`/qct/fcgr/${row.qctId}`);
+      navigate(`/sms/qct/fcgr/${row.qctId}`);
     }
     if (row.qctType === CENTER_LINE_RSH) {
-      navigate(`/qct/centerLine/${row.qctId}`);
+      navigate(`/sms/qct/centerLine/${row.qctId}`);
     }
   };
 

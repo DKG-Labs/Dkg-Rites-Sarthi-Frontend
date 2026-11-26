@@ -58,7 +58,7 @@ const HardnessTestDetails = () => {
     <FormContainer>
       <SubHeader
         title="Weld Period Testing Details - Hardness"
-        link="/welding/testSample"
+        link="/sms/welding/testSample"
       />
       <GeneralInfo data={weldingGeneralInfo} />
 

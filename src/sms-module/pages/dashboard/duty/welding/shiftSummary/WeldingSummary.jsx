@@ -19,7 +19,7 @@ const WeldingSummary = () => {
   const navigate = useNavigate();
 
   const handleEdit = (record) => {
-    navigate('/welding/newWeldInspection', {state: {record: record, edit: true}})
+    navigate('/sms/welding/newWeldInspection', {state: {record: record, edit: true}})
   }
 
   const handleDelete = async(record) => {
@@ -86,7 +86,7 @@ const {token} = useSelector(state => state.auth)
 
   return (
     <FormContainer>
-        <SubHeader title="Welding Inspection - Shift Summary" link="/welding/home" />
+        <SubHeader title="Welding Inspection - Shift Summary" link="/sms/welding/home" />
         <GeneralInfo data={weldingInspectionGeneralInfo} />
         <Table
           dataSource={data}

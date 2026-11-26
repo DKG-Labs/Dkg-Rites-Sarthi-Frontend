@@ -521,7 +521,7 @@ const pendingTestSamplesColumns = (currentPage, pageSize, completedTests, naviga
 
   return (
     <FormContainer>
-        <SubHeader title="Pending Test Samples" link="/testing/home" />
+        <SubHeader title="Pending Test Samples" link="/sms/testing/home" />
         <GeneralInfo data={testingGeneralInfo} />
 
         {/* <FormBody initialValues={formData}>

@@ -2,6 +2,8 @@
 import React, { useRef, useState } from "react";
 import { Button } from "antd";
 import { useReactToPrint } from "react-to-print";
+import { dateShift } from "./isoRows";
+import Rail60E1A1Sheet from "./Rail60E1A1Sheet";
 import SearchFilter from "../sms/SearchFilter";
 import IsoHeader from "../../../../components/DKG_IsoHeader";
 import Subheading from "../sms/Subheading";
@@ -9,7 +11,7 @@ import { apiCall } from "../../../../utils/CommonFunctions";
 import { useSelector } from "react-redux";
 
 const RollingControlIso60E1A1Urm = () => {
-  const [formData, setFormData] = useState([]);
+  const [formData, setFormData] = useState({});
   /* tableData */
 
   const railData = [
@@ -113,137 +115,13 @@ const RollingControlIso60E1A1Urm = () => {
         onFinish={onFinish}
       />
       <div className="a4-container" ref={repRef}>
-        <IsoHeader
-          engTitle="FORMAT FOR ROLLING STAGE CONTROL 60E1A1 (URM) <br /> (Clause No. 8.5 of ISO 9001:2015)"
-          hinTitle="रोलिंग चरण नियंत्रण के लिए प्रारूप (60ई1ए1) (यूआरएम)"
-          col3AdtnlLine="APPROVED DIVISIONAL HEAD"
+        <Rail60E1A1Sheet
+          dateShiftText={dateShift(formData?.date, formData?.shift)}
+          micrometerNo={formData?.micrometerNumber}
+          vernierNo={formData?.vernierNumber}
+          gauges={formData?.numberOfGauges}
+          rows={formData?.heatDtlList || []}
         />
-        <Subheading
-          formatNo="F/CR-BSP/7.5/17/05"
-          page="1 OF 1"
-          pageRev="NIL"
-          effDate="12/05/2021"
-          dsVis
-          dsVal={formData?.date + " - " + formData?.shift}
-          grdVis
-          grdVal={formData?.railGrade}
-          stdWtVis
-          stdWtVal={formData?.heatDtlList?.[0].weight}
-          mmVis
-          mmVal={formData?.micrometerNumber}
-          vVis
-          vVal={formData?.vernierNumber}
-          ggVis
-          ggVal={formData?.numberOfGauges}
-        />
-        <div style={{ overflowX: "auto" }} className="iso-table">
-          <table className="table-style iso-table">
-            <thead>
-              <tr>
-                <th className="cell-style" rowSpan="2">
-                  नमूना क्र. <br />
-                  Sample No.
-                </th>
-                <th className="cell-style" rowSpan="2">
-                  समय <br />
-                  Time
-                </th>
-                <th className="cell-style" rowSpan="2">
-                  हीट नंबर <br />
-                  Heat No.
-                </th>
-                <th className="cell-style" colSpan="11">
-                  रेल आयाम (मिमी में) <br />
-                  Rail Dimensions (in mm)
-                </th>
-              </tr>
-              <tr>
-                <th className="cell-style">
-                  ऊंचाई <br />
-                  Height
-                </th>
-                <th className="cell-style">
-                  हेड चौड़ाई <br />
-                  Head Width
-                </th>
-                <th className="cell-style">
-                  फ्लेंज चौड़ाई <br />
-                  Flange Width
-                </th>
-                <th className="cell-style">
-                  वेब मोटाई <br />
-                  Web Thickness
-                </th>
-                <th className="cell-style">
-                  असमानता <br />
-                  Asymmetry
-                </th>
-                <th className="cell-style">
-                  फुट टो मोटाई <br />
-                  Foot Toe Thickness
-                </th>
-                <th className="cell-style">
-                  फिशिंग ऊंचाई <br />
-                  Fishing Height
-                </th>
-                <th className="cell-style">
-                  वजन लिया गया <br />
-                  Weight Taken (kg/m)
-                </th>
-                <th className="cell-style">
-                  क्राउन प्रोफाइल <br />
-                  Crown Profile
-                </th>
-                <th className="cell-style">
-                  फुट फ्लैटनेस <br />
-                  Foot Flatness
-                </th>
-                <th className="cell-style">
-                  टिप्पणी <br />
-                  Remarks
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {railData.map((item, index) => (
-                <tr key={index}>
-                  <td className="cell-style">{item.type}</td>
-                  <td className="cell-style">---</td>
-                  <td className="cell-style">---</td>
-                  <td className="cell-style">{item.height}</td>
-                  <td className="cell-style">{item.head}</td>
-                  <td className="cell-style">{item.flange}</td>
-                  <td className="cell-style">{item.web}</td>
-                  <td className="cell-style">{item.asymmetry}</td>
-                  <td className="cell-style">{item.footToeThickness}</td>
-                  <td className="cell-style">{item.heightFishing}</td>
-                  <td className="cell-style">{item.weightTaken}</td>
-                  <td className="cell-style">{item.crownProfile}</td>
-                  <td className="cell-style">{item.footFlatness}</td>
-                  <td className="cell-style">{item.remarks}</td>
-                </tr>
-              ))}
-              {formData?.heatDtlList?.map((item, index) => (
-                <tr key={index}>
-                  <td className="cell-style">{item.sampleNo}</td>
-                  <td className="cell-style">{item.time}</td>
-                  <td className="cell-style">{item.heatNo}</td>
-                  <td className="cell-style">{item.height}</td>
-                  <td className="cell-style">{item.head}</td>
-                  <td className="cell-style">{item.flange}</td>
-                  <td className="cell-style">{item.web}</td>
-                  <td className="cell-style">{item.asymmetry}</td>
-                  <td className="cell-style">{item.footToeThickness}</td>
-                  <td className="cell-style">{item.heightFishing}</td>
-                  <td className="cell-style">{item.weightTaken}</td>
-                  <td className="cell-style">{item.crownProfile}</td>
-                  <td className="cell-style">{item.footFlatness}</td>
-                  <td className="cell-style">{item.remarks}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
       </div>
       <div className="flex justify-center mt-4">
         <Button type="primary" onClick={handlePrint}>

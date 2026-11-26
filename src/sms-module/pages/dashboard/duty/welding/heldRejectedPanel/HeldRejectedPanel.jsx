@@ -72,7 +72,7 @@ const HeldRejectedPanel = () => {
   };
 
   const handleRowClick = (id) => {
-    navigate('/welding/newWeldInspection', { state: {id}})
+    navigate('/sms/welding/newWeldInspection', { state: {id}})
   };
 
   const handleClick = () => {
@@ -148,7 +148,7 @@ const HeldRejectedPanel = () => {
 
   return (
     <FormContainer>
-      <SubHeader title="Held or Rejected Weld Panel Inspection" link="/welding/home" />
+      <SubHeader title="Held or Rejected Weld Panel Inspection" link="/sms/welding/home" />
       <GeneralInfo data={weldingGeneralInfo}/>
 
       <FormBody initialValues={formData}>

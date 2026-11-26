@@ -5,6 +5,7 @@ import SearchFilter from "../sms/SearchFilter";
 import { apiCall } from "../../../../utils/CommonFunctions";
 import { useSelector } from "react-redux";
 import { useReactToPrint } from "react-to-print";
+import { dateShift } from "./isoRows";
 import IsoHeader from "../../../../components/DKG_IsoHeader";
 import Subheading from "../sms/Subheading";
 
@@ -100,7 +101,7 @@ const RollingVerificationIsoUrm = () => {
         <IsoHeader hinTitle="सत्यापन रिपोर्ट के लिए प्रारूप (रेल रोलिंग) - यूआरएम"
           engTitle="FORMAT FOR VERIFICATION REPORT (Rail Rolling) – URM <br /> Clause No. 8.5 of ISO 9001:2015" col3AdtnlLine="APPROVED DIVISIONAL HEAD" />
           <Subheading formatNo="F/CR-BSP/7.5/17/03" page="1 OF 1" pageRev="00" 
-            dsVis dsVal={formData.date + " - " + formData.shift} 
+            dsVis dsVal={dateShift(formData.date, formData.shift)} 
             grdVis grdVal={formData.railGrade}
             secVis secVal={formData.railSection} 
           />

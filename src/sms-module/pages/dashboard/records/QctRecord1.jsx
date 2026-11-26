@@ -118,7 +118,7 @@ const QctRecord1 = () => {
   return (
     <div className="flex flex-col gap-4 md:gap-2 bg-white p-4 w-full min-h-screen">
       <QuickAccess />
-      <SubHeader title="QCT Record" link="/record/qct" />
+      <SubHeader title="QCT Record" link="/sms/record/qct" />
 
       <div className="mt-4 border border-darkBlueHover p-2 py-4">
         <div>

@@ -1638,6 +1638,9 @@ const isSleeperRole = (role) => {
   if (!role) return false;
   // If it's a Rail-related role, it belongs to Railpad, not Sleeper
   if (typeof role === 'string' && role.includes('Rail')) return false;
+  // Rail-mill roles ('R Main IE' contains 'Main IE') belong to /sms, not Sleeper
+  const railMillRoles = ['R Process IE', 'Rail SMS', 'R Main IE', 'R Analyst'];
+  if (typeof role === 'string' && role.split(',').some(r => railMillRoles.includes(r.trim()))) return false;
 
   const sleeperRoles = ['Sleeper Process IE', 'Main IE'];
   return sleeperRoles.some(r =>

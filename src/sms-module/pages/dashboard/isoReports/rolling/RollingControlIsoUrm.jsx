@@ -2,6 +2,7 @@
 import React, { useRef, useState } from "react";
 import { Button } from "antd";
 import { useReactToPrint } from "react-to-print";
+import { BlankRows, dateShift } from "./isoRows";
 import SearchFilter from "../sms/SearchFilter";
 import IsoHeader from "../../../../components/DKG_IsoHeader";
 import Subheading from "../sms/Subheading";
@@ -9,7 +10,7 @@ import { apiCall } from "../../../../utils/CommonFunctions";
 import { useSelector } from "react-redux";
 
 const RollingControlIsoUrm = () => {
-  const [formData, setFormData] = useState([]);
+  const [formData, setFormData] = useState({});
   /* tableData */
 
   const railData = [
@@ -122,7 +123,7 @@ const RollingControlIsoUrm = () => {
           pageRev="NIL"
           effDate="12/05/2021"
           dsVis
-          dsVal={formData.date + " - " + formData.shift}
+          dsVal={dateShift(formData?.date, formData?.shift)}
           grdVis
           grdVal={formData.railGrade}
           stdWtVis
@@ -239,6 +240,7 @@ const RollingControlIsoUrm = () => {
                   <td className="cell-style">{item.remarks}</td>
                 </tr>
               ))}
+              <BlankRows filled={formData?.heatDtlList?.length || 0} cols={14} />
             </tbody>
           </table>
         </div>

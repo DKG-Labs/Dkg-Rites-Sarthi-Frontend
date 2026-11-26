@@ -290,7 +290,7 @@ Measuring Instrument,Vernier,BSP1,60E1A1 - Prime,VER001,365,2024-01-15,OK,2025-0
 
   return (
     <FormContainer>
-      <SubHeader title={editMode ? 'Modify Calibration Detail' : 'New Calibration Detail'} link='/calibration/list' />
+      <SubHeader title={editMode ? 'Modify Calibration Detail' : 'New Calibration Detail'} link='/sms/calibration/list' />
       <GeneralInfo data={calibrationGeneralInfo} />
 
       {editMode && !canCreateNewCalibration && (

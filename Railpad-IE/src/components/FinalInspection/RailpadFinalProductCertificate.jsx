@@ -348,7 +348,12 @@ export default function RailpadFinalProductCertificate({ call = {}, onBack, isVi
 
         if (isProcessCall) {
           try {
-            const processData = await getProcessInspectionResult(callNo);
+            // Diverted-passed call: no inspection of its own, quantities / remark come from the IC details
+            const isDivertedPassed = fetchedData.callCategory === 'DIVERTED_PASSED';
+            if (isDivertedPassed) {
+              mappedData.lotNo = formatLotNo(fetchedData.divertedLotNo || "N/A");
+            }
+            const processData = isDivertedPassed ? null : await getProcessInspectionResult(callNo);
             if (processData) {
               const mfg = processData.totalManufacturedQty || 0;
               const rej = processData.totalRejectedQty || 0;

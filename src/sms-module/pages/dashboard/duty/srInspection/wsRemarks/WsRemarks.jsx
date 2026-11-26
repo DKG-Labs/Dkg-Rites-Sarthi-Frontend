@@ -51,7 +51,7 @@ const WsRemarks = () => {
 
   return (
     <FormContainer>
-      {/* <SubHeader title='Other Workstation Remarks' link='/srInspection/home' />
+      {/* <SubHeader title='Other Workstation Remarks' link='/sms/srInspection/home' />
       <GeneralInfo data={srInspectionGeneralInfo} />
 
       <section>

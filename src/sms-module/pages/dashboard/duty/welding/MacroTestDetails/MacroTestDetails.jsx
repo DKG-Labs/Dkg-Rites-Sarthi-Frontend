@@ -52,7 +52,7 @@ console.log("Form Data: ", formData);
 
   return (
     <FormContainer>
-      <SubHeader title="Weld Period Testing Details - Macro" link="/welding/testSample" />
+      <SubHeader title="Weld Period Testing Details - Macro" link="/sms/welding/testSample" />
       <GeneralInfo data={weldingGeneralInfo} />
 
       <Form form={form} initialValues={formData} onFinish={handleFormSubmit}>

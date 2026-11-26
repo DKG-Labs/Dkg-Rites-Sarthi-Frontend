@@ -5,22 +5,22 @@ const visualHomeTabs = [
     {
       title: 'Visual Inspection',
       icon: <EyeOutlined />,
-      link: "/visual/inspection"
+      link: "/sms/visual/inspection"
     },
     {
       title: 'Shift Inspection Summary',
       icon: <FileSearchOutlined />,
-      link: "/visual/summary"
+      link: "/sms/visual/summary"
     },
     {
       title: 'Visual Inspection Summary',
       icon: <FileSearchOutlined />,
-      link: "/visual/viSummary"
+      link: "/sms/visual/viSummary"
     },
     // {
     //   title: 'Test Sample Marking',
     //   icon: <PieChartOutlined />,
-    //   link: "/stage/testSampleMarkingList"
+    //   link: "/sms/stage/testSampleMarkingList"
     // },
 ]
 

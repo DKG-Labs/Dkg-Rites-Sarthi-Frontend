@@ -5,6 +5,8 @@ export const ROLE_DISPLAY_NAMES = {
   'Rail SMS': 'Rail Process IE',
   'R Main IE': 'Rail Main IE',     // rail-mill main IE ('Rail Main IE' is the Rail Pad role)
   'R Analyst': 'Rail Analyst',     // rail-mill reports only
+  'Rail Process IE': 'Rail Pad Process IE', // Rail Pad roles: keep them apart from the rail-mill 'Rail …' names
+  'Rail Main IE': 'Rail Pad Main IE',
   'IE': 'ERC Main IE',             // ERC main IE is stored as plain 'IE'
   'Process IE': 'ERC Process IE',  // ERC process IE is stored as plain 'Process IE'
 };

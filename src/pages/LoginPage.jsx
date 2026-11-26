@@ -417,9 +417,9 @@ const LoginPage = () => {
           description = 'Access Railway Board Dashboard';
           icon = '🛤️';
         } else if (r === 'R Process IE' || r === 'Rail SMS') {
-          // SMS process role: stored as 'R Process IE', shown as 'Rail Pad Process IE'
-          label = 'Rail Pad Process IE';
-          description = 'Access Rail Pad Process IE platform';
+          // Rail-mill process role: stored as 'R Process IE', shown as 'Rail Process IE' (not the Rail Pad role)
+          label = 'Rail Process IE Dashboard';
+          description = 'Access Rail Process IE platform';
           icon = '🛤️';
         } else if (r === 'R Main IE') {
           label = 'Rail Main IE Dashboard';

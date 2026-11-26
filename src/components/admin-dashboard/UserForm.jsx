@@ -1057,9 +1057,14 @@ export const UserForm = ({ user, roles = [], rolesLoading = false, existingUsers
             }
         }
 
+        if (!user && String(formData.employmentType || '').toUpperCase() === 'MPA' && !formData.dateOfBirth) {
+            showValidationToast('Date of Birth is required for MPA employee.');
+            return;
+        }
+
         if (!user) {
             const existing = existingUsers.find(u => 
-                (formData.employeeCode && u.employeeCode === formData.employeeCode) || 
+                (formData.employeeCode && String(formData.employmentType || '').toUpperCase() !== 'MPA' && u.employeeCode === formData.employeeCode) || 
                 (formData.email && u.email && u.email === formData.email)
             );
 
@@ -1089,6 +1094,7 @@ export const UserForm = ({ user, roles = [], rolesLoading = false, existingUsers
     };
 
     const isZonalRailway = formData.roleNames.includes('ZONAL RAILWAY');
+    const isMpa = String(formData.employmentType || '').toUpperCase() === 'MPA';
     const isRailpadVendor = formData.roleNames.some(r => r === 'Rail Vendor' || r === 'Railpad Vendor');
     const isSleeperVendor = formData.roleNames.some(r => r === 'Sleeper Vendor');
     const isErcVendor = formData.roleNames.some(r => r === 'Vendor' || r === 'ERC Vendor');
@@ -2243,11 +2249,12 @@ export const UserForm = ({ user, roles = [], rolesLoading = false, existingUsers
                                         name="employeeCode"
                                         className="form-control"
                                         placeholder="e.g. 104937"
-                                        value={formData.employeeCode}
+                                        value={isMpa && !user ? '' : formData.employeeCode}
                                         onChange={handleChange}
-                                        required={!isZonalRailway}
-                                        disabled={isZonalRailway && user}
-                                        style={isZonalRailway && user ? { backgroundColor: '#f1f5f9', cursor: 'not-allowed' } : {}}
+                                        required={!isZonalRailway && !(isMpa && !user)}
+                                        disabled={(isZonalRailway && user) || isMpa}
+                                        {...(isMpa && !user ? { placeholder: 'Auto-generated' } : {})}
+                                        style={(isZonalRailway && user) || isMpa ? { backgroundColor: '#f1f5f9', cursor: 'not-allowed' } : {}}
                                     />
                                     {isZonalRailway && user && (
                                         <small style={{ color: '#64748b', fontSize: '11px', marginTop: '4px', display: 'block' }}>
@@ -2265,6 +2272,7 @@ export const UserForm = ({ user, roles = [], rolesLoading = false, existingUsers
                                         className="form-control"
                                         value={formData.dateOfBirth}
                                         onChange={handleChange}
+                                        required={isMpa && !user}
                                     />
                                 </div>
                             )}
@@ -2319,6 +2327,7 @@ export const UserForm = ({ user, roles = [], rolesLoading = false, existingUsers
                                         >
                                             <option value="REGULAR">REGULAR</option>
                                             <option value="CONTRACTUAL">CONTRACTUAL</option>
+                                            <option value="MPA">MPA</option>
                                         </select>
                                     </div>
                                     <div className="form-group">

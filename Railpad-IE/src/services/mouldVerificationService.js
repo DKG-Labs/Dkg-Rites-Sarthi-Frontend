@@ -4,21 +4,19 @@ const handleApiError = async (response, defaultMessage) => {
   if (response.status === 404) {
     throw new Error("Service endpoint not found. Please restart the backend server to apply the latest changes.");
   }
-
+  // The backend answers errors as JSON ({ message } / { responseStatus.message }) or as plain text.
+  // Read the body once and show the real reason; never a browser-specific "JSON.parse" error.
+  let text = '';
+  try { text = (await response.text()) || ''; } catch (e) { /* no body */ }
+  let message = '';
   try {
-    const errorText = await response.text();
-    const errorData = JSON.parse(errorText);
-    if (errorData.message) throw new Error(errorData.message);
-    if (errorData.responseStatus && errorData.responseStatus.message) {
-      throw new Error(errorData.responseStatus.message);
-    }
-    throw new Error(defaultMessage);
+    const data = JSON.parse(text);
+    message = data?.message || data?.responseStatus?.message || data?.error || '';
   } catch (e) {
-    if (e.message !== defaultMessage && !e.message.includes("Unexpected token")) {
-      throw e;
-    }
-    throw new Error(defaultMessage);
+    const t = text.trim();
+    if (t && !t.startsWith('<') && t.length <= 500) message = t;   // plain-text reason, not an HTML error page
   }
+  throw new Error(message || defaultMessage);
 };
 
 export const mouldVerificationService = {

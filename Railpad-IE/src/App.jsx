@@ -860,6 +860,9 @@ const App = () => {
         const payload = {
           plantId: currentShift.unit,
           vendorCode: currentShift.company,
+          // date + shift of the check: duplicate rule is same batch + date + shift at the plant
+          castingDate: currentShift.date,
+          shift: currentShift.shift,
           batchNo: String(newData.batchNo),
           sheeting: newData.sheeting,
           remarks: newData.remarks,
@@ -890,6 +893,9 @@ const App = () => {
         const payload = {
           plantId: currentShift.unit,
           vendorCode: currentShift.company,
+          // date + shift of the check: duplicate rule is same batch + date + shift at the plant
+          castingDate: currentShift.date,
+          shift: currentShift.shift,
           batchNo: String(newData.batchNo),
           vulcanTime: parseFloat(newData.vulcanTime),
           vulcanTemp: parseFloat(newData.vulcanTemp),

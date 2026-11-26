@@ -5,7 +5,7 @@
  *
  * keys: sms, rolling, ndt, testing, vi, welding, sri (short rail), qct, calibration
  */
-export const ENABLED_RAILMILL_MODULES = ['sms', 'rolling'];
+export const ENABLED_RAILMILL_MODULES = ['sms', 'rolling', 'ndt'];
 
 /** duty permission -> module key */
 const PERMISSION_MODULE = {

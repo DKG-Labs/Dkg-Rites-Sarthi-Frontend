@@ -339,7 +339,7 @@ const SrNewInspectionForm = () => {
 
   return (
     <FormContainer>
-      <SubHeader title='Short Rail Inspection Form' link='/srInspection/home' />
+      <SubHeader title='Short Rail Inspection Form' link='/sms/srInspection/home' />
       <GeneralInfo data={sriGeneralInfo} />
 
       <h3 className='font-bold'>Total Tonnes Accepted: <span className='font-normal'>

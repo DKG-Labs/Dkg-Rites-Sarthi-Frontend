@@ -104,7 +104,7 @@ const Residual = () => {
   return (
     <>
     <FormContainer>
-      <SubHeader title="Residual" link="/qct/newSampleDeclaration" />
+      <SubHeader title="Residual" link="/sms/qct/newSampleDeclaration" />
     <GeneralInfo data={qctGeneralInfo} />
       <Form form={form} layout="vertical" className="grid grid-cols-2 gap-x-4" onFinish={handleSubmit}>
 

@@ -1,5 +1,6 @@
 /* eslint-disable */
 import React, { useState } from 'react'
+import { useSelector } from 'react-redux'
 import FormContainer from '../../../../../../components/DKG_FormContainer'
 import SubHeader from '../../../../../../components/DKG_SubHeader'
 import GeneralInfo from '../../../../../../components/DKG_GeneralInfo'
@@ -11,9 +12,10 @@ import FormInputItem from '../../../../../../components/DKG_FormInputItem';
 import FormDropdownItem from '../../../../../../components/DKG_FormDropdownItem';
 import Btn from '../../../../../../components/DKG_Btn';
 
-const { rollingControlIRS52GeneralInfo, sampleLocationList, footFlatnessIRS52List, asyList } = data;
+const { sampleLocationList, footFlatnessIRS52List, asyList } = data;
 
 const RollingControlIRS52 = () => {
+  const rollingGeneralInfo = useSelector((state) => state.rollingDuty);
   const navigate = useNavigate();
   const [formData, setFormData] = useState({
     sampleNumber: '2', heatNumber: '076825', timing: '11:02', height: '', head:'', flange: '', weight: '', web: '', asy: '', footFlatness: '', remarks: ''
@@ -36,7 +38,7 @@ const RollingControlIRS52 = () => {
   return (
     <FormContainer>
       <SubHeader title="Rolling Control Sample Dimensions - IRS52" link="/sms/stage/rollingControl" />
-      <GeneralInfo data={rollingControlIRS52GeneralInfo} />
+      <GeneralInfo data={rollingGeneralInfo} />
 
       <FormBody initialValues={formData} onFinish={handleFormSubmit}>
         <div className="grid grid-cols-2 gap-x-2">

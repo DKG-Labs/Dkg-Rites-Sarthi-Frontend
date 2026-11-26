@@ -10,8 +10,9 @@ import FormContainer from "../../../../../../components/DKG_FormContainer";
 import { Navigate, useNavigate } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
 import { startRollingDuty } from "../../../../../../store/slice/rollingDutySlice";
-import { message } from "antd";
+import { Form } from "antd";
 import dayjs from "dayjs";
+import { ORGANISATION_LIST, disableNonDutyDates, shiftsForDate, millsForOrg } from "../../../../../../utils/railMillDutyRules";
 
 const currentDate = dayjs();
 const dateFormat = "DD/MM/YYYY";
@@ -46,10 +47,12 @@ const ShiftDetailsForm = () => {
   const dispatch = useDispatch();
 
   const { dutyId } = useSelector((state) => state.rollingDuty);
+  const [form] = Form.useForm();
 
   const [formData, setFormData] = useState({
     startDate: currentDate.format(dateFormat),
     shift: null,
+    organisation: null,
     mill: null,
     railGrade: null,
     railSection: null,
@@ -61,13 +64,22 @@ const ShiftDetailsForm = () => {
   };
 
   const handleChange = (fieldName, value) => {
-    console.log("Fieldname: ", fieldName, value)
-    setFormData((prev) => {
-      return {
-        ...prev,
-        [fieldName]: value,
-      };
-    });
+    setFormData((prev) => ({ ...prev, [fieldName]: value }));
+  };
+
+  // Yesterday allows only shift C: clear a shift that is no longer allowed
+  const handleDateChange = (fieldName, value) => {
+    const allowed = shiftsForDate(value, shiftList).map((s) => s.key);
+    const shift = allowed.includes(formData.shift) ? formData.shift : null;
+    form.setFieldsValue({ shift: shift || undefined });
+    setFormData((prev) => ({ ...prev, [fieldName]: value, shift }));
+  };
+
+  // JSPL has only URM: pick it automatically; otherwise clear the mill
+  const handleOrgChange = (fieldName, value) => {
+    const mill = value === "JSPL" ? "URM" : null;
+    form.setFieldsValue({ organisation: value, mill: mill || undefined });
+    setFormData((prev) => ({ ...prev, organisation: value, mill }));
   };
 
   if (dutyId) {
@@ -79,21 +91,21 @@ const ShiftDetailsForm = () => {
     <FormContainer>
       <SubHeader title="Stage - Shift Details" link="/sms/" />
 
-      <FormBody initialValues={formData} onFinish={handleFormSubmit}>
+      <FormBody form={form} initialValues={formData} onFinish={handleFormSubmit}>
         <div className="grid grid-cols-2 gap-x-2">
           <CustomDatePicker
             label="Date"
             name="startDate"
             defaultValue={formData.startDate}
-            onChange={handleChange}
+            onChange={handleDateChange}
+            disabledDate={disableNonDutyDates}
             required
-            // disabled
           />
           <FormDropdownItem
             label="Shift"
             name="shift"
             formField="shift"
-            dropdownArray={shiftList}
+            dropdownArray={shiftsForDate(formData.startDate, shiftList)}
             visibleField="value"
             valueField="key"
             onChange={handleChange}
@@ -103,15 +115,29 @@ const ShiftDetailsForm = () => {
 
         <div className="grid grid-cols-2 gap-x-2">
           <FormDropdownItem
+            label="Organisation"
+            name="organisation"
+            formField="organisation"
+            dropdownArray={ORGANISATION_LIST}
+            valueField="key"
+            visibleField="value"
+            onChange={handleOrgChange}
+            required
+          />
+          <FormDropdownItem
             label="Mill"
             name="mill"
             formField="mill"
-            dropdownArray={millList}
+            dropdownArray={millsForOrg(formData.organisation, millList)}
             valueField="key"
             visibleField="value"
             onChange={handleChange}
+            disabled={!formData.organisation}
             required
           />
+        </div>
+
+        <div className="grid grid-cols-2 gap-x-2">
           <FormDropdownItem
             label="Rail Grade"
             name="railGrade"
@@ -122,9 +148,6 @@ const ShiftDetailsForm = () => {
             onChange={handleChange}
             required
           />
-        </div>
-
-        <div className="grid grid-cols-1 gap-x-2">
           <FormDropdownItem
             label="Rail Section"
             name="railSection"

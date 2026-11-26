@@ -59,7 +59,7 @@ const TLTTestDetails = () => {
 
   return (
     <FormContainer>
-      <SubHeader title="Weld Period Testing Details - TLT" link="/welding/testSample" />
+      <SubHeader title="Weld Period Testing Details - TLT" link="/sms/welding/testSample" />
       <GeneralInfo data={weldingGeneralInfo} />
 
       <Form form={form} layout="vertical" initialValues={formData} onFinish={handleFormSubmit}>

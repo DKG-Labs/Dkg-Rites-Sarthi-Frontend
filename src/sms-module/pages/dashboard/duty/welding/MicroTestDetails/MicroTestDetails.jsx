@@ -99,7 +99,7 @@ const MicroTestDetails = () => {
     <FormContainer>
       <SubHeader
         title="Weld Period Testing Details - Micro"
-        link="/welding/testSample"
+        link="/sms/welding/testSample"
       />
       <GeneralInfo data={weldingTestGeneralInfo} />
 

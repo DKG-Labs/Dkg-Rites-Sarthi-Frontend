@@ -137,7 +137,7 @@ const HeatPending = () => {
 
   return (
     <FormContainer>
-        <SubHeader title="Pending Heats for Testing" link="/testing/home" />
+        <SubHeader title="Pending Heats for Testing" link="/sms/testing/home" />
         <GeneralInfo data={testingGeneralInfo} />
 
         <FormBody initialValues={formData}>

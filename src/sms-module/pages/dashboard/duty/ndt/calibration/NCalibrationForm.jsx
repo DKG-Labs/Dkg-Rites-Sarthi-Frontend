@@ -29,20 +29,18 @@ const NCalibrationForm = () => {
       try {
         const response = await apiCall("GET", `/ndt/calibration/getCalibrationDtls?dutyId=${ndtGeneralInfo.dutyId}`, token);
         if (response?.data?.responseData?.dutyId === ndtGeneralInfo.dutyId) {
-          const transformedCalibrationList = response?.data?.responseData?.calibrations.map(cal => ({
+          // Saved rounds are read-only and are not sent again on Save
+          const transformedCalibrationList = (response?.data?.responseData?.calibrations || []).map(cal => ({
             ...cal,
             calibrationCompletionTimeDayjs: cal.calibrationCompletionTime ? moment(cal.calibrationCompletionTime, 'HH:mm:ss') : null,
-            isNew: true
+            isNew: false
           }));
-          
-          setFormData({
-            calibrationList: transformedCalibrationList,
-            calibrationRemarks: response?.data?.responseData?.calibrationRemarks || null,
-          });
-          
-          form.setFieldsValue({
-            calibrationList: transformedCalibrationList
-          });
+
+          // Keep rounds the user added while this was loading (the response must not wipe them)
+          setFormData(prev => ({
+            calibrationList: [...transformedCalibrationList, ...prev.calibrationList.filter(c => c.isNew)],
+            calibrationRemarks: prev.calibrationRemarks ?? (response?.data?.responseData?.calibrationRemarks || null),
+          }));
         }
       } catch (error) {
         console.error("Error fetching calibration data:", error);
@@ -50,6 +48,11 @@ const NCalibrationForm = () => {
     };
     fetchCalibrationData();
   }, [ndtGeneralInfo.dutyId, token, form]);
+
+  // Keep the form fields in step with the rounds (loaded, added or deleted)
+  useEffect(() => {
+    form.setFieldsValue({ calibrationList: formData.calibrationList });
+  }, [formData.calibrationList.length, form]);
 
   const handleChange = (fieldName, value) => {
     setFormData((prev) => ({
@@ -128,7 +131,7 @@ const NCalibrationForm = () => {
 
   return (
     <FormContainer>
-      <SubHeader title="NDT - Calibration" link="/ndt/home" />
+      <SubHeader title="NDT - Calibration" link="/sms/ndt/home" />
       <GeneralInfo data={ndtGeneralInfo} />
 
       <Form initialValues={formData} onFinish={handleFormSubmit} form={form} layout="vertical">

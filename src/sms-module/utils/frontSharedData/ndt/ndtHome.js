@@ -5,22 +5,22 @@ const ndtHomeTabs = [
     {
       title: 'NDT Calibration',
       icon: <EyeOutlined />,
-      link: "/ndt/calibration"
+      link: "/sms/ndt/calibration"
     },
     {
       title: 'Shift Summary',
       icon: <FileSearchOutlined />,
-      link: "/ndt/shiftSummary"
+      link: "/sms/ndt/shiftSummary"
     },
     // {
     //   title: 'NDT Report',
     //   icon: <PieChartOutlined />,
-    //   link: "/ndt/report"
+    //   link: "/sms/ndt/report"
     // },
     // {
     //     title: 'Test Sample Marking',
     //     icon: <ExperimentOutlined />,
-    //     link: "/stage/testSampleMarkingList"
+    //     link: "/sms/stage/testSampleMarkingList"
     // },
 ]
 

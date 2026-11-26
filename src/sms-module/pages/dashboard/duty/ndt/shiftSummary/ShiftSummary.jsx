@@ -156,7 +156,7 @@ function ShiftSummary() {
 
     return (
         <FormContainer>
-            <SubHeader title="NDT - Shift Summary" link="/ndt/home"/>
+            <SubHeader title="NDT - Shift Summary" link="/sms/ndt/home"/>
             <GeneralInfo data={ndtGeneralInfo} />
 
             {

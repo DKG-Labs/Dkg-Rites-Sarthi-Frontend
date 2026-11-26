@@ -14,7 +14,7 @@ const VIPrivateRoute = () => {
 
   return (
     <>
-        {(dutyId) ? <Outlet /> : <Navigate to='/vi/startDuty' />}
+        {(dutyId) ? <Outlet /> : <Navigate to='/sms/visual/startDuty' />}
     </>
   )
 }

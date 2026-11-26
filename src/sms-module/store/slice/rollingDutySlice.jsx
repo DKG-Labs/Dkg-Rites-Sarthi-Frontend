@@ -8,6 +8,7 @@ const initialState = {
     date: null,
     startTime: null,
     shift: null,
+    organisation: null,
     mill: null,
     railGrade: null,
     railSection: null
@@ -31,6 +32,7 @@ const rollingDutySlice = createSlice({
             state.railGrade = payload?.railGrade
             state.railSection = payload?.railSection
             state.mill = payload?.mill
+            state.organisation = payload?.organisation
             state.dutyId = payload?.dutyId
         })
         .addCase(startRollingDuty.rejected, (state, action) => {
@@ -47,6 +49,7 @@ const rollingDutySlice = createSlice({
             state.startTime= null
             state.shift= null
             state.mill= null
+            state.organisation= null
             state.railGrade= null
             state.railSection= null
         })
@@ -67,6 +70,7 @@ const rollingDutySlice = createSlice({
             state.railGrade = payload?.railGrade
             state.railSection = payload?.railSection
             state.mill = payload?.mill
+            state.organisation = payload?.organisation
             state.dutyId = payload?.dutyId
         })
         .addCase(getOngoingRollingDutyDtls.rejected, (state, action) => {

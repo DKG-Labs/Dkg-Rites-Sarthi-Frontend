@@ -90,7 +90,7 @@ const SrInspectionHome = () => {
 
   const handleInspectedRowClick = (row) => {
     console.log(row) 
-    navigate("/srInspection/addNewInspection", {state: {data: row}})
+    navigate("/sms/srInspection/addNewInspection", {state: {data: row}})
   }
 
   const handleDelete = async (row) => {

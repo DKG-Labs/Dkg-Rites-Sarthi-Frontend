@@ -62,7 +62,7 @@ const NReport = () => {
 
   return (
     <FormContainer>
-        <SubHeader title='NDT - Report' link='/ndt/home' />
+        <SubHeader title='NDT - Report' link='/sms/ndt/home' />
         <GeneralInfo data={ndtGeneralInfo} />
 
         <Divider>Rail Wise Record</Divider>

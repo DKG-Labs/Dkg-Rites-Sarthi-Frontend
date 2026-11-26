@@ -176,6 +176,7 @@ const CustomDatePicker = ({
   disablePastDate,
   disableFutureDate,
   disabled,
+  disabledDate,
 }) => {
   const initialValue = defaultValue ? dayjs(defaultValue, dateFormat) : null;
 
@@ -237,7 +238,7 @@ const CustomDatePicker = ({
       }
     >
       <DatePicker
-        disabledDate={disablePastDates || disableFutureDates}
+        disabledDate={disabledDate || disablePastDates || disableFutureDates}
         disabled={disabled}
         placeholder={placeholder}
         style={{

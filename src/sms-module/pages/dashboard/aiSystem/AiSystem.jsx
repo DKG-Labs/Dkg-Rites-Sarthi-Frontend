@@ -277,7 +277,7 @@ const AiSystem = () => {
       align: 'center',
       ...getColumnSearchProps('railId'),
       render: (railId) => (
-        <a onClick={() => navigate(`/railDetails/${railId}`)}>{railId}</a>
+        <a onClick={() => navigate(`/sms/railDetails/${railId}`)}>{railId}</a>
       )
     },
     {

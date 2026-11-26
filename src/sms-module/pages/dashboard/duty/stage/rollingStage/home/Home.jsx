@@ -12,7 +12,7 @@ import Btn from "../../../../../../components/DKG_Btn";
 import { useNavigate } from 'react-router-dom'
 import { useDispatch, useSelector } from "react-redux";
 import { endRollingDuty } from "../../../../../../store/slice/rollingDutySlice";
-import { ExperimentOutlined }from '@ant-design/icons';
+import { ExperimentOutlined, FileTextOutlined }from '@ant-design/icons';
 
 const Home = () => {
     const navigate = useNavigate();
@@ -42,13 +42,19 @@ const Home = () => {
         }
     }
 
+    const isoReportTab = {
+        title: 'ISO Report',
+        icon: <FileTextOutlined />,
+        link: "/sms/iso/rolling"
+    }
+
   return (
     <FormContainer>
         <SubHeader title="Stage - Home" link="/sms/" />
         <GeneralInfo data={rollingGeneralInfo} />
 
         <section className="mt-6">
-            <TabList tabList={[...getStageHomeTabs(railGrade), testSampleMarkingTab]} />
+            <TabList tabList={[...getStageHomeTabs(railGrade), testSampleMarkingTab, isoReportTab]} />
         </section>
 
         <Divider className="mt-6 mb-1" />

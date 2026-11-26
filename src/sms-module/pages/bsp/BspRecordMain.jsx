@@ -11,25 +11,25 @@ const BspRecordMain = () => {
             id: 1,
             title: 'FWT Tests',
             icon: <ToolOutlined />,
-            link: '/bsp/data/fwt'
+            link: '/sms/bsp/data/fwt'
           },
           {
             id: 2,
             title: 'Macro Tests',
             icon: <CompassOutlined />,
-            link: '/bsp/data/macro'
+            link: '/sms/bsp/data/macro'
           },
           {
             id: 3,
             title: 'Chemical Tests',
             icon: <ExperimentOutlined />,
-            link: '/bsp/data/chem'
+            link: '/sms/bsp/data/chem'
           },
           {
             id: 4,
             title: 'Tensile Tests',
             icon: <DatabaseOutlined />,
-            link: '/bsp/data/tensile'
+            link: '/sms/bsp/data/tensile'
           },
     ]
     const navigate = useNavigate()
@@ -54,7 +54,7 @@ const BspRecordMain = () => {
     <div className='flex flex-col gap-4 md:gap-2 bg-white p-4 w-full min-h-screen'>
       <QuickAccess />
     <section>
-        <SubHeader title="BSP Test Records" link="/bsp" />
+        <SubHeader title="BSP Test Records" link="/sms/bsp" />
     <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mt-8">
       {renderRecordItemTabs()}
     </div>

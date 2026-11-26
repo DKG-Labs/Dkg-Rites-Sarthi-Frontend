@@ -198,7 +198,7 @@ const BulkCalibrationForm = () => {
 
   return (
     <FormContainer>
-      <SubHeader title="Bulk Re-Calibration List" link="/calibration/list" />
+      <SubHeader title="Bulk Re-Calibration List" link="/sms/calibration/list" />
       <GeneralInfo data={calibrationGeneralInfo} />
 
       <Form

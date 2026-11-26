@@ -11,35 +11,35 @@ const recordItemTabs = [
     id: 1,
     title: 'SMS Record',
     icon: <MessageOutlined />,
-    link: '/record/sms',
+    link: '/sms/record/sms',
     permission: 'records'
   },
   {
     id: 2,
     title: 'NDT Record',
     icon: <RadarChartOutlined />,
-    link: '/record/ndt',
+    link: '/sms/record/ndt',
     permission: 'records'
   },
   {
     id: 3,
     title: 'Visual Inspection Record',
     icon: <EyeOutlined />,
-    link: '/record/vi',
+    link: '/sms/record/vi',
     permission: 'records'
   },
   {
     id: 4,
     title: 'Welding Inspection Record',
     icon: <DeploymentUnitOutlined />,
-    link: '/record/welding',
+    link: '/sms/record/welding',
     permission: 'records'
   },
   {
     id: 5,
     title: 'QCT Record',
     icon: <DatabaseOutlined />,
-    link: '/record/qct',
+    link: '/sms/record/qct',
     permission: 'admin' // QCT records are admin-only
   },
   // Future record types can be added here
@@ -47,28 +47,28 @@ const recordItemTabs = [
   //   id: 6,
   //   title: 'Rolling Stage Record',
   //   icon: <AuditOutlined />,
-  //   link: '/record/rolling',
+  //   link: '/sms/record/rolling',
   //   permission: 'records'
   // },
   // {
   //   id: 7,
   //   title: 'Testing Record',
   //   icon: <ExperimentOutlined />,
-  //   link: '/record/testing',
+  //   link: '/sms/record/testing',
   //   permission: 'admin'
   // },
   // {
   //   id: 8,
   //   title: 'Short Rail Inspection Record',
   //   icon: <CompassOutlined />,
-  //   link: '/record/sri',
+  //   link: '/sms/record/sri',
   //   permission: 'admin'
   // },
   // {
   //   id: 9,
   //   title: 'Calibration Record',
   //   icon: <ToolOutlined />,
-  //   link: '/record/calibration',
+  //   link: '/sms/record/calibration',
   //   permission: 'admin'
   // }
 ]

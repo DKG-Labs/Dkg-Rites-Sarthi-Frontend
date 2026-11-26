@@ -102,7 +102,7 @@ const Fracture = () => {
     }, [formData, form])
   return (
     <FormContainer>
-       <SubHeader title="Fracture Toughness" link="/qct/newSampleDeclaration" />
+       <SubHeader title="Fracture Toughness" link="/sms/qct/newSampleDeclaration" />
        <GeneralInfo data={qctGeneralInfo} />
       <Form form={form} layout="vertical" className="grid grid-cols-2 gap-x-4" onFinish={handleSubmit}>
 

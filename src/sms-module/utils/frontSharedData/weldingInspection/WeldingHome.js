@@ -5,22 +5,22 @@ const weldingHomeTabs = [
     {
       title: 'New Weld Inspection',
       icon: <EyeOutlined />,
-      link: "/welding/newWeldInspection"
+      link: "/sms/welding/newWeldInspection"
     },
     {
       title: 'Held or Rejected Panel',
       icon: <FileSearchOutlined />,
-      link: "/welding/heldRejectedPanel"
+      link: "/sms/welding/heldRejectedPanel"
     },
     {
       title: 'Weld Testing',
       icon: <PieChartOutlined />,
-      link: "/welding/testSample"
+      link: "/sms/welding/testSample"
     },
     {
         title: 'Shift Summary',
         icon: <PieChartOutlined />,
-        link: "/welding/shiftSummary"
+        link: "/sms/welding/shiftSummary"
     },
 ]
 

@@ -30,22 +30,13 @@ const Home = () => {
 
     const ndtGeneralInfo = useSelector(state => state.ndtDuty);
 
-    const testSampleMarkingTab = {
-        title: 'Testing Sample Marking',
-        icon: <ExperimentOutlined />,
-        onClick: () => {
-            message.info("Test Sample Marking is available in the Rolling Stage module. Please start a Rolling duty to access this functionality.");
-            navigate('/sms/stage');
-        }
-    }
-
   return (
     <FormContainer>
         <SubHeader title="NDT - Home" link="/" />
         <GeneralInfo data={ndtGeneralInfo} />
 
         <section className="mt-6">
-            <TabList tabList={[...ndtHomeTabs, testSampleMarkingTab]} />
+            <TabList tabList={ndtHomeTabs} />
         </section>
 
         <Divider className="mt-2 mb-0" />

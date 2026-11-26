@@ -866,7 +866,7 @@ useEffect(() => {
 
   return (
     <FormContainer>
-      <SubHeader title="Visual Inspection" link="/visual/home" />
+      <SubHeader title="Visual Inspection" link="/sms/visual/home" />
       <GeneralInfo data={viGeneralInfo} minimizable={true} defaultMinimized={false} />
       <Form
         form={form}

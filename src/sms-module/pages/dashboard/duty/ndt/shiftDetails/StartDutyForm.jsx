@@ -122,6 +122,7 @@ import { useDispatch, useSelector } from "react-redux";
 import { startNdtDuty } from '../../../../../store/slice/ndtDutySlice';
 import dayjs from "dayjs";
 import { handleChange } from "../../../../../utils/CommonFunctions";
+import { ORGANISATION_LIST, disableNonDutyDates, shiftsForDate, millsForOrg } from "../../../../../utils/railMillDutyRules";
 
 const { millMapingSec: sampleData, shiftList, railGradeList, railSectionList } = data;
 
@@ -137,7 +138,7 @@ const StartDutyForm = () => {
     const navigate = useNavigate();
 
     const [formData, setFormData] = useState({
-        startDate: currentDate.format(dateFormat), shift: "", mill: "", ndt: "", railGrade: "", railSection: ""
+        startDate: currentDate.format(dateFormat), shift: "", organisation: "", mill: "", ndt: "", railGrade: "", railSection: ""
     });
 
     const [form] = Form.useForm();
@@ -192,12 +193,21 @@ const StartDutyForm = () => {
 
             <Form initialValues={formData} form={form} layout="vertical" onFinish={handleFormSubmit}>
                 <div className="grid grid-cols-2 gap-x-2">
-                    <CustomDatePicker label="Date" name="startDate" defaultValue={formData.startDate} onChange={(fieldName, value) => handleChange(fieldName, value, setFormData)} required />
-                    <FormDropdownItem label="Shift" name="shift" formField='shift' dropdownArray={shiftList} visibleField="value" valueField="key" onChange={(fieldName, value) => handleChange(fieldName, value, setFormData)} required />
+                    <CustomDatePicker label="Date" name="startDate" defaultValue={formData.startDate} disabledDate={disableNonDutyDates} onChange={(fieldName, value) => {
+                        // Yesterday allows only shift C: clear a shift that is no longer allowed
+                        const allowed = shiftsForDate(value, shiftList).map(s => s.key);
+                        setFormData(prev => ({ ...prev, [fieldName]: value, shift: allowed.includes(prev.shift) ? prev.shift : "" }));
+                    }} required />
+                    <FormDropdownItem label="Shift" name="shift" formField='shift' dropdownArray={shiftsForDate(formData.startDate, shiftList)} visibleField="value" valueField="key" onChange={(fieldName, value) => handleChange(fieldName, value, setFormData)} required />
                 </div>
 
+                <FormDropdownItem label="Organisation" name="organisation" formField="organisation" dropdownArray={ORGANISATION_LIST} valueField="key" visibleField="value" onChange={(fieldName, value) => {
+                    // JSPL has only URM: pick it automatically; otherwise clear the mill
+                    setFormData(prev => ({ ...prev, organisation: value, mill: value === "JSPL" ? "URM" : "", ndt: null }));
+                }} required />
+
                 <div className="grid grid-cols-2 gap-x-2">
-                    <FormDropdownItem label='Mill' name='mill' formField="mill" dropdownArray={millDropdownList} valueField='key' visibleField='value' onChange={(fieldName, value) => {
+                    <FormDropdownItem label='Mill' name='mill' formField="mill" dropdownArray={millsForOrg(formData.organisation, millDropdownList)} disabled={!formData.organisation} valueField='key' visibleField='value' onChange={(fieldName, value) => {
                         handleChange(fieldName, value, setFormData);
                         setFormData(prevData => ({ ...prevData, ndt: null }));
                     }} required />

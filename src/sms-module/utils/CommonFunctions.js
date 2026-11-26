@@ -3,6 +3,7 @@ import { message } from "antd";
 import axios from "axios";
 import dayjs from "dayjs"
 import { isModuleEnabled } from "./enabledModules";
+import { saveStarted, saveFinished } from "./saveActivity";
 
 const RAILMILL_API_PREFIXES = [
   'rolling', 'ndt', 'testing', 'vi', 'welding', 'shortrailinspection', 'qct',
@@ -56,6 +57,10 @@ export const apiCall = async (method, url, token, payload = null, signal = null)
     return { data: { responseStatus: { statusCode: 0, message: `${disabledDuty} not enabled` }, responseData: { dutyId: null } } };
   }
 
+  // Save requests (not GET): submit buttons show a spinner until they finish
+  const isSave = method !== "GET";
+  if (isSave) saveStarted();
+
   try {
     let response;
 
@@ -88,9 +93,11 @@ export const apiCall = async (method, url, token, payload = null, signal = null)
       || error?.message 
       || "Some error occurred.";
     message.error(errorMessage);
-    
+
     // Rethrow the error for the calling function to handle
     throw error;
+  } finally {
+    if (isSave) saveFinished();
   }
 };
 

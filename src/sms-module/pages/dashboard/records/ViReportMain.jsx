@@ -12,19 +12,19 @@ const ViReportMain = () => {
             id: 1,
             title: 'Acceeptance & Rejection Report',
             icon: <MessageOutlined />,
-            link: '/record/vi/acptRej'
+            link: '/sms/record/vi/acptRej'
           },
           {
             id: 2,
             title: 'Acceptance Report',
             icon: <AuditOutlined />,
-            link: '/record/vi/acpt'
+            link: '/sms/record/vi/acpt'
           },
           {
             id: 3,
             title: 'Defect Analysis',
             icon: <ToolOutlined />,
-            link: '/record/vi/defect'
+            link: '/sms/record/vi/defect'
           },
     ]
     const navigate = useNavigate()

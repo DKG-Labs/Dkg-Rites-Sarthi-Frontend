@@ -872,7 +872,7 @@ const VIShiftSummary = () => {
 
   return (
     <FormContainer>
-        <SubHeader title="Visual Inspection - Shift Summary" link="/visual/home" />
+        <SubHeader title="Visual Inspection - Shift Summary" link="/sms/visual/home" />
         <GeneralInfo data={viGeneralInfo} />
 
         <FormBody initialValues={formData}>

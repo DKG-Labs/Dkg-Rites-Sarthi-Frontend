@@ -224,7 +224,7 @@ const CalibrationList = () => {
         <div className="flex gap-2 justify-center">
           <IconBtn
             icon={EditOutlined}
-            onClick={() => navigate("/calibration/newModifyCalibration",
+            onClick={() => navigate("/sms/calibration/newModifyCalibration",
               {
                 state: {
                   serialNumber: record.serialNumber,

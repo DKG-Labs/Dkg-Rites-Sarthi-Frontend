@@ -1164,7 +1164,7 @@ const FinalInspectionScreen = ({ call, onBack }) => {
 
         const effectiveOfferedSets = Number(offeredSetsQty || 0) > 0 
             ? Number(offeredSetsQty) 
-            : Number(sec2?.callQtyMt || summaryData?.qtyOfferedNow || summaryData?.offeredSetsQuantity || call?.totalOffered || call?.qtyOffered || 0);
+            : Number(summaryData?.qtyOfferedNow || summaryData?.offeredSetsQuantity || call?.totalOffered || call?.qtyOffered || 0);
 
         const effectiveAcceptedSets = Math.max(0, effectiveOfferedSets - Number(rejectedSetsQty || 0));
 
@@ -1281,8 +1281,12 @@ const FinalInspectionScreen = ({ call, onBack }) => {
     };
 
     const getCalculatedSleeperSystemStatus = () => {
-        const rej = qtyUomRule ? (roundQty(rejectedSetsQty, qtyDecimals) || 0) : (isSetUom ? Number(rejectedSetsQty || 0) : Number(totalRejected || 0));
-        const acc = qtyUomRule ? (Number(acceptedSetsQty) || 0) : (isSetUom ? Number(acceptedSetsQty || 0) : Number(totalAccepted || 0));
+        // ruleOffered / ruleRejected live inside saveAllInspectionData, so compute them here from the same inputs
+        const ruleOffered = qtyUomRule ? roundQty(offeredSetsQty, qtyDecimals) : null;
+        const ruleRejected = qtyUomRule ? roundQty(rejectedSetsQty, qtyDecimals) : null;
+        const rej = qtyUomRule ? (ruleRejected || 0) : (isSetUom ? Number(rejectedSetsQty || 0) : Number(totalRejected || 0));
+        const acc = qtyUomRule ? (computeAcceptedQty(ruleOffered, ruleRejected, qtyDecimals) || 0) : (isSetUom ? Number(acceptedSetsQty || 0) : Number(totalAccepted || 0));
+        if (rej === 0) return 'ACCEPTED';
         if (acc === 0 && rej > 0) return 'REJECTED';
         return 'ACCEPTED';
     };

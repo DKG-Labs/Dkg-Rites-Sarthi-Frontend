@@ -5,6 +5,7 @@ import {
 } from '../../services/superAdminDpChangeService';
 import './ChangeOfferedQty.css';
 import './TemporaryDpChange.css';
+import ConfirmDialog from '../common/ConfirmDialog';
 
 /*
  * Super Admin – Temporary DP Change
@@ -34,6 +35,12 @@ const cutoffOf = (dp, extDp) => {
   return d.toLocaleDateString('en-CA');
 };
 const todayStr = () => new Date().toLocaleDateString('en-CA');
+/** Earliest new DP that still opens the call window (cutoff = DP − 4 days ≥ today). */
+const minNewDp = () => {
+  const d = new Date();
+  d.setDate(d.getDate() + 4);
+  return d.toLocaleDateString('en-CA');
+};
 const left = (secs) => {
   const s = Math.max(0, Math.round(secs || 0));
   if (s === 0) return 'reverting…';
@@ -107,12 +114,16 @@ export default function TemporaryDpChange({ onNotify }) {
   const [saving, setSaving] = useState(false);
   const submit = async () => {
     if (!edit?.newDp || !edit.remarks.trim() || saving) return;
+    if (edit.newDp < minNewDp()) {
+      notify(`New date must be on or after ${fmtDay(minNewDp())} (calls can be raised up to 4 days before the DP).`, 'error');
+      return;
+    }
     setSaving(true);
     try {
       const updated = await applyDpChange({ poNo: po.poNo, srNo: edit.item.srNo, newDp: edit.newDp, remarks: edit.remarks.trim() });
       setPo(updated);
       setEdit(null);
-      notify(`DP of Sr No. ${edit.item.srNo} set to ${fmtDay(edit.newDp)} — it will be restored automatically in ${REVERT_HOURS} hours.`, 'success');
+      notify(`${edit.item.extDp ? 'Ext. DP' : 'DP'} of Sr No. ${edit.item.srNo} set to ${fmtDay(edit.newDp)} — it will be restored automatically in ${REVERT_HOURS} hours.`, 'success');
       loadActive();
     } catch (e) {
       notify(e.message, 'error');
@@ -141,9 +152,11 @@ export default function TemporaryDpChange({ onNotify }) {
   useEffect(() => { if (tab === 'history') loadHistory(0); }, [tab, loadHistory]);
 
   const [reverting, setReverting] = useState(null);
-  const revertNow = async (c) => {
-    if (reverting) return;
-    if (!window.confirm(`Restore the previous DP (${fmtDay(c.oldDp)}) of PO ${c.poNo} / Sr No. ${c.srNo} now?`)) return;
+  const [confirmRevert, setConfirmRevert] = useState(null);   // change waiting for the user's OK
+  const revertNow = (c) => { if (!reverting) setConfirmRevert(c); };
+  const doRevert = async () => {
+    const c = confirmRevert;
+    if (!c || reverting) return;
     setReverting(c.id);
     try {
       const r = await revertDpChange(c.id);
@@ -154,6 +167,7 @@ export default function TemporaryDpChange({ onNotify }) {
       notify(e.message, 'error');
     } finally {
       setReverting(null);
+      setConfirmRevert(null);
     }
   };
 
@@ -182,7 +196,7 @@ export default function TemporaryDpChange({ onNotify }) {
                     {active.map((c) => (
                       <tr key={c.id}>
                         <td><button type="button" className="dpc-link" onClick={() => { setPoNo(c.poNo); loadPo(c.poNo); }}>{c.poNo}</button> / {c.srNo}</td>
-                        <td><span className="dpc-old">{fmtDay(c.oldDp)}</span> → <strong>{fmtDay(c.newDp)}</strong></td>
+                        <td>{c.field === 'EXT_DP' && <span className="dpc-sub">Ext. DP </span>}<span className="dpc-old">{fmtDay(c.oldDp)}</span> → <strong>{fmtDay(c.newDp)}</strong></td>
                         <td>{c.changedBy}{c.changedByEmpCode ? ` (${c.changedByEmpCode})` : ''}<div className="dpc-sub">{fmtTs(c.changedAt)}</div></td>
                         <td><span className="coq-chip ok">{left(c.secondsLeft)}</span></td>
                         <td><button type="button" className="dpc-btn ghost" disabled={reverting === c.id} onClick={() => revertNow(c)}>{reverting === c.id ? 'Reverting…' : 'Revert now'}</button></td>
@@ -265,9 +279,13 @@ export default function TemporaryDpChange({ onNotify }) {
                             <td>{it.qty ?? '-'} {it.uom || ''}</td>
                             <td>
                               <strong>{fmtDay(it.dp)}</strong>
-                              {it.activeChange && <div className="dpc-sub">was {fmtDay(it.activeChange.oldDp)} · reverts in {left(it.activeChange.secondsLeft)}</div>}
+                              {it.activeChange && it.activeChange.field !== 'EXT_DP' && <div className="dpc-sub">was {fmtDay(it.activeChange.oldDp)} · reverts in {left(it.activeChange.secondsLeft)}</div>}
                             </td>
-                            <td>{fmtDay(it.extDp)}</td>
+                            <td>
+                              {fmtDay(it.extDp)}
+                              {/* a serial with an Ext. DP has its Ext. DP changed (the vendor cutoff uses it) */}
+                              {it.activeChange && it.activeChange.field === 'EXT_DP' && <div className="dpc-sub">was {fmtDay(it.activeChange.oldDp)} · reverts in {left(it.activeChange.secondsLeft)}</div>}
+                            </td>
                             <td>
                               {cut ? <span className={`coq-chip ${closed ? 'lock' : 'ok'}`}>{closed ? 'Closed' : 'Open'} · {fmtDay(cut)}</span> : '-'}
                             </td>
@@ -324,7 +342,7 @@ export default function TemporaryDpChange({ onNotify }) {
                     return (
                       <tr key={c.id}>
                         <td>{c.poNo} / {c.srNo}</td>
-                        <td><span className="dpc-old">{fmtDay(c.oldDp)}</span> → <strong>{fmtDay(c.newDp)}</strong></td>
+                        <td>{c.field === 'EXT_DP' && <span className="dpc-sub">Ext. DP </span>}<span className="dpc-old">{fmtDay(c.oldDp)}</span> → <strong>{fmtDay(c.newDp)}</strong></td>
                         <td>{c.changedBy}{c.changedByEmpCode ? ` (${c.changedByEmpCode})` : ''}<div className="dpc-sub">{fmtTs(c.changedAt)}</div></td>
                         <td className="dpc-remarks">{c.remarks}</td>
                         <td><span className={`coq-chip ${st.cls}`}>{st.label}</span>{c.status === 'ACTIVE' && <div className="dpc-sub">in {left(c.secondsLeft)}</div>}</td>
@@ -356,7 +374,7 @@ export default function TemporaryDpChange({ onNotify }) {
             )}
             <label className="coq-field">
               <span>New DP <span className="dpc-req">*</span></span>
-              <input type="date" value={edit.newDp} onChange={(e) => setEdit({ ...edit, newDp: e.target.value })} />
+              <input type="date" min={minNewDp()} value={edit.newDp} onChange={(e) => setEdit({ ...edit, newDp: e.target.value })} />
             </label>
             {edit.newDp && <div className="dpc-sub">Calls can be raised until {fmtDay(cutoffOf(edit.newDp, edit.item.extDp))}.</div>}
             <label className="coq-field">
@@ -364,7 +382,7 @@ export default function TemporaryDpChange({ onNotify }) {
               <textarea rows={3} maxLength={500} value={edit.remarks} placeholder="e.g. Vendor request letter dated …"
                 onChange={(e) => setEdit({ ...edit, remarks: e.target.value })} />
             </label>
-            <div className="dpc-note"><i className="fa-regular fa-clock" /> The DP goes back to <strong>{fmtDay(edit.item.dp)}</strong> automatically after {REVERT_HOURS} hours.</div>
+            <div className="dpc-note"><i className="fa-regular fa-clock" /> The {edit.item.extDp ? 'Ext. DP' : 'DP'} goes back to <strong>{fmtDay(edit.item.extDp || edit.item.dp)}</strong> automatically after {REVERT_HOURS} hours.</div>
             <div className="dpc-actions">
               <button type="button" className="dpc-btn ghost" disabled={saving} onClick={() => setEdit(null)}>Cancel</button>
               <button type="button" className="dpc-btn" disabled={!edit.newDp || !edit.remarks.trim() || saving} onClick={submit}>
@@ -374,6 +392,22 @@ export default function TemporaryDpChange({ onNotify }) {
           </div>
         </div>
       )}
+
+      <ConfirmDialog
+        open={!!confirmRevert}
+        tone="warning"
+        title="Restore previous date?"
+        message={confirmRevert ? `PO ${confirmRevert.poNo} / Sr No. ${confirmRevert.srNo}` : ''}
+        details={confirmRevert && (
+          <>
+            {confirmRevert.field === 'EXT_DP' ? 'Ext. DP' : 'DP'} goes back from <strong>{fmtDay(confirmRevert.newDp)}</strong> to <strong>{fmtDay(confirmRevert.oldDp)}</strong>.
+          </>
+        )}
+        confirmText="Restore now"
+        busy={!!reverting}
+        onConfirm={doRevert}
+        onCancel={() => setConfirmRevert(null)}
+      />
     </div>
   );
 }

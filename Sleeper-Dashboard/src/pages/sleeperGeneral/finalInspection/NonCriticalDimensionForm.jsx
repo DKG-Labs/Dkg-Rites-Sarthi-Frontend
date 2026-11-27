@@ -237,7 +237,7 @@ const NonCriticalDimensionForm = ({ batch, onSave, onCancel, shift }) => {
                         moduleId: 3,
                         sleeperType: batch.sleeperType,
                         shift: shift || 'General',
-                        createdBy: parseInt(localStorage.getItem('userId') || '118', 10),
+                        createdBy: parseInt(localStorage.getItem('userId'), 10) || null,
                         sleepers: [{
                             sleeperId: !isNaN(Number(sleeper.sleeperId ?? id)) && Number(sleeper.sleeperId ?? id) > 0 ? Number(sleeper.sleeperId ?? id) : null,
                             sleeperNo: sleeper.displayNo || sleeper.sleeperNo,
@@ -313,7 +313,7 @@ const NonCriticalDimensionForm = ({ batch, onSave, onCancel, shift }) => {
                     moduleId: 3,
                     sleeperType: batch.sleeperType,
                     shift: shift || 'General',
-                    createdBy: parseInt(localStorage.getItem('userId') || '118', 10),
+                    createdBy: parseInt(localStorage.getItem('userId'), 10) || null,
                     sleepers: filteredPassedSleepers.map(s => {
                         const sidNum = Number(s.sleeperId ?? s.id);
                         return {
@@ -364,7 +364,7 @@ const NonCriticalDimensionForm = ({ batch, onSave, onCancel, shift }) => {
                     moduleId: 3,
                     sleeperType: batch.sleeperType,
                     shift: shift || 'General',
-                    createdBy: parseInt(localStorage.getItem('userId') || '118', 10),
+                    createdBy: parseInt(localStorage.getItem('userId'), 10) || null,
                     sleepers: filteredRejectedSleepers.map(s => {
                         const sidNum = Number(s.sleeperId ?? s.id);
                         return {
@@ -537,7 +537,7 @@ const NonCriticalDimensionForm = ({ batch, onSave, onCancel, shift }) => {
                 moduleId: 3,
                 sleeperType: batch.sleeperType,
                 shift: shift || 'General',
-                createdBy: parseInt(localStorage.getItem('userId') || '118', 10),
+                createdBy: parseInt(localStorage.getItem('userId'), 10) || null,
                 sleepers: selectedSleepers
                     .map(sid => {
                     const sleeper = displaySleepers.find(s => s.id === sid) || allSleepersPool.find(s => s.id === sid);

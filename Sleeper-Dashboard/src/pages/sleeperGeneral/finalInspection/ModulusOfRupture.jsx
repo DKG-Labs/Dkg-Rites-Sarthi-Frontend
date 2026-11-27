@@ -109,7 +109,7 @@ const ModulusOfRupture = () => {
                     plantId: dutyUnit || localStorage.getItem('dutyUnit'),
                     vendorCode: vendorCode || localStorage.getItem('vendorCode'),
                     shift: selectedShift || 'General',
-                    updatedBy: parseInt(userId || localStorage.getItem('userId') || '118', 10)
+                    updatedBy: parseInt(userId || localStorage.getItem('userId'), 10) || null
                 });
             } else {
                 await apiService.createMORSample({
@@ -117,7 +117,7 @@ const ModulusOfRupture = () => {
                     plantId: dutyUnit || localStorage.getItem('dutyUnit'),
                     vendorCode: vendorCode || localStorage.getItem('vendorCode'),
                     shift: selectedShift || 'General',
-                    createdBy: parseInt(userId || localStorage.getItem('userId') || '118', 10)
+                    createdBy: parseInt(userId || localStorage.getItem('userId'), 10) || null
                 });
             }
             setShowDeclareModal(false);
@@ -138,7 +138,7 @@ const ModulusOfRupture = () => {
                 plantId: dutyUnit || localStorage.getItem('dutyUnit'),
                 vendorCode: vendorCode || localStorage.getItem('vendorCode'),
                 shift: selectedShift || 'General',
-                createdBy: parseInt(userId || localStorage.getItem('userId') || '118', 10),
+                createdBy: parseInt(userId || localStorage.getItem('userId'), 10) || null,
                 samplingDate: selectedSample.samplingDate,
                 concreteGrade: selectedSample.concreteGrade,
                 sampleIdentificationNumber: selectedSample.sampleIdentificationNumber

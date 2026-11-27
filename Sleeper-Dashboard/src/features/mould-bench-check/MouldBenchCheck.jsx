@@ -612,7 +612,7 @@ const MouldBenchCheck = ({ onBack, sharedState, initialModule, initialViewMode, 
                     mouldVisualResult: (row.mouldStatus === 'Not OK' && !isMouldDim) ? 'not-ok' : 'ok',
                     mouldDimensionalResult: (row.mouldStatus === 'Not OK' && isMouldDim) ? 'not-ok' : 'ok',
                     combinedRemarks: makeCombinedRemarks(row, generalRemarks),
-                    createdBy: parseInt(localStorage.getItem('userId') || '118', 10)
+                    createdBy: parseInt(localStorage.getItem('userId'), 10) || null
                 };
 
                 const response = await apiService.updateBenchMouldInspection(editingEntry.id, payload);
@@ -641,7 +641,7 @@ const MouldBenchCheck = ({ onBack, sharedState, initialModule, initialViewMode, 
                         mouldVisualResult: (row.mouldStatus === 'Not OK' && !isMouldDim) ? 'not-ok' : 'ok',
                         mouldDimensionalResult: (row.mouldStatus === 'Not OK' && isMouldDim) ? 'not-ok' : 'ok',
                         combinedRemarks: makeCombinedRemarks(row, generalRemarks),
-                        createdBy: parseInt(localStorage.getItem('userId') || '118', 10)
+                        createdBy: parseInt(localStorage.getItem('userId'), 10) || null
                     };
                     return apiService.createBenchMouldInspection(payload);
                 });

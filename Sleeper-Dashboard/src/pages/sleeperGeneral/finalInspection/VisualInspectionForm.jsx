@@ -229,7 +229,7 @@ const VisualInspectionForm = ({ batch, onSave, onCancel, shift }) => {
                         moduleId: 1,
                         sleeperType: batch.sleeperType,
                         shift: shift || 'General',
-                        createdBy: parseInt(localStorage.getItem('userId') || '118', 10),
+                        createdBy: parseInt(localStorage.getItem('userId'), 10) || null,
                         sleepers: [{
                             sleeperId: !isNaN(Number(sleeper.sleeperId ?? id)) && Number(sleeper.sleeperId ?? id) > 0 ? Number(sleeper.sleeperId ?? id) : null,
                             sleeperNo: sleeper.displayNo || sleeper.sleeperNo,
@@ -313,7 +313,7 @@ const VisualInspectionForm = ({ batch, onSave, onCancel, shift }) => {
                     moduleId: 1,
                     sleeperType: batch.sleeperType,
                     shift: shift || 'General',
-                    createdBy: parseInt(localStorage.getItem('userId') || '118', 10),
+                    createdBy: parseInt(localStorage.getItem('userId'), 10) || null,
                     sleepers: filteredPassedSleepers.map(s => {
                         const sidNum = Number(s.sleeperId ?? s.id);
                         return {
@@ -364,7 +364,7 @@ const VisualInspectionForm = ({ batch, onSave, onCancel, shift }) => {
                     moduleId: 1,
                     sleeperType: batch.sleeperType,
                     shift: shift || 'General',
-                    createdBy: parseInt(localStorage.getItem('userId') || '118', 10),
+                    createdBy: parseInt(localStorage.getItem('userId'), 10) || null,
                     sleepers: filteredRejectedSleepers.map(s => {
                         const sidNum = Number(s.sleeperId ?? s.id);
                         return {
@@ -583,7 +583,7 @@ const VisualInspectionForm = ({ batch, onSave, onCancel, shift }) => {
                 moduleId: 1,
                 sleeperType: batch.sleeperType,
                 shift: shift || 'General',
-                createdBy: parseInt(localStorage.getItem('userId') || '118', 10),
+                createdBy: parseInt(localStorage.getItem('userId'), 10) || null,
                 sleepers: sleepers.filter(s => {
                     if (!selectedSleepers.includes(s.id)) return false;
                     return true;

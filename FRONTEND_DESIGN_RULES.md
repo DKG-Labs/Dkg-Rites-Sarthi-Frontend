@@ -40,6 +40,11 @@ Status colours are only for status (badges, alerts). Never for decoration.
 - Every input has a visible label (placeholder is not a label). Required fields are marked.
 - Buttons: one primary per area; secondary is outlined; destructive is red and asks for confirmation.
 - Disable a button while its request runs and show a spinner on it. Never allow double submit.
+- **Popups are always styled UI — never the browser's `window.alert` / `window.confirm` / `window.prompt`** (they show "localhost says…", can't be styled, block the page and look broken on mobile).
+  - Confirmations: the shared `ConfirmDialog` (`src/components/common/ConfirmDialog.jsx`; other apps use their own styled modal or copy this one). Title as a short question, the record it acts on (PO / call / Sr No.), what will change (old → new), a clear action label ("Restore now", "Delete entry" — not "OK"), Cancel. `tone="danger"` for destructive actions, `warning` for reversible but important ones.
+  - Information / results: toast (success / warning / error), not a popup.
+  - Look: white card, 14px radius, soft shadow, light blurred backdrop, tinted icon chip, colour tokens from §1.2; Esc and backdrop click cancel; focus on the main button; button shows "Please wait…" and is disabled while the request runs; on ≤ 480px the buttons stack full-width. No emoji icons, no thick coloured borders.
+  - When touching a screen that still uses `window.alert/confirm`, replace it.
 
 ### 1.5 Data must be real
 - **No fake KPI cards, dummy numbers, sample rows or "lorem" text** in any build. If the API has no data, show an empty state.
@@ -90,6 +95,52 @@ SARTHI is a work tool: motion should make it feel fast and steady, never playful
 - API calls only in `services/` files. Components call services; they never build URLs.
 - Shared UI in `components/common/`. Reuse before you create.
 - No secrets in the frontend repo or `.env` committed to git.
+
+### 2.4 Apps and folders
+| App | Path | Notes |
+|---|---|---|
+| Main (Admin / CM / RB / ERC IE / Call desk / Finance / Rail mill) | `Dkg-Rites-Sarthi-Frontend/src` (CRA) | modules: `call-desk-module/`, `finance-module/`, `sms-module/` (rail mill, has its own `store/` Redux) |
+| Rail Pad IE | `Dkg-Rites-Sarthi-Frontend/Railpad-IE/src` (Vite) | |
+| Sleeper IE | `Dkg-Rites-Sarthi-Frontend/Sleeper-Dashboard/src` (Vite) | `features/` per feature |
+| Vendor (ERC) | `Dkg-Rites-Sarthi-Vendor-Frontend/src` (CRA) | |
+| Rail Pad vendor | `Dkg-Rites-Sarthi-Vendor-Frontend/railpad/src` (Vite) | |
+| Sleeper vendor | `Dkg-Rites-Sarthi-Vendor-Frontend/sleeper-vendor/src` (Vite) | |
+
+Every app uses the same folders — put code where its job is:
+
+| Folder | Holds | Name pattern | Never |
+|---|---|---|---|
+| `pages/` | one screen per route: layout + wiring of components, hooks, services | `XyzPage.jsx` / `XyzDashboard.jsx` | API URLs, big inline tables/forms (extract to components) |
+| `components/` | reusable UI pieces; `components/common/` for app-wide ones (tables, modals, SearchSelect, KPI cards, toasts) | `XyzTable.jsx`, `XyzModal.jsx` (PascalCase) | API calls, global state writes |
+| `features/<feature>/` (Sleeper-Dashboard, or a big new feature) | a feature's own `components/ hooks/ services/` together | same as above | imports from another feature's internals |
+| `hooks/` | state + effects + data loading for a screen | `useXyz.js` (returns `{ data, loading, error, reload }`) | JSX |
+| `services/` | all HTTP calls through the shared client (`apiConfig` / axios instance with token) | `xyzService.js` — one function per endpoint, returns data or throws a readable error | UI, toasts, React imports |
+| `utils/` | pure helpers: formatters, date/IST, number/unit, IC-number parse, constants | `formatDate.js`, `icNumber.js` | side effects, API calls |
+| `config/` | `apiConfig`, env reading, route/role maps | | secrets |
+| `context/` / `store/` | app-wide state only (auth user, active role, rail-mill duty) | `XyzContext.jsx`, `xyzSlice.js` | per-screen data |
+| `routes/` | route table + role guards | | business logic |
+| `styles/` / `*.css` next to the component | styles using the colour tokens (§1.2) | `Xyz.css` | new hex colours, dark themes |
+| `schemas/` | form validation schemas | `xyzSchema.js` | |
+
+**Flow:** `page` → `components` (display) → `hooks` (state/effects) → `services` (API) → `utils` (pure). Data goes down via props, events go up via callbacks.
+
+- One component per file; file name = component name. Default export the component, named exports for helpers.
+- Split a component when it passes ~300 lines or does two jobs (e.g. a table + a modal + data loading → `XyzTable`, `XyzModal`, `useXyz`). When editing a big existing file, add new parts as new files instead of growing it.
+- Business rules (cutoff dates, qty checks, role rules) in a hook or `utils/`, never inline in JSX; the backend validates again.
+- Shared copied screens (e.g. Rail Pad Rejection Basket) stay identical in every app — change all copies together.
+- A new screen = route + page + components + hook + service function (+ util), named consistently (`RejectionBasketPage`, `useRejectionBasket`, `rejectionBasketService.getList`).
+
+### 2.5 Clean code — "ponytail" code (neat, tight, nothing loose)
+- **Small and single-purpose:** functions ≤ ~40 lines, components do one job; extract sub-components and hooks.
+- **Names say what it is:** `fullyRejected`, `isCutoffOver`, `heatRows`, handlers `handleSave` / `onSave`, booleans `is/has/can`. No `data2`, `temp`, `flag`.
+- **DRY:** same logic twice → one helper/hook in `utils/` or `hooks/`; same UI twice → one component.
+- **Early returns, flat JSX:** guard clauses; no ternaries nested more than one level in JSX — move to a variable or small component.
+- **State:** keep the minimum; derive the rest with `useMemo`; functional `setState(prev => …)` when it depends on the old value; correct effect dependency lists; abort/ignore stale requests on unmount or filter change.
+- **No dead code:** no commented-out blocks, unused imports/vars, `console.log`, debug alerts, TODOs without an owner. Git keeps history.
+- **Comments explain why** (one short line above a non-obvious rule), not what the code does.
+- **Errors:** every service call in `try/catch` (or the hook does it) with a toast showing the backend message; never swallow errors silently.
+- **Formatting:** follow the file's existing style (indent, quotes, semicolons) and line endings; no reformatting of untouched lines.
+- **Props:** keep them few and explicit; pass ids/values, not whole stores; give lists stable `key`s (ids, not indexes, when rows can change).
 
 ---
 

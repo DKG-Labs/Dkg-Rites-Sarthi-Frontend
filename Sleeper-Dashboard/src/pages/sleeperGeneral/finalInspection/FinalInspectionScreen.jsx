@@ -796,15 +796,16 @@ const FinalInspectionScreen = ({ call, onBack }) => {
                                 (mb.rejectedSleepers || []).forEach(r => { if (!have.has(getSCode(r))) rejList.push(r); });
                             }
                             const rejCodes = new Set(rejList.map(r => getSCode(r)));
-                            let finalAccepted = mb.acceptedSleepers.filter(s => !rejCodes.has(getSCode(s)));
-                            if (overlay.acceptedSleepers && overlay.acceptedSleepers.length > 0) {
-                                // Offered sleepers come from the call itself; a saved/draft list may only narrow it, never add sleepers beyond what was offered
-                                const masterAcc = new Set((mb.acceptedSleepers || []).map(x => getSCode(x)));
-                                const narrowed = masterAcc.size > 0
-                                    ? overlay.acceptedSleepers.filter(x => masterAcc.has(getSCode(x)))
-                                    : overlay.acceptedSleepers;
-                                if (narrowed.length > 0) finalAccepted = narrowed.filter(x => !rejCodes.has(getSCode(x)));
-                            }
+                            // Every sleeper offered in the call is either passed or rejected (offered = passed + rejected).
+                            // A saved/draft accepted list must not drop an offered sleeper that was never rejected, so
+                            // passed = all offered sleepers (the call's accepted + rejected lists) minus the rejected ones.
+                            // Turnout batches can hold the same sleeper number more than once (sleepers of two sets),
+                            // so offered entries are not de-duplicated by number, and each rejected sleeper removes ONE
+                            // offered entry (matched by sleeperId when both have it, else by number).
+                            const offeredList = [...(mb.acceptedSleepers || []), ...(mb.rejectedSleepers || [])]
+                                .filter(x => getSCode(x) !== '');
+                            const baseList = offeredList.length > 0 ? offeredList : (overlay.acceptedSleepers || []);
+                            let finalAccepted = removeOnePerRejected(baseList, rejList);
                             const offeredNow = Math.max(mb.offeredNow || 0, mb.acceptedSleepers.length + (mb.rejectedSleepers || []).length);
                             const overlayEt = (overlay.etSleepers || []).filter(s => getSCode(s) !== '' && getSCode(s) !== '0');
                             const mbEt = (mb.etSleepers || []).filter(s => getSCode(s) !== '' && getSCode(s) !== '0');
@@ -848,10 +849,16 @@ const FinalInspectionScreen = ({ call, onBack }) => {
                 }
 
                 setBatches(combinedBatches.map((b, i) => {
-                    // A rejected sleeper can never also be counted as passed
-                    const rc = new Set((b.rejectedSleepers || []).map(r => getSCode(r)));
-                    const acc = (b.acceptedSleepers || []).filter(x => !rc.has(getSCode(x)));
-                    return { ...b, rowKey: `${b.batchNo}#${i}`, acceptedSleepers: acc, passed: acc.length, rejected: rc.size };
+                    // A rejected sleeper can never also be counted as passed. Sleeper numbers can repeat in a turnout
+                    // batch, so rejected sleepers still inside the accepted list are taken out one-for-one, and only
+                    // when the lists overlap (accepted + rejected more than offered).
+                    const rej = b.rejectedSleepers || [];
+                    let acc = b.acceptedSleepers || [];
+                    const offered = Number(b.offeredNow || 0);
+                    if (rej.length > 0 && (offered <= 0 || acc.length + rej.length > offered)) {
+                        acc = removeOnePerRejected(acc, rej);
+                    }
+                    return { ...b, rowKey: `${b.batchNo}#${i}`, acceptedSleepers: acc, passed: acc.length, rejected: rej.length };
                 }));
 
                 // Fetch inspection call summary if summaryData is still missing
@@ -936,6 +943,26 @@ const FinalInspectionScreen = ({ call, onBack }) => {
         return (s?.sleeperCode || s?.sleeperNo || s?.code || '').toString().trim();
     };
     const getSReason = (s) => (typeof s === 'string' ? '' : (s?.reason || ''));
+
+    /**
+     * Offered sleepers minus rejected ones, one-for-one. A sleeper number can repeat within a turnout batch, so a
+     * rejected sleeper removes a single matching entry: by sleeperId when both entries have one, else by number.
+     */
+    const removeOnePerRejected = (offered, rejected) => {
+        const left = [...(offered || [])];
+        (rejected || []).forEach(r => {
+            const rId = typeof r === 'object' && r !== null ? r.sleeperId : undefined;
+            let idx = rId != null
+                ? left.findIndex(x => typeof x === 'object' && x !== null && x.sleeperId != null && String(x.sleeperId) === String(rId))
+                : -1;
+            if (idx < 0) {
+                const code = getSCode(r);
+                idx = code === '' ? -1 : left.findIndex(x => getSCode(x) === code);
+            }
+            if (idx >= 0) left.splice(idx, 1);
+        });
+        return left;
+    };
 
     const TURNOUT_SLEEPER_CONFIG = {
         '1 in 12 PnC: RT-9790': {
@@ -1407,8 +1434,10 @@ const FinalInspectionScreen = ({ call, onBack }) => {
 
         setBatches(prev => prev.map(batch => {
             if (batch.rowKey === rejectionEntry.batchNo) {
-                if (batch.rejectedSleepers.some(s => getSCode(s) === rejectionEntry.sleeperNo)) return batch;
-                const newAccepted = naturalSortSleepers(batch.acceptedSleepers.filter(s => getSCode(s) !== rejectionEntry.sleeperNo));
+                // Only a sleeper still among the passed ones can be rejected; a number can repeat in a turnout batch,
+                // so exactly one passed sleeper with that number moves to Rejected
+                if (!batch.acceptedSleepers.some(s => getSCode(s) === rejectionEntry.sleeperNo)) return batch;
+                const newAccepted = naturalSortSleepers(removeOnePerRejected(batch.acceptedSleepers, [rejectionEntry.sleeperNo]));
                 const newRejected = naturalSortSleepers([...batch.rejectedSleepers, {
                     sleeperCode: rejectionEntry.sleeperNo,
                     reason: rejectionEntry.reason,
@@ -1433,9 +1462,9 @@ const FinalInspectionScreen = ({ call, onBack }) => {
 
         setBatches(prev => prev.map(batch => {
             if (batch.rowKey === etEntry.batchNo) {
-                if (batch.etSleepers.some(s => getSCode(s) === etEntry.sleeperNo)) return batch;
+                if (!batch.acceptedSleepers.some(s => getSCode(s) === etEntry.sleeperNo)) return batch;
 
-                const newAccepted = naturalSortSleepers(batch.acceptedSleepers.filter(s => getSCode(s) !== etEntry.sleeperNo));
+                const newAccepted = naturalSortSleepers(removeOnePerRejected(batch.acceptedSleepers, [etEntry.sleeperNo]));
                 const newEt = naturalSortSleepers([...batch.etSleepers, {
                     sleeperCode: etEntry.sleeperNo,
                     reason: etEntry.reason

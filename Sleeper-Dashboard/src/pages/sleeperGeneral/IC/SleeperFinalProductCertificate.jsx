@@ -174,16 +174,18 @@ export default function SleeperFinalProductCertificate() {
 
     const uomStr = String(ic?.unit || ic?.uom || c?.uom || c?.unit || c?.callUnit || c?.qtyUnit || "").toLowerCase();
     const sleeperTypeStr = String(c?.sleeperType || c?.description || ic?.descriptionOfStores || "").toLowerCase();
-    const isSetUom = uomStr.includes('set') ||
+    // A measured UOM (QTY_UOM_RULES, e.g. Mtr / RMT) is never a Set IC, even for a PnC / turnout sleeper type
+    const measuredRule = getQtyUomRule(ic?.unit, ic?.uom, c?.uom, c?.unit, c?.callUnit, c?.qtyUnit);
+    const isSetUom = !measuredRule && (uomStr.includes('set') ||
                      sleeperTypeStr.includes('pnc') ||
                      sleeperTypeStr.includes('turnout') ||
                      sleeperTypeStr.includes('set') ||
                      sleeperTypeStr.includes('rt-9790') ||
                      sleeperTypeStr.includes('rt-4218') ||
-                     sleeperTypeStr.includes('rt-4865');
+                     sleeperTypeStr.includes('rt-4865'));
 
     // UOMs configured in QTY_UOM_RULES (e.g. RMT) carry their own unit words / label
-    const qtyUomRule = isSetUom ? null : getQtyUomRule(ic?.unit, ic?.uom, c?.uom, c?.unit, c?.callUnit, c?.qtyUnit);
+    const qtyUomRule = isSetUom ? null : measuredRule;
     const unitNoun = isSetUom ? "sets" : (qtyUomRule ? qtyUomRule.wordsNoun : "numbers");
     const showMfText = !isSetUom && !qtyUomRule;
 
